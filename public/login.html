@@ -153,7 +153,15 @@ async function doSignUp(e){
   document.getElementById('msgUp').textContent='';
   try{
     await signUpWithEmail(em,pw,dn);
-    // now server-side verification: store pending creds + auto-send 6-digit code
+    // If Supabase auto-confirms (no email sent), sign in straight away.
+    try{
+      await signInWithEmail(em,pw);
+      localStorage.setItem('cudic_seat','s'+Date.now().toString(36)+Math.random().toString(36).slice(2,10));
+      await claimSeat();
+      window.location.href='/chat';
+      return;
+    }catch(e){}
+    // Otherwise fall back to server-side 6-digit code flow.
     lastEmail=em; lastPw=pw;
     document.getElementById('t-up').style.display='none';
     document.getElementById('formUp').style.display='none';
