@@ -142,6 +142,16 @@ async function needVerified(user, res) {
 function codeHash(email, code) {
   return crypto.createHash('sha256').update(email.toLowerCase() + ':' + code).digest('hex');
 }
+async function activeBan(userId, kind) {
+  if (!userId) return null;
+  try {
+    const { data } = await supabase.from('user_bans').select('banned_until, reason').eq('user_id', userId).eq('kind', kind || 'chat').order('banned_until', { ascending: false }).limit(1);
+    const row = data && data[0];
+    if (!row) return null;
+    if (new Date(row.banned_until).getTime() <= Date.now()) return null;
+    return row;
+  } catch { return null; }
+}
 
 const PORT = process.env.PORT || 3000;
 
