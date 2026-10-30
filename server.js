@@ -4462,9 +4462,10 @@ function slugify(s) {
     url.pathname = '/chat.html';
   }
 
-  // ── Redirect /login to the sign-in screen ─────────────────────
+  // ── Redirect /login to the sign-in screen (vanilla build; the
+  // Next.js login export has a hydration bug that kills its handlers) ──
   if (url.pathname === '/login') {
-    url.pathname = '/login.html';
+    url.pathname = '/login-legacy.html';
   }
 
   // ── Redirect /welcome to the setup wizard ──────────────────────
