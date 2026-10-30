@@ -206,7 +206,11 @@ window.addEventListener('message', async (e) => {
   }
   const binTag = '<script>window.__CUDIC_BIN__ = ' + JSON.stringify(binMap).replace(/<\//g, '<\\/') + ';<\/script>';
   const projTag = projectJson ? '<script>window.__SCRATCH_PROJECT__ = ' + projectJson.replace(/<\//g, '<\\/') + ';<\/script>' : '';
-  const fwd = '<script>["log","warn","error"].forEach(function(k){var o=console[k];console[k]=function(){var t=Array.prototype.map.call(arguments,String).join(" ");parent.postMessage({type:"console",level:k==="log"?"info":k,text:t},"*");o.apply(console,arguments)}});window.addEventListener("error",function(e){parent.postMessage({type:"console",level:"error",text:e.message},"*")})<\/script>' + binTag + projTag + mapTag;
+  // localStorage shim: sandboxed frames (no allow-same-origin) throw SecurityError
+  // on any localStorage access, which kills games that read a "best score" at load.
+  // In-memory fallback keeps them playable; real persistence goes through CudicSave.
+  const lsShim = '<script>try{localStorage.getItem("__probe")}catch(e){var __mem={};window.localStorage={getItem:function(k){return k in __mem?__mem[k]:null},setItem:function(k,v){__mem[k]=String(v)},removeItem:function(k){delete __mem[k]},clear:function(){__mem={}},key:function(i){return Object.keys(__mem)[i]||null},get length(){return Object.keys(__mem).length}}}<\/script>';
+  const fwd = '<script>["log","warn","error"].forEach(function(k){var o=console[k];console[k]=function(){var t=Array.prototype.map.call(arguments,String).join(" ");parent.postMessage({type:"console",level:k==="log"?"info":k,text:t},"*");o.apply(console,arguments)}});window.addEventListener("error",function(e){parent.postMessage({type:"console",level:"error",text:e.message},"*")})<\/script>' + lsShim + binTag + projTag + mapTag;
   parent.postMessage({ type: 'console', level: 'info', text: 'Running' }, '*');
   // ponytail: doctype must stay first or the frame renders in quirks mode
   const doc = (/^\s*<!doctype html>/i.test(index))
