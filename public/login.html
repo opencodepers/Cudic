@@ -51,6 +51,7 @@ input:focus{border-color:var(--blue)}
 </style>
 </head>
 <body>
+
 <nav aria-label="Top"><a href="/">Cudic</a><span class="sp"></span><a href="/login">Sign in</a></nav>
 <div class="wrap" role="main">
   <div class="hero"><h1>Welcome back<span class="cur"></span></h1><p>Pick up where you left off.</p></div>
@@ -152,25 +153,31 @@ async function doSignUp(e){
   document.getElementById('msgUp').textContent='';
   try{
     await signUpWithEmail(em,pw,dn);
-    showToast('Account created — confirm your email.');
-    document.getElementById('codeWrap').style.display='';
-    document.getElementById('formUp').style.display='none';
+    // now server-side verification: store pending creds + auto-send 6-digit code
+    lastEmail=em; lastPw=pw;
     document.getElementById('t-up').style.display='none';
+    document.getElementById('formUp').style.display='none';
+    document.getElementById('codeWrap').style.display='';
+    document.getElementById('codeSub').textContent='We sent a 6-digit code to '+em+'.';
+    resendCode();
   }catch(err){document.getElementById('msgUp').textContent = err&&err.message ? err.message : 'Could not create account.';}
 }
 function signInWithGitHub(){ signInWithGitHub(); }
 function guestLogin(){ window.location.href='/'; }
 
-var lastEmail='';
+var lastEmail='', lastPw='';
 async function resendCode(){
   if(!lastEmail)return;
-  try{await fetch((typeof WS_URL!=='undefined'&&WS_URL?WS_URL.replace(/^wss?:\/\//,'https://'):'')+'/auth/send-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:lastEmail})});showToast('Code resent.');}catch(e){showToast('Resend failed.');}
+  try{await fetch((typeof WS_URL!=='undefined'&&WS_URL?WS_URL.replace(/^wss?:\/\//,'https://'):'')+'/auth/send-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:lastEmail})});showToast('Code sent — check your inbox.');}catch(e){showToast('Resend failed.');}
 }
 async function verifyCode(){
   var c=document.getElementById('code').value.trim();
   try{
     var res=await fetch((typeof WS_URL!=='undefined'&&WS_URL?WS_URL.replace(/^wss?:\/\//,'https://'):'')+'/auth/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:lastEmail,code:c})});
-    if(res.ok){window.location.href='/chat';}else{document.getElementById('codeSub').textContent='Invalid code — try again.';}
+    if(res.ok){
+      try{await signInWithEmail(lastEmail,lastPw);}catch(e){}
+      window.location.href='/chat';
+    }else{document.getElementById('codeSub').textContent='Invalid code — try again.';}
   }catch(e){document.getElementById('codeSub').textContent='Error verifying.';}
 }
 function showForgot(){document.getElementById('forgotWrap').style.display='';}
