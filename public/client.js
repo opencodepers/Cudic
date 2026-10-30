@@ -173,6 +173,11 @@ async function boot() {
   if (sessionErr) return;
   if (!session || !session.user) { window.location.href = '/login'; return; }
   ME = session.user.id;
+  // Onboarding gate: users without setup_done get sent to the welcome wizard.
+  try {
+    const p = await api('/api/profile');
+    if (p && p.profile && p.profile.setup_done === false) { window.location.href = '/welcome'; return; }
+  } catch (e) {}
   renderConvs();   // the list may have painted before ME was known ("you:")
   // Hard email gate: unconfirmed accounts can't enter chat even by
   // typing the URL — login holds the code screen instead. Fail open on

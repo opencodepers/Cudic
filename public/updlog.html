@@ -31,9 +31,6 @@
   .u-status { font-size: 0.85rem; margin-top: 6px; min-height: 1.2em; }
   .u-status.ok { color: var(--signal); }
   .u-status.err { color: var(--danger); }
-  .u-filters { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
-  .u-filters button { padding: 6px 12px; font-size: 0.78rem; cursor: pointer; }
-  .u-filters button.on { border-color: var(--signal); color: var(--signal); }
 </style></head>
 <body data-page="updlog">
 <div class="page-panel"><div class="u-layout"><main class="u-content">
@@ -55,7 +52,6 @@
     </div>
     <div class="u-status" id="uStatus"></div>
   </div>
-  <div class="u-filters" id="uFilters"></div>
   <div id="uNote" class="u-empty" style="display:none;margin-top:18px;font-size:0.78rem">
     Auto-update: add a GitHub webhook (Payload URL <code>https://glox-o7rr.onrender.com/api/webhooks/github</code>, content type JSON, secret = <code>GITHUB_WEBHOOK_SECRET</code> env var, event: push) and every future push posts itself. Or use <em>Sync from GitHub</em> (needs <code>GITHUB_TOKEN</code> env var) to pull the latest 100 commits on demand.
   </div>
@@ -92,30 +88,19 @@
   });
 
   var all = [];
-  var filter = 'all';
   async function load() {
     try {
       var r = await fetch(apiHost()+'/api/changelog');
       var d = await r.json();
       all = d.entries || [];
-      renderFilters();
       render();
     } catch (e) {
       document.getElementById('uList').innerHTML = '<div class="u-empty">Could not load the log.</div>';
     }
   }
-  function kinds() { var s = {}; all.forEach(function(e){ s[e.kind]=1; }); return Object.keys(s); }
-  function renderFilters() {
-    var el = document.getElementById('uFilters');
-    var ks = ['all'].concat(kinds());
-    el.innerHTML = ks.map(function(k){ return '<button data-k="'+esc(k)+'" class="'+(k===filter?'on':'')+'">'+esc(k)+'</button>'; }).join('');
-    el.querySelectorAll('button').forEach(function(b){
-      b.addEventListener('click', function(){ filter = b.dataset.k; renderFilters(); render(); });
-    });
-  }
   function render() {
     var list = document.getElementById('uList');
-    var shown = filter === 'all' ? all : all.filter(function(e){ return e.kind === filter; });
+    var shown = all;
     if (!shown.length) { list.innerHTML = '<div class="u-empty">Nothing posted yet.</div>'; return; }
     // group by day
     var groups = {};
