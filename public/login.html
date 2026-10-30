@@ -174,20 +174,20 @@ function guestLogin(){ window.location.href='/'; }
 var lastEmail='', lastPw='', lastUid='';
 async function resendCode(){
   if(!lastEmail)return;
-  try{await fetch((typeof WS_URL!=='undefined'&&WS_URL?WS_URL.replace(/^wss?:\/\//,'https://'):'')+'/auth/send-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:lastEmail})});showToast('Code sent — check your inbox.');}catch(e){showToast('Resend failed.');}
+  try{await fetch((typeof WS_URL!=='undefined'&&WS_URL?WS_URL.replace(/^wss?:\/\//,'https://'):'')+'/auth/send-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:lastEmail})});document.getElementById('codeSub').textContent='Code sent. Wait a moment before confirming.';showToast('Code sent — check inbox.');}catch(e){showToast('Resend failed.');}
 }
 async function verifyCode(){
   var c=document.getElementById('code').value.trim();
-  try{
-    var res=await fetch((typeof WS_URL!=='undefined'&&WS_URL?WS_URL.replace(/^wss?:\/\//,'https://'):'')+'/auth/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:lastEmail,code:c,userId:lastUid})});
-    var d=null; try{d=await res.json();}catch(e){}
-    if(res.ok){
-      try{await signInWithEmail(lastEmail,lastPw);}catch(e){}
-      window.location.href='/chat';
-    }else{
+  if(!c||c.length!==6){document.getElementById('codeSub').textContent='Enter the 6-digit code.';return;}
+  for(var attempt=0;attempt<3;attempt++){
+    try{
+      var res=await fetch((typeof WS_URL!=='undefined'&&WS_URL?WS_URL.replace(/^wss?:\/\//,'https://'):'')+'/auth/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:lastEmail,code:c,userId:lastUid})});
+      var d=null; try{d=await res.json();}catch(e){}
+      if(res.ok){try{await signInWithEmail(lastEmail,lastPw);}catch(e){};window.location.href='/chat';return;}
+      if(attempt<2){await new Promise(r=>setTimeout(r,800));continue;}
       document.getElementById('codeSub').textContent = (d&&d.error)?d.error:'Invalid code — try again.';
-    }
-  }catch(e){document.getElementById('codeSub').textContent='Error verifying.';}
+    }catch(e){if(attempt>=2){document.getElementById('codeSub').textContent='Error verifying.';}}
+  }
 }
 function showForgot(){document.getElementById('forgotWrap').style.display='';}
 async function sendReset(){
