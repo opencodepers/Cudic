@@ -508,3 +508,30 @@ CREATE POLICY "Owners can read own packs" ON public.theme_packs FOR SELECT USING
 
 CREATE POLICY "Users can read own pack ownership" ON public.pack_ownership FOR SELECT USING ((user_id = auth.uid()));
 CREATE POLICY "Users can read own reports" ON public.reports FOR SELECT USING ((reporter_id = auth.uid()));
+
+-- ===== auth trigger: create public.users profile row on signup (mirrors old DB) =====
+CREATE SEQUENCE IF NOT EXISTS public.user_id_seq START WITH 1000;
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+BEGIN
+  INSERT INTO public.users (id, user_id, display_name, avatar_url)
+  VALUES (
+    new.id,
+    nextval('public.user_id_seq'),
+    coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name', split_part(new.email, '@', 1)),
+    coalesce(new.raw_user_meta_data ->> 'avatar_url', null)
+  );
+  RETURN new;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW
+EXECUTE FUNCTION handle_new_user();
