@@ -267,7 +267,8 @@
         var _ph=(typeof WS_URL!=='undefined'&&WS_URL)?WS_URL.replace(/^wss?:\/\//,'https://'):'';
         var _pr=await fetch(_ph+'/api/profile',{headers:{'Authorization':'Bearer '+window.currentToken}});
         var _pd=await _pr.json().catch(function(){return {};});
-        if(_pd&&_pd.profile&&_pd.profile.setup_done===false){window.location.href='/welcome';return;}
+        // Onboarding wizard removed (/welcome thinned); no redirect.
+        // if(_pd&&_pd.profile&&_pd.profile.setup_done===false&&!window.location.pathname.startsWith('/welcome')){window.location.href='/welcome';return;}
       }
     }catch(e){}
     // Brand link: games panel when signed in, landing when not.
