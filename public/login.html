@@ -154,16 +154,13 @@ async function doSignUp(e){
   try{
     var d=await signUpWithEmail(em,pw,dn);
     lastUid=(d&&d.user&&d.user.id)||'';
-    // If Supabase auto-confirms (no email sent), sign in straight away.
-    try{
-      await signInWithEmail(em,pw);
-      localStorage.setItem('cudic_seat','s'+Date.now().toString(36)+Math.random().toString(36).slice(2,10));
-      await claimSeat();
-      window.location.href='/chat';
-      return;
-    }catch(e){}
-    // Otherwise fall back to server-side 6-digit code flow.
     lastEmail=em; lastPw=pw;
+    // Supabase sends nothing (Confirm email OFF). Only our Gmail /auth/send-code sends the 6-digit code.
+    document.getElementById('t-up').style.display='none';
+    document.getElementById('formUp').style.display='none';
+    document.getElementById('codeWrap').style.display='';
+    document.getElementById('codeSub').textContent='We sent a 6-digit code to '+em+'.';
+    resendCode();
     document.getElementById('t-up').style.display='none';
     document.getElementById('formUp').style.display='none';
     document.getElementById('codeWrap').style.display='';
