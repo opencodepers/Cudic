@@ -152,7 +152,8 @@ async function doSignUp(e){
   var pw=document.getElementById('pwUp').value; var dn=document.getElementById('dnUp').value.trim();
   document.getElementById('msgUp').textContent='';
   try{
-    await signUpWithEmail(em,pw,dn);
+    var d=await signUpWithEmail(em,pw,dn);
+    lastUid=(d&&d.user&&d.user.id)||'';
     // If Supabase auto-confirms (no email sent), sign in straight away.
     try{
       await signInWithEmail(em,pw);
@@ -173,7 +174,7 @@ async function doSignUp(e){
 function signInWithGitHub(){ signInWithGitHub(); }
 function guestLogin(){ window.location.href='/'; }
 
-var lastEmail='', lastPw='';
+var lastEmail='', lastPw='', lastUid='';
 async function resendCode(){
   if(!lastEmail)return;
   try{await fetch((typeof WS_URL!=='undefined'&&WS_URL?WS_URL.replace(/^wss?:\/\//,'https://'):'')+'/auth/send-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:lastEmail})});showToast('Code sent — check your inbox.');}catch(e){showToast('Resend failed.');}
@@ -181,11 +182,14 @@ async function resendCode(){
 async function verifyCode(){
   var c=document.getElementById('code').value.trim();
   try{
-    var res=await fetch((typeof WS_URL!=='undefined'&&WS_URL?WS_URL.replace(/^wss?:\/\//,'https://'):'')+'/auth/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:lastEmail,code:c})});
+    var res=await fetch((typeof WS_URL!=='undefined'&&WS_URL?WS_URL.replace(/^wss?:\/\//,'https://'):'')+'/auth/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:lastEmail,code:c,userId:lastUid})});
+    var d=null; try{d=await res.json();}catch(e){}
     if(res.ok){
       try{await signInWithEmail(lastEmail,lastPw);}catch(e){}
       window.location.href='/chat';
-    }else{document.getElementById('codeSub').textContent='Invalid code — try again.';}
+    }else{
+      document.getElementById('codeSub').textContent = (d&&d.error)?d.error:'Invalid code — try again.';
+    }
   }catch(e){document.getElementById('codeSub').textContent='Error verifying.';}
 }
 function showForgot(){document.getElementById('forgotWrap').style.display='';}
