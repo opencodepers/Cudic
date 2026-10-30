@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Create account — Cudic</title>
+<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d0e10;--panel:#14161b;--line:#262a33;--ink:#f7f5ec;--mute:#9a9a94;--lime:#b8f23a;--blue:#3f7cff;--font:"Geist",system-ui,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 var(--font);min-height:100vh;display:flex;flex-direction:column}
+.wrap{max-width:420px;margin:auto;padding:48px 24px;width:100%}
+nav{border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0;z-index:10;padding:12px 24px;display:flex;align-items:center;gap:12px}
+nav a{color:var(--ink);text-decoration:none;font-weight:500;font-size:14px}
+nav .sp{flex:1}
+.hero{padding:28px 0 10px;text-align:center}
+.hero h1{font-weight:500;font-size:clamp(36px,7vw,72px);line-height:.95;letter-spacing:-.035em;margin:0 0 8px}
+.hero p{margin:0;color:var(--mute);font-size:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:28px;position:relative;margin-top:24px}
+.card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--lime)}
+label{display:block;font-family:"Geist Mono",ui-monospace,monospace;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);font-size:12px;margin:14px 0 6px}
+input{width:100%;padding:12px 14px;background:var(--bg);border:1px solid var(--line);color:var(--ink);font:inherit;font-size:15px;border-radius:6px;outline:none;transition:border-color .12s steps(2)}
+input:focus{border-color:var(--blue)}
+.info{font-size:12px;color:var(--red);margin:4px 0 0;min-height:20px}
+.btn{display:inline-flex;background:var(--blue);color:#0d0e10;padding:12px 20px;border-radius:8px;font-weight:600;font-size:14px;text-decoration:none;border:1px solid transparent;cursor:pointer;align-items:center;gap:10px;transition:transform .12s steps(2),box-shadow .12s steps(2);margin:6px 8px 6px 0;font-family:inherit;border:none}
+.btn:hover{transform:translate(-3px,-3px);box-shadow:3px 3px 0 var(--ink)}
+.btn:active{transform:none;box-shadow:none}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20;font-family:inherit}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+<nav aria-label="Top"><a href="/">Cudic</a><span class="sp"></span><a href="/login">Sign in</a></nav>
+<div class="wrap" role="main">
+  <div class="hero"><h1>Create account</h1><p>One account — saves, studio, gallery, chat.</p></div>
+  <div class="card">
+    <form onsubmit="doSignUp(event)">
+      <label for="sname">Display name</label>
+      <input id="sname" type="text" placeholder="What people call you" autocomplete="name" required>
+      <label for="semail">Email</label>
+      <input id="semail" type="email" placeholder="you@example.com" autocomplete="email" required>
+      <label for="spw">Password</label>
+      <input id="spw" type="password" placeholder="At least 8 characters" autocomplete="new-password" required>
+      <button type="submit" class="btn">Create account →</button>
+      <div id="smsg" class="info"></div>
+    </form>
+  </div>
+</div>
+<div class="toast" id="t">Account created.</div>
+<script src="/auth.js"></script>
+<script>
+async function doSignUp(e){e.preventDefault();document.getElementById('smsg').textContent='';try{await signUpWithEmail(document.getElementById('semail').value.trim(),document.getElementById('spw').value,document.getElementById('sname').value.trim());var t=document.getElementById('t');t.classList.add('on');t.textContent='Account created — check email.';setTimeout(function(){t.classList.remove('on');window.location.href='/chat';},1800);}catch(err){document.getElementById('smsg').textContent=(err&&err.message)?err.message:'Could not create account.';}}
+</script>
+</body>
+</html>

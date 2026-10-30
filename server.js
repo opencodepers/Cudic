@@ -4465,7 +4465,7 @@ function slugify(s) {
   // ── Redirect /login to the sign-in screen (vanilla build; the
   // Next.js login export has a hydration bug that kills its handlers) ──
   if (url.pathname === '/login') {
-    url.pathname = '/login-legacy.html';
+    url.pathname = '/login.html';
   }
 
   // ── Redirect /welcome to the setup wizard ──────────────────────
