@@ -1,4 +1,4 @@
-// Collab editing: peer-to-peer via Yjs + y-webrtc (open source).
+﻿// Collab editing: peer-to-peer via Yjs + y-webrtc (open source).
 // Mounted as a left-sidebar panel (like Explorer/Search) instead of a
 // floating widget. Auto-reconnects on reload using the saved room code.
 import * as vscode from 'vscode';
@@ -385,7 +385,7 @@ function connectRoom(code: string) {
   // Use the signed-in display name when available.
   (async () => {
     try {
-      const tokRaw = localStorage.getItem('sb-opimjwmgmzwapkzgxvhk-auth-token');
+      const tokRaw = localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token');
       if (!tokRaw) return;
       const tok = (() => { try { const j = JSON.parse(tokRaw); return j && j.access_token || tokRaw; } catch (e) { return tokRaw; } })();
       const r = await fetch('/api/profile', { headers: { 'Authorization': 'Bearer ' + tok } });

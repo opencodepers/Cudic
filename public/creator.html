@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
@@ -221,7 +221,7 @@ footer{padding:24px;text-align:center;color:var(--mute);font-size:.78rem;border-
   function authToken(){
     try {
       if (window.getAuthToken) return window.getAuthToken().then(function(a){ return a || null; });
-      var s = JSON.parse(localStorage.getItem('sb-opimjwmgmzwapkzgxvhk-auth-token'));
+      var s = JSON.parse(localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token'));
       return Promise.resolve(s && s.access_token || null);
     } catch (e) { return Promise.resolve(null); }
   }

@@ -1,4 +1,4 @@
-/* Animated theme toggler — Magic UI "animated-theme-toggler" pattern, vanilla:
+﻿/* Animated theme toggler — Magic UI "animated-theme-toggler" pattern, vanilla:
    View Transitions API + clip-path circle reveal expanding from the button.
    Swaps the site's glox_theme key and :root[data-theme="light|dark"].
    - Rail pages: #themeBtn already exists; sidebar.js delegates clicks here.
@@ -27,7 +27,7 @@
         if (_transitioning) return;   // ignore rapid toggles mid-transition
         var next = isDark() ? 'light' : 'dark';
         function apply() {
-            var tokRaw = (typeof localStorage !== 'undefined') ? localStorage.getItem('sb-opimjwmgmzwapkzgxvhk-auth-token') : '';
+            var tokRaw = (typeof localStorage !== 'undefined') ? localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token') : '';
         var tok = tokRaw ? (function () { try { var s = JSON.parse(tokRaw); return s && s.access_token ? s.access_token : tokRaw; } catch (e) { return tokRaw; } })() : '';
             if (tok && typeof fetch !== 'undefined') {
                 fetch('/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: JSON.stringify({ theme: next }) }).catch(function () {});
@@ -86,7 +86,7 @@
 
     /* Boot from account when signed in (supersedes localStorage/default) */
     (function () {
-        var tokRaw = (typeof localStorage !== 'undefined') ? localStorage.getItem('sb-opimjwmgmzwapkzgxvhk-auth-token') : '';
+        var tokRaw = (typeof localStorage !== 'undefined') ? localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token') : '';
         var tok = tokRaw ? (function () { try { var s = JSON.parse(tokRaw); return s && s.access_token ? s.access_token : tokRaw; } catch (e) { return tokRaw; } })() : '';
         if (!tok) return;
         fetch('/api/profile', { headers: { 'Authorization': 'Bearer ' + tok } })

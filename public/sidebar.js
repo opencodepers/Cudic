@@ -1,4 +1,4 @@
-// ── Glox Sidebar Component ──────────────────────────────
+﻿// ── Glox Sidebar Component ──────────────────────────────
 (function(){
   if(window._gloxSidebar) return; window._gloxSidebar=true;
   if(document.querySelector('nav.sidebar'))return;
@@ -18,7 +18,7 @@
       }
     }catch(e){}
     try{
-      var raw=localStorage.getItem('sb-opimjwmgmzwapkzgxvhk-auth-token');
+      var raw=localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token');
       var s=raw?JSON.parse(raw):null;
       if(s&&s.access_token)return s.access_token;
     }catch(e){}
@@ -166,7 +166,7 @@
   // Unread notification badge on the bell (quiet: no badge when signed out).
   (function(){
     try {
-      var s = localStorage.getItem('sb-opimjwmgmzwapkzgxvhk-auth-token');
+      var s = localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token');
       var tok = s ? (function(){ try { var j = JSON.parse(s); return j && j.access_token || s; } catch(e){ return s; } })() : '';
       if (!tok) return;
       fetch('/api/notifications', { headers: { 'Authorization': 'Bearer ' + tok } })
@@ -281,7 +281,7 @@
     loadSidebarUser();
     loadServers();
     try{
-      if(attempted&&!localStorage.getItem('sb-opimjwmgmzwapkzgxvhk-auth-token')){
+      if(attempted&&!localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token')){
         var diag=['cfg='+(typeof SUPABASE_URL!=='undefined'?'ok':'MISSING')];
         try{
           if(typeof getSupabase==='function'){
@@ -388,13 +388,13 @@
   if(accountRow&&logoutBtn){
     accountRow.addEventListener('mouseenter',function(){
       var loggedIn=false;
-      try{var raw=localStorage.getItem('sb-opimjwmgmzwapkzgxvhk-auth-token');if(raw){var s=JSON.parse(raw);loggedIn=!!(s&&s.access_token);}}catch(e){}
+      try{var raw=localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token');if(raw){var s=JSON.parse(raw);loggedIn=!!(s&&s.access_token);}}catch(e){}
       if(loggedIn){
         logoutBtn.textContent='Logout';
         logoutBtn.onclick=function(e){
           e.stopPropagation();
           try{if(typeof getSupabase==='function'){getSupabase().then(function(db){if(db){try{db.auth.signOut();}catch(x){}}}).catch(function(){});}}catch(x){}
-          localStorage.removeItem('sb-opimjwmgmzwapkzgxvhk-auth-token');
+          localStorage.removeItem('sb-qgcydphkaujomxyzwcht-auth-token');
           window.location.href='/';
         };
       }else{

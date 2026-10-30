@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+﻿<!DOCTYPE html><html lang="en"><head><script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cudic — Play</title>
@@ -298,7 +298,7 @@ setInterval(function () {
         if (window.getAuthToken) return window.getAuthToken();
       } catch (e) {}
       try {
-        var r = localStorage.getItem('sb-opimjwmgmzwapkzgxvhk-auth-token');
+        var r = localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token');
         return Promise.resolve(r ? JSON.parse(r).access_token : null);
       } catch (e) { return Promise.resolve(null); }
     }

@@ -1,4 +1,4 @@
-// Cudic Studio Phase 1 — workbench shell + built-in Cudic panels
+﻿// Cudic Studio Phase 1 — workbench shell + built-in Cudic panels
 import '@codingame/monaco-vscode-theme-defaults-default-extension';
 import '@codingame/monaco-vscode-theme-seti-default-extension';
 import '@codingame/monaco-vscode-javascript-default-extension';
@@ -258,7 +258,7 @@ registerCollabCommands(shadowRoot);
 void registerCudicAi(shadowRoot);
 function pushSupaToken(): void {
   try {
-    const raw = localStorage.getItem('sb-opimjwmgmzwapkzgxvhk-auth-token');
+    const raw = localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token');
     const tok = raw ? (JSON.parse(raw).access_token as string) ?? null : null;
     // Don't send dead tokens: an expired JWT only buys a confusing proxy
     // 401. Null reads as "not logged in" everywhere downstream.

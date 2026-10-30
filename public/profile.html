@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+﻿<!DOCTYPE html><html lang="en"><head><script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cudic — Profile</title>
@@ -332,7 +332,7 @@
   <script src="/theme-toggle.js?v=1"></script>
   <script>
   (async function(){
-    var TOKEN_KEY = 'sb-opimjwmgmzwapkzgxvhk-auth-token';
+    var TOKEN_KEY = 'sb-qgcydphkaujomxyzwcht-auth-token';
     async function token(){ try { if(window.getAuthToken){ var a=await window.getAuthToken(); if(a) return a; } var s = JSON.parse(localStorage.getItem(TOKEN_KEY)); return s && s.access_token; } catch(e){ return null; } }
     function apiHost(){ return (typeof WS_URL !== 'undefined' && WS_URL) ? WS_URL.replace(/^wss?:\/\//, 'https://') : ''; }
     var urlId = new URLSearchParams(window.location.search).get('id');
@@ -1063,7 +1063,7 @@
   (function(){
     var box = document.getElementById('statsBody');
     if (!box) return;
-    var KEY = 'sb-opimjwmgmzwapkzgxvhk-auth-token';
+    var KEY = 'sb-qgcydphkaujomxyzwcht-auth-token';
     function apiHost(){ return (typeof WS_URL !== 'undefined' && WS_URL) ? WS_URL.replace(/^wss?:\/\//, 'https://') : ''; }
     function esc(s){ var d = document.createElement('div'); d.textContent = (s == null ? '' : s); return d.innerHTML; }
     async function token(){

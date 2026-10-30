@@ -1,4 +1,4 @@
-// Cudic theme packs — static-file v1. Packs live in /packs/<slug>/manifest.json.
+﻿// Cudic theme packs — static-file v1. Packs live in /packs/<slug>/manifest.json.
 // (/packs, not /themes — a /themes directory shadows the /themes rewrite on Vercel.)
 // A pack is pure JSON: colors, fonts, wallpaper, art, icons, motion. Nothing in
 // a pack ever executes — scenes/animations ship here and packs reference by id.
@@ -373,7 +373,7 @@
     mountSidebar();
   }
   function persist(slug, manifest) {
-    var tokRaw = (typeof localStorage !== 'undefined') ? localStorage.getItem('sb-opimjwmgmzwapkzgxvhk-auth-token') : '';
+    var tokRaw = (typeof localStorage !== 'undefined') ? localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token') : '';
     var tok = tokRaw ? (function () { try { var s = JSON.parse(tokRaw); return s && s.access_token ? s.access_token : tokRaw; } catch (e) { return tokRaw; } })() : '';
     if (tok && typeof fetch !== 'undefined') {
       fetch('/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: JSON.stringify({ pack_slug: slug || null }) }).catch(function () {});
@@ -394,7 +394,7 @@
     return currentSlug;
   }
   async function boot() {
-    var tokRaw = (typeof localStorage !== 'undefined') ? localStorage.getItem('sb-opimjwmgmzwapkzgxvhk-auth-token') : '';
+    var tokRaw = (typeof localStorage !== 'undefined') ? localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token') : '';
     var tok = tokRaw ? (function () { try { var s = JSON.parse(tokRaw); return s && s.access_token ? s.access_token : tokRaw; } catch (e) { return tokRaw; } })() : '';
     var profileSlug = null;
     if (tok && typeof fetch !== 'undefined') {

@@ -1,4 +1,4 @@
-// ── Shared island helpers: read-only bridge to the classic page ──
+﻿// ── Shared island helpers: read-only bridge to the classic page ──
 // Islands never duplicate auth/config: everything comes from the host
 // page's globals (config.js / auth.js / sidebar.js). All class names
 // below are informational only — styling is scoped .isl- CSS.
@@ -21,7 +21,7 @@ export async function getToken(): Promise<string | null> {
     }
   } catch {}
   try {
-    const r = localStorage.getItem('sb-opimjwmgmzwapkzgxvhk-auth-token');
+    const r = localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token');
     return r ? JSON.parse(r).access_token : null;
   } catch {
     return null;

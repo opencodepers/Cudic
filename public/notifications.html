@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
@@ -48,7 +48,7 @@ a.ref:hover{text-decoration:underline}
 (function(){
   function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':s; return d.innerHTML; }
   function apiHost(){ return (typeof WS_URL!=='undefined'&&WS_URL)?WS_URL.replace(/^wss?:\/\//,'https://'):''; }
-  function token(){ try { if(window.getAuthToken) return window.getAuthToken().then(function(a){return a||null;}); var s=JSON.parse(localStorage.getItem('sb-opimjwmgmzwapkzgxvhk-auth-token')); return Promise.resolve(s&&s.access_token||null); } catch(e){ return Promise.resolve(null); } }
+  function token(){ try { if(window.getAuthToken) return window.getAuthToken().then(function(a){return a||null;}); var s=JSON.parse(localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token')); return Promise.resolve(s&&s.access_token||null); } catch(e){ return Promise.resolve(null); } }
   var list=document.getElementById('list');
   function refUrl(n){
     if(n.ref_type==='game'&&n.ref_id) return '/view.html?id='+encodeURIComponent(n.ref_id);

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head><script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
@@ -363,7 +363,7 @@
     (function () {
       var grid = document.getElementById('packGrid'), resetBtn = document.getElementById('resetPack'), toastEl = document.getElementById('packToast');
       var manifests = {}, meta = {}, staticSlugs = [];
-      var TOKEN_KEY = 'sb-opimjwmgmzwapkzgxvhk-auth-token';
+      var TOKEN_KEY = 'sb-qgcydphkaujomxyzwcht-auth-token';
       var URL_TOKEN = (function () { var t = new URLSearchParams(window.location.search).get('token'); if (t) scrubTokenUrl(); return t; })();
       function apiHost() { return (typeof WS_URL !== 'undefined' && WS_URL) ? WS_URL.replace(/^wss?:\/\//, 'https://') : ''; }
       async function token() {
