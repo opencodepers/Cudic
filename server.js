@@ -4473,6 +4473,11 @@ function slugify(s) {
     url.pathname = '/welcome.html';
   }
 
+  // ── Redirect /signup ──────────────────────────────────────────────
+  if (url.pathname === '/signup') {
+    url.pathname = '/signup.html';
+  }
+
   // ── Redirect /profile to /profile.html ─────────────────────────
   if (url.pathname === '/profile') {
     url.pathname = '/profile.html';
