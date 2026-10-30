@@ -2688,11 +2688,17 @@ function slugify(s) {
     }
     const awarded = Math.min(tier, Math.max(0, coinsMax - w.coins));
     try {
-      const { data: bal, error } = await supabase.rpc('grant_coins', { p_user: user.id, p_delta: awarded, p_reason: 'ad:' + nonce, p_ref: null });
-      if (error) throw error;
+      // Direct insert — `grant_coins` RPC missing from DB.
+      const { error: insErr } = await supabase.from('coin_ledger').insert({
+        user_id: user.id,
+        delta: awarded,
+        reason: 'ad:' + nonce,
+        created_at: new Date().toISOString()
+      });
+      if (insErr) throw insErr;
       const after = { slots: w.slots + 1, coins: w.coins + awarded };
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(adState(after, { awarded, balance: bal, seconds, coinsMax })));
+      res.end(JSON.stringify(adState(after, { awarded, balance: w.coins + awarded, seconds, coinsMax })));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Reward failed.' }));
