@@ -743,15 +743,28 @@
         if (claimed) { dailyBtn.disabled = true; dailyBtn.classList.add('done'); dailyBtn.textContent = 'Claimed today'; }
       }).catch(function(){});
     }
-    dailyBtn.addEventListener('click', function(){
+    dailyBtn.addEventListener('click', async function(){
+      if (claimed) return;
       dailyBtn.disabled = true;
-      api('/api/daily/claim', 'POST').then(function(r){
-        if (!r.ok) { dailyBtn.disabled = false; setMsg(dailyMsg, (r.d && r.d.error) || 'Claim failed.', false); return; }
-        paintBalance(r.d.balance);
-        dailyBtn.classList.add('done');
-        dailyBtn.textContent = 'Claimed today';
-        setMsg(dailyMsg, r.d.already ? 'Already claimed — come back tomorrow.' : '+10 coins.', true);
-      }).catch(function(){ dailyBtn.disabled = false; setMsg(dailyMsg, 'Claim failed.', false); });
+      for (let tryAgain = 0; tryAgain < 2; tryAgain++) {
+        try {
+          var r = await api('/api/daily/claim', 'POST');
+          if (r.ok) {
+            claimed = true;
+            dailyBtn.classList.add('done');
+            dailyBtn.textContent = 'Claimed today';
+            paintBalance(r.d.balance);
+            setMsg(dailyMsg, r.d.already ? 'Already claimed — come back tomorrow.' : '+10 coins.', true);
+            return;
+          }
+          if (tryAgain === 0) { await new Promise(x => setTimeout(x, 600)); continue; }
+          setMsg(dailyMsg, (r.d && r.d.error) || 'Claim failed.', false);
+        } catch (e) {
+          if (tryAgain === 0) { await new Promise(x => setTimeout(x, 600)); continue; }
+          setMsg(dailyMsg, 'Claim failed.', false);
+        }
+      }
+      dailyBtn.disabled = false;
     });
 
     loadCoins();
