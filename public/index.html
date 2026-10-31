@@ -229,6 +229,7 @@
         <p class="tag">A browser studio for making games, sites, and themes. Build in a VS&nbsp;Code-style workbench with a live preview, publish to the gallery, and play together in real time. <strong>Nothing to install.</strong></p>
         <div class="ctas">
             <a class="btn primary" href="/studio">Open Studio</a>
+            <a class="btn" href="/games" id="randomPlay">Play a random game</a>
             <a class="btn" href="/games">Browse games</a>
             <a class="btn" href="/docs">Read the docs</a>
         </div>
@@ -380,6 +381,26 @@
             setTimeout(function(){
                 document.querySelectorAll('section.block,.block h2,.block .lead2,.block .kick,.tag,.ctas,.cards .card,.features .feat').forEach(function(e){ e.classList.add('in'); });
             }, 1200);
+        })();
+    </script>
+    <script>
+        // Random-play CTA: picked once from the public gallery, falls back to /games.
+        (function(){
+            var btn = document.getElementById('randomPlay');
+            if (!btn) return;
+            var api = (typeof WS_URL !== 'undefined' && WS_URL)
+                ? WS_URL.replace(/^wss?:\/\//, 'https://')
+                : ((location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? '' : 'https://glox-o7rr.onrender.com');
+            fetch(api + '/api/games')
+                .then(function(r){ return r.json(); })
+                .then(function(d){
+                    var list = (d.games || []).filter(function(g){ return g && g.id; });
+                    if (!list.length) return;
+                    var g = list[Math.floor(Math.random() * list.length)];
+                    btn.href = '/view.html?id=' + encodeURIComponent(g.id);
+                    btn.title = g.title ? 'Play ' + g.title : '';
+                })
+                .catch(function(){});
         })();
     </script>
     <script type="module">
