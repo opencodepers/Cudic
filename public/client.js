@@ -756,11 +756,12 @@ function addChatMessage(author, text, time, avatar, userId, ts, mid, cid) {
   div.innerHTML = '<div class="msg-ava"><a href="#" onclick="window.showProfileModal && window.showProfileModal(event, \'' + (userId || '') + '\'); return false;" style="display:block;width:100%;height:100%;text-decoration:none;color:inherit">' + av + '</a></div>'
     + '<div class="msg-main"><span class="author" style="color:' + nameColor(author) + '">' + escapeHtml(author) + '</span>'
     + '<span class="time">' + time + '</span>'
-    + '<div class="msg-text">' + escapeHtml(text) + (mine ? ' <span class="ticks" data-ts="' + escapeHtml(ts || '') + '">✓</span>' : '') + '</div></div>';
+    + '<div class="msg-text">' + renderMsgText(text) + (mine ? ' <span class="ticks" data-ts="' + escapeHtml(ts || '') + '">✓</span>' : '') + '</div></div>';
   messagesEl.appendChild(div);
   if (!mine && mid) armFlag(div, mid, userId);
   if (mine) paintTicks();
   scrollToBottom();
+  shrinkWrapBubble(div);
 }
 
 // ── Message/user reporting (plan.md 2.1) ─────────────────────────
@@ -879,4 +880,95 @@ function showProfileModal(e, uid) {
       '</div>';
   }).catch(function() { overlay.innerHTML = '<div style="background:var(--panel,#14161b);border:1px solid var(--line);border-radius:12px;padding:24px;max-width:320px;color:var(--ink);">Profile not found.</div>'; });
   overlay.addEventListener('click', function(ev) { if (ev.target === overlay) overlay.remove(); });
+}
+// ── Rich text + emoji rendering ──────────────────────────────────
+// Lightweight markdown-lite: **bold**, *italic*, `code`, [text](url), and
+// a handful of :shortcode: emojis. Everything is HTML-escaped first, so
+// user input can never inject markup.
+var EMOJI_MAP = {
+  ':smile:':'😀',':grin:':'😁',':laugh:':'😂',':wink:':'😉',':heart:':'❤️',
+  ':thumbsup:':'👍',':thumbsdown:':'👎',':fire:':'🔥',':star:':'⭐',':rocket:':'🚀',
+  ':check:':'✅',':cross:':'❌',':party:':'🎉',':eyes:':'👀',':wave:':'👋',
+  ':clap:':'👏',':think:':'🤔',':cool:':'😎',':cry:':'😢',':angry:':'😡',
+  ':ok:':'👌',':100:':'💯',':sparkles:':'✨',':zap:':'⚡',':sun:':'☀️',
+  ':moon:':'🌙',':cloud:':'☁️',':rain:':'🌧️',':snow:':'❄️',':music:':'🎵'
+};
+var EMOJI_LIST = Object.keys(EMOJI_MAP).map(function (k) { return EMOJI_MAP[k]; });
+
+function renderMsgText(raw) {
+  var s = String(raw || '');
+  // shortcodes -> emoji
+  s = s.replace(/:[a-z0-9_+-]+:/gi, function (m) { return EMOJI_MAP[m.toLowerCase()] || m; });
+  // escape
+  s = escapeHtml(s);
+  // inline code
+  s = s.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  // bold
+  s = s.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
+  // italic
+  s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>');
+  // links
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  // newlines
+  s = s.replace(/\n/g, '<br>');
+  return s;
+}
+
+// Emoji picker
+(function () {
+  var btn = document.getElementById('emojiBtn');
+  var picker = document.getElementById('emojiPicker');
+  var input = document.getElementById('msgInput');
+  if (!btn || !picker || !input) return;
+  picker.innerHTML = EMOJI_LIST.map(function (e) {
+    return '<button type="button" data-e="' + e + '">' + e + '</button>';
+  }).join('');
+  btn.addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    picker.hidden = !picker.hidden;
+  });
+  picker.addEventListener('click', function (ev) {
+    var t = ev.target;
+    if (!t || !t.dataset || !t.dataset.e) return;
+    var pos = input.selectionStart || input.value.length;
+    var v = input.value;
+    input.value = v.slice(0, pos) + t.dataset.e + v.slice(pos);
+    input.focus();
+    input.selectionStart = input.selectionEnd = pos + t.dataset.e.length;
+    picker.hidden = true;
+  });
+  document.addEventListener('click', function (ev) {
+    if (picker.hidden) return;
+    if (ev.target === btn || picker.contains(ev.target)) return;
+    picker.hidden = true;
+  });
+})();
+// ── Pretext experiment: shrink-wrap chat bubbles to their tightest width ──
+// Uses @chenglou/pretext (loaded on demand) to measure the widest line and
+// size the bubble to it, avoiding the default 75%-of-column stretch. Falls
+// back silently if the library or canvas is unavailable.
+var _pretext = null;
+async function loadPretext() {
+  if (_pretext) return _pretext;
+  try {
+    _pretext = await import('https://esm.sh/@chenglou/pretext');
+    return _pretext;
+  } catch (e) { _pretext = null; return null; }
+}
+async function shrinkWrapBubble(div) {
+  try {
+    var pt = await loadPretext();
+    if (!pt) return;
+    var el = div.querySelector('.msg-text');
+    if (!el) return;
+    // raw text without the ticks
+    var raw = (el.textContent || '').replace(/\s*✓\s*$/, '').trim();
+    if (!raw) return;
+    var prepared = pt.prepare(raw, '15px Geist');
+    var container = div.parentElement || messagesEl;
+    var maxW = Math.max(120, (container.clientWidth || 400) * 0.75);
+    var stats = pt.measureLineStats(prepared, maxW);
+    var w = Math.ceil(stats.maxLineWidth) + 24; // padding
+    if (w > 0 && w < maxW) el.style.width = w + 'px';
+  } catch (e) {}
 }

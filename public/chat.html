@@ -245,6 +245,15 @@
     }
     .rep-field select:focus, .rep-field input:focus { border-color: var(--signal); }
     #reportOverlay .status-msg { min-height: 0; margin-bottom: 4px; }
+.btn-emoji { background: none; border: 0; font-size: 1.25rem; cursor: pointer; padding: 0 6px; line-height: 1; }
+    .emoji-picker { position: absolute; bottom: 60px; left: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; max-width: 280px; z-index: 20; box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+    .emoji-picker button { background: none; border: 0; font-size: 1.25rem; cursor: pointer; padding: 4px; border-radius: 4px; }
+    .emoji-picker button:hover { background: var(--bg); }
+    .msg-text { white-space: pre-wrap; word-break: break-word; }
+    .msg-text code { font-family: var(--font-mono); background: var(--bg); padding: 1px 4px; border-radius: 3px; font-size: .9em; }
+    .msg-text b, .msg-text strong { font-weight: 600; }
+    .msg-text i, .msg-text em { font-style: italic; }
+    .msg-text a { color: var(--blue); text-decoration: underline; }
   </style><link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
 </head>
 <body data-page="chat">
@@ -310,9 +319,11 @@
       </div>
       <div id="typingIndicator" class="typing-indicator" style="display:none"></div>
       <form id="chatForm" class="chat-input-area" hidden>
+        <button type="button" id="emojiBtn" class="btn-emoji" title="Insert emoji" aria-label="Insert emoji">😀</button>
         <input type="text" id="msgInput" placeholder="Type a message…" aria-label="Type a message" maxlength="2000" autocomplete="off">
         <button type="submit" class="btn-send">Send</button>
       </form>
+      <div id="emojiPicker" class="emoji-picker" hidden></div>
       <div id="rulesOverlay" hidden>
         <div class="rules-card">
           <h2>Server rules</h2>
