@@ -105,10 +105,10 @@
       started = true;
       cover.hidden = true;
       var f = document.createElement('iframe');
-      f.setAttribute('sandbox', 'allow-scripts');
+      f.setAttribute('sandbox', 'allow-scripts allow-same-origin');
       f.setAttribute('allowfullscreen', 'true');
       f.setAttribute('scrolling', 'no');
-      f.src = '/run.html?v=2';
+      f.src = '/run.html?v=8';
       stage.insertBefore(f, document.getElementById('brand'));
       window.addEventListener('message', function wait(e) {
         if (e.data && e.data.type === 'ready') {
