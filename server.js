@@ -262,6 +262,7 @@ const MIME = {
   '.js': 'application/javascript',
   '.mjs': 'text/javascript',
   '.json': 'application/json',
+  '.txt': 'text/plain; charset=utf-8',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.svg': 'image/svg+xml',
