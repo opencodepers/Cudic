@@ -457,6 +457,13 @@
         }
         CudicTheme.installPack(m, slug);
         renderPacks();
+        // Save installed theme slug to profile
+        (async function () {
+          try {
+            var t = await token();
+            if (t) await fetch(apiHost() + '/api/profile', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' }, body: JSON.stringify({ profile: { pack_slug: slug } }) });
+          } catch (e) {}
+        })();
         toast('"' + (m.name || 'pack') + '" installed — looking sharp.');
       }
       var buySlug = null;
@@ -531,6 +538,13 @@
         if (b.getAttribute('data-action') === 'uninstall') {
           CudicTheme.clearPack();
           renderPacks();
+          // Clear saved theme slug
+          (async function () {
+            try {
+              var t = await token();
+              if (t) await fetch(apiHost() + '/api/profile', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' }, body: JSON.stringify({ profile: { pack_slug: null } }) });
+            } catch (e) {}
+          })();
           toast('Pack uninstalled — back to the default look.');
           return;
         }
