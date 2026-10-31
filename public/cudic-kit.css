@@ -34,9 +34,9 @@
   --ck-bw: 3px;
   --ck-shadow: 4px 4px 0 var(--ck-shadow-col);
   --ck-shadow-lg: 7px 7px 0 var(--ck-shadow-col);
-  --ck-font-head: 'Baloo 2', 'Epilogue', sans-serif;
-  --ck-font-body: 'Satoshi', system-ui, sans-serif;
-  --ck-font-mono: 'JetBrains Mono', monospace;
+  --ck-font-head: 'Geist', sans-serif;
+  --ck-font-body: 'Geist', system-ui, sans-serif;
+  --ck-font-mono: 'Geist Mono', monospace;
   font-family: var(--ck-font-body);
   color: var(--ck-ink);
 }

@@ -19,14 +19,8 @@ function apiHost() {
 }
 
   var FONTS = {
-    'Satoshi': null, 'Epilogue': null,
-    'Inter': 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap',
-    'Space Grotesk': 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&display=swap',
-    'Sora': 'https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&display=swap',
-    'Manrope': 'https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700&display=swap',
-    'Outfit': 'https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap',
-    'DM Sans': 'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap',
-    'JetBrains Mono': null
+    'Geist': 'https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap',
+    'Geist Mono': 'https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;700&display=swap'
   };
   function ensureFont(name) {
     var url = FONTS[name];
