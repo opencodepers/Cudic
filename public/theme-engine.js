@@ -12,6 +12,12 @@
   };
   var state = { slug: null, manifest: null, bgEl: null, sceneStop: null };
 
+// Backend base — pages loading this file may not load config.js.
+function apiHost() {
+  if (typeof WS_URL !== 'undefined' && WS_URL) return WS_URL.replace(/^wss?:\/\//, 'https://');
+  return (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? '' : 'https://glox-o7rr.onrender.com';
+}
+
   var FONTS = {
     'Satoshi': null, 'Epilogue': null,
     'Inter': 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap',
@@ -376,7 +382,7 @@
     var tokRaw = (typeof localStorage !== 'undefined') ? localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token') : '';
     var tok = tokRaw ? (function () { try { var s = JSON.parse(tokRaw); return s && s.access_token ? s.access_token : tokRaw; } catch (e) { return tokRaw; } })() : '';
     if (tok && typeof fetch !== 'undefined') {
-      fetch('/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: JSON.stringify({ pack_slug: slug || null }) }).catch(function () {});
+      fetch(apiHost() + '/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: JSON.stringify({ pack_slug: slug || null }) }).catch(function () {});
     }
   }
   function installPack(manifest, slug) {
@@ -399,7 +405,7 @@
     var profileSlug = null;
     if (tok && typeof fetch !== 'undefined') {
       try {
-        var pr = await fetch('/api/profile', { headers: { 'Authorization': 'Bearer ' + tok } });
+        var pr = await fetch(apiHost() + '/api/profile', { headers: { 'Authorization': 'Bearer ' + tok } });
         if (pr.ok) { var pd = await pr.json(); profileSlug = (pd.profile && pd.profile.pack_slug) ? pd.profile.pack_slug : null; }
       } catch (e) {}
     }
@@ -415,7 +421,7 @@
     // Community packs live in the database, not in /packs — try the API
     // (free packs boot signed-out; entitled ones boot from cache below).
     try {
-      var api = await fetch('/api/packs/' + encodeURIComponent(slug) + '/manifest', { cache: 'no-store' });
+      var api = await fetch(apiHost() + '/api/packs/' + encodeURIComponent(slug) + '/manifest', { cache: 'no-store' });
       if (api.ok) { var jm = await api.json(); currentSlug = jm.slug || slug; applyPack(jm.manifest, jm.slug || slug); return; }
     } catch (e2) {}
     // Don't clear DB on boot failure — keep user's saved pack

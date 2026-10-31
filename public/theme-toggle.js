@@ -7,6 +7,12 @@
 (function () {
     var fab = null;
 
+    // Backend base — pages loading this file may not load config.js.
+    function apiHost() {
+        if (typeof WS_URL !== 'undefined' && WS_URL) return WS_URL.replace(/^wss?:\/\//, 'https://');
+        return (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? '' : 'https://glox-o7rr.onrender.com';
+    }
+
     function isDark() {
         var t = document.documentElement.dataset.theme;
         return t !== 'light';   /* no attr = dark (site boot keeps it set) */
@@ -30,7 +36,7 @@
             var tokRaw = (typeof localStorage !== 'undefined') ? localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token') : '';
         var tok = tokRaw ? (function () { try { var s = JSON.parse(tokRaw); return s && s.access_token ? s.access_token : tokRaw; } catch (e) { return tokRaw; } })() : '';
             if (tok && typeof fetch !== 'undefined') {
-                fetch('/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: JSON.stringify({ theme: next }) }).catch(function () {});
+                fetch(apiHost() + '/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: JSON.stringify({ theme: next }) }).catch(function () {});
             }
             document.documentElement.dataset.theme = next;
             flipIcons(next === 'dark');
@@ -89,7 +95,7 @@
         var tokRaw = (typeof localStorage !== 'undefined') ? localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token') : '';
         var tok = tokRaw ? (function () { try { var s = JSON.parse(tokRaw); return s && s.access_token ? s.access_token : tokRaw; } catch (e) { return tokRaw; } })() : '';
         if (!tok) return;
-        fetch('/api/profile', { headers: { 'Authorization': 'Bearer ' + tok } })
+        fetch(apiHost() + '/api/profile', { headers: { 'Authorization': 'Bearer ' + tok } })
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 var t = d.profile && d.profile.theme ? d.profile.theme : 'dark';

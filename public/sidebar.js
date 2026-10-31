@@ -26,6 +26,13 @@
   }
   window.getAuthToken=getAuthToken;
 
+  // Backend base — same rule as config.js, but pages without config.js
+  // (index, privacy, terms) still resolve to the Render API.
+  function apiHost(){
+    if(typeof WS_URL!=='undefined'&&WS_URL)return WS_URL.replace(/^wss?:\/\//,'https://');
+    return (location.hostname==='localhost'||location.hostname==='127.0.0.1')?'':'https://glox-o7rr.onrender.com';
+  }
+
   // Apply saved prefs (personalization + performance) on every page.
   // Re-applied on bfcache restore (back/forward nav) and on cross-tab
   // storage changes — otherwise a page frozen before an accent change
@@ -173,7 +180,7 @@
       var s = localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token');
       var tok = s ? (function(){ try { var j = JSON.parse(s); return j && j.access_token || s; } catch(e){ return s; } })() : '';
       if (!tok) return;
-      fetch('/api/notifications', { headers: { 'Authorization': 'Bearer ' + tok } })
+      fetch(apiHost() + '/api/notifications', { headers: { 'Authorization': 'Bearer ' + tok } })
         .then(function(r){ return r.json(); })
         .then(function(d){
           var n = d.unread || 0;
@@ -339,8 +346,7 @@
 
   async function fetchProfile(token){
     try{
-      var apiHost=(typeof WS_URL!=='undefined'&&WS_URL)?WS_URL.replace(/^wss?:\/\//,'https://'):'';
-      var res=await fetch(apiHost+'/api/profile',{headers:{'Authorization':'Bearer '+token}});
+      var res=await fetch(apiHost()+'/api/profile',{headers:{'Authorization':'Bearer '+token}});
       var data=await res.json();
       if(data.profile){
         window.userProfile=data.profile;
@@ -361,11 +367,10 @@
   async function loadServers(){
     try{
       var token=window.currentToken||await getAuthToken();
-      var apiHost=(typeof WS_URL!=='undefined'&&WS_URL)?WS_URL.replace(/^wss?:\/\//,'https://'):'';
       var headers=token?{'Authorization':'Bearer '+token}:{};
       // My servers
       if(token){
-        var res=await fetch(apiHost+'/api/servers/mine',{headers:headers});
+        var res=await fetch(apiHost()+'/api/servers/mine',{headers:headers});
         var data=await res.json();
         var myServers=data.servers||[];
         document.getElementById('serverCount').textContent=myServers.length+'/50';
