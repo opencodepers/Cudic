@@ -4859,29 +4859,33 @@ function seatDead(res) {
 async function saveMessage(lobbyName, userId, displayName, text) {
   try {
     // Get or create lobby
-    let { data: lobby } = await supabase
+    let { data: lobby, error: lobbyErr } = await supabase
       .from('lobbies')
       .select('id')
       .eq('name', lobbyName)
-      .single();
+      .maybeSingle();
+    if (lobbyErr) console.error('saveMessage lobby lookup:', lobbyErr.message);
 
     if (!lobby) {
       // Chat history is permanent everywhere — nothing sweeps messages.
-      const { data: newLobby } = await supabase
+      const kind = lobbyName.startsWith('dm:') ? 'dm' : 'channel';
+      const { data: newLobby, error: createErr } = await supabase
         .from('lobbies')
-        .insert({ name: lobbyName, persistent: true })
+        .upsert({ name: lobbyName, persistent: true, kind, created_by: userId || null }, { onConflict: 'name' })
         .select('id')
         .single();
+      if (createErr) console.error('saveMessage lobby create:', createErr.message);
       lobby = newLobby;
     }
 
     if (lobby) {
-      const { data: saved } = await supabase.from('messages').insert({
+      const { data: saved, error: msgErr } = await supabase.from('messages').insert({
         lobby_id: lobby.id,
         user_id: userId || null,
         display_name: displayName,
         text,
       }).select('id').single();
+      if (msgErr) console.error('saveMessage insert:', msgErr.message, { lobbyName, userId });
       if (saved) return saved;
       // Activity trickle: first 10 messages each UTC day earn 1 coin.
       // Best-effort only — never blocks or breaks the save above.
@@ -5115,7 +5119,7 @@ wss.on('connection', (ws, req) => {
       // Persist to database, then tell the room the saved row id.
       saveMessage(info.lobby, info.userId, info.username, text).then((row) => {
         if (row && row.id && cid) broadcast(info.lobby, { type: 'message_saved', lobby: info.lobby, cid, id: row.id });
-      }).catch(() => {});
+      }).catch((e) => { console.error('saveMessage failed:', e && e.message); });
       // Everyone else's sidebar (previews, unread, order) may be stale
       sendConversationsDirty();
       return;
