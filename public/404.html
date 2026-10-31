@@ -40,7 +40,11 @@ p{margin:0;color:var(--mute);max-width:44ch}
 .btn.primary:hover{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 aside{position:relative;background:var(--panel);display:flex;align-items:center;justify-content:center;min-height:320px;overflow:hidden}
 aside:before{content:"";position:absolute;inset:0;background:linear-gradient(var(--line) 1px,transparent 1px) 0 0/32px 32px,linear-gradient(90deg,var(--line) 1px,transparent 1px) 0 0/32px 32px;opacity:.5}
-aside:after{content:"";position:relative;width:132px;height:132px;background:var(--mark) center/contain no-repeat;opacity:.9}
+aside:after{content:"";position:relative;width:132px;height:132px;background:var(--mark) center/contain no-repeat;opacity:.9;animation:cudiFloat 4s steps(8) infinite}
+@keyframes cudiFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+aside:hover:after{animation:cudiWave .6s steps(6)}
+@keyframes cudiWave{0%{transform:rotate(0)}25%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}75%{transform:rotate(-4deg)}100%{transform:rotate(0)}}
+@media(prefers-reduced-motion:reduce){aside:after{animation:none}}
 footer{padding:18px 28px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;border-top:1px solid var(--line);max-width:1180px;width:100%;margin:0 auto;color:var(--mute);font-size:13px;border-left:1px solid var(--line);border-right:1px solid var(--line)}
 footer a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line)}
 footer a:hover{border-color:var(--ink)}

@@ -106,7 +106,13 @@
         .tag strong{color:var(--ink);font-weight:600}
         .landing a{color:var(--blue);text-decoration:none}
         .landing a:hover{text-decoration:underline}
-        .ctas{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+        .ctas{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;align-items:center}
+        .cudi-mascot{width:56px;height:56px;flex-shrink:0;cursor:pointer;animation:cudiFloat 4s steps(8) infinite}
+        .cudi-mascot img{width:100%;height:100%;display:block;image-rendering:pixelated}
+        .cudi-mascot:hover{animation:cudiWave .6s steps(6)}
+        @keyframes cudiFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+        @keyframes cudiWave{0%{transform:rotate(0)}25%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}75%{transform:rotate(-4deg)}100%{transform:rotate(0)}}
+        @media(prefers-reduced-motion:reduce){.cudi-mascot{animation:none}}
         .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;border:1px solid var(--line);background:var(--panel);color:var(--ink);text-decoration:none;font:500 14px "Geist",system-ui,sans-serif;transition:background 120ms steps(4),color 120ms steps(4),transform 120ms steps(4)}
         .btn:hover{background:var(--ink);color:var(--bg);transform:translateY(-2px)}
         .btn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
@@ -228,6 +234,9 @@
         <h1 class="hero" id="hero" aria-label="Cudic">CUDIC</h1>
         <p class="tag">A browser studio for making games, sites, and themes. Build in a VS&nbsp;Code-style workbench with a live preview, publish to the gallery, and play together in real time. <strong>Nothing to install.</strong></p>
         <div class="ctas">
+            <div class="cudi-mascot" id="cudi" aria-hidden="true" title="Cudi">
+                <img src="/cudic-assets/brand/logo/cudic-mark-cream.svg" alt="">
+            </div>
             <a class="btn primary" href="/studio">Open Studio</a>
             <a class="btn" href="/games" id="randomPlay">Play a random game</a>
             <a class="btn" href="/games">Browse games</a>

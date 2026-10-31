@@ -280,11 +280,18 @@ body {
   height: 20px;
   flex-shrink: 0;
   color: var(--text-primary);
-  stroke: currentColor;
-  stroke-width: 1.5;
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  transition: transform 120ms steps(4), color 120ms steps(4), filter 120ms steps(4);
+  image-rendering: pixelated;
+}
+
+.sidebar-item:hover svg {
+  transform: scale(1.2) translateY(-1px);
+  color: var(--signal);
+  filter: drop-shadow(0 0 4px var(--signal));
+}
+
+.sidebar-item.active svg {
+  color: var(--signal);
 }
 
 .sidebar-spacer { flex: 1; }
