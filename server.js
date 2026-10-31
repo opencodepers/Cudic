@@ -4645,8 +4645,14 @@ function slugify(s) {
       res.end(buf);
       return;
     }
-    const host = String(req.headers.host || 'cudic.vercel.app');
-    const base = (/^(localhost|127\.)/.test(host) ? 'http://' : 'https://') + host;
+    const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+    // Share pages are proxied from Vercel, so the request host is the Render
+    // host — canonical/OG URLs must name the public site instead. Locally the
+    // request host is already right.
+    const isLocal = /^(localhost|127\.)/.test(host);
+    const base = isLocal
+      ? (req.socket.encrypted ? 'https://' : 'http://') + host
+      : (process.env.PUBLIC_ORIGIN || 'https://cudic.vercel.app');
     const viewUrl = '/view?id=' + g.id;
     const title = String(g.title || 'Untitled');
     const by = g.users && g.users.display_name ? ' by ' + g.users.display_name : '';

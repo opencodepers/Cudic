@@ -53,6 +53,16 @@ async function fetchGames(cfg) {
   return await res.json();
 }
 
+// Thumbnail presence without shipping the data URLs (one row can hold 266KB).
+async function fetchThumbIds(cfg) {
+  const res = await fetch(cfg.url + '/rest/v1/games?select=id&published=eq.true&thumbnail=not.is.null&limit=' + LIMIT, {
+    headers: { apikey: cfg.anon, Authorization: 'Bearer ' + cfg.anon },
+    signal: AbortSignal.timeout(30000)
+  });
+  if (!res.ok) return new Set();
+  return new Set((await res.json()).map((r) => r.id));
+}
+
 // Author names are not readable with the anon key (users RLS is locked down),
 // so they come from the public Render API — newest 50 — merged in by game id.
 async function fetchAuthors() {
@@ -85,7 +95,8 @@ function relatedFor(g, games) {
   return rel;
 }
 
-function gamePage(g, names, games) {
+function gamePage(g, names, games, thumbIds) {
+  const hasThumb = thumbIds.has(g.id);
   const title = (g.title || '').trim() || 'Untitled game';
   const author = (names[g.id]) || 'A Cudic creator';
   const desc = (g.description || '').trim();
@@ -95,6 +106,7 @@ function gamePage(g, names, games) {
   const date = String(g.updated_at || g.created_at || '').slice(0, 10);
   const tags = Array.isArray(g.tags) ? g.tags.filter((t) => typeof t === 'string').slice(0, 6) : [];
   const play = '/view.html?id=' + encodeURIComponent(g.id);
+  const playCount = Number(g.play_count) || 0;
   const jsonLd = JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'VideoGame',
@@ -108,83 +120,129 @@ function gamePage(g, names, games) {
     applicationCategory: 'Game',
     operatingSystem: 'Web'
   });
-  const relHtml = relatedFor(g, games).map((x) => {
+  const related = relatedFor(g, games);
+  const shot = hasThumb
+    ? '<img src="/g/' + g.id + '/thumb" alt="' + esc(title) + ' cover art">'
+    : '';
+  const relHtml = related.map((x) => {
     const t = (x.title || '').trim() || 'Untitled game';
     const a2 = names[x.id] || 'A Cudic creator';
-    return '<li><a href="' + SITE + '/game/' + x.id + '/">' + esc(t) + ' <small>by ' + esc(a2) + '</small></a></li>';
+    const thumb = thumbIds.has(x.id)
+      ? '<img src="/g/' + x.id + '/thumb" alt="" loading="lazy">'
+      : '';
+    return '<a class="tile" href="/game/' + x.id + '/">'
+      + '<div class="thumb' + (thumb ? '' : ' noimg') + '">' + thumb + '</div>'
+      + '<div class="tb"><b>' + esc(t) + '</b><span class="mono">BY ' + esc(a2).toUpperCase() + '</span></div></a>';
   }).join('');
-  const relBlock = relHtml ? '<section class="related"><h2>You might also like</h2><ul>' + relHtml + '</ul></section>' : '';
+  const relBlock = relHtml
+    ? '<section class="related"><div class="sh"><h2>More games</h2><span class="mono">' + related.length + ' PICKS</span></div>'
+      + '<div class="grid">' + relHtml + '</div></section>'
+    : '';
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script>try{var t=localStorage.getItem('glox_theme');document.documentElement.dataset.theme=(t==='light'?'light':'dark');}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${esc(title)} — a Cudic game</title>
+<title>${esc(title)} — play free on Cudic</title>
 <meta name="description" content="${esc(metaDesc)}">
-<link rel="canonical" content="${SITE}/game/${g.id}/">
+<link rel="canonical" href="${SITE}/game/${g.id}/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Cudic">
-<meta property="og:title" content="${esc(title)} — a Cudic game">
+<meta property="og:title" content="${esc(title)} — play free on Cudic">
 <meta property="og:description" content="${esc(metaDesc)}">
 <meta property="og:url" content="${SITE}/game/${g.id}/">
 <meta property="og:image" content="${SITE}/g/${g.id}/thumb">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="${esc(title)} — a Cudic game">
+<meta name="twitter:title" content="${esc(title)} — play free on Cudic">
 <meta name="twitter:description" content="${esc(metaDesc)}">
 <meta name="twitter:image" content="${SITE}/g/${g.id}/thumb">
 <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script type="application/ld+json">${jsonLd}</script>
 <style>
-  :root { color-scheme: dark; font-family: system-ui, -apple-system, sans-serif; }
-  * { box-sizing: border-box; }
-  body { margin: 0; min-height: 100vh; background: #0d0e10; color: #e9edf5;
-    display: grid; place-items: center; padding: 32px 20px; }
-  main { width: min(720px, 100%); }
-  .crumb { color: #7b8394; font-size: 13px; margin-bottom: 22px; }
-  .crumb a { color: #7b8394; text-decoration: none; }
-  .crumb a:hover { color: #a5b0c5; }
-  .shot { border: 1px solid #26272d; border-radius: 14px; overflow: hidden;
-    background: #131418; margin-bottom: 22px; }
-  .shot img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
-  h1 { font-size: clamp(1.9rem, 5vw, 2.7rem); line-height: 1.08; margin: 0 0 8px; letter-spacing: -0.02em; }
-  .by { color: #9aa3b5; margin: 0 0 6px; font-size: 15px; }
-  .by a { color: #a5b0c5; }
-  .tags { margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
-  .tags span { font-size: 12px; padding: 3px 10px; border-radius: 99px;
-    background: #181a1f; border: 1px solid #26272d; color: #a5b0c5; }
-  .desc { color: #c3cad8; line-height: 1.65; font-size: 15.5px; margin: 14px 0 0; }
-  .cta { display: inline-flex; align-items: center; gap: 8px; margin-top: 22px;
-    background: #7300ff; color: #fff; text-decoration: none; font-weight: 700;
-    padding: 14px 26px; border-radius: 12px; font-size: 16px; }
-  .cta:hover { background: #7d1aff; }
-  .cta small { font-weight: 400; opacity: .8; }
-  .related { margin-top: 30px; }
-  .related h2 { font-size: 17px; margin: 0 0 12px; letter-spacing: -0.01em; }
-  .related ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-  .related a { display: block; color: #c3cad8; text-decoration: none; font-size: 15px;
-    padding: 10px 14px; border: 1px solid #23242a; border-radius: 10px; background: #131418; }
-  .related a:hover { border-color: #3a3d47; }
-  .related a small { color: #7b8394; }
-  footer { margin-top: 34px; padding-top: 18px; border-top: 1px solid #23242a;
-    color: #8a92a3; font-size: 13.5px; line-height: 1.6; }
-  footer a { color: #a98bff; text-decoration: none; }
-  footer a:hover { text-decoration: underline; }
+:root{--bg:#0d0e10;--panel:#14161b;--line:#262a33;--ink:#f7f5ec;--mute:#9a9a94;--lime:#b8f23a;--blue:#3f7cff;--mark:url(/cudic-assets/brand/logo/cudic-mark-cream.svg)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#f7f5ec;--panel:#efece0;--line:#d6d2c2;--ink:#0d0e10;--mute:#6b6a63;--blue:#1b3fb8;--mark:url(/cudic-assets/brand/logo/cudic-mark-ink.svg)}}
+:root[data-theme="light"]{--bg:#f7f5ec;--panel:#efece0;--line:#d6d2c2;--ink:#0d0e10;--mute:#6b6a63;--blue:#1b3fb8;--mark:url(/cudic-assets/brand/logo/cudic-mark-ink.svg)}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.55 "Geist",system-ui,sans-serif}
+a{color:var(--blue)}
+.mono{font-family:"Geist Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.bar{display:flex;align-items:stretch;border-bottom:1px solid var(--line);overflow-x:auto}
+.bar a{display:flex;align-items:center;gap:10px;padding:16px 20px;color:var(--ink);text-decoration:none;font-weight:500;font-size:15px;white-space:nowrap;border-right:1px solid var(--line)}
+.bar a:hover{background:var(--panel)}
+.bar .brand{font-weight:600}
+.bar .brand img{display:block;width:18px;height:18px}
+.bar .brand .mk-l{display:none}
+:root[data-theme="light"] .bar .brand .mk-d{display:none}
+:root[data-theme="light"] .bar .brand .mk-l{display:block}
+.bar .sp{flex:1;border-right:0}
+.wrap{max-width:1180px;margin:0 auto;border-left:1px solid var(--line);border-right:1px solid var(--line);min-height:100vh;display:flex;flex-direction:column}
+.hero{display:grid;grid-template-columns:1.02fr .98fr;border-bottom:1px solid var(--line)}
+.info{padding:56px 44px;display:flex;flex-direction:column;align-items:flex-start;gap:14px;border-right:1px solid var(--line);min-width:0}
+.info .kick{color:var(--lime);margin:0}
+h1{margin:0;font-weight:500;font-size:clamp(38px,5.4vw,68px);line-height:1.02;letter-spacing:-.035em;word-break:break-word}
+.by{margin:0;color:var(--mute);font-size:15px}
+.by b{color:var(--ink);font-weight:500}
+.desc{margin:0;max-width:52ch;color:var(--ink);font-size:16px;line-height:1.65;white-space:pre-wrap}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tags span{font-family:"Geist Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.04em;color:var(--ink);border:1px solid var(--line);padding:4px 10px}
+.play{display:inline-flex;align-items:center;gap:14px;margin-top:6px;background:var(--lime);color:#0d0e10;border:1px solid var(--lime);padding:15px 22px;text-decoration:none;font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;transition:background .12s steps(2),color .12s steps(2),border-color .12s steps(2)}
+.play:after{content:"→";transition:transform .12s steps(2)}
+.play:hover{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.play:hover:after{transform:translateX(4px)}
+.sub{margin:0}
+.shot{position:relative;background:var(--line);display:flex;align-items:center;justify-content:center;min-height:280px}
+.shot img{display:block;width:100%;height:100%;object-fit:cover}
+.shot.noimg:after{content:"";width:96px;height:96px;background:var(--mark) center/96px no-repeat;opacity:.5}
+.related{flex:1}
+.sh{display:flex;justify-content:space-between;align-items:baseline;padding:20px 28px;border-bottom:1px solid var(--line)}
+.sh h2{margin:0;font-weight:500;font-size:22px;letter-spacing:-.02em}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.tile{display:flex;flex-direction:column;color:var(--ink);text-decoration:none;border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-width:0}
+.tile:hover{background:var(--panel)}
+.thumb{aspect-ratio:16/9;background:var(--panel);overflow:hidden;border-bottom:1px solid var(--line)}
+.thumb img{display:block;width:100%;height:100%;object-fit:cover}
+.thumb.noimg{display:flex;align-items:center;justify-content:center}
+.thumb.noimg:after{content:"";display:block;width:44px;height:44px;background:var(--mark) center/44px no-repeat;opacity:.35}
+.tb{padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.tb b{font-weight:500;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+footer{padding:20px 28px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;border-top:1px solid var(--line);color:var(--mute);font-size:13px}
+footer a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line)}
+footer a:hover{border-color:var(--ink)}
+footer .sp{flex:1}
+@media(max-width:820px){.hero{grid-template-columns:1fr}.info{border-right:0;border-bottom:1px solid var(--line);padding:40px 24px}.shot{min-height:220px;order:-1}.bar a{padding:14px 14px;font-size:14px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
-<main>
-  <nav class="crumb"><a href="/">Cudic</a> → <a href="/games">Games</a> → ${esc(title)}</nav>
-  <div class="shot"><img src="/g/${g.id}/thumb" alt="${esc(title)} cover art"
-    onerror="this.replaceWith(document.createTextNode(''))"></div>
-  <h1>${esc(title)}</h1>
-  <p class="by">by ${esc(author)}${date ? ' · updated ' + esc(date) : ''}${g.play_count > 0 ? ' · ' + g.play_count + ' plays' : ''}</p>
-  ${tags.length ? '<div class="tags">' + tags.map((t) => '<span>' + esc(t) + '</span>').join('') + '</div>' : ''}
-  ${desc ? '<p class="desc">' + esc(desc) + '</p>' : ''}
-  <a class="cta" href="${play}" rel="nofollow">▶ Play ${esc(title)} <small>opens in the player</small></a>
+<header class="bar">
+  <a class="brand" href="/"><img class="mk-d" src="/cudic-assets/brand/logo/cudic-mark-cream.svg" alt=""><img class="mk-l" src="/cudic-assets/brand/logo/cudic-mark-ink.svg" alt="">Cudic</a>
+  <a href="/games">Games</a>
+  <a href="/studio">Studio</a>
+  <span class="sp"></span>
+  <a href="/login">Sign in</a>
+</header>
+<main class="wrap">
+  <section class="hero">
+    <div class="info">
+      <p class="mono kick">Browser game · free</p>
+      <h1>${esc(title)}</h1>
+      <p class="by">by <b>${esc(author)}</b>${date ? ' · ' + esc(date) : ''}${playCount > 0 ? ' · ' + playCount + ' plays' : ''}</p>
+      ${desc ? '<p class="desc">' + esc(desc) + '</p>' : ''}
+      ${tags.length ? '<div class="tags">' + tags.map((t) => '<span>' + esc(t) + '</span>').join('') + '</div>' : ''}
+      <a class="play" href="${play}" rel="nofollow">Play now</a>
+      <p class="mono sub">Opens in the player · nothing to install</p>
+    </div>
+    <div class="shot${hasThumb ? '' : ' noimg'}">${shot}</div>
+  </section>
   ${relBlock}
-  <footer>${esc(title)} is a browser game — it opens right in the page, nothing to install.
-    Made in <a href="/studio">Cudic Studio</a>: fork it there and make it yours.
-    Looking for more? Browse the <a href="/games">community gallery</a>.</footer>
+  <footer>
+    <span>Made in <a href="/studio">Cudic Studio</a> — fork this game and make it yours.</span>
+    <span class="sp"></span>
+    <a href="/games">Browse all games</a>
+  </footer>
 </main>
 </body>
 </html>
@@ -230,6 +288,13 @@ try {
   const cfg = readConfig();
   const games = await fetchGames(cfg);
   log('fetched ' + games.length + ' published games');
+  let thumbIds = new Set();
+  try {
+    thumbIds = await fetchThumbIds(cfg);
+    log('thumbnails: ' + thumbIds.size + ' of ' + games.length);
+  } catch (e) {
+    log('thumbnail check skipped — ' + (e && e.message ? e.message : e));
+  }
   let names = {};
   try {
     names = await fetchAuthors();
@@ -242,7 +307,7 @@ try {
   for (const g of games) {
     if (!g || !/^[0-9a-f-]{36}$/i.test(g.id)) continue;
     mkdirSync(join(GAME_DIR, g.id), { recursive: true });
-    writeFileSync(join(GAME_DIR, g.id, 'index.html'), gamePage(g, names, games));
+    writeFileSync(join(GAME_DIR, g.id, 'index.html'), gamePage(g, names, games, thumbIds));
   }
   writeFileSync(join(PUB, 'sitemap.xml'), sitemap(games));
   log('wrote ' + games.length + ' game pages + sitemap (' + (CORE.length + games.length) + ' URLs)');
