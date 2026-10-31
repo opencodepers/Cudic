@@ -244,6 +244,7 @@ footer .sp{flex:1}
     <a href="/games">Browse all games</a>
   </footer>
 </main>
+<script src="/auth-nav.js?v=1"></script>
 </body>
 </html>
 `;

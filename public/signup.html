@@ -51,5 +51,6 @@ input:focus{border-color:var(--blue)}
 <script>
 async function doSignUp(e){e.preventDefault();document.getElementById('smsg').textContent='';try{await signUpWithEmail(document.getElementById('semail').value.trim(),document.getElementById('spw').value,document.getElementById('sname').value.trim());var t=document.getElementById('t');t.classList.add('on');t.textContent='Account created — check email.';setTimeout(function(){t.classList.remove('on');window.location.href='/chat';},1800);}catch(err){document.getElementById('smsg').textContent=(err&&err.message)?err.message:'Could not create account.';}}
 </script>
+<script src="/auth-nav.js?v=1"></script>
 </body>
 </html>
