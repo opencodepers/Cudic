@@ -254,6 +254,16 @@
     .msg-text b, .msg-text strong { font-weight: 600; }
     .msg-text i, .msg-text em { font-style: italic; }
     .msg-text a { color: var(--blue); text-decoration: underline; }
+    .msg-text mark { background: var(--lime); color: #0d0e10; padding: 0 2px; border-radius: 2px; }
+    .msg-text .msg-p { margin: 0 0 4px; }
+    .msg-text .msg-p:last-child { margin-bottom: 0; }
+    .msg-text .msg-list { margin: 4px 0 4px 18px; padding: 0; }
+    .msg-text .msg-list li { margin: 2px 0; }
+    .msg-text .msg-quote { margin: 4px 0; padding: 4px 10px; border-left: 3px solid var(--line); color: var(--text-secondary); font-style: italic; }
+    .msg-text .msg-h { font-weight: 600; margin: 4px 0 2px; font-family: var(--font-head); }
+    .msg-text .msg-hr { border: 0; border-top: 1px solid var(--line); margin: 6px 0; }
+    .load-older { display: block; margin: 8px auto; padding: 6px 14px; border: 1px solid var(--line); background: var(--panel); color: var(--text-secondary); border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+    .load-older:hover { background: var(--bg); color: var(--text-primary); }
   </style><link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
 </head>
 <body data-page="chat">
@@ -318,6 +328,7 @@
         </div>
       </div>
       <div id="typingIndicator" class="typing-indicator" style="display:none"></div>
+      <button type="button" id="loadOlderBtn" class="load-older" hidden>Load older messages</button>
       <form id="chatForm" class="chat-input-area" hidden>
         <button type="button" id="emojiBtn" class="btn-emoji" title="Insert emoji" aria-label="Insert emoji">😀</button>
         <input type="text" id="msgInput" placeholder="Type a message…" aria-label="Type a message" maxlength="2000" autocomplete="off">

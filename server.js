@@ -1310,12 +1310,17 @@ async function handleRequest(req, res) {
     }
 
     // Newest 100, then flipped back to oldest-first for the client.
-    const { data: recent } = await supabase
+    // Optional `before` cursor (ISO timestamp) loads the 100 messages
+    // older than it, for pagination.
+    const before = url.searchParams.get('before');
+    let q = supabase
       .from('messages')
       .select('id, display_name, text, created_at, user_id, users!messages_user_id_fkey(avatar_url)')
       .eq('lobby_id', lobby.id)
       .order('created_at', { ascending: false })
       .limit(100);
+    if (before) q = q.lt('created_at', before);
+    const { data: recent } = await q;
     const messages = (recent || []).reverse();
 
     res.writeHead(200, { 'Content-Type': 'application/json' });

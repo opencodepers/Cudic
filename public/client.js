@@ -65,6 +65,7 @@ var pendingRulesServer = null;
 var convLoadFailed = false;
 var convFilter = '';
 var peerReadAt = null;
+var oldestTs = null;
 var origTitle = document.title;
 var flashCount = 0;
 function flashTitle() {
@@ -257,7 +258,16 @@ function onWs(e) {
       break;
     case 'message':
       if (current && msg.lobby === current.name) {
-        addChatMessage(msg.username, msg.text, msg.time, msg.avatar_url, msg.user_id, msg.ts, msg.id, msg.cid);
+        // dedupe optimistic message
+        var existing = msg.cid ? messagesEl.querySelector('[data-cid="' + msg.cid + '"]') : null;
+        if (existing) {
+          existing.classList.remove('pending');
+          // update ticks timestamp
+          var t = existing.querySelector('.ticks');
+          if (t && msg.ts) t.dataset.ts = msg.ts;
+        } else {
+          addChatMessage(msg.username, msg.text, msg.time, msg.avatar_url, msg.user_id, msg.ts, msg.id, msg.cid);
+        }
         markReadSoon();
         if (document.hidden) { flashCount++; flashTitle(); }
       } else {
@@ -384,6 +394,8 @@ async function openConv(conv) {
     if (current !== conv) return;
     if (d.messages && d.messages.length) {
       d.messages.forEach(m => addChatMessage(m.display_name, m.text, fmtTime(m.created_at), m.users && m.users.avatar_url, m.user_id, m.created_at, m.id, null));
+      oldestTs = d.messages[0].created_at;
+      if (d.messages.length >= 100) showLoadOlder(); else hideLoadOlder();
     } else {
       addSystemMessage('No messages yet — say hello.');
     }
@@ -629,9 +641,11 @@ chatForm.addEventListener('submit', (e) => {
   e.preventDefault();
   const text = msgInput.value.trim();
   if (!text || !ws || ws.readyState !== 1) return;
-  // cid correlates this live message with its saved row id (message_saved)
-  // so Flag buttons arm without slowing broadcast. Safe chars only.
   const cid = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  // optimistic render
+  addChatMessage(ME ? (window.userProfile && window.userProfile.display_name) || 'You' : 'You', text, fmtTime(new Date().toISOString()), window.userProfile && window.userProfile.avatar_url, ME, new Date().toISOString(), null, cid);
+  var last = messagesEl.lastElementChild;
+  if (last) last.classList.add('pending');
   ws.send(JSON.stringify({ type: 'message', text, cid }));
   msgInput.value = '';
   msgInput.focus();
@@ -895,23 +909,56 @@ var EMOJI_MAP = {
 };
 var EMOJI_LIST = Object.keys(EMOJI_MAP).map(function (k) { return EMOJI_MAP[k]; });
 
-function renderMsgText(raw) {
-  var s = String(raw || '');
-  // shortcodes -> emoji
+function inlineFmt(s) {
   s = s.replace(/:[a-z0-9_+-]+:/gi, function (m) { return EMOJI_MAP[m.toLowerCase()] || m; });
-  // escape
   s = escapeHtml(s);
-  // inline code
+  s = s.replace(/==([^=\n]+)==/g, '<mark>$1</mark>');
   s = s.replace(/`([^`\n]+)`/g, '<code>$1</code>');
-  // bold
   s = s.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
-  // italic
   s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>');
-  // links
   s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-  // newlines
-  s = s.replace(/\n/g, '<br>');
   return s;
+}
+function renderMsgText(raw) {
+  var lines = String(raw || '').split('\n');
+  var out = [];
+  var i = 0;
+  while (i < lines.length) {
+    var line = lines[i];
+    var t = line.trim();
+    if (t === '') { out.push('<br>'); i++; continue; }
+    if (/^---+$/.test(t)) { out.push('<hr class="msg-hr">'); i++; continue; }
+    if (/^#{1,3}\s+/.test(t)) {
+      var txt = t.replace(/^#+\s*/, '');
+      out.push('<div class="msg-h">' + inlineFmt(txt) + '</div>');
+      i++; continue;
+    }
+    if (/^>\s?/.test(t)) {
+      out.push('<blockquote class="msg-quote">' + inlineFmt(t.replace(/^>\s?/, '')) + '</blockquote>');
+      i++; continue;
+    }
+    if (/^[-*]\s+/.test(t)) {
+      var items = [];
+      while (i < lines.length && /^[-*]\s+/.test(lines[i].trim())) {
+        items.push('<li>' + inlineFmt(lines[i].trim().replace(/^[-*]\s+/, '')) + '</li>');
+        i++;
+      }
+      out.push('<ul class="msg-list">' + items.join('') + '</ul>');
+      continue;
+    }
+    if (/^\d+\.\s+/.test(t)) {
+      var items = [];
+      while (i < lines.length && /^\d+\.\s+/.test(lines[i].trim())) {
+        items.push('<li>' + inlineFmt(lines[i].trim().replace(/^\d+\.\s+/, '')) + '</li>');
+        i++;
+      }
+      out.push('<ol class="msg-list">' + items.join('') + '</ol>');
+      continue;
+    }
+    out.push('<p class="msg-p">' + inlineFmt(line) + '</p>');
+    i++;
+  }
+  return out.join('');
 }
 
 // Emoji picker
@@ -972,3 +1019,36 @@ async function shrinkWrapBubble(div) {
     if (w > 0 && w < maxW) el.style.width = w + 'px';
   } catch (e) {}
 }
+// ── Older-message pagination ──────────────────────────────────────
+var loadOlderBtn = document.getElementById('loadOlderBtn');
+function showLoadOlder() { if (loadOlderBtn) loadOlderBtn.hidden = false; }
+function hideLoadOlder() { if (loadOlderBtn) loadOlderBtn.hidden = true; }
+async function loadOlderMessages() {
+  if (!current || !oldestTs) return;
+  if (loadOlderBtn) { loadOlderBtn.disabled = true; loadOlderBtn.textContent = 'Loading...'; }
+  try {
+    const d = await api('/api/messages?lobby=' + encodeURIComponent(current.name) + '&before=' + encodeURIComponent(oldestTs));
+    const msgs = d.messages || [];
+    if (!msgs.length) { hideLoadOlder(); return; }
+    const beforeCount = messagesEl.childElementCount;
+    const savedScroll = scrollToBottom;
+    scrollToBottom = function () {};
+    msgs.forEach(m => addChatMessage(m.display_name, m.text, fmtTime(m.created_at), m.users && m.users.avatar_url, m.user_id, m.created_at, m.id, null));
+    scrollToBottom = savedScroll;
+    // move newly added nodes to the top, in order
+    const all = Array.from(messagesEl.children);
+    const newCount = all.length - beforeCount;
+    const newNodes = all.slice(-newCount);
+    newNodes.forEach(n => messagesEl.insertBefore(n, messagesEl.firstChild));
+    messagesEl.scrollTop = messagesEl.scrollHeight - messagesEl.clientHeight; // best-effort; adjust below
+    // restore scroll to top-ish
+    messagesEl.scrollTop = 0;
+    oldestTs = msgs[0].created_at;
+    if (msgs.length < 100) hideLoadOlder();
+  } catch (e) {
+    addSystemMessage('Could not load older messages.');
+  } finally {
+    if (loadOlderBtn) { loadOlderBtn.disabled = false; loadOlderBtn.textContent = 'Load older messages'; }
+  }
+}
+if (loadOlderBtn) loadOlderBtn.addEventListener('click', loadOlderMessages);
