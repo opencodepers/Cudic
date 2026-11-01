@@ -169,7 +169,7 @@ async function readError(res: Response): Promise<string> {
 // Upstream errors are cryptic — translate the common ones into actions.
 export function friendlyError(providerName: string, raw: string): string {
   if (/free tier.*within opencode|only be used from within opencode/i.test(raw))
-    return 'Zen free models only work inside OpenCode\u2019s own apps — pick a paid Zen model or another provider.';
+    return 'OpenCode\u2019s free models only work inside OpenCode\u2019s own apps — pick a paid OpenCode model or another provider.';
   if (/sign in on the cudic site/i.test(raw)) return raw;
   // Our own proxy rejecting the login (dead/foreign session token).
   if (/sign in to use cloud models/i.test(raw)) {

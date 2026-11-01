@@ -8,6 +8,92 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Cudic AI panel — user-tuned prompts + brand skin** (uncommitted)
+
+- **System prompt addendum** (`AiSettings.sysExtra`, 4000-char cap): write what
+  you want in the options screen's yellow-box editor (tone, formatting, project
+  conventions), hit save, and the agent + autocompletion both follow it from
+  the next message. It rides `systemPrompt()` right after the built-in
+  discipline block, before any skill pack, so both halves read coherently.
+  `/status` shows a bare `✎ override` whenever the addendum is non-empty.
+- **Panel re-skinned to the Cudic brand kit** (Geist / Geist Mono, routes like
+  `/brand.html`): square corners, no /active pill, status line now discloses
+  the active mode instead of a session pill, loaded via Google Fonts in the
+  options iframe (no float leaks — the iframe's sandbox keeps the rest of the
+  Studio native).
+
+**Cudic AI agent upgrade** (uncommitted)
+
+- Multi-session chat: `/session` lists every transcript with a search bar, and
+  switches, renames, creates or deletes them (20 max). Transcripts persist
+  through panel reloads and sync to the signed-in account via the new
+  `/api/ai/sessions` endpoint (migration: `migration/migration-ai-sessions.sql`
+  adds `users.ai_sessions`).
+- `/model` is now a searchable picker that only shows models from providers
+  you've actually connected (key saved, free, or local engine), and
+  `/connect` lists only the providers you haven't set up yet and jumps
+  straight into key entry. Top bar shows the active session label.
+- Run-preview fix: when the agent called `run_preview` with no Preview tab
+  open, Studio threw a toast outside the panel ("pane not ready yet, reopen
+  Cudic Preview") and the preview never came. `gloxRun`/`gloxRunPython` now
+  open the pane themselves (`ensurePreviewPanes()` in glox.ts) and only warn
+  if the pane truly cannot mount.
+- The chat panel is now a real agent: tool budget raised 4 → 12 rounds and six
+  new tools next to `save_file`/`read_file` — `list_files`,
+  `search_project` (regex over the whole project), `delete_file`,
+  `rename_file`, `run_preview` (opens/reloads the Cudic Preview pane), and
+  `snapshot` (headless project checkpoint via the revisions feature, so risky
+  rewrites are restorable).
+- `ask_user` tool: the agent can ask a question mid-task and the chat renders
+  the existing answer cards (this was the planned use — the message type
+  already existed with no sender).
+- Modes, persisted in settings and cycled with `/mode`: **agent** (default,
+  everything above), **edit** (file writes only), **ask** (chat, no tools).
+  `/status` shows the mode. Editing save/__delete__ guards: never deletes
+  package-lock.json or the project's last HTML entry point.
+- `revisions.createSnapshot(auto, label)` exports the snapshot command with a
+  dialog-free headless path; the File-menu behaviour is unchanged.
+- **MCP connector** (`studio/src/cudic-ai/mcp.ts`): external tool servers plug
+  into the agent over Streamable HTTP. From the `/mcp` screen paste a server
+  URL (+ optional bearer token); the handshake (initialize → notifications →
+  tools/list) exposes up to 20 tools per server (6 servers) as
+  `mcp_sN_<tool>` calls merged into the agent roster. Catalogs cache for 10
+  min and refresh in the background; SSE and plain-JSON replies both parsed.
+  Schema size is capped (4 KB) so one sloppy server can't blow the context,
+  tools/call results flaten to text with images/resources surrogated, and keys
+  ride only the Authorization header (never enter the chat). `/mcp` screen +
+  composer chips show per-server tool counts; `edit` mode keeps MCP off.
+
+**Studio Music tab (pick, don't compose)** (uncommitted)
+
+- Studio gains a Music tab (bottom panel, command palette → “Cudic Music:
+  Open library”). Composing stays in the Music Lab — the tab is a read-only
+  picker: your saved tracks, or a search across every signed-in user's
+  tracks, so games can soundtrack with someone else's beat too.
+- Picking a track writes `music.json` into the project (id + title + author)
+  and shows the one-line integration. No data leaves the two new public
+  endpoints: `GET /api/music/browse?q=` (titles + authors, no owner ids) and
+  `GET /api/music/:id/public` (one track's playable data, 1-min cache).
+- New `public/cudic-music.js` game helper: `CudicMusic.play(trackId)` loops
+  the track inside the game frame (no token involved), waits for the first
+  click/keypress when autoplay blocks audio, `CudicMusic.stop()` /
+  `.volume(0..1)` to control it.
+
+**Game leaderboards** (uncommitted)
+
+- One-call leaderboards for published games: `⟨script src="/cudic-scores.js?v=1"⟩` and
+  `CudicScores.submit(score)` / `CudicScores.top(10)`. Same sandbox shape as
+  CudicSave — the game frame never holds a token; view.html mediates, and
+  signed-out players are told to sign in (guest ack) rather than being able to
+  forge scores.
+- Server: `GET /api/games/:id/scores` is public (top-50 max, rows carry names
+  only, never ids); `POST` is signed-in + seat-checked + email-verified and
+  keeps each player's best run — a replay never lowers it. Table
+  `game_scores` (PK `game_id,user_id`) via `migration/game-scores.sql`, RLS
+  closed; reads/writes go through server.js only.
+- Game pages render a "Leaderboard" card once a game has scores (hidden
+  otherwise), built as DOM nodes like the live-player strip.
+
 **Weekly build theme + community spotlight shelf** (uncommitted)
 
 - New weekly challenge: the homepage now carries a builder theme for the week

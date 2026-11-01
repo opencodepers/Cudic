@@ -139,6 +139,8 @@ render();
                                 <li><strong>Wall</strong>: when the pace stretches, add a <em>new</em> income multiplier type (combo clicks, offline income, prestige loops) rather than inflating costs.</li>
                             </ul>
                             <p>When the loop holds, wire it to <a href="/cookbook/cloud-saves.html">CudicSave</a> so a player's sparks survive a page reload, then <strong>Publish</strong> — and drop the link in a <a href="/forums">Help</a> post if balancing fights back.</p>
+                            <p>Got a final score? One line makes it a leaderboard: after each run call <code>&lt;script src="/cudic-scores.js"&gt;&lt;/script&gt;</code> + <code>CudicScores.submit(score)</code>. The server keeps every signed-in player's best (a replay never lowers it), and the game page shows the top 10 — <a href="/docs.html">docs</a>.</p>
+                            <p>Need a soundtrack? Make the beat in the <a href="/music">Music Lab</a>, then in Studio open the <strong>Music</strong> tab and pick any track (yours or other people's). Drop <code>&lt;script src="/cudic-music.js"&gt;&lt;/script&gt;</code> in your game and <code>CudicMusic.play('&lt;trackId&gt;')</code> — it loops until you call <code>CudicMusic.stop()</code>.</p>
                         </section>
                     </article>
                 </div>

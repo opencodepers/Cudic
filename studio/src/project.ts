@@ -28,6 +28,10 @@ export interface BootProject {
   id: string | null;
   title: string;
   files: FileMap;
+  // True when this boot has no project, no template and no saved work — a
+  // brand-new user staring at the demo shell. main.ts uses it to offer the
+  // template picker once.
+  freshDraft?: boolean;
 }
 
 let projectId: string | null = new URLSearchParams(location.search).get('id');
@@ -321,6 +325,7 @@ export async function bootProject(): Promise<BootProject> {
   }
   // Starter templates: /studio?template=snake starts a fresh untitled
   // project from the template's files (unsaved snapshot below still wins).
+  let templateLoaded = false;
   if (projectId == null) {
     const tpl = new URLSearchParams(location.search).get('template');
     if (tpl) {
@@ -328,7 +333,10 @@ export async function bootProject(): Promise<BootProject> {
         const res = await fetch('/studio-templates/' + encodeURIComponent(tpl) + '.json');
         if (res.ok) {
           const t = await res.json();
-          if (t?.files != null) result = { id: null, title: t.title || tpl, files: t.files };
+          if (t?.files != null) {
+            result = { id: null, title: t.title || tpl, files: t.files };
+            templateLoaded = true;
+          }
         }
       } catch {
         // fall through to demo
@@ -339,7 +347,12 @@ export async function bootProject(): Promise<BootProject> {
   // cost anyone their edits.
   const snap = await snapGet(snapKey()).catch(() => null);
   if (snap != null) result = { ...result, title: snap.title, files: snap.files };
-  return result;
+  // Fresh only when nothing at all loads back — returning users (a project
+  // id or saved work in this browser) already know their way around.
+  return {
+    ...result,
+    freshDraft: projectId == null && !templateLoaded && snap == null
+  };
 }
 
 export function getProjectId(): string | null {
@@ -1117,6 +1130,48 @@ async function exportProject(): Promise<void> {
   }
 }
 
+// The template chooser, shared by the "Cudic: Start from template" command
+// and the automatic offer for brand-new users (main.ts, freshDraft boot).
+// The session marker keeps Esc from re-asking on every reload; a new tab or
+// session asks again.
+export async function offerTemplatePicker(): Promise<void> {
+  try {
+    if (sessionStorage.getItem('cudic_tpl_asked') === '1') return;
+    sessionStorage.setItem('cudic_tpl_asked', '1');
+  } catch {
+    // private mode — ask without the guard
+  }
+  const qp = vscode.window.createQuickPick<{ label: string; description: string; id: string }>();
+  try {
+    const r = await fetch('/studio-templates/index.json');
+    const list = r.ok ? await r.json() : [];
+    qp.items = list.map((t: { name?: string; description?: string; id?: string }) => ({
+      label: t.name || t.id || 'Template',
+      description: t.description || '',
+      id: t.id || ''
+    }));
+    qp.placeholder = 'Choose a starter template';
+    qp.title = 'What do you want to make?';
+    qp.show();
+    await new Promise<void>((resolve) => {
+      qp.onDidAccept(() => {
+        const sel = qp.selectedItems[0];
+        qp.hide();
+        if (sel && sel.id) {
+          const url = new URL(location.href);
+          url.searchParams.set('template', sel.id);
+          url.searchParams.delete('id');
+          location.href = url.toString();
+        }
+        resolve();
+      });
+      qp.onDidHide(() => resolve());
+    });
+  } catch {
+    qp.dispose();
+  }
+}
+
 export function registerProjectCommands(): void {
   registerAction2(
     class extends Action2 {
@@ -1134,34 +1189,7 @@ export function registerProjectCommands(): void {
         });
       }
       async run(): Promise<void> {
-        const qp = vscode.window.createQuickPick<{ label: string; description: string; id: string }>();
-        try {
-          const r = await fetch('/studio-templates/index.json');
-          const list = r.ok ? await r.json() : [];
-          qp.items = list.map((t: { name?: string; description?: string; id?: string }) => ({
-            label: t.name || t.id || 'Template',
-            description: t.description || '',
-            id: t.id || ''
-          }));
-          qp.placeholder = 'Choose a starter template';
-          qp.show();
-          await new Promise<void>((resolve) => {
-            qp.onDidAccept(() => {
-              const sel = qp.selectedItems[0];
-              qp.hide();
-              if (sel && sel.id) {
-                const url = new URL(location.href);
-                url.searchParams.set('template', sel.id);
-                url.searchParams.delete('id');
-                location.href = url.toString();
-              }
-              resolve();
-            });
-            qp.onDidHide(() => resolve());
-          });
-        } catch {
-          qp.dispose();
-        }
+        await offerTemplatePicker();
       }
     }
   );

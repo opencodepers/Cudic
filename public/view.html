@@ -156,6 +156,10 @@
       </div>
       <p id="commentSignin" class="dim" style="display:none;margin-top:12px">Sign in to comment.</p>
     </div>
+    <div class="side-card" id="scoresCard" style="display:none;margin-top:20px">
+      <h2>Leaderboard <span class="dim" style="font-weight:400;font-size:0.78rem;color:var(--text-tertiary)">best run per player</span></h2>
+      <div id="scoreList"></div>
+    </div>
     <div class="modal-overlay" id="collModal">
       <div class="modal" style="width:420px">
         <h2>Save to collection</h2>
@@ -595,6 +599,36 @@ setInterval(function () {
         if (game.created_at) document.getElementById('gameMeta').textContent = 'Published ' + new Date(game.created_at).toLocaleDateString();
         checkOwner(game.owner_id);
         initComments(game);
+        // Leaderboard: rows arrive name-only, so build DOM nodes as with the
+        // live-player strip — an injected name string must never be able to
+        // make markup. Hidden entirely when a game has no scores yet.
+        fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/scores?limit=10')
+          .then(function (r) { return r.ok ? r.json() : { scores: [] }; })
+          .then(function (res) {
+            var rows = (res && res.scores) || [];
+            if (!rows.length) return;
+            var card = document.getElementById('scoresCard');
+            var list = document.getElementById('scoreList');
+            if (!card || !list) return;
+            card.style.display = '';
+            rows.forEach(function (row, i) {
+              var line = document.createElement('div');
+              line.style.cssText = 'display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:0.85rem';
+              if (i === 0) line.style.borderTop = 'none';
+              var place = document.createElement('span');
+              place.textContent = ['🥇', '🥈', '🥉'][i] || (i + 1) + '.';
+              place.style.cssText = 'width:26px;flex:none;text-align:center';
+              var who = document.createElement('span');
+              who.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+              who.textContent = row.name || 'Player';
+              var sc = document.createElement('span');
+              sc.style.cssText = 'font-weight:700;font-variant-numeric:tabular-nums';
+              sc.textContent = String(row.score).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+              line.append(place, who, sc);
+              list.appendChild(line);
+            });
+          })
+          .catch(function () {});
         // Fork is visible to everyone (guests included) — signing in is asked
         // at click time, so every visitor sees the remix loop, not just users.
         var fb = document.getElementById('forkBtn');
@@ -808,7 +842,8 @@ setInterval(function () {
         });
         window.addEventListener('message', function (e) {
           var d = e.data || {};
-          if (!d || (d.type !== 'cudic-save-get' && d.type !== 'cudic-save-set' && d.type !== 'cudic-save-del')) return;
+          if (!d || (d.type !== 'cudic-save-get' && d.type !== 'cudic-save-set' && d.type !== 'cudic-save-del'
+            && d.type !== 'cudic-score-submit' && d.type !== 'cudic-scores-top')) return;
           try { if (!f || e.source !== f.contentWindow) return; } catch (err) { return; }
           if (d.type === 'cudic-save-get') {
             try { f.contentWindow.postMessage({ type: 'cudic-save-data', req: d.req, save: cloudSave, loading: cloudLoading, authed: !!saveSession, storageKey: saveKey }, '*'); } catch (err) {}
@@ -837,6 +872,39 @@ setInterval(function () {
               .then(function () { cloudSave = null; })
               .catch(function () {});
             try { f.contentWindow.postMessage({ type: 'cudic-save-ack', req: d.req, ok: true }, '*'); } catch (err) {}
+          } else if (d.type === 'cudic-score-submit') {
+            // Leaderboards: keep the best run server-side, same sandbox shape
+            // as saves. Signed-out players get a guest ack, not an error, so
+            // the game can show "sign in to save your score".
+            if (!saveSession) {
+              try { f.contentWindow.postMessage({ type: 'cudic-scores-ack', req: d.req, ok: false, error: 'signed-out' }, '*'); } catch (err) {}
+              return;
+            }
+            fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/scores', { method: 'POST', headers: saveHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ score: d.score }) })
+              .then(function (r) {
+                if (r.status === 403) { if (typeof pauseSeat === 'function') pauseSeat('device'); }
+                return r.json().catch(function () { return {}; });
+              })
+              .then(function (j) {
+                if (j && j.error) {
+                  try { f.contentWindow.postMessage({ type: 'cudic-scores-ack', req: d.req, ok: false, error: j.error }, '*'); } catch (err) {}
+                  return;
+                }
+                try { f.contentWindow.postMessage({ type: 'cudic-scores-ack', req: d.req, ok: true, best: j.best, kept: j.kept }, '*'); } catch (err) {}
+              })
+              .catch(function () {
+                try { f.contentWindow.postMessage({ type: 'cudic-scores-ack', req: d.req, ok: false, error: 'network' }, '*'); } catch (err) {}
+              });
+          } else if (d.type === 'cudic-scores-top') {
+            // Public board read — no session in it, guests can see rankings.
+            fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/scores?limit=' + encodeURIComponent(Math.min(Math.max(Math.floor(Number(d.limit)) || 10, 1), 50)))
+              .then(function (r) { return r.ok ? r.json() : { scores: [] }; })
+              .then(function (j) {
+                try { f.contentWindow.postMessage({ type: 'cudic-scores-list', req: d.req, scores: j.scores || [] }, '*'); } catch (err) {}
+              })
+              .catch(function () {
+                try { f.contentWindow.postMessage({ type: 'cudic-scores-list', req: d.req, scores: [] }, '*'); } catch (err) {}
+              });
           }
         });
         // ── In-game multiplayer: same shape as cloud saves — the sandboxed

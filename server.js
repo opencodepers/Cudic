@@ -3495,6 +3495,49 @@ function slugify(s) {
     return;
   }
 
+  // ── API: AI chat sessions (Studio panel transcripts) ──────────
+  // Multi-session chat state saved with the account so sessions survive
+  // panels, machines, and logins. Bounded blob: 20 sessions max, plain text.
+  if (url.pathname === '/api/ai/sessions' && req.method === 'GET') {
+    cors(res);
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.replace('Bearer ', '');
+    if (!token) { res.writeHead(401); res.end(); return; }
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Sign in to sync AI sessions.' })); return; }
+    const { data } = await supabase.from('users').select('ai_sessions').eq('id', user.id).single();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ sessions: Array.isArray(data?.ai_sessions) ? data.ai_sessions : [] }));
+    return;
+  }
+  if (url.pathname === '/api/ai/sessions' && req.method === 'PUT') {
+    cors(res);
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.replace('Bearer ', '');
+    if (!token) { res.writeHead(401); res.end(); return; }
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Sign in to sync AI sessions.' })); return; }
+    let parsed;
+    try { parsed = await readBody(req, 512 * 1024); } catch { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Payload too large.' })); return; }
+    const incoming = Array.isArray(parsed.sessions) ? parsed.sessions : [];
+    // Strict shape: plain-text label + q/a transcript pairs only.
+    const sessions = incoming.slice(0, 20).map((s) => ({
+      id: String((s && s.id) || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40),
+      label: String((s && s.label) || '').replace(/\s+/g, ' ').trim().slice(0, 60),
+      created: Math.min(Math.max(Number((s && s.created) || 0), 0), 4102444800000),
+      msgs: (Array.isArray(s && s.msgs) ? s.msgs : []).slice(0, 80).map((mm) => ({
+        q: String((mm && mm.q) || '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 4000),
+        a: String((mm && mm.a) || '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 12000)
+      })).filter((mm) => mm.q)
+    })).filter((s) => s.id);
+    // Update by auth id — users.id mirrors auth.users.id in this schema.
+    const { error: upErr } = await supabase.from('users').update({ ai_sessions: sessions }).eq('id', user.id);
+    if (upErr) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not save sessions.' })); return; }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, sessions: sessions.length }));
+    return;
+  }
+
   // ── API: list game comments ──────────────────────────────────
   if (/^\/api\/games\/[^/]+\/comments$/.test(url.pathname) && req.method === 'GET') {
     cors(res);
@@ -3767,6 +3810,72 @@ function slugify(s) {
     cors(res);
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
     res.end(JSON.stringify({ playing: liveCount(url.pathname.split('/')[3]) }));
+    return;
+  }
+
+  // ── API: game leaderboard (best score per player) ──────────────────
+  // GET is public: the board shows on the game page for everyone, guests
+  // included. POST is signed-in (seat-checked) only — there is no identity
+  // to bind a guest score to. One row per (game, player): a replay never
+  // lowers your best, and spam can't flood the board.
+  // Must stay above the generic /api/games/:id GET below, which would
+  // otherwise read ".../scores" as a game id.
+  const scoreMatch = /^\/api\/games\/([^/]+)\/scores$/.exec(url.pathname);
+  if (scoreMatch && (req.method === 'GET' || req.method === 'POST')) {
+    cors(res);
+    const gid = scoreMatch[1];
+    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
+    const { data: g } = await supabase.from('games').select('published, owner_id').eq('id', gid).single();
+    if (req.method === 'GET') {
+      if (!g || !g.published) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+      const lim = Math.min(Math.max(Number(new URLSearchParams(url.search).get('limit')) || 10, 1), 50);
+      const { data: rows } = await supabase
+        .from('game_scores')
+        .select('score, updated_at, users!game_scores_user_id_fkey(display_name)')
+        .eq('game_id', gid)
+        .order('score', { ascending: false })
+        .order('updated_at', { ascending: true })
+        .limit(lim);
+      // Names only leave the door — user ids never appear on a public board.
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({
+        scores: (rows || []).map((r) => ({ score: r.score, name: (r.users && r.users.display_name) || 'Player', at: r.updated_at }))
+      }));
+      return;
+    }
+    // POST — signed-in + seat-alive. Verified-check matches like/rate.
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.replace('Bearer ', '');
+    if (!token) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+    if (!(await seatAlive(user.id, seatFromReq(req)))) { seatDead(res); return; }
+    if (!(await needVerified(user, res))) return;
+    if (!g || !(g.published || g.owner_id === user.id)) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+    const body = await readBody(req).catch(() => ({}));
+    const score = Math.floor(Number(body.score));
+    // Bounded on purpose: scores are ints inside int4, and NaN/Infinity
+    // must never reach the column.
+    if (!Number.isFinite(score) || score < 0 || score > 2147483647) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Score must be a number from 0 to 2147483647.' }));
+      return;
+    }
+    // Cheap read-then-write instead of an rpc: only overwrite when the new
+    // run beats the stored one. Two writers racing here both keep a valid
+    // best, so no lock is worth it at this scale.
+    const { data: prev } = await supabase.from('game_scores')
+      .select('score').eq('game_id', gid).eq('user_id', user.id).maybeSingle();
+    if (prev != null && prev.score >= score) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, kept: true, best: prev.score }));
+      return;
+    }
+    const { error } = await supabase.from('game_scores')
+      .upsert({ game_id: gid, user_id: user.id, score, updated_at: new Date().toISOString() }, { onConflict: 'game_id,user_id' });
+    if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not save the score.' })); return; }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, best: score }));
     return;
   }
 
@@ -4359,10 +4468,41 @@ function slugify(s) {
     if (JSON.stringify(data).length > 100 * 1024) return { error: 'Track too large (100KB max).' };
     return { title, data };
   }
+  // ── API: public music browse/search (no auth) ──────────────
+  // Studio's Music tab and the CudicMusic game helper need other people's
+  // tracks without a token. Names + titles only in the list; the per-track
+  // endpoint is what players actually fetch. Never exposes owner ids.
+  if (url.pathname === '/api/music/browse' && req.method === 'GET') {
+    cors(res);
+    const q = String(url.searchParams.get('q') || '').trim().replace(/[%_\\]/g, '').substring(0, 60);
+    let limit = parseInt(url.searchParams.get('limit') || '30', 10); if (!(limit > 0)) limit = 30; if (limit > 40) limit = 40;
+    let sel = supabase.from('music_tracks').select('id, title, updated_at, users(display_name)').order('updated_at', { ascending: false }).limit(limit);
+    if (q) sel = sel.ilike('title', '%' + q + '%');
+    const { data } = await sel;
+    const tracks = (data || []).map(t => ({ id: t.id, title: t.title, owner: (t.users && t.users.display_name) || 'Cudic user', updated_at: t.updated_at }));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ tracks }));
+    return;
+  }
+  const musicPublicMatch = /^\/api\/music\/([^/]+)\/public$/.exec(url.pathname);
+  if (musicPublicMatch && req.method === 'GET') {
+    cors(res);
+    const tid = musicPublicMatch[1];
+    if (!isUuid(tid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid track.' })); return; }
+    const { data: tr } = await supabase.from('music_tracks').select('id, title, data').eq('id', tid).single();
+    if (!tr) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found.' })); return; }
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60' });
+    res.end(JSON.stringify({ track: tr }));
+    return;
+  }
   if (url.pathname === '/api/music' && req.method === 'GET') {
     cors(res);
     const user = await requireUser(req, res); if (!user) return;
-    const { data } = await supabase.from('music_tracks').select('id, title, updated_at').eq('owner_id', user.id).order('updated_at', { ascending: false }).limit(50);
+    const q = String(url.searchParams.get('q') || '').trim().replace(/[%_\\]/g, '').substring(0, 60);
+    let limit = parseInt(url.searchParams.get('limit') || '50', 10); if (!(limit > 0)) limit = 50; if (limit > 50) limit = 50;
+    let sel = supabase.from('music_tracks').select('id, title, updated_at').eq('owner_id', user.id).order('updated_at', { ascending: false }).limit(limit);
+    if (q) sel = sel.ilike('title', '%' + q + '%');
+    const { data } = await sel;
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ tracks: data || [] }));
     return;

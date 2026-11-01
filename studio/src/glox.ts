@@ -323,6 +323,30 @@ async function fallbackDoc(): Promise<Pick<
 }
 
 // Seed at boot so first-open Preview works with zero clicks.
+// The agent's run_preview tool calls gloxRun() sight-unseen, which used to
+// error out when no Preview tab was open. Now the pane opens itself: after the
+// vscode.open the workbench constructs PreviewPane and its initialize() /
+// renderInput() add it to the live set, so poll briefly — the fresh pane's own
+// rerun() renders the doc, and the caller then refreshes it with the right doc.
+async function ensurePreviewPanes(): Promise<PreviewPane[]> {
+  const found = PreviewPane.livePanes();
+  if (found.length > 0) return found;
+  try {
+    await vscode.commands.executeCommand(
+      'vscode.open',
+      monaco.Uri.parse('file:///workspace/preview.gloxpreview')
+    );
+  } catch {
+    // fall through to the poller
+  }
+  for (let i = 0; i < 30; i++) {
+    const panes = PreviewPane.livePanes();
+    if (panes.length > 0) return panes;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return PreviewPane.livePanes();
+}
+
 export async function seedPreviewDoc(): Promise<void> {
   if (lastCodeDoc != null) return;
   const doc = await fallbackDoc();
@@ -330,9 +354,9 @@ export async function seedPreviewDoc(): Promise<void> {
 }
 
 export async function gloxRun(): Promise<void> {
-  const panes = PreviewPane.livePanes();
+  const panes = await ensurePreviewPanes();
   if (panes.length === 0) {
-    vscode.window.showErrorMessage('Preview: pane not ready yet, reopen Cudic Preview.');
+    vscode.window.showErrorMessage('Preview: pane could not be opened. Try reloading Studio.');
     return;
   }
   let doc = targetDoc();
@@ -394,9 +418,9 @@ main();
 }
 
 export async function gloxRunPython(): Promise<void> {
-  const panes = PreviewPane.livePanes();
+  const panes = await ensurePreviewPanes();
   if (panes.length === 0) {
-    vscode.window.showErrorMessage('Preview: pane not ready yet, reopen Cudic Preview.');
+    vscode.window.showErrorMessage('Preview: pane could not be opened. Try reloading Studio.');
     return;
   }
   const doc = targetDoc();

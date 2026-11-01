@@ -84,11 +84,25 @@ npm run build        # vite build (lib IIFE) → ../public/islands/  (~5s, 657KB
   (currently **v24**) — pages cache CSS aggressively. Same for
   `sidebar.js?v=N` (currently **v14**) / `client.js?v=N` (currently **v7**) after editing those.
   New shared scripts take `?v=1` (`ctheme.js`, `csel.js`).
-- **No test suite exists.** Verification = build + open `http://localhost:3000`
-  and check the console. Playwright MCP is **disabled**; the browser tools that
+- **Test suite exists**: `python tests/run_tests.py` (~130 stdlib tests; boots
+  server.js itself on :3000, appends machine-readable history to
+  `tests/results.json`). Run it after every server/page/library change —
+  regression pins in `tests/test_regressions.py` re-read source files, so
+  doc claims in AGENTS.md/CHANGELOG are load-bearing. `CUDIC_TEST_TOKEN` adds
+  signed-in e2e. Playwright MCP is **disabled**; the browser tools that
   work here are `chrome-devtools` (screenshots return media inline when no
   `filePath` is given) and `public-browser`. Headless Chrome `--screenshot` is
   unreliable in this environment — do not use it to verify visuals.
+- **Ship ritual — docs travel with the code**: every user-visible feature
+  updates, in this order, before the work counts as done:
+  1. the public help pages users actually read (mostly `public/docs.html`
+     bullets, or a `public/cookbook/*.html` note when a code helper gains
+     something — e.g. CudicScores under the clicker guide),
+  2. `CHANGELOG.md` (Unreleased, user-facing wording),
+  3. `AGENTS.md` §5 API rows + §6 table rows when server surface changes.
+  A feature without docs is an unfinished feature — same bar as tests.
+  (Internal-only changes still get CHANGELOG + AGENTS.md when they alter
+  behavior an agent must not quietly re-break.)
 
 ---
 
@@ -172,6 +186,14 @@ GET  /api/games                 GET|POST /api/games     GET /api/games/mine
 GET  /api/games/:id/thumbnail   ← card art as real image bytes (1-day cache)
 GET  /api/games/:id/live        ← in-memory room head-count (`{playing}`) for the
                                   game page's pill; unauth, no-store, no DB
+GET|POST /api/games/:id/scores  ← leaderboards: GET is public (top-N, names only),
+                                  POST is signed-in+seat-checked and keeps the
+                                  player's best run (read-then-write); rows live
+                                  in `game_scores`
+GET|POST /api/music             ← Music Lab cloud saves (owner-scoped); browse-by-title
+GET  /api/music/browse           ← PUBLIC: any user's track titles/owners, no data
+GET  /api/music/:id/public       ← PUBLIC: one track's playable data (1-min cache);
+                                  fetched by /cudic-music.js in the game frame
 POST /api/ai/fetch              ← the AI proxy (see §7)
 GET  /favicon.ico               → serves public/cudic_sfsvg.svg
 GET  /themes                    theme pack store
@@ -232,6 +254,13 @@ mirror); guests stay local. `?track=` deep link; switching reloads so
 one-shot builders never double-bind. Needs migration
 `20261014130000_music_tracks.sql`. Your Projects tab unifies Studio
 projects + unpublished pack drafts (`/themes?edit=`) + tracks.
+**No composing in Studio** — `cudic-music/extension.ts` adds the bottom-panel
+Music tab, a read-only picker: `Yours` (authed `/api/music`, `?q=` title
+filter) and `Everyone` (public `/api/music/browse`, no auth). Picking a
+track writes `/workspace/music.json` `{id,title,from}`; games play it with
+`public/cudic-music.js` → `CudicMusic.play(id)` (public
+`/api/music/:id/public`, gesture-safe — waits for the first click if the
+AudioContext can't start).
 
 ### Single-seat sessions (one live seat per account)
 Client mints a random seat id at login (`cudic_seat` in localStorage; fresh
@@ -329,7 +358,9 @@ plus optional `GMAIL_CLIENT_ID/CLIENT_SECRET/REFRESH_TOKEN/SENDER`, `RESEND_API_
 
 Supabase project `opimjwmgmzwapkzgxvhk`.
 Tables: `users`, `lobbies`, `messages`, `games`, `game_comments`, `servers`,
-`server_members`, `active_sessions`, `game_saves`. Trigger `on_auth_user_created` creates the profile on signup.
+`server_members`, `active_sessions`, `game_saves`, `game_scores` (leaderboards;
+migration/game-scores.sql, RLS closed — reached only through server.js),
+`notifications`. Trigger `on_auth_user_created` creates the profile on signup.
 
 **Chat history is permanent.** Nothing deletes `messages` except the moderator
 `delete_message` action. `lobbies.persistent` is vestigial (the old 2h sweeper
@@ -402,8 +433,55 @@ Instead the panel is a **direct DOM mount**:
 
 Bridge: `postMessage` / `message` events between parent and iframe.
 Parent handlers (`handlePanelMessage`): `ai:ready`, `ai:saveSettings`,
-`ai:models`, `ai:test`, `ai:chat`, `ai:stop`, `ai:apply`.
+`ai:mode`, `ai:mcp`, `ai:models`, `ai:test`, `ai:chat`, `ai:stop`, `ai:apply`.
 Outbound: `postToPanel(...)`.
+
+### Agent tool loop (rival-clause: this is the opencode/codex shape)
+`withTools` = openai-chat format AND `st.mode !== 'ask'`; loops up to **12
+rounds** (`for (let round = 0; round < 12; ...)`) executing tool calls between
+rounds until the model stops calling tools. Tools: `save_file`, `read_file`,
+`list_files`, `search_project` (regex, ≤60 hits), `delete_file`,
+`rename_file`, `run_preview` (→ `gloxRun()` from glox.ts — no import cycle,
+glox never imports cudic-ai; when no Preview tab exists it opens one itself
+via `ensurePreviewPanes()` instead of erroring — used to be a toast telling
+the user to reopen the preview), `snapshot` (→ `revisions.createSnapshot(true,
+label)` headless), `ask_user` (posts `ai:ask`, awaits `askResolvers`, 120s
+timeout fallback string). Deletes are guarded: never `package-lock.json`,
+never the project's last HTML entry. Modes cycle in chat via `/mode`
+(ask → edit → agent); `ask` sends no tools, `edit` gets file-write tools only.
+
+Multi-session chat (`/session` screen): transcripts are host-side —
+`AiSettings.sessions` (capped 20, `msg {q,a}` pairs) plus `activeSession`. The
+panel posts `ai:saveHistory` after each completed turn and `/clear`; handlers
+for `ai:session` (op `create|switch|rename|delete`) edit the archive, and
+`syncSessions()` PUTs the blob to **`/api/ai/sessions`** (Bearer token,
+fire-and-forget) so it follows the account; `pullSessions()` unions it back
+once per boot, longer transcript wins. `publicSettings()` ships
+`sessionsMeta` + the active session's transcript as `history` — the panel
+rebuilds scrollback from it (`restoreHistory()`), skipped mid-stream so
+tokens keep painting. `/model` = searchable picker over connected providers
+only (`keyed` ∪ keyOptional ∪ loopback); `/connect` = renderPlist in
+connectMode (only providers without a saved key, row taps key entry).
+
+### MCP connector ( §7c )
+`src/cudic-ai/mcp.ts` — Streamable HTTP ONLY (browser can't do stdio). Runtime:
+`initialize` → `notifications/initialized` → `tools/list` per server, then
+`tools/call` per invocation; JSON-RPC over POST with 15 s timeouts, SSE
+replies parsed defensively. Every tool surfaces as `mcp_sN_<tool>` (server
+order index N, tool name sanitized) in `AiSettings.mcp`.
+Hard caps: **6 servers, 20 tools/server, 4 KB input schema** (oversized
+schemas are replaced by a one-line description). Catalogs cache in module
+state (`mcpTools`/`mcpFetchedAt`, 10 min TTL) and refresh via
+`refreshMcpCatalogs()` → posts `ai:mcpState` lines to the panel. Keys are
+stored in settings and sent only as the `Authorization: Bearer` header;
+`publicSettings()` exposes url + `hasKey` + live toolCount only. Panel: `/mcp`
+screen (add/remove/re-check per server) + `[m]` chips in the composer (green
+signature when the server reports tools). Failure mode of a dead server is
+graceful: errors aggregate per-server, tools from living servers still merge
+into the roster.
+(intentional ambiguity: every TOOL_DEFS entry still reaches the model in edit
+mode — server-side filtering by mode is a TODO if it ever matters).
+Settings key `mode` persists in `AiSettings` and `publicSettings()`.
 
 Manifest registration is **import-time** and manifest-only (`registerExtension`
 with `LocalWebWorker`, `icon: '$(sparkle)'`) — it exists so the extension host is
@@ -412,15 +490,25 @@ happy, not because views are used.
 ### Files
 | File | Role |
 |---|---|
-| `studio/src/cudic-ai/extension.ts` | main side: mount, message handlers, `resolveModel`, `friendlyError`, `gatherContext`/`systemPrompt`, autocomplete, `setSupaToken`, `publicSettings` |
+| `studio/src/cudic-ai/extension.ts` | main side: mount, message handlers, `resolveModel`, `friendlyError`, `gatherContext`/`systemPrompt`, **agent tool loop** (see below), autocomplete, `setSupaToken`, `publicSettings` |
 | `studio/src/cudic-ai/chat.html` | all UI: gate / providers / key / options / chat screens, ASCII noise, motion CSS |
 | `studio/src/cudic-ai/providers.ts` | **53 provider presets**, `publicModels` flag, `isLoopbackUrl` |
 | `studio/src/cudic-ai/llm.ts` | `streamChat` (openai-chat / anthropic / gemini SSE), `fetchModels`, `routedFetch`, `friendlyError`, `suggestModels`, tool-call defs + OAI tool delta parsing |
 | `studio/src/cudic-ai/skills.ts` | `SKILLS` — premade prompt packs (`cudic` on by default, `taste` opt-in), condensed from design docs |
+| `studio/src/cudic-ai/mcp.ts` | MCP connector: Streamable-HTTP client (`rpc`, `fetchCatalog`, `callTool`, `aggregateCatalog`) + `mcp_sN_<tool>` naming, caps |
 
 ### Settings & keys
 - Stored in page `localStorage['cudic-ai']` as
-  `AiSettings { provider, model, baseOverride, completeOn, completeModel, keys, modelLists, skills }`.
+  `AiSettings { provider, model, baseOverride, completeOn, completeModel, keys, modelLists, skills, mode, sysExtra, mcp }`.
+- **`sysExtra`** = user's custom system-prompt addendum (options screen, cursor
+  in a 4 000-char textarea with a live counter before #sysExtra in the DOM).
+  Appends right after the built-in discipline block, before the premade skill
+  packs, as "Additional instructions from the user (treat as first-party)".
+- **UI skin: Geist / Geist Mono** (design.md / `brand.html` vibes) — the panel
+  loads both from Google Fonts and treats terminal.font the fallback. Mono
+  for `small`, `.tbtn`, `.chev`, `.sess`. Vibe = Codex CLI / opencode terminal,
+  echoing `--cudic-ink #0d0e10` / `--cudic-cream #f7f5ec` with `#b8f23a` lime
+  accents and zero rounded corners.
 - `publicSettings()` returns a **safe projection**: `hasKey` boolean + `keyed[]`
   (which providers have keys — **presence only, never values**). Keys never leave
   the page except as an `Authorization` header on the outbound request.
@@ -433,7 +521,7 @@ happy, not because views are used.
 if (p.publicModels || p.loopback) return true;        // keyless catalogs
 return keyed.indexOf(pid) !== -1;                     // or you have that key
 ```
-- **Keyless/live**: OpenCode Zen (`opencode.ai/zen/v1/models`, 82→84 IDs),
+- **Keyless/live**: OpenCode (`opencode.ai/zen/v1/models`, 82→84 IDs),
   OpenRouter (`openrouter.ai/api/v1/models`, 458 IDs), local Ollama/LM Studio.
   Expand the company row → list fetches and the full lineup renders inline.
 - **Keyed**: expanding pulls the live catalog once a key for that company is saved.

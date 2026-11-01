@@ -38,11 +38,16 @@ async function latestSnapshotFiles(id: string, tok: string): Promise<Record<stri
 
 type StageItem = vscode.QuickPickItem & { path: string; status: 'new' | 'changed' | 'deleted' };
 
-async function createSnapshot() {
+// Exported so the Cudic AI agent can checkpoint the project before it
+// starts editing files (same command the File menu runs). Returns whether
+// a snapshot was actually created.
+// auto=true runs headless (all changes staged, fixed label) so the Cudic AI
+// agent can checkpoint without yanking quickpicks in front of the user.
+export async function createSnapshot(auto?: boolean, autoLabel?: string): Promise<boolean> {
   const id = getProjectId();
-  if (!id) { vscode.window.showInformationMessage('Save the project first — you can snapshot after it has an id.'); return; }
+  if (!id) { vscode.window.showInformationMessage('Save the project first — you can snapshot after it has an id.'); return false; }
   const tok = getToken();
-  if (!tok) { vscode.window.showInformationMessage('Sign in to snapshot.'); return; }
+  if (!tok) { vscode.window.showInformationMessage('Sign in to snapshot.'); return false; }
   const current = await collectTextFiles();
   const base = await latestSnapshotFiles(id, tok);
   const payload: { label: string; files?: Record<string, string> } = { label: '' };
@@ -59,27 +64,34 @@ async function createSnapshot() {
     }
     if (changes.length === 0) {
       vscode.window.showInformationMessage('Nothing has changed since the last snapshot.');
-      return;
+      return true;
     }
     // Stage dialog: every change starts checked; press Enter to snapshot the
     // checked ones. Untouched files ride along unchanged.
-    const qp = vscode.window.createQuickPick<StageItem>();
-    qp.canPickMany = true;
-    qp.title = 'Stage changes for this snapshot';
-    qp.placeholder = 'Enter snapshots the checked files — click or press space to toggle a file';
-    qp.items = changes;
-    qp.selectedItems = changes;
-    let accepted = false;
-    const picked = await new Promise<StageItem[]>((resolve) => {
-      qp.onDidAccept(() => { accepted = true; resolve(qp.selectedItems.slice()); });
-      qp.onDidHide(() => resolve([]));
-      qp.show();
-    });
-    qp.dispose();
-    if (!accepted) return; // dismissed
+    // Agent mode (auto) stages everything instead — no quickpick.
+    const picked = auto
+      ? changes
+      : await (async (): Promise<StageItem[]> => {
+          const qp = vscode.window.createQuickPick<StageItem>();
+          qp.canPickMany = true;
+          qp.title = 'Stage changes for this snapshot';
+          qp.placeholder = 'Enter snapshots the checked files — click or press space to toggle a file';
+          qp.items = changes;
+          qp.selectedItems = changes;
+          let accepted = false;
+          const res = await new Promise<StageItem[]>((resolve) => {
+            qp.onDidAccept(() => { accepted = true; resolve(qp.selectedItems.slice()); });
+            qp.onDidHide(() => resolve([]));
+            qp.show();
+          });
+          qp.dispose();
+          if (!accepted) return [];
+          return res;
+        })();
+    if (!auto && picked.length === 0) return false; // dismissed
     if (picked.length === 0) {
       vscode.window.showInformationMessage('Snapshot would be empty — stage at least one change, or run it again and keep everything checked.');
-      return;
+      return false;
     }
     const keep = new Set(picked.map((i) => i.path));
     const staged: Record<string, string> = {};
@@ -96,8 +108,10 @@ async function createSnapshot() {
     stagedCount = picked.length;
   }
 
-  const label = await vscode.window.showInputBox({ prompt: 'Snapshot label (optional)', placeHolder: 'e.g. "before adding powerups"', value: '' });
-  if (label === undefined) return;
+  const label = auto
+    ? (autoLabel || 'before agent edit')
+    : await vscode.window.showInputBox({ prompt: 'Snapshot label (optional)', placeHolder: 'e.g. "before adding powerups"', value: '' });
+  if (label === undefined) return false;
   payload.label = label || '';
   const res = await fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/revisions', {
     method: 'POST',
@@ -110,8 +124,10 @@ async function createSnapshot() {
       'Snapshot saved: ' + d.revision.label +
       (stagedCount != null ? ' (' + stagedCount + ' change(s) staged).' : '')
     );
+    return true;
   }
-  else vscode.window.showErrorMessage(d.error || 'Snapshot failed.');
+  vscode.window.showErrorMessage(d.error || 'Snapshot failed.');
+  return false;
 }
 
 async function restoreSnapshot() {

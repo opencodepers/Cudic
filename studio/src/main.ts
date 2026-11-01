@@ -22,11 +22,13 @@ import {
   bootProject,
   applyProjectToProvider,
   registerProjectCommands,
-  startSnapshotWatcher
+  startSnapshotWatcher,
+  offerTemplatePicker
 } from './project';
 import { registerRevisionCommands } from './revisions';
 import { registerCollabCommands } from './collab';
 import { registerCudicAi, setSupaToken } from './cudic-ai/extension';
+import { registerCudicMusic } from './cudic-music/extension';
 import * as monaco from 'monaco-editor';
 import * as vscode from 'vscode';
 import {
@@ -254,8 +256,15 @@ registerProjectCommands();
 registerRevisionCommands();
 registerCollabCommands(shadowRoot);
 
+// Template-first new projects: a fresh draft (no ?id, no ?template, no saved
+// work in this browser) gets one pick of a starter game. Escaping just keeps
+// the blank shell — the picker doesn't re-ask within this tab session.
+if (boot.freshDraft) void offerTemplatePicker();
+
 // Cudic AI built-in (right-side chat panel + ghost autocomplete).
 void registerCudicAi(shadowRoot);
+// Cudic Music tab (bottom-panel picker — your tracks + everyone's).
+void registerCudicMusic(shadowRoot);
 function pushSupaToken(): void {
   try {
     const raw = localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token');

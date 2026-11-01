@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-__NONCE__'; style-src 'unsafe-inline';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;700&display=swap">
 <style>
 /*__TERMINAL_CSS__*/
 /* Cudic AI, terminal skin. Zinc monochrome, monospace everywhere, no
@@ -13,11 +14,20 @@
 html, body { height: 100%; }
 body {
   margin: 0; padding: 0; display: flex; flex-direction: column;
-  font-family: var(--vscode-editor-font-family, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-family: 'Geist', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12.5px; line-height: 1.65;
   color: var(--vscode-foreground, #fafafa);
   background: transparent;
+  --line: #2a2a2f;
+  --ink: #f7f5ec;
+  --paper: #0f0f12;
+  --accent: #b8f23a;
+  --accent2: #d9381e;
 }
+.mono, .tbtn, .chev, .sess, small {
+  font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
 button { font: inherit; cursor: pointer; }
 button:disabled { opacity: 0.35; cursor: default; }
 .hidden { display: none !important; }
@@ -62,6 +72,13 @@ button:disabled { opacity: 0.35; cursor: default; }
 }
 #psearch:focus { outline: none; border-bottom-color: #71717a; }
 #psearch::placeholder { color: var(--vscode-input-placeholderForeground, #52525b); }
+.ssearch {
+  background: transparent; color: var(--vscode-input-foreground, #fafafa);
+  border: none; border-bottom: 1px solid var(--vscode-input-border, #27272a);
+  border-radius: 0; padding: 7px 2px; font: inherit; width: 100%;
+}
+.ssearch:focus { outline: none; border-bottom-color: #71717a; }
+.ssearch::placeholder { color: var(--vscode-input-placeholderForeground, #52525b); }
 #plist { display: flex; flex-direction: column; }
 #plist button {
   background: none; border: none; border-bottom: 1px solid #1e1e22;
@@ -209,9 +226,10 @@ button:disabled { opacity: 0.35; cursor: default; }
 <body>
   <div id="topbar">
     <span class="brand">✦ cudic-ai</span>
-    <span class="sess">· main</span>
+    <span class="sess" id="sessLabel">· main</span>
     <span class="sp"></span>
     <span id="modelPill" title="Active provider · model">…</span>
+    <button class="tbtn" id="sessBtn" title="Sessions (/session)">sessions</button>
     <button class="tbtn" id="gearBtn" title="Providers & keys (/model)">models</button>
     <button class="tbtn" id="clearBtn2" title="Clear chat (/clear)">clear</button>
   </div>
@@ -262,7 +280,46 @@ button:disabled { opacity: 0.35; cursor: default; }
     <div class="field">custom endpoint (blank = provider default)
       <input id="baseUrl" type="text" placeholder="https://my-host/v1" autocomplete="off" spellcheck="false">
     </div>
+    <div class="field">system prompt addendum
+      <textarea id="sysExtra" rows="5" placeholder="Brainstorm things it should do differently. Wins and personality live closest to what you type."></textarea>
+      <span id="sysCount" class="mono small"></span>
+    </div>
+    <button class="tbtn" id="sysSave">save prompt</button>
     <p class="sub" id="provNote"></p>
+  </div>
+
+  <!-- MCP tool servers -->
+  <div id="mcpScreen" class="screen hidden">
+    <div class="backrow"><button class="tbtn" id="mcpBack" aria-label="Back">‹ back</button><h2 style="margin:0">mcp servers</h2></div>
+    <p class="sub">Streamable-HTTP MCP servers whose tools plug straight into the agent (max 6).</p>
+    <div id="mcpList"></div>
+    <div class="field">server url
+      <input id="mcpUrl" type="url" placeholder="https://example.com/mcp" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="field">bearer token (optional)
+      <input id="mcpKey" type="password" placeholder="paste key" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="btnrow" style="margin-top:2px">
+      <button class="tbtn big" id="mcpAdd">add server</button>
+    </div>
+    <div class="hint" id="mcpHint"></div>
+  </div>
+
+  <!-- Sessions -->
+  <div id="sessionScreen" class="screen hidden">
+    <div class="backrow"><button class="tbtn" id="sessBack" aria-label="Back">‹ back</button><h2 style="margin:0">sessions</h2></div>
+    <p class="sub">Transcripts live in the panel and sync to your account when you're signed in. 20 max.</p>
+    <input id="sessSearch" class="ssearch" type="text" placeholder="$ search sessions…" autocomplete="off" spellcheck="false">
+    <div id="sessList"></div>
+    <div class="btnrow" style="margin-top:2px"><button class="tbtn big" id="sessNew">+ new session</button></div>
+  </div>
+
+  <!-- Model picker over connected providers -->
+  <div id="modelScreen" class="screen hidden">
+    <div class="backrow"><button class="tbtn" id="mdlBack" aria-label="Back">‹ back</button><h2 style="margin:0">model</h2></div>
+    <p class="sub">Model from your connected providers. (<a href="#" id="mdlConnect" style="color:inherit">connect a new provider</a>)</p>
+    <input id="mdlSearch" class="ssearch" type="text" placeholder="$ search models…" autocomplete="off" spellcheck="false">
+    <div id="mdlList"></div>
   </div>
 
   <!-- Chat -->
@@ -288,8 +345,10 @@ button:disabled { opacity: 0.35; cursor: default; }
     completeOn = $('completeOn'), completeModel = $('completeModel'), baseUrlEl = $('baseUrl'),
     provNote = $('provNote'), msgs = $('msgs'), q = $('q'), chips = $('chips'),
     statusEl = $('status'), slashpop = $('slashpop'),
+    sysExtraEl = $('sysExtra'), sysCountEl = $('sysCount'), sysSaveBtn = $('sysSave'),
     modelPill = $('modelPill'), keyHint = null;
-  var PRESETS = [], SETTINGS = { provider: 'zen', model: '', baseOverride: '', completeOn: true, completeModel: '', hasKey: false, keyed: [], skills: [] }, SKILLCAT = [];
+  var PRESETS = [], SETTINGS = { provider: 'zen', model: '', baseOverride: '', completeOn: true, completeModel: '', hasKey: false, keyed: [], skills: [], mode: 'agent', sysExtra: '', mcp: [], modelLists: {} }, SKILLCAT = [];
+  function modeSafe(v) { return ['agent', 'edit', 'ask'].indexOf(v) !== -1 ? v : 'agent'; }
   var history = [], streaming = null, attachActive = true, chatted = false, fetchedFor = {}, lastQ = '', baseOverrideVal = '', justSavedKey = false;
   var hist = [], hidx = -1;
   var hasSupa = false;
@@ -305,7 +364,7 @@ button:disabled { opacity: 0.35; cursor: default; }
     var m = (SETTINGS.model || '').trim() || ((p && p.models[0]) || '');
     return ((p && p.name) || '…') + (m ? ' · ' + m : '');
   }
-  var SCREENS = ['gate', 'providersScreen', 'keyScreen', 'optionsScreen', 'chatwrap'];
+  var SCREENS = ['gate', 'providersScreen', 'keyScreen', 'optionsScreen', 'mcpScreen', 'sessionScreen', 'modelScreen', 'chatwrap'];
   function show(name) {
     SCREENS.forEach(function (id) { $(id).classList.toggle('hidden', id !== name); });
   }
@@ -318,8 +377,34 @@ button:disabled { opacity: 0.35; cursor: default; }
   function decide() {
     var cur = null;
     SCREENS.forEach(function (id) { if (!$(id).classList.contains('hidden')) cur = id; });
-    if (cur === 'providersScreen' || cur === 'keyScreen' || cur === 'optionsScreen') return;
+    if (cur === 'providersScreen' || cur === 'keyScreen' || cur === 'optionsScreen' || cur === 'mcpScreen' || cur === 'sessionScreen' || cur === 'modelScreen') return;
     exitSetup();
+  }
+
+  // Rebuild the scrollback from the active session's transcript (host-side).
+  // Never runs mid-stream — an ai:state landing while tokens flow would
+  // otherwise wipe the streaming row out of the DOM.
+  function restoreHistory() {
+    if (streaming) return;
+    msgs.innerHTML = '';
+    history.forEach(function (h) {
+      if (h.q) addUser(h.q);
+      if (h.a) {
+        var row = addAi();
+        renderAi(row.body, h.a);
+        var c = row.body.querySelector('.cursor');
+        if (c) c.remove();
+      }
+    });
+    chatted = history.length > 0;
+    if (!chatted) {
+      msgs.innerHTML = '<div id="emptyState"></div>';
+      showEmpty();
+      decide();
+    }
+  }
+  function postSaveHistory() {
+    api.postMessage({ type: 'ai:saveHistory', msgs: history.slice(-80) });
   }
   function setStatus(mode, extra) {
     if (!statusEl) return;
@@ -327,9 +412,158 @@ button:disabled { opacity: 0.35; cursor: default; }
       statusEl.className = 'live';
       statusEl.textContent = 'streaming… · ~' + (extra || 0) + ' tok · esc stops';
     } else {
-      statusEl.className = '';
-      statusEl.textContent = (extra || modelName()) + ' · main' + (hasSupa ? '' : ' · not logged in');
+      statusEl.className = 'idle';
+      statusEl.textContent = (extra || modelName()) + ' · mode ' + SETTINGS.mode + (hasSupa ? '' : ' · no cudic login');
     }
+  }
+
+  var SESSIONMAX = 20;
+  var sessionsMeta = [{ id: 'main', label: 'main', count: 0, created: 0 }];
+  var activeSession = 'main';
+  var connectMode = false;
+
+  function sessLabelOf(id) {
+    var s = sessionsMeta.find(function (x) { return x.id === id; });
+    return (s && s.label) || id;
+  }
+  function updateSessLabel() {
+    var el = $('sessLabel');
+    if (el) el.textContent = '· ' + sessLabelOf(activeSession);
+  }
+
+  // ── Sessions screen ───────────────────────────────────
+  function openSessionScreen() {
+    show('sessionScreen');
+    renderSessList($('sessSearch').value);
+  }
+  function renderSessList(filter) {
+    var list = $('sessList');
+    var f = (filter || '').toLowerCase();
+    var html = '';
+    sessionsMeta.forEach(function (s) {
+      if (f && s.label.toLowerCase().indexOf(f) === -1) return;
+      var cur = s.id === activeSession;
+      html += '<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #1e1e22">' +
+        '<button class="tbtn" data-sid="' + esc(s.id) + '" style="flex:1;text-align:left;font-size:12.5px;color:var(--vscode-foreground,#fafafa)' + (cur ? ';text-decoration:underline;font-weight:700' : '') + '">' +
+        (cur ? '› ' : '· ') + esc(s.label) + '<small> — ' + s.count + ' msgs' + (cur ? ' · here' : '') + '</small></button>' +
+        '<button class="tbtn" data-sren="' + esc(s.id) + '" title="Rename">✎</button>' +
+        (sessionsMeta.length > 1 ? '<button class="tbtn" data-sdel="' + esc(s.id) + '" title="Delete">✕</button>' : '') +
+        '</div>';
+    });
+    if (!html) html = '<p class="hint">no sessions match.</p>';
+    list.innerHTML = html;
+    list.querySelectorAll('[data-sid]').forEach(function (b) {
+      b.onclick = function () {
+        var id = b.getAttribute('data-sid');
+        if (id === activeSession) return;
+        history = []; streaming = null;
+        api.postMessage({ type: 'ai:session', op: 'switch', id: id });
+        openSessionScreen();
+      };
+    });
+    list.querySelectorAll('[data-sren]').forEach(function (b) {
+      b.onclick = function () {
+        var id = b.getAttribute('data-sren');
+        var cur = sessionsMeta.find(function (x) { return x.id === id; });
+        var val = (cur && cur.label) || '';
+        b.outerHTML = '<input id="sren_' + id + '" class="ssearch" value="' + esc(val) + '" maxlength="60" style="flex:1;padding:4px 2px">';
+        var inp = $('sren_' + id);
+        inp.focus(); inp.select();
+        function commit() {
+          api.postMessage({ type: 'ai:session', op: 'rename', id: id, label: inp.value.trim() || val });
+          openSessionScreen();
+        }
+        inp.onkeydown = function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); commit(); }
+          if (e.key === 'Escape') { openSessionScreen(); }
+        };
+        inp.onblur = function () { if (document.getElementById('sren_' + id)) commit(); };
+      };
+    });
+    list.querySelectorAll('[data-sdel]').forEach(function (b) {
+      b.onclick = function () {
+        var id = b.getAttribute('data-sdel');
+        api.postMessage({ type: 'ai:session', op: 'delete', id: id });
+        openSessionScreen();
+      };
+    });
+  }
+  $('sessBtn').onclick = openSessionScreen;
+  $('sessBack').onclick = function () {
+    show('chatwrap');
+    restoreHistory(); // transcript we stepped out with is still intact
+  };
+  $('sessNew').onclick = function () {
+    history = []; streaming = null;
+    api.postMessage({ type: 'ai:session', op: 'create' });
+    show('chatwrap'); showEmpty();
+  };
+  $('sessSearch').addEventListener('input', function () { renderSessList($('sessSearch').value); });
+
+  // ── Model picker (connected providers only) ─────────────
+  function connectedProviders() {
+    return PRESETS.filter(function (p) {
+      var keyed = (SETTINGS.keyed || []).indexOf(p.id) !== -1;
+      return keyed || p.keyOptional || p.loopback;
+    });
+  }
+  function openModelScreen() {
+    $('mdlSearch').value = '';
+    show('modelScreen');
+    renderMdlList('');
+    // Warm catalogs for anything we can fetch but haven't.
+    PRESETS.forEach(function (p) {
+      if (p.modelsPath && canList(p, p.id) && !LISTS[p.id] && !fetchedFor[p.id]) {
+        fetchedFor[p.id] = true;
+        api.postMessage({ type: 'ai:models', provider: p.id });
+      }
+    });
+  }
+  function renderMdlList(filter) {
+    var list = $('mdlList');
+    var f = (filter || '').toLowerCase();
+    var conns = connectedProviders();
+    if (!conns.length) {
+      list.innerHTML = '<p class="hint">no providers connected yet — <button class="tbtn big" id="mdlGoConnect">connect one</button>.</p>';
+      var go = list.querySelector('#mdlGoConnect');
+      if (go) go.onclick = openConnect;
+      return;
+    }
+    var html = '';
+    conns.forEach(function (p) {
+      var ms = modelsOf(p);
+      var matchModels = f ? ms.filter(function (m) { return m.toLowerCase().indexOf(f) !== -1; }) : ms;
+      if (f && !matchModels.length && p.name.toLowerCase().indexOf(f) === -1) return;
+      var active = SETTINGS.provider === p.id;
+      html += '<div style="padding:8px 0 2px;border-bottom:1px solid #1e1e22"><b style="font-size:12px' + (active ? ';color:var(--accent)' : '') + '">' + esc(p.name) + '</b></div>';
+      html += '<div class="mlist">' + matchModels.map(function (m) {
+        var cur = active && (SETTINGS.model || p.models[0] || '') === m;
+        return '<button data-mpid="' + p.id + '" data-m="' + esc(m) + '"' + (cur ? ' class="current"' : '') + '>' +
+          '<span>› ' + esc(m) + '</span>' + (cur ? '<span class="tick">✓</span>' : '') + '</button>';
+      }).join('') || '<p class="hint">no models match in ' + esc(p.name) + '.</p>';
+      html += '</div>';
+    });
+    list.innerHTML = html || '<p class="hint">no models match.</p>';
+    list.querySelectorAll('[data-m]').forEach(function (b) {
+      b.onclick = function () {
+        var pid = b.getAttribute('data-mpid'), m = b.getAttribute('data-m');
+        SETTINGS.provider = pid; SETTINGS.model = m;
+        api.postMessage({ type: 'ai:saveSettings', provider: pid, model: m, baseOverride: baseOverrideVal || '', completeOn: completeOn.checked, completeModel: completeModel.value.trim(), skills: (SETTINGS.skills || []).slice(), sysExtra: SETTINGS.sysExtra || '', mode: modeSafe(SETTINGS.mode), mcp: mcpServersExtract() });
+        show('chatwrap');
+        setStatus('idle');
+      };
+    });
+  }
+  $('mdlBack').onclick = function () { show('chatwrap'); setStatus('idle'); };
+  $('mdlConnect').onclick = function (e) { e.preventDefault(); openConnect(); };
+  $('mdlSearch').addEventListener('input', function () { renderMdlList($('mdlSearch').value); });
+
+  // ── /connect: providers you haven't connected yet ─────────
+  function openConnect() {
+    connectMode = true;
+    $('psearch').value = '';
+    renderPlist('');
+    show('providersScreen');
   }
 
   function refreshCfg() {
@@ -344,9 +578,10 @@ button:disabled { opacity: 0.35; cursor: default; }
     provNote.textContent = (p && p.loopback) ? 'local engine — called direct from your browser, never proxied.' : 'cloud calls route through your Cudic login (sign in on the site). keys stay in this browser.';
     keyState.innerHTML = !p ? '' : (p.keyOptional ? '<span class="ok">no key needed</span>' :
       (SETTINGS.hasKey ? '<span class="ok">✓ key saved in this browser</span>' : '<span class="err">no key saved yet</span>'));
-    keyEl.placeholder = SETTINGS.hasKey ? '•••••••• (saved — paste to replace)' : 'paste key';
-    completeOn.checked = !!SETTINGS.completeOn;
+      completeOn.checked = !!SETTINGS.completeOn;
     if (SETTINGS.completeModel) completeModel.value = SETTINGS.completeModel;
+    if (SETTINGS.sysExtra && document.activeElement !== sysExtraEl) sysExtraEl.value = SETTINGS.sysExtra;
+    syncSysExtra();
     baseOverrideVal = SETTINGS.baseOverride || '';
     if (document.activeElement !== baseUrlEl) baseUrlEl.value = baseOverrideVal;
     modelPill.textContent = modelName();
@@ -368,7 +603,7 @@ button:disabled { opacity: 0.35; cursor: default; }
     api.postMessage({ type: 'ai:models' });
   }
   function saveAll(withKey) {
-    var msg = { type: 'ai:saveSettings', provider: SETTINGS.provider, model: modelEl.value.trim(), baseOverride: baseOverrideVal, completeOn: completeOn.checked, completeModel: completeModel.value.trim(), skills: (SETTINGS.skills || []).slice() };
+    var msg = { type: 'ai:saveSettings', provider: SETTINGS.provider, model: modelEl.value.trim(), baseOverride: baseOverrideVal, completeOn: completeOn.checked, completeModel: completeModel.value.trim(), skills: (SETTINGS.skills || []).slice(), sysExtra: (sysExtraEl && sysExtraEl.value.trim()) || SETTINGS.sysExtra || '', mcp: mcpServersExtract() };
     if (withKey) msg.key = keyEl.value;
     api.postMessage(msg);
     if (withKey) keyEl.value = '';
@@ -393,9 +628,75 @@ button:disabled { opacity: 0.35; cursor: default; }
         saveAll(false);
       };
     });
+    (SETTINGS.mcp || []).slice(0, 6).forEach(function (s, i) {
+      var ok = !s.stale && s.toolCount > 0;
+      var cls = ok ? 'chip' : 'chip off';
+      var tip = s.url + (s.toolCount ? ' — ' + s.toolCount + ' tools' : '') + (s.error ? ' — ' + s.error : '');
+      chips.insertAdjacentHTML('beforeend', '<button class="' + cls + '" data-mcp="' + i + '" title="' + esc(tip) + '">[m] ' + esc(s.label || s.url) + '</button>');
+    });
+    chips.querySelectorAll('[data-mcp]').forEach(function (c) {
+      c.onclick = openMcpScreen;
+    });
   }
 
   var SUGS = ['Explain the active file', 'Review my code for bugs', 'What should I build next?'];
+
+  function mcpServersExtract() {
+    if (!Array.isArray(SETTINGS.mcp)) return [];
+    return SETTINGS.mcp.map(function (s) {
+      return { url: s.url, label: s.label || '', toolCount: s.toolCount || 0, stale: !!s.stale, error: s.error || '' };
+    });
+  }
+
+  // ── MCP screen ────────────────────────────────────────────
+  var mcpLive = [];
+  function openMcpScreen() {
+    show('mcpScreen');
+    api.postMessage({ type: 'ai:mcp', op: 'list' });
+    renderMcpList();
+  }
+  function renderMcpList() {
+    var list = $('mcpList');
+    var srvs = SETTINGS.mcp || [];
+    var html = srvs.map(function (s) {
+      var state = s.toolCount > 0
+        ? '<span class="ok">✓ ' + s.toolCount + ' tool' + (s.toolCount === 1 ? '' : 's') + '</span>'
+        : '<span class="err">⚠ no tools yet</span>';
+      return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(128,128,128,.25)">' +
+        '<div style="flex:1;min-width:0"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(s.url) + '</div>' +
+        '<small>' + state + (s.hasKey ? ' · 🔑 with token' : '') + '</small></div>' +
+        '<button class="tbtn" data-mcp-ref="' + esc(s.url) + '" title="Re-check tools">⟳</button>' +
+        '<button class="tbtn" data-mcp-rm="' + esc(s.url) + '">remove</button></div>';
+    }).join('') || '<p class="hint">no servers yet — add one below.</p>';
+    if (mcpLive.length) html += '<p class="hint err">⚠ ' + esc(mcpLive.slice(0, 4).join(' · ')) + '</p>';
+    list.innerHTML = html;
+    list.querySelectorAll('[data-mcp-rm]').forEach(function (b) {
+      b.onclick = function () {
+        api.postMessage({ type: 'ai:mcp', op: 'remove', url: b.getAttribute('data-mcp-rm') });
+        renderMcpList();
+      };
+    });
+    list.querySelectorAll('[data-mcp-ref]').forEach(function (b) {
+      b.onclick = function () {
+        $('mcpHint').textContent = 're-checking…';
+        // Re-adding the same url makes the host re-handshake just that server.
+        api.postMessage({ type: 'ai:mcp', op: 'add', url: b.getAttribute('data-mcp-ref') });
+      };
+    });
+  }
+  $('mcpAdd').onclick = function () {
+    var url = $('mcpUrl').value.trim().replace(/\/+$/, '');
+    if (!/^https?:\/\//.test(url)) {
+      $('mcpHint').textContent = 'url must start with http:// or https://';
+      return;
+    }
+    $('mcpHint').textContent = 'connecting…';
+    var mcpKeyEl = $('mcpKey');
+    api.postMessage({ type: 'ai:mcp', op: 'add', url: url, key: mcpKeyEl.value });
+    $('mcpUrl').value = '';
+    mcpKeyEl.value = '';
+  };
+  $('mcpBack').onclick = exitSetup;
   function showEmpty() {
     var box = $('emptyState');
     if (!box || chatted) return;
@@ -412,24 +713,36 @@ button:disabled { opacity: 0.35; cursor: default; }
   var expandedId = null, LISTS = {}, FETCHERR = {};
   function modelsOf(p) {
     var seen = {}, out = [];
-    (LISTS[p.id] || []).concat(p.models || []).forEach(function (m) {
-      if (m && !seen[m]) { seen[m] = 1; out.push(m); }
-    });
+    // Session fetches first, then the host-cached catalog that arrives with
+    // settings, then the small curated handful each preset ships.
+    (LISTS[p.id] || [])
+      .concat((SETTINGS.modelLists || {})[p.id] || [])
+      .concat(p.models || [])
+      .forEach(function (m) {
+        if (m && !seen[m]) { seen[m] = 1; out.push(m); }
+      });
     return out;
   }
   function renderPlist(filter) {
     var list = $('plist');
     var f = (filter || '').toLowerCase();
     var html = '';
-    PRESETS.forEach(function (p) {
+    // /connect mode: only companies you haven't handed a key yet (loopback =
+    // already connected for free). Tapping a row jumps straight to key entry.
+    var pool = connectMode
+      ? PRESETS.filter(function (p) { return (SETTINGS.keyed || []).indexOf(p.id) === -1 && !p.loopback; })
+      : PRESETS;
+    pool.forEach(function (p) {
       var ms = modelsOf(p);
       var matchProv = !f || p.name.toLowerCase().indexOf(f) !== -1 || p.id.indexOf(f) !== -1;
       var matchModels = ms.filter(function (m) { return m.toLowerCase().indexOf(f) !== -1; });
       if (f && !matchProv && !matchModels.length) return;
-      var sub = (LISTS[p.id] && LISTS[p.id].length) ? LISTS[p.id].length + ' models'
+      var lineup = modelsOf(p);
+      var sub = lineup.length > 1 ? lineup.length + ' models'
         : esc((p.models[0] || p.keyHelp || '').slice(0, 60));
-      html += '<button data-prov="' + p.id + '"><span>› ' + esc(p.name) +
-        '<small>' + sub + '</small></span><span class="chev">+</span></button>';
+      var chev = connectMode ? '' : '+';
+      html += '<button data-prov="' + p.id + '"' + (connectMode ? ' data-connect="' + p.id + '"' : '') + '><span>› ' + esc(p.name) +
+        '<small>' + sub + '</small></span><span class="chev">' + chev + '</span></button>';
       if (expandedId === p.id) {
         var show = (f && !matchProv) ? matchModels : ms;
         html += '<div class="mlist">' + (show.map(function (m) {
@@ -450,6 +763,17 @@ button:disabled { opacity: 0.35; cursor: default; }
     list.querySelectorAll('[data-prov]').forEach(function (b) {
       b.onclick = function () {
         var id = b.getAttribute('data-prov');
+        if (connectMode && b.hasAttribute('data-connect')) {
+          connectMode = false;
+          SETTINGS.provider = id;
+          $('keyScreen').setAttribute('data-pid', id);
+          var p = PRESETS.find(function (x) { return x.id === id; });
+          if (p) { $('keyProvName').textContent = p.name; $('keyProvHelp').textContent = p.keyHelp || ''; keyLabel.textContent = p.keyLabel || 'api key'; }
+          modelList.innerHTML = ((p && p.models) || []).map(function (m) { return '<option value="' + esc(m) + '">'; }).join('');
+          modelEl.value = SETTINGS.provider === id && SETTINGS.model ? SETTINGS.model : (p && p.models[0]) || '';
+          show('keyScreen');
+          return;
+        }
         expandedId = (expandedId === id) ? null : id;
         if (expandedId) {
           var p = PRESETS.find(function (x) { return x.id === id; });
@@ -470,7 +794,7 @@ button:disabled { opacity: 0.35; cursor: default; }
         // Switching models keeps a user-set custom endpoint; only the
         // options screen changes it — wiping it here made every model
         // switch silently drop a custom router URL.
-        api.postMessage({ type: 'ai:saveSettings', provider: pid, model: m, baseOverride: baseOverrideVal || '', completeOn: completeOn.checked, completeModel: completeModel.value.trim() });
+        api.postMessage({ type: 'ai:saveSettings', provider: pid, model: m, baseOverride: baseOverrideVal || '', completeOn: completeOn.checked, completeModel: completeModel.value.trim(), mode: modeSafe(SETTINGS.mode) });
         show('keyScreen');
       };
     });
@@ -605,8 +929,12 @@ button:disabled { opacity: 0.35; cursor: default; }
   /* ── Slash commands ── */
   var SLASH = [
     { cmd: '/help', blurb: 'this list' },
-    { cmd: '/status', blurb: 'provider · model · session' },
-    { cmd: '/model', blurb: 'switch provider / model' },
+    { cmd: '/status', blurb: 'provider · model · mode · session' },
+    { cmd: '/model', blurb: 'pick a model from connected providers' },
+    { cmd: '/mode', blurb: 'agent · edit · ask' },
+    { cmd: '/connect', blurb: 'connect a provider you haven\'t yet' },
+    { cmd: '/session', blurb: 'switch · create · rename sessions' },
+    { cmd: '/mcp', blurb: 'manage mcp tool servers' },
     { cmd: '/clear', blurb: 'clear chat' }
   ];
   function slashMatch() {
@@ -633,8 +961,20 @@ button:disabled { opacity: 0.35; cursor: default; }
   function runSlash(text) {
     var cmd = text.trim().split(/\s/)[0];
     if (cmd === '/clear') { clearChat(); return true; }
-    if (cmd === '/model') { renderPlist($('psearch').value); show('providersScreen'); return true; }
-    if (cmd === '/status') { sysline(modelName() + ' · session main · ' + history.length + ' msgs · cudic login ' + (hasSupa ? 'yes' : 'no')); return true; }
+    if (cmd === '/session') { openSessionScreen(); return true; }
+    if (cmd === '/connect') { openConnect(); return true; }
+    if (cmd === '/model') { connectMode = false; openModelScreen(); return true; }
+    if (cmd === '/mode') {
+      var cycle = ['agent', 'edit', 'ask'];
+      var cur = modeSafe(SETTINGS.mode), ix = cycle.indexOf(cur);
+      var next = cycle[(ix + 1) % cycle.length];
+      SETTINGS.mode = next;
+      api.postMessage({ type: 'ai:mode', mode: next });
+      sysline('mode → ' + next + (next === 'agent' ? ' · can use all tools' : next === 'edit' ? ' · file writes only, no delete/preview' : ' · chat only, no tools'));
+      return true;
+    }
+    if (cmd === '/mcp') { openMcpScreen(); return true; }
+    if (cmd === '/status') { sysline(modelName() + ' · mode ' + modeSafe(SETTINGS.mode) + ' · tools ' + ['save_file','read_file','list_files','search_project','rename_file','delete_file','run_preview','snapshot','ask_user'].length + (mcpServersExtract().length ? ' +' + mcpServersExtract().length + ' mcp' : '') + ' · session ' + sessLabelOf(activeSession) + ' · ' + history.length + ' msgs' + (sessionsMeta.length > 1 ? ' (' + sessionsMeta.length + ' total)' : '') + ' · cudic login ' + (hasSupa ? 'yes — sessions sync' : 'no') ); return true; }
     if (cmd === '/help') {
       sysline('commands — ' + SLASH.map(function (s) { return s.cmd + ' (' + s.blurb + ')'; }).join(' · '));
       return true;
@@ -672,9 +1012,10 @@ button:disabled { opacity: 0.35; cursor: default; }
     chatted = false; decide();
     showEmpty();
     setStatus('idle');
+    postSaveHistory();
   }
   $('clearBtn2').onclick = clearChat;
-  $('gearBtn').onclick = function () { renderPlist($('psearch').value); show('providersScreen'); };
+  $('gearBtn').onclick = function () { connectMode = false; openModelScreen(); };
   q.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
     else if (e.key === 'Escape') { if (streaming) { e.preventDefault(); stop(); } slashpop.classList.add('hidden'); }
@@ -703,9 +1044,9 @@ button:disabled { opacity: 0.35; cursor: default; }
   $('gateMore').onclick = function () { show('optionsScreen'); };
   // Providers list
   $('psearch').addEventListener('input', function () { renderPlist($('psearch').value); });
-  $('provBack').onclick = exitSetup;
+  $('provBack').onclick = function () { connectMode = false; exitSetup(); };
   // Key screen
-  $('keyBack').onclick = function () { renderPlist($('psearch').value); show('providersScreen'); };
+  $('keyBack').onclick = function () { connectMode = false; renderPlist($('psearch').value); show('providersScreen'); };
   $('saveBtn').onclick = function () {
     justSavedKey = !!keyEl.value;
     // A fresh key deserves a fresh catalog attempt.
@@ -716,6 +1057,21 @@ button:disabled { opacity: 0.35; cursor: default; }
   $('modelsBtn').onclick = function () { api.postMessage({ type: 'ai:models' }); };
   // Options screen
   $('optBack').onclick = exitSetup;
+  function syncSysExtra() {
+    var n = (sysExtraEl.value || '').length;
+    sysCountEl.textContent = n ? n + '/4000' : '';
+    sysExtraEl.style.borderBottomColor = (n > 4000) ? '#d9381e' : '';
+    sysSaveBtn.disabled = n > 4000;
+  }
+  sysExtraEl.addEventListener('input', syncSysExtra);
+  // 'save prompt' commits the yellow box without flipping screens; the
+  // settings response keeps the panel honest when a fresh save lands.
+  sysSaveBtn.onclick = function () {
+    var text = (sysExtraEl.value || '').trim().slice(0, 4000);
+    sysExtraEl.value = text;
+    saveOpts();
+    sysCountEl.textContent = text.length ? text.length + '/4000 · saved' : 'saved — addendum off';
+  };
   function saveOpts() {
     baseOverrideVal = baseUrlEl.value.trim();
     saveAll(false);
@@ -728,10 +1084,24 @@ button:disabled { opacity: 0.35; cursor: default; }
     var m = e.data || {};
     if (m.type === 'ai:init') {
       PRESETS = m.presets || []; SETTINGS = Object.assign(SETTINGS, m.settings || {}); SKILLCAT = m.skills || [];
+      sessionsMeta = m.settings.sessionsMeta || sessionsMeta;
+      activeSession = m.settings.activeSession || activeSession;
+      history = (m.settings.history || []).slice(-80);
+      restoreHistory();
+      updateSessLabel();
       refreshCfg(); chipHtml(); showEmpty(); decide(); maybeFetch();
     } else if (m.type === 'ai:state') {
       SETTINGS = Object.assign(SETTINGS, m.settings || {});
-      refreshCfg(); showEmpty(); maybeFetch();
+      sessionsMeta = m.settings.sessionsMeta || sessionsMeta;
+      activeSession = m.settings.activeSession || activeSession;
+      // Restore scrollback on the round-trips that carry it (boot, pull,
+      // session switch). Skipped while streaming so tokens keep painting.
+      if (Array.isArray(m.settings.history)) {
+        history = (m.settings.history || []).slice(-80);
+        restoreHistory();
+      }
+      updateSessLabel();
+      refreshCfg(); chipHtml(); showEmpty(); maybeFetch();;
       // A fresh key lands the user in chat; anything else respects screens.
       if (justSavedKey) {
         justSavedKey = false;
@@ -759,6 +1129,7 @@ button:disabled { opacity: 0.35; cursor: default; }
     } else if (m.type === 'ai:done') {
       if (streaming && streaming.id === m.id) {
         history.push({ q: m.q, a: streaming.raw });
+        postSaveHistory();
         var c = streaming.aiRow.querySelector('.cursor');
         if (c) c.remove();
         streaming = null;
@@ -771,6 +1142,16 @@ button:disabled { opacity: 0.35; cursor: default; }
         setStatus('idle');
       } else {
         keyState.innerHTML = '<span class="err">⚠ ' + esc(m.error || 'Request failed.') + '</span>';
+      }
+    } else if (m.type === 'ai:mcpState') {
+      mcpLive = (m.lines || []).filter(function (l) { return l.indexOf('⚠') === 0; });
+      var mcpScr = $('mcpScreen');
+      if (mcpScr && !mcpScr.classList.contains('hidden')) {
+        renderMcpList();
+        var okLine = (m.lines || []).find(function (l) { return l.indexOf('MCP —') === 0; });
+        if (okLine) $('mcpHint').textContent = okLine;
+      } else if (mcpLive.length) {
+        // silent — screen not open; the tools tray refreshes lazily.
       }
     } else if (m.type === 'ai:modelsResult') {
       if (m.provider) fetchedFor[m.provider] = true;

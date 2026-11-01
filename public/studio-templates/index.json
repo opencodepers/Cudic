@@ -1,4 +1,7 @@
 [
+  { "id": "clicker", "name": "Clicker", "description": "Click coins, buy upgrades — the easiest first game." },
+  { "id": "flappy", "name": "Flappy", "description": "One-tap flying — flap through the pipes, chase a high score." },
+  { "id": "platformer", "name": "Platformer", "description": "Run, jump, collect coins — classic single-screen platforming." },
   { "id": "snake", "name": "Snake", "description": "Classic grid snake — arrow keys, eat, grow." },
   { "id": "pong", "name": "Pong", "description": "Two-player pong — W/S vs arrow keys." },
   { "id": "breakout", "name": "Breakout", "description": "Bricks, paddle, ball — clear the rows." }
