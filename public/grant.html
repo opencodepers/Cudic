@@ -70,6 +70,15 @@
       <button class="btn btn-secondary" id="msgSend" style="padding:8px 16px;font-size:0.82rem">Send</button>
       <div class="g-status" id="msgStatus"></div>
     </div>
+    <div id="gWeekly" class="g-target" style="display:block">
+      <h2>Weekly build theme</h2>
+      <div class="sub" id="weeklyStatus">Loading…</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <input type="text" id="weeklyInput" placeholder="e.g. ocean, space, one-button" style="flex:1;min-width:180px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-sm);padding:8px 12px;color:var(--text-primary);font-family:inherit;font-size:0.82rem;outline:none">
+        <button class="btn btn-secondary" id="weeklySet" style="padding:8px 16px;font-size:0.82rem">Set theme</button>
+      </div>
+      <div class="sub" style="margin-top:8px">This becomes this week's homepage challenge and the tag players use to enter. Leave it alone and Cudic picks a random one every Monday.</div>
+    </div>
     <div id="gBan" class="g-target" style="display:none">
       <h2>Bans (chat &amp; comments)</h2>
       <div class="sub" id="banStatus">No active ban.</div>
@@ -111,6 +120,29 @@
     probe = await pr.json();
   } catch (e) { document.getElementById('gGate').style.display='block'; document.getElementById('gGateText').textContent='Could not load.'; return; }
   document.getElementById('gBody').style.display='block';
+
+  // Weekly build theme: show current, let a mod override it.
+  (function(){
+    var st = document.getElementById('weeklyStatus');
+    function wmsg(text, ok) { st.textContent = text; st.style.color = ok ? 'var(--signal)' : 'var(--danger)'; }
+    fetch(apiHost()+'/api/weekly').then(function(r){ return r.json(); }).then(function(d){
+      if (!d || !d.theme) { st.textContent = 'No theme set.'; return; }
+      st.textContent = 'Current theme: ' + d.theme + ' · week of ' + d.week_start + (d.set_by ? ' · set by a mod' : ' · auto-picked');
+    }).catch(function(){ st.textContent = 'Could not load the current theme.'; });
+    document.getElementById('weeklySet').addEventListener('click', function(){
+      var btn = this, theme = document.getElementById('weeklyInput').value.trim();
+      if (!theme) { wmsg('Type a theme first.', false); return; }
+      btn.disabled = true;
+      fetch(apiHost()+'/api/weekly', { method: 'POST', headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' }, body: JSON.stringify({ theme: theme }) })
+        .then(function(r){ return r.json().then(function(nd){ return { ok: r.ok, d: nd }; }); })
+        .then(function(res){
+          btn.disabled = false;
+          if (!res.ok || res.d.error) { wmsg(res.d.error || 'Could not set the theme.', false); return; }
+          wmsg('Weekly theme is now "' + res.d.theme + '" (week of ' + res.d.week_start + ').', true);
+        })
+        .catch(function(){ btn.disabled = false; wmsg('Could not set the theme.', false); });
+    });
+  })();
 
   var catalog = null;
   fetch(apiHost()+'/api/badges').then(function(r){ return r.json(); }).then(function(d){ catalog = d.awards || {}; });

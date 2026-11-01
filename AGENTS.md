@@ -638,6 +638,21 @@ and returns 4 files Studio drops into the workspace: `index.html` (player shell)
   holds its own copy — re-import or hand-sync both); TTS/translate stay silent,
   video sensing is blocked. Blocks are **not** translated to hand-written JS.
 
+### Weekly theme + community spotlight
+- `GET /api/weekly` (public): current week's build theme. State lives in
+  `weekly.json` next to `server.js` — gitignored, regenerated if missing.
+  Week boundary is Monday (`weekStartISO`). A mod-set theme (`manual: true`)
+  survives across restarts within its week; after roll-over the rotator picks
+  a random pool theme (never the previous one). A `/weekly.json` write failure
+  is logged, never fatal.
+- `POST /api/weekly {theme}` — moderators only (via the `moderators` table).
+  Theme doubles as the gallery tag; entries are `/games?tag=<theme>`.
+- `GET /api/games/featured` (public): up to 8 published + featured games for
+  the homepage shelf. Featuring a game is `POST /api/games/:id/feature`
+  (mod-only, exists since the featured-games migration) — the button on
+  `/view.html?id=…` shows only when `/api/profile` reports `is_moderator`.
+- Mod membership is by account (auth UUID), never by display name.
+
 ### Thumbnails
 `games.thumbnail` (text, data-URL) — column, PUT field, and both `/api/games`
 list endpoints already supported it; **only Studio lacked a control**.

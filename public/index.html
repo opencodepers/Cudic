@@ -165,6 +165,16 @@
         .doodle:nth-child(8){top:5%;left:44%;width:42px;height:42px;animation-delay:1.2s;animation-duration:6s}
         @keyframes float{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-14px) rotate(8deg)}}
         @media (prefers-reduced-motion:reduce){.doodle{animation:none}.hero span{font-family:"Geist Mono",monospace!important;color:var(--ink)!important}}
+        .weekly-card{display:flex;align-items:center;gap:24px;justify-content:space-between;flex-wrap:wrap;border:1px solid var(--line);border-left:3px solid var(--lime);background:var(--panel);padding:20px 24px;margin-top:8px}
+        .weekly-ctas{display:flex;gap:10px;flex-wrap:wrap}
+        .picks{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+        .pick-card{border:1px solid var(--line);background:var(--panel);display:block;text-decoration:none;color:inherit;transition:transform 120ms steps(4),border-color 120ms steps(4)}
+        .pick-card:hover{transform:translateY(-3px);border-color:var(--lime)}
+        .pick-card .pick-thumb{aspect-ratio:16/10;display:block;overflow:hidden;border-bottom:1px solid var(--line);background:var(--panel)}
+        .pick-card .pick-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+        .pick-card .pick-body{padding:10px 12px}
+        .pick-card .pick-body b{display:block;font-size:.86rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .pick-card .pick-body span{font-family:'Geist Mono',ui-monospace,monospace;font-size:.68rem;color:var(--mute)}
         @media (max-width:720px){
             .hero{font-size:clamp(64px,18vw,128px)}
             .landing{padding:0 16px}
@@ -256,6 +266,25 @@
     </div>
 
     <main class="landing">
+        <section class="block" id="community">
+            <p class="kick"><img src="/cudic-assets/icons/svg/social/star.svg" alt="">This week</p>
+            <h2 data-n="00">What's happening</h2>
+            <div class="weekly-card" id="weeklyCard" style="display:none">
+                <div>
+                    <span class="mono" style="color:var(--lime)">BUILD THEME</span>
+                    <h3 id="weeklyTheme" style="margin:4px 0;font-size:1.5rem;letter-spacing:-.01em"></h3>
+                    <p id="weeklyDesc" style="margin:0;color:var(--mute);font-size:.9rem">Tag your game with this theme when you publish. Entries live in the gallery.</p>
+                </div>
+                <div class="weekly-ctas">
+                    <a class="btn" id="weeklyEntries" href="/games">See entries</a>
+                    <a class="btn primary" href="/studio">Build one</a>
+                </div>
+            </div>
+            <p class="lead2" style="margin-top:36px">Community picks — featured by the Cudic mods.</p>
+            <div class="picks" id="pickRow" style="display:none"></div>
+            <p id="picksEmpty" style="display:none;color:var(--mute);font-size:.9rem">No featured picks yet. Make something good — a mod might pick it.</p>
+        </section>
+
         <section class="block">
             <p class="kick"><img src="/cudic-assets/icons/svg/game/gamepad.svg" alt="">Platform</p>
             <h2 data-n="01">What Cudic is</h2>
@@ -410,6 +439,40 @@
                     btn.title = g.title ? 'Play ' + g.title : '';
                 })
                 .catch(function(){});
+        })();
+        // Weekly build theme + community picks shelf. Both fail quiet-safe:
+        // an unreachable backend just hides the section rather than breaking.
+        (function(){
+            var api = (typeof WS_URL !== 'undefined' && WS_URL)
+                ? WS_URL.replace(/^wss?:\/\//, 'https://')
+                : ((location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? '' : 'https://glox-o7rr.onrender.com');
+            function esc(s){ var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
+            fetch(api + '/api/weekly')
+                .then(function(r){ return r.ok ? r.json() : null; })
+                .then(function(d){
+                    if (!d || !d.theme) return;
+                    var card = document.getElementById('weeklyCard');
+                    if (!card) return;
+                    document.getElementById('weeklyTheme').textContent = d.theme;
+                    document.getElementById('weeklyEntries').href = '/games?tag=' + encodeURIComponent(d.theme);
+                    card.style.display = '';
+                })
+                .catch(function(){});
+            fetch(api + '/api/games/featured')
+                .then(function(r){ return r.ok ? r.json() : null; })
+                .then(function(d){
+                    var list = (d && d.games) || [];
+                    var row = document.getElementById('pickRow');
+                    if (!row) return;
+                    if (!list.length) { document.getElementById('picksEmpty').style.display = 'block'; return; }
+                    row.innerHTML = list.map(function(g){
+                        return '<a class="pick-card" href="/view.html?id=' + encodeURIComponent(g.id) + '" title="' + esc(g.title) + '">' +
+                            '<span class="pick-thumb"><img loading="lazy" src="' + api + '/api/games/' + encodeURIComponent(g.id) + '/thumbnail" alt="" onerror="this.remove()"></span>' +
+                            '<span class="pick-body"><b>' + esc(g.title) + '</b><span>' + esc(g.users && g.users.display_name ? 'by ' + g.users.display_name : '') + ' · ' + (g.play_count || 0) + ' plays</span></span></a>';
+                    }).join('');
+                    row.style.display = '';
+                })
+                .catch(function(){ var e = document.getElementById('picksEmpty'); if (e) e.style.display = 'block'; });
         })();
     </script>
     <script type="module">

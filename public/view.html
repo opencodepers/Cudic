@@ -83,6 +83,7 @@
       <button class="btn btn-secondary" id="fsBtn">Fullscreen</button>
       <a class="btn btn-primary" id="studioBtn" href="#" style="display:none">Open in Studio</a>
       <button class="btn btn-secondary" id="forkBtn" style="display:none">Fork</button>
+      <button class="btn btn-secondary" id="featureBtn" style="display:none" title="Feature this game on the homepage">Feature</button>
       <button class="btn btn-secondary" id="shareBtn">Share</button>
       <button class="btn btn-secondary" id="collBtn" style="display:none">Save</button>
       <div data-island="report-button" id="islReportSlot" style="display:none"></div>
@@ -613,6 +614,39 @@ setInterval(function () {
           });
         });
         document.getElementById('content').style.display = 'block';
+        // Mod spotlight: harnesses the moderators table. The button is only
+        // shown after /api/profile confirms is_moderator — the server 403s
+        // for anyone else regardless.
+        (function(){
+          var fbtn = document.getElementById('featureBtn');
+          var featured = !!game.featured;
+          function label(){ fbtn.textContent = featured ? 'Unfeature' : 'Feature'; }
+          getSession().then(function(s){
+            if (!s) return;
+            fetch(apiBase() + '/api/profile', { headers: { 'Authorization': 'Bearer ' + s.token } })
+              .then(function(r){ return r.ok ? r.json() : null; })
+              .then(function(p){
+                if (!p || !p.is_moderator) return;
+                label();
+                fbtn.style.display = '';
+              }).catch(function(){});
+          });
+          fbtn.addEventListener('click', function(){
+            fbtn.disabled = true;
+            getSession().then(function(s){
+              if (!s) { fbtn.disabled = false; return; }
+              fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/feature', {
+                method: 'POST', headers: { 'Authorization': 'Bearer ' + s.token }
+              }).then(function(r){ return r.json().then(function(nd){ return { ok: r.ok, d: nd }; }); })
+              .then(function(res){
+                fbtn.disabled = false;
+                if (!res.ok || res.d.error) { alert(res.d.error || 'Could not update featured.'); return; }
+                featured = !!res.d.featured;
+                label();
+              }).catch(function(){ fbtn.disabled = false; alert('Could not reach the server.'); });
+            });
+          });
+        })();
         var card = document.getElementById('playerCard');
         document.getElementById('overlay').remove();
         var f = document.createElement('iframe');

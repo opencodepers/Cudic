@@ -8,6 +8,23 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Weekly build theme + community spotlight shelf** (uncommitted)
+
+- New weekly challenge: the homepage now carries a builder theme for the week
+  (`/api/weekly`). Cudic auto-picks a random theme every Monday (never the same
+  twice in a row); moderators can set one by hand from the mod tools page
+  (`/grant` → "Weekly build theme"). A mod-set theme lasts exactly its week.
+  The theme doubles as the gallery tag, so "see this week's entries" is just
+  the games page filtered on it. State lives in `server/weekly.json`
+  (gitignored; a fresh deploy simply auto-picks again).
+- Homepage spotlight: a "Community picks" shelf built from the existing
+  moderator feature mechanism (`games.featured`), served by a new public
+  `GET /api/games/featured` (8 cards). Moderators feature/unfeature a game
+  from its game page — the Feature button appears only after the profile
+  endpoint reports `is_moderator`; the endpoints still re-check membership.
+- Moderator access expanded: the two team Proton accounts are in the
+  `moderators` table.
+
 ### Fixed
 - Themes page showed "Install" on an already-active pack: the page painted
   its buttons before the theme engine's async boot finished, so it read no

@@ -750,6 +750,9 @@ async function handleRequest(req, res) {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       profile,
+      // Client surfaces mod-only tools (feature button, weekly theme setter)
+      // when this is true; server endpoints still re-check membership.
+      is_moderator: await isModerator(profile.id),
       email: user.email || '',
       awards: badgeRes.data || [],
       followers: fRes.count || 0,
@@ -918,6 +921,80 @@ async function handleRequest(req, res) {
     if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not update.' })); return; }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ featured: data.featured }));
+    return;
+  }
+
+  // ── Weekly build theme (mods set one; otherwise auto-picked) ─────
+  // State lives in a small JSON file next to the server. Ephemeral disk on
+  // Render is fine: a fresh deploy just auto-picks a new theme. The theme
+  // doubles as the gallery tag, so "view this week's entries" is simply
+  // the games page filtered on it.
+  const WEEKLY_FILE = path.join(__dirname, 'weekly.json');
+  const WEEKLY_POOL = [
+    'ocean', 'space', 'one-button', 'retro', 'food', 'cats', 'robots', 'night',
+    'ice', 'jungle', 'fruit', 'maze', 'ninjas', 'gems', 'weather', 'tiny',
+    'cozy', 'speedrun', 'pirates', 'farm'
+  ];
+  function weekStartISO(d) {
+    // Monday 00:00 of the week containing d — the week boundary.
+    const t = d ? new Date(d) : new Date();
+    const day = (t.getDay() + 6) % 7;
+    t.setDate(t.getDate() - day);
+    t.setHours(0, 0, 0, 0);
+    return t.toISOString().slice(0, 10);
+  }
+  function loadWeekly() {
+    const thisWeek = weekStartISO();
+    let state = null;
+    try { state = JSON.parse(fs.readFileSync(WEEKLY_FILE, 'utf8')); } catch {}
+    if (state && state.week === thisWeek) return state;
+    // New week: a mod-set theme carries within its week only; after that
+    // the rotator picks again (never the same theme twice in a row).
+    const prev = state && state.theme;
+    let picked = prev;
+    while (picked === prev) picked = WEEKLY_POOL[Math.floor(Math.random() * WEEKLY_POOL.length)];
+    state = { week: thisWeek, theme: picked, set_by: null, manual: false };
+    try { fs.writeFileSync(WEEKLY_FILE, JSON.stringify(state, null, 2)); }
+    catch (e) { console.warn('weekly: could not persist theme state:', e.message); }
+    return state;
+  }
+  if (url.pathname === '/api/weekly' && req.method === 'GET') {
+    cors(res);
+    const state = loadWeekly();
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify({ week_start: state.week, theme: state.theme, set_by: state.set_by || null }));
+    return;
+  }
+  if (url.pathname === '/api/weekly' && req.method === 'POST') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    if (!(await isModerator(user.id))) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Moderators only.' })); return; }
+    if (!rateLimit('weekly:' + user.id, 10, 60000)) { res.writeHead(429, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Slow down.' })); return; }
+    const body = await readBody(req).catch(() => ({}));
+    const theme = String(body.theme || '').trim().toLowerCase();
+    if (/^[a-z0-9][a-z0-9 _\-]{1,23}$/.test(theme) === false) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Theme must be 2-24 letters, numbers, spaces, dashes.' }));
+      return;
+    }
+    const state = { week: weekStartISO(), theme, set_by: user.user_id || user.id, manual: true };
+    try { fs.writeFileSync(WEEKLY_FILE, JSON.stringify(state, null, 2)); }
+    catch (e) { console.error('weekly: could not persist mod set:', e.message); res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not save.' })); return; }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, week_start: state.week, theme: state.theme }));
+    return;
+  }
+
+  // ── API: featured games for the homepage spotlight shelf ────────
+  if (url.pathname === '/api/games/featured' && req.method === 'GET') {
+    cors(res);
+    const { data, error } = await supabase.from('games')
+      .select('id, title, slug, play_count, featured_until, users!owner_id(display_name, user_id)')
+      .eq('published', true).eq('featured', true)
+      .order('featured_until', { ascending: false }).limit(8);
+    if (error) console.error('featured list error:', error.message);
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({ games: data || [], error: error ? 'Could not load featured games.' : undefined }));
     return;
   }
 
