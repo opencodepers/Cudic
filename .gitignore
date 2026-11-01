@@ -23,3 +23,5 @@ public/kit.html
 public/game/
 
 /experiment/
+tests/
+tests.results.md

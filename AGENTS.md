@@ -249,6 +249,19 @@ the server can't tell tabs apart; only the leader beats. Seat travels as
 (RLS locked, service key only). Tested end-to-end (20 checks, temp user,
 cleaned up) — see `/api/session/claim|heartbeat` + `seatAlive()`.
 
+### Project revisions (staged snapshots, `project_revisions` table)
+`POST/GET /api/games/:id/revisions` (+ `/restore`, `DELETE /:revId`), owner
+only, newest 20 kept (oldest row deleted when the ring overflows). **Save
+snapshot is staged**: Studio diffs the workspace text files against the newest
+snapshot's map and shows a QuickPick checklist (new/changed/deleted,
+pre-checked); unchecked files are stored at their previous snapshot content so
+the row is literally "last snapshot + what was staged" — restore is still a
+plain full replacement of `games.files`. The POST accepts an owner-supplied
+staged `files` map (strings only, path ≤300 chars, ≤500 files, 4MB readBody
+cap) and falls back to the saved project row when absent/invalid. Staging
+logic in `studio/src/revisions.ts` (mirrored test:
+`.freebuff/dbgtest/stage-test.js` — keep in step if you edit it).
+
 ### Cloud game saves (progress follows the account)
 Table `game_saves` (pk(user_id, game_id), `data` jsonb, RLS locked).
 Endpoints above; all seat-checked (403 `session_superseded`). Games never
@@ -541,6 +554,8 @@ glox.setThumbnail | glox.openPreview | glox.run | glox.leaveStudio | glox.toggle
 glox.runPython | glox.installPythonPackage | glox.addPackage
 glox.importScratch   (.sb3 file or shared Scratch link → playable project)
 glox.insertIcon       (Kenney CC0 icon library → assets/icons + <img> at cursor)
+glox.restoreSnapshot  (restore points: ring of 10 per project, minute-by-minute;
+                      pick one + reload — palette + File menu, §16 “guest guide”)
 glox.startCollab | glox.joinCollab | glox.stopCollab   (P2P collab rooms, §7b)
 cudic ai:  Cudic AI: Open chat
 ```
@@ -583,6 +598,20 @@ legacy single-file games. `assemble()` / `injectAssetUrls()` / `previewHtmlFor()
   `__CUDIC_BIN__`), not one. A missing `<\/script>` between them made Chrome
   throw on every `document.write` *and* left `window.__CUDIC_BIN__` undefined,
   so runtime-fetched assets silently had no map — keep them separate.
+- **Game frames are opaque-origin on purpose — never re-add `allow-same-origin`.**
+  `view.html:619` and `embed.html:108` sandbox their iframes `allow-scripts`
+  only; that flag would let published game code read the parent origin's
+  Supabase auth token. Because an opaque frame throws `SecurityError` on raw
+  `localStorage`, `run.html` installs an in-memory localStorage shim **twice**:
+  in its own boot script (covers `/theme-toggle.js`, which runs before the game
+  document is written and touches localStorage) and again inside `fwd` as
+  `lsShim` for the written game. Both use
+  `Object.defineProperty(window, 'localStorage', {configurable:true, value:…})` —
+  a plain `window.localStorage = …` assignment silently fails in that frame
+  (getter-only, script not strict) and was the “localStorage error in shim”.
+  The shim is per-load memory; values do not survive a reload (persistence is
+  `CudicSave`'s job). Bump `run.html?v=N` in view.html/embed.html after editing
+  run.html (currently **v9**).
 - **Legacy scene games**: classic-editor rows carry code in `scene` with no
   `files`; Studio `bootProject` converts them on the fly via `sceneToFiles`
   (same module) into an editable single-file game — saving persists it.
@@ -765,8 +794,10 @@ grid-led, Geist everywhere. Read it before building any public surface. Headline
 12. **Command IDs keep the `glox.` prefix** — storage keys and IDs were not renamed.
     Only user-visible strings say "Cudic".
 13. **No webview sidebar views** — see §7. This is the most common wrong turn.
-14. **Never log or commit keys.** Keys live in `localStorage` and `.env` only.
-15. **Copyright**: `README.md` forbids distribution. Don't push code to new remotes.
+14. **Never re-add `allow-same-origin` to a game iframe** (`view.html`,
+  `embed.html`) — it re-opens the auth-token leak; see §8 Runtimes bullet.
+15. **Never log or commit keys.** Keys live in `localStorage` and `.env` only.
+16. **Copyright**: `README.md` forbids distribution. Don't push code to new remotes.
 
 ---
 

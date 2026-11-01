@@ -14,6 +14,29 @@
 // localStorage token to user-published games).
 // Protocol: parent posts {type:'code', files, assets, assetsBase},
 // we post {type:'ready'} + {type:'console',...}.
+// localStorage shim (immediate, pre-game-write): the frame is sandboxed
+// without allow-same-origin, so raw localStorage access throws SecurityError.
+// theme-toggle.js boots in the ORIGINAL document before the game document.write
+// happens, so the shim must install here. It persists on the same window through
+// the write (document.write keeps the Window), so the in-`fwd` copy below stays
+// as a harmless no-op. Installed via Object.defineProperty — a dotted
+// `window.localStorage = {…}` would silently fail on the getter-only property.
+const __lsMem = {};
+function __installLsShim() {
+  try { localStorage.getItem('__probe'); return; } catch (e) {}
+  try {
+    Object.defineProperty(window, 'localStorage', { configurable: true, value: {
+      getItem: function (k) { return Object.prototype.hasOwnProperty.call(__lsMem, k) ? __lsMem[k] : null; },
+      setItem: function (k, v) { __lsMem[k] = String(v); },
+      removeItem: function (k) { delete __lsMem[k]; },
+      clear: function () { for (var k in __lsMem) delete __lsMem[k]; },
+      key: function (i) { return Object.keys(__lsMem)[i] || null; },
+      get length() { return Object.keys(__lsMem).length; }
+    } });
+  } catch (e2) {}
+}
+__installLsShim();
+
 window.addEventListener('message', async (e) => {
   const d = e.data || {};
   if (d.type !== 'code' || !d.files) return;
@@ -209,7 +232,10 @@ window.addEventListener('message', async (e) => {
   // localStorage shim: sandboxed frames (no allow-same-origin) throw SecurityError
   // on any localStorage access, which kills games that read a "best score" at load.
   // In-memory fallback keeps them playable; real persistence goes through CudicSave.
-  const lsShim = '<script>try{localStorage.getItem("__probe")}catch(e){var __mem={};window.localStorage={getItem:function(k){return k in __mem?__mem[k]:null},setItem:function(k,v){__mem[k]=String(v)},removeItem:function(k){delete __mem[k]},clear:function(){__mem={}},key:function(i){return Object.keys(__mem)[i]||null},get length(){return Object.keys(__mem).length}}}<\/script>';
+  const lsShim = '<script>try{localStorage.getItem("__probe")}catch(e){var __mem={};var __ls={getItem:function(k){return Object.prototype.hasOwnProperty.call(__mem,k)?__mem[k]:null},setItem:function(k,v){__mem[k]=String(v)},removeItem:function(k){delete __mem[k]},clear:function(){__mem={}},key:function(i){return Object.keys(__mem)[i]||null},get length(){return Object.keys(__mem).length}};try{Object.defineProperty(window,"localStorage",{configurable:true,value:__ls})}catch(e2){}}<\/script>';
+  // shim NOTE: the fallback is installed with Object.defineProperty — a dotted
+  // window.localStorage = {…} is an assignment onto a getter-only Window property
+  // that silently fails in non-strict script, so game code still crashes.
   const fwd = '<script>["log","warn","error"].forEach(function(k){var o=console[k];console[k]=function(){var t=Array.prototype.map.call(arguments,String).join(" ");parent.postMessage({type:"console",level:k==="log"?"info":k,text:t},"*");o.apply(console,arguments)}});window.addEventListener("error",function(e){parent.postMessage({type:"console",level:"error",text:e.message},"*")})<\/script>' + lsShim + binTag + projTag + mapTag;
   parent.postMessage({ type: 'console', level: 'info', text: 'Running' }, '*');
   // ponytail: doctype must stay first or the frame renders in quirks mode

@@ -8,6 +8,57 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased (on `master` past `v1.2`)
 
+**Staged snapshots in Studio** (uncommitted)
+
+- `Cudic: Save snapshot` used to capture the saved project row wholesale. It
+  now behaves like a commit: it diffs the workspace against the newest
+  snapshot and opens a checklist (new / changed / deleted, all pre-checked).
+  Unchecking a file keeps its previous snapshot's copy, so the stored state is
+  always "last snapshot + exactly what was staged", and `Restore a previous
+  version` still replaces the project wholesale — including unstaged deletions.
+- First snapshot of a project, a "no changes since last snapshot" state, or a
+  fetched-last-snapshot failure all skip the checklist and behave as before;
+  accepting the dialog with nothing checked aborts.
+- Server: `POST /api/games/:id/revisions` accepts an owner-supplied staged
+  `files` map (string values only, path ≤ 300 chars, ≤ 500 files, 4MB body
+  cap). Invalid/absent payload falls back to the saved project row. The 20-
+  snapshots-per-project ring is unchanged.
+- Staging algorithm unit-tested (stage-test: full stage = working tree,
+  nothing staged = previous snapshot, partial = base + staged change,
+  checked deletion deletes, unchecked deletion persists).
+
+---
+
+**Sandbox hardening: games can no longer see the parent's token** (uncommitted)
+
+- It was stated everywhere that published games run `sandbox="allow-scripts"`
+  (opaque origin), yet `view.html:619` and `embed.html:108` still passed
+  `allow-same-origin` with that frame — so game code *could* reach the parent
+  origin and read the Supabase auth token out of its `localStorage`. The flag is
+  gone from both parents; `run.html`'s header comment already said it was never
+  an option.
+- A truly opaque frame throws `SecurityError` on any raw `localStorage` access,
+  which killed games that read a "best score" at load. `public/run.html` now
+  installs an in-memory `localStorage` shim, and installs it **two** places:
+  once in run.html's own boot script (so `/theme-toggle.js`, which runs there
+  before the game document is written and touches localStorage, no longer
+  throws), and again inside the `fwd` payload as `lsShim` for the written game
+  document. Both installs use `Object.defineProperty(window, 'localStorage', …)`
+  — the old dotted assignment to that getter-only property silently did nothing,
+  which was the "localStorage error in shim".
+- The shim is memory only, per page load: a score kept in plain `localStorage`
+  survives while the frame lives but not a reload. Games that want persistent
+  progress still use `CudicSave` (and its Studio-preview host).
+- Verified headlessly against the running server: game code runs, console
+  relay works, parent `localStorage` and DOM are both blocked with
+  `SecurityError`, and the shim itself round-trips values (`LS-TEST 42`).
+- `public/profile.html` retries its token read once after 600ms before showing
+  the "session may have expired" notice — a fresh login's session write can
+  land after the page's first read.
+- Cache-bust bumped to `run.html?v=9` in `view.html` / `embed.html`.
+
+---
+
 **Audit-fix + additions batch** (`1fa91dd`) — security, reliability, AI memory,
 reconnect, save backup, related games.
 

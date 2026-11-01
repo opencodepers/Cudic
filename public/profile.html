@@ -355,6 +355,11 @@
     function applyMotion(off){ document.documentElement.classList.toggle('reduce-motion', !!off); }
 
     var t = await token();
+    if (!t && !isPublic) {
+      // Fresh-login: Supabase session may not be ready yet; retry once
+      await new Promise(function(r){ setTimeout(r, 600); });
+      t = await token();
+    }
     if (!t && !isPublic) { document.getElementById('guestNotice').style.display = 'block'; return; }
     document.getElementById('profileBody').style.display = '';
     if (isPublic) { try { document.getElementById('sec-security').style.display='none'; document.getElementById('sec-appearance').style.display='none'; } catch(e){} }
@@ -400,7 +405,7 @@
           var lc = document.getElementById('likedCount');
           if(lc && d.games){ lc.textContent = (d.games || []).length; }
         })(d.profile);
-      }).catch(function(e){ console.warn('profile load failed:', e && e.message); var gn = document.getElementById('guestNotice'); if (gn) { gn.style.display = 'block'; var h = gn.querySelector('h2'); var p = gn.querySelector('p'); if (h) h.textContent = 'Could not load your profile'; if (p) p.textContent = 'Your session may have expired — sign in again.'; } });
+      }).catch(function(e){ console.warn('profile load failed:', e && e.message); var gn = document.getElementById('guestNotice'); if (gn) { gn.style.display = 'block'; var h = gn.querySelector('h2'); var p = gn.querySelector('p'); if (h) h.textContent = 'Could not load your profile'; if (p) p.textContent = /\b401\b/.test(e && e.message) ? 'Your session may have expired — sign in again.' : 'Something went wrong — try refreshing the page.'; } });
 
     /* Email confirmation (soft gate): card shows only when unconfirmed */
     (function(){
@@ -921,7 +926,8 @@
           list.appendChild(row);
         });
       }).catch(function(){});
-    document.getElementById('dailyClaim').addEventListener('click', function(){
+    var dcb = document.getElementById('dailyClaim');
+    if (dcb) dcb.addEventListener('click', function(){
       var btn = this, m = document.getElementById('coinMsg');
       btn.disabled = true;
       fetch(apiHost() + '/api/daily/claim', { method: 'POST', headers: { 'Authorization': 'Bearer ' + t } })

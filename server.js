@@ -1062,10 +1062,25 @@ async function handleRequest(req, res) {
     const gid = revList[1];
     const { data: g } = await supabase.from('games').select('owner_id, files').eq('id', gid).single();
     if (!g || g.owner_id !== user.id) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    const files = g.files || {};
-    if (Object.keys(files).length > 500) { res.writeHead(413, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Project too large to snapshot.' })); return; }
-    const body = await readBody(req).catch(() => ({}));
+    const body = await readBody(req, 4 * 1024 * 1024).catch(() => ({}));
     const label = String(body.label || '').trim().substring(0, 80);
+    // Staged snapshot (Studio's Save-snapshot checklist): the owner may POST a
+    // full files map — staged files at working-tree content, unstaged ones at
+    // the previous snapshot's content, so restoring replays "last snapshot +
+    // what was staged". Absent or invalid body.files keeps the old behavior:
+    // snapshot the saved project row (g.files). Owner-only route, values must
+    // be strings, path lengths capped — same shape the client already held.
+    let files = g.files || {};
+    if (body.files && typeof body.files === 'object' && !Array.isArray(body.files)) {
+      const staged = {};
+      let ok = true;
+      for (const [k, v] of Object.entries(body.files)) {
+        if (!k || typeof v !== 'string' || k.length > 300) { ok = false; break; }
+        staged[k] = v;
+      }
+      if (ok) files = staged;
+    }
+    if (Object.keys(files).length > 500) { res.writeHead(413, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Project too large to snapshot.' })); return; }
     const { data: cap } = await supabase.from('project_revisions').select('id').eq('game_id', gid).order('created_at', { ascending: false }).limit(1);
     const { data: countRow } = await supabase.from('project_revisions').select('id', { count: 'exact', head: true }).eq('game_id', gid);
     const total = countRow && countRow.count || 0;
@@ -3876,6 +3891,11 @@ function slugify(s) {
         else await walk(p, out);
       }
     }
+    // Each asset copies independently; a failure must be visible, not
+    // silent (forks previously kept their text files while their images
+    // vanished with no error anywhere).
+    const copied = new Set();
+    let assetsFailed = 0;
     try {
       const paths = [];
       await walk(id, paths);
@@ -3884,28 +3904,39 @@ function slugify(s) {
         try {
           const { error: cpErr } = await bucket.copy(from, to);
           if (cpErr) throw cpErr;
+          copied.add(from);
         } catch {
-          const { data: blob } = await bucket.download(from);
-          if (blob) await bucket.upload(to, blob, { upsert: true });
+          try {
+            const { data: blob } = await bucket.download(from);
+            if (blob) { await bucket.upload(to, blob, { upsert: true }); copied.add(from); }
+            else throw new Error('download returned empty');
+          } catch {
+            assetsFailed++;
+            console.error('fork: asset copy failed for', from, '(project', id + ')');
+          }
         }
       }
       const manifest = g.assets || {};
       const rewritten = {};
       for (const [k, v] of Object.entries(manifest)) {
         const stripped = String(v).replace(/^game-assets\//, '');
-        rewritten[k] = stripped.startsWith(id + '/')
-          ? 'game-assets/' + nu.id + stripped.substring(id.length)
-          : String(v);
+        if (stripped.startsWith(id + '/')) {
+          if (!copied.has(stripped)) continue; // drop refs whose object didn't survive the fork
+          rewritten[k] = 'game-assets/' + nu.id + stripped.substring(id.length);
+        } else rewritten[k] = String(v);
       }
       if (Object.keys(rewritten).length) {
         await supabase.from('games').update({ assets: rewritten }).eq('id', nu.id);
         nu.assets = rewritten;
       }
-    } catch {
-      // storage copy is best-effort; text files already forked
+    } catch (outerErr) {
+      // Text files already forked; manifest rewrite failing is rare but
+      // must not be swallowed silently.
+      console.error('fork: manifest rewrite failed for', nu.id, outerErr);
+      assetsFailed = 'manifest';
     }
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ game: nu }));
+    res.end(JSON.stringify({ game: nu, assets_partial: assetsFailed !== 0, assets_failed: assetsFailed }));
     return;
   }
 
