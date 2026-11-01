@@ -375,6 +375,10 @@ function apiHost() {
     if (!isLanding) buildBackground(manifest);
     applyCustom(manifest.custom);
     mountSidebar();
+    // Pages (e.g. themes.html) render their install/uninstall buttons before
+    // the async boot finishes; without this event they read storedSlug()
+    // as null and show "Install" while the pack is visibly active.
+    try { document.dispatchEvent(new CustomEvent('cudic:theme-changed')); } catch (e) {}
   }
   function persist(slug, manifest) {
     var tokRaw = (typeof localStorage !== 'undefined') ? localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token') : '';
@@ -394,6 +398,7 @@ function apiHost() {
     currentSlug = null;
     persist(null);
     clearVars(); teardownBg(); teardownCustom(); mountSidebar();
+    try { document.dispatchEvent(new CustomEvent('cudic:theme-changed')); } catch (e) {}
   }
   function storedSlug() {
     return currentSlug;

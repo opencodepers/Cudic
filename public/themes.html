@@ -621,8 +621,13 @@
       resetBtn.addEventListener('click', function () {
         if (!window.CudicTheme) return;
         CudicTheme.clearPack();
-        refreshButtons();
+        renderPacks();
         toast('Back to the default look.');
+      });
+      // The engine's boot races this page's boot: applyPack/clearPack fire
+      // this event so the install/uninstall buttons never show a stale state.
+      document.addEventListener('cudic:theme-changed', function () {
+        if (window.CudicTheme) renderPacks();
       });
       var packSortMode = 'featured';
       var packOrder = [];

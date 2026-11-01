@@ -6,7 +6,14 @@ fixed. Commits are referenced by short hash.
 
 ---
 
-## Unreleased (on `master` past `v1.2`)
+## Unreleased
+
+### Fixed
+- Themes page showed "Install" on an already-active pack: the page painted
+  its buttons before the theme engine's async boot finished, so it read no
+  active slug. `applyPack`/`clearPack` now fire a `cudic:theme-changed`
+  event and the page re-renders on it. Also fixed the "reset to default"
+  button calling `refreshButtons()`, a function that never existed. (on `master` past `v1.2`)
 
 **Staged snapshots in Studio** (uncommitted)
 
