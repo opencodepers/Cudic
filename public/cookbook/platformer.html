@@ -138,6 +138,22 @@ requestAnimationFrame(frame);
                             <p>A pickup is a distance check: if the player's centre is within 26px of a coin, it's collected. Squared distance (<code>dx*dx + dy*dy &lt; 26*26</code>) avoids the <code>sqrt</code> — cheap, and at 60fps it adds up.</p>
                         </section>
 
+                        <section id="touch">
+                            <h2>Play it on a phone (CudicTouch)</h2>
+                            <p>Most people who open your game link do it on a phone, where there are no arrow keys. <strong>CudicTouch</strong> draws an on-screen D-pad and action buttons over your game and turns taps into ordinary key events, so this platformer works unedited. Add one script tag to your <code>index.html</code>:</p>
+<pre>&lt;script src="/cudic-touch.js?v=1" data-cudic-touch="auto"&gt;&lt;/script&gt;</pre>
+                            <p>On a laptop nothing changes (the pad only mounts on touch-first screens), on a phone you get the D-pad (arrow keys) plus an <strong>A</strong> button mapped to Space — which is exactly the jump key this game listens for. Customize it if your game uses different keys:</p>
+<pre>&lt;script src="/cudic-touch.js?v=1"
+        data-cudic-touch="auto:A=Space,B=z,D=wasd"&gt;&lt;/script&gt;</pre>
+                            <p><code>A</code>/<code>B</code> set button keys (label comes first, the value is the key name — <code>Space</code>, <code>Enter</code>, <code>A</code>, <code>z</code>…), and <code>D=wasd</code> switches the D-pad to WASD for games that use letters instead of arrows. <code>dpad=false</code> hides the D-pad for click-only games. In JavaScript you can also control it yourself:</p>
+<pre>// mount only on touch devices (same as "auto")
+CudicTouch.auto();
+// force it on with a custom set
+CudicTouch.mount({ buttons: [{ key: 'Space', label: 'JUMP', accent: 'a' }] });
+CudicTouch.hide(); CudicTouch.show(); CudicTouch.unmount();</pre>
+                            <p>Buttons repeat no auto-fire: a press sends one <code>keydown</code>, a release sends one <code>keyup</code>, exactly like a real key. That's the anti-fly rule at work too — holding A makes the plumber jump once per press, just like Space on a keyboard.</p>
+                        </section>
+
                         <section id="next">
                             <h2>Where to take it next</h2>
                             <ul>

@@ -122,6 +122,7 @@ public/                   # the classic app (served at Vercel output root)
   editor.html             # classic editor (65KB, legacy)
   docs.html               # /docs knowledge base; docpage.js builds its section nav
   parents.html            # /parents (+ /teachers alias) teachers & parents landing — brand-kit style
+  cudic-touch.js          # in-game on-screen D-pad/buttons for phones (CudicTouch)
   sidebar.css  sidebar.js # shared rail nav on every page
   theme-engine.js         # window.CudicTheme — pack boot/apply/install/clear
   config.js  auth.js  client.js   # shared client helpers

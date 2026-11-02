@@ -260,6 +260,17 @@ confetti({ particleCount: 120 })</pre>
                     </ul>
                 </section>
 
+                <section id="touch">
+                    <h2>Touch controls for phones</h2>
+                    <p>Most players who tap your game link are on a phone, where the keyboard doesn't exist. <code>cudic-touch.js</code> adds an on-screen D-pad and actions button that turn taps into ordinary key events:</p>
+                    <ul>
+                        <li>One line in your <code>index.html</code>: <code>&lt;script src="/cudic-touch.js?v=1" data-cudic-touch="auto"&gt;&lt;/script&gt;</code>. On phones you get an arrow D-pad plus an <strong>A</strong> button mapped to Space; on desktop nothing shows at all — the pad only mounts on touch-first screens.</li>
+                        <li>Customize keys with the <code>data-cudic-touch</code> value: <code>auto:A=Space,B=z,D=wasd</code> sets the action buttons and switches the D-pad to WASD. <code>dpad=false</code> skips it for click-only games. Full options plus the <code>CudicTouch.mount()/hide()/unmount()</code> API are in the platformer guide.</li>
+                        <li>Games need no changes: a press sends one <code>keydown</code>, a release one <code>keyup</code> (with <code>key</code>, <code>code</code> and <code>keyCode</code>), so any game listening to arrows, WASD or Space plays unedited.</li>
+                        <li>Multitouch support: hold two D-pad directions for diagonals.</li>
+                    </ul>
+                </section>
+
                 <section id="chat">
                     <h2>Chat &amp; servers</h2>
                     <p>A <strong>server</strong> holds channels; a <strong>channel</strong> holds messages. You can also message people directly. Chat history is permanent — messages stay unless a moderator removes them.</p>

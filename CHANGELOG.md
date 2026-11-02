@@ -8,6 +8,31 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**On-screen touch controls for games (`CudicTouch`, `cudic-touch.js`)**
+
+- The #1 reason players bounce off game links on phones is missing keys.
+  One script tag (`<script src="/cudic-touch.js?v=1"
+  data-cudic-touch="auto"></script>`) adds a pixel-styled on-screen D-pad
+  (arrows; WASD via `D=wasd`) plus a lime A button (Space by default).
+  Desktop never sees it — the pad mounts only on touch-first screens
+  (`pointer: coarse`), so nothing changes for mouse/keyboard players.
+- Buttons turn taps into ordinary document-level `keydown`/`keyup` events
+  carrying `key`, `code` and a legacy `keyCode`/`which` (pinned on the
+  instance, since KeyboardEvent constructors don't set them), so games
+  that already listen for arrows/WASD/Space play unedited. One press =
+  one keydown, one release = one keyup — no auto-repeat, matching real
+  keys. Multitouch D-pad corners give diagonals. Short `navigator.vibrate`
+  pulse on press where the phone allows it (skipped by the mount option).
+- Works everywhere a game runs with no mediator: the pad lives inside
+  the game's own document, so the sandboxed live player, Studio previews
+  and file:// all behave the same (unlike the parent-mediated shims).
+- API: `CudicTouch.auto()` (mount-if-touch), `mount({...})` (forced, with
+  `{ dpad, keys, buttons: [{ key, label, accent }] }` options), `show()`,
+  `hide()`, `unmount()`, `mounted`. Custom key mapping comes free via the
+  `data-cudic-touch="auto:A=Space,B=z,D=wasd"` attribute.
+- Docs: new "Touch controls for phones" section in docs.html; the
+  Cookbook platformer guide gains a full "Play it on a phone" section.
+
 **Teachers & parents landing page (`/parents`)**
 
 - New static landing at `/parents` (aliased from `/teachers`) written for
