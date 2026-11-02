@@ -8,6 +8,13 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Game-page next-up shelves + week leaderboard (shelves feature batch)**
+
+- **"More from this creator" + "More like this" shelves on every game page.** New public endpoint `GET /api/games/:id/related` returns the maker's other published games (by recency) plus published games sharing a tag (by plays, excluding the same maker). Rendered as two side cards below the leaderboard, thumbnail-free like the gallery list, titles/names as DOM text so a crafted title can't inject markup. Finishing a game now leads one click to the next.
+- **"This week" leaderboard tab.** The game page board gains an All time / This week toggle; `GET .../scores?range=week` filters server-side on `updated_at >= Monday 00:00` (reuses the jam's `weekStartISO` rule). Tabs only appear once a game actually has scores.
+- **Weekly digest email — audited, already built.** Confirmed the Monday digest job exists in server.js (`weeklyDigest`): theme + last week's jam winners + 3 newest games from followed creators, sent to confirmed accounts only, half-hourly check with a `digest.json` once-per-week marker so redeploys can't re-send. No code change; pinned by a regression test so it can't quietly vanish.
+- Tests: new pin class (`RelatedShelvesAndWeekBoard`). Docs.html saves section updated.
+
 **Joystick mode for CudicTouch (`J=on` / `{ joystick: true }`, version 2)**
 
 - `CudicTouch` can now swap the D-pad cluster for a drag-anywhere analog-

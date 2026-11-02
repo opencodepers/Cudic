@@ -3998,6 +3998,39 @@ function slugify(s) {
     return;
   }
 
+  // ── API: related games (More from this creator / More like this) ─
+  // Two shelves on the game page, one request: the maker's other published
+  // games, plus published games sharing at least one tag. Both are public
+  // data and thumbnail-free (has_thumb flag like the gallery list) so the
+  // shelf never ships ~40KB data URLs. Must stay above the generic
+  // /api/games/:id GET below, which would otherwise read "/related" as id.
+  if (/^\/api\/games\/[^/]+\/related$/.test(url.pathname) && req.method === 'GET') {
+    cors(res);
+    const rid = url.pathname.split('/')[3];
+    if (!isUuid(rid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
+    const { data: g } = await supabase.from('games').select('published, owner_id, tags').eq('id', rid).single();
+    if (!g || !g.published) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+    const shelf = 'id, title, play_count, users!owner_id(display_name, user_id)';
+    const [creatorRes, similarRes] = await Promise.all([
+      supabase.from('games').select(shelf)
+        .eq('published', true).eq('owner_id', g.owner_id).neq('id', rid)
+        .order('updated_at', { ascending: false }).limit(6),
+      Array.isArray(g.tags) && g.tags.length
+        ? supabase.from('games').select(shelf)
+            .eq('published', true).neq('id', rid).neq('owner_id', g.owner_id)
+            .overlaps('tags', g.tags.map(t => String(t).toLowerCase()))
+            .order('play_count', { ascending: false }).limit(6)
+        : Promise.resolve({ data: [] })
+    ]);
+    const shape = (rows) => (rows || []).map((r) => ({
+      id: r.id, title: r.title, play_count: r.play_count || 0,
+      name: (r.users && r.users.display_name) || 'Unknown', user_id: (r.users && r.users.user_id) || null
+    }));
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify({ by_creator: shape(creatorRes.data), similar: shape(similarRes.data) }));
+    return;
+  }
+
   // ── API: game leaderboard (best score per player) ──────────────────
   // GET is public: the board shows on the game page for everyone, guests
   // included. POST is signed-in (seat-checked) only — there is no identity
@@ -4014,10 +4047,15 @@ function slugify(s) {
     if (req.method === 'GET') {
       if (!g || !g.published) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
       const lim = Math.min(Math.max(Number(new URLSearchParams(url.search).get('limit')) || 10, 1), 50);
-      const { data: rows } = await supabase
+      const range = String(new URLSearchParams(url.search).get('range') || 'all');
+      // Filters chain only after .select() in supabase-js, so the week
+      // condition is added to the builder rather than before it.
+      let scoreQuery = supabase
         .from('game_scores')
         .select('score, updated_at, users!game_scores_user_id_fkey(display_name)')
-        .eq('game_id', gid)
+        .eq('game_id', gid);
+      if (range === 'week') scoreQuery = scoreQuery.gte('updated_at', weekStartISO() + 'T00:00:00.000Z');
+      const { data: rows } = await scoreQuery
         .order('score', { ascending: false })
         .order('updated_at', { ascending: true })
         .limit(lim);

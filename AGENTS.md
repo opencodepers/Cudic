@@ -189,10 +189,17 @@ GET  /api/games                 GET|POST /api/games     GET /api/games/mine
 GET  /api/games/:id/thumbnail   ← card art as real image bytes (1-day cache)
 GET  /api/games/:id/live        ← in-memory room head-count (`{playing}`) for the
                                   game page's pill; unauth, no-store, no DB
-GET|POST /api/games/:id/scores  ← leaderboards: GET is public (top-N, names only),
+GET|POST /api/games/:id/scores  ← leaderboards: GET is public (top-N, names only,
+                                  ?range=all|week — week filters on
+                                  updated_at >= Monday 00:00 via weekStartISO),
                                   POST is signed-in+seat-checked and keeps the
                                   player's best run (read-then-write); rows live
                                   in `game_scores`
+GET  /api/games/:id/related     ← PUBLIC: `{by_creator, similar}` for the game
+                                  page's "More from this creator" / "More like
+                                  this" shelves — same maker's other published
+                                  games + tag overlaps, thumbnail-free rows,
+                                  must stay above the generic :id GET
 GET|POST /api/music             ← Music Lab cloud saves (owner-scoped); browse-by-title
 GET  /api/music/browse           ← PUBLIC: any user's track titles/owners, no data
 GET  /api/music/:id/public       ← PUBLIC: one track's playable data (1-min cache);

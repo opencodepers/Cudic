@@ -168,7 +168,19 @@
     </div>
     <div class="side-card" id="scoresCard" style="display:none;margin-top:20px">
       <h2>Leaderboard <span class="dim" style="font-weight:400;font-size:0.78rem;color:var(--text-tertiary)">best run per player</span></h2>
+      <div id="scoreTabs" style="display:none;gap:6px;margin-bottom:8px">
+        <button type="button" class="btn btn-secondary" id="scoreTabAll" style="padding:3px 12px;font-size:0.78rem">All time</button>
+        <button type="button" class="btn btn-secondary" id="scoreTabWeek" style="padding:3px 12px;font-size:0.78rem">This week</button>
+      </div>
       <div id="scoreList"></div>
+    </div>
+    <div class="side-card" id="moreByCard" style="display:none;margin-top:20px">
+      <h2>More from this creator</h2>
+      <div id="moreByList"></div>
+    </div>
+    <div class="side-card" id="similarCard" style="display:none;margin-top:20px">
+      <h2>More like this</h2>
+      <div id="similarList"></div>
     </div>
     <div class="modal-overlay" id="collModal">
       <div class="modal" style="width:420px">
@@ -682,31 +694,100 @@ setInterval(function () {
         // Leaderboard: rows arrive name-only, so build DOM nodes as with the
         // live-player strip — an injected name string must never be able to
         // make markup. Hidden entirely when a game has no scores yet.
-        fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/scores?limit=10')
-          .then(function (r) { return r.ok ? r.json() : { scores: [] }; })
+        // ?range=all|week powers the tab toggle; week re-queries server-side
+        // rather than filtering the first 10 rows client-side, because week
+        // rows beyond the all-time top 10 would otherwise be invisible.
+        var scoreTab = 'all';
+        function paintScores(rowsIn, listEl) {
+          var rows = rowsIn || [];
+          listEl.textContent = '';
+          if (!rows.length) {
+            var empty = document.createElement('p');
+            empty.className = 'dim';
+            empty.textContent = 'No scores yet this week — set one!';
+            listEl.appendChild(empty);
+            return;
+          }
+          rows.forEach(function (row, i) {
+            var line = document.createElement('div');
+            line.style.cssText = 'display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:0.85rem';
+            if (i === 0) line.style.borderTop = 'none';
+            var place = document.createElement('span');
+            place.textContent = ['🥇', '🥈', '🥉'][i] || (i + 1) + '.';
+            place.style.cssText = 'width:26px;flex:none;text-align:center';
+            var who = document.createElement('span');
+            who.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+            who.textContent = row.name || 'Player';
+            var sc = document.createElement('span');
+            sc.style.cssText = 'font-weight:700;font-variant-numeric:tabular-nums';
+            sc.textContent = String(row.score).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            line.append(place, who, sc);
+            listEl.appendChild(line);
+          });
+        }
+        function loadScores() {
+          fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/scores?limit=10&range=' + scoreTab)
+            .then(function (r) { return r.ok ? r.json() : { scores: [] }; })
+            .then(function (res) {
+              var rows = (res && res.scores) || [];
+              var card = document.getElementById('scoresCard');
+              var tabs = document.getElementById('scoreTabs');
+              var list = document.getElementById('scoreList');
+              if (!card || !list) return;
+              // An empty game stays hidden; a signed week with no rows keeps
+              // the card but shows the “none this week” note.
+              if (!rows.length && scoreTab === 'all') return;
+              if (tabs && rows.length) tabs.style.display = 'flex';
+              card.style.display = '';
+              paintScores(rows, list);
+            })
+            .catch(function () {});
+        }
+        var tabAll = document.getElementById('scoreTabAll');
+        var tabWeek = document.getElementById('scoreTabWeek');
+        function markScoreTab() {
+          if (!tabAll || !tabWeek) return;
+          tabAll.style.borderColor = scoreTab === 'all' ? 'var(--signal)' : '';
+          tabWeek.style.borderColor = scoreTab === 'week' ? 'var(--signal)' : '';
+          tabAll.style.fontWeight = scoreTab === 'all' ? '700' : '400';
+          tabWeek.style.fontWeight = scoreTab === 'week' ? '700' : '400';
+        }
+        if (tabAll) tabAll.addEventListener('click', function () { scoreTab = 'all'; markScoreTab(); loadScores(); });
+        if (tabWeek) tabWeek.addEventListener('click', function () { scoreTab = 'week'; markScoreTab(); loadScores(); });
+        markScoreTab();
+        loadScores();
+        // Related shelves: one request returns both. Same DOM-node rule as
+        // the leaderboard and comments —titles and names go in as text, so
+        // a crafted game title can never inject markup.
+        fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/related')
+          .then(function (r) { return r.ok ? r.json() : null; })
           .then(function (res) {
-            var rows = (res && res.scores) || [];
-            if (!rows.length) return;
-            var card = document.getElementById('scoresCard');
-            var list = document.getElementById('scoreList');
-            if (!card || !list) return;
-            card.style.display = '';
-            rows.forEach(function (row, i) {
-              var line = document.createElement('div');
-              line.style.cssText = 'display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:0.85rem';
-              if (i === 0) line.style.borderTop = 'none';
-              var place = document.createElement('span');
-              place.textContent = ['🥇', '🥈', '🥉'][i] || (i + 1) + '.';
-              place.style.cssText = 'width:26px;flex:none;text-align:center';
-              var who = document.createElement('span');
-              who.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-              who.textContent = row.name || 'Player';
-              var sc = document.createElement('span');
-              sc.style.cssText = 'font-weight:700;font-variant-numeric:tabular-nums';
-              sc.textContent = String(row.score).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-              line.append(place, who, sc);
-              list.appendChild(line);
-            });
+            if (!res) return;
+            var shelves = [
+              { list: 'moreByList', card: 'moreByCard', rows: res.by_creator || [] },
+              { list: 'similarList', card: 'similarCard', rows: res.similar || [] }
+            ];
+            for (var s = 0; s < shelves.length; s++) {
+              var sh = shelves[s];
+              var cardEl = document.getElementById(sh.card);
+              var listEl = document.getElementById(sh.list);
+              if (!cardEl || !listEl || !sh.rows.length) continue;
+              cardEl.style.display = '';
+              sh.rows.forEach(function (g) {
+                var item = document.createElement('div');
+                item.style.cssText = 'padding:7px 0;border-top:1px solid var(--line)';
+                var a = document.createElement('a');
+                a.href = '/view.html?id=' + encodeURIComponent(g.id);
+                a.style.cssText = 'color:inherit;text-decoration:none;font-size:0.85rem;font-weight:700;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+                a.textContent = g.title || 'Untitled';
+                var meta = document.createElement('div');
+                meta.className = 'dim';
+                meta.style.cssText = 'font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+                meta.textContent = (g.name || 'Unknown') + ' · ' + (g.play_count || 0) + ' plays';
+                item.append(a, meta);
+                listEl.appendChild(item);
+              });
+            }
           })
           .catch(function () {});
         // Devlog: public posts, author-only composer. Same DOM-node rule as
