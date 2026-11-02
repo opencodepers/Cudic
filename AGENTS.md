@@ -121,6 +121,7 @@ public/                   # the classic app (served at Vercel output root)
   themes.html             # theme pack store
   editor.html             # classic editor (65KB, legacy)
   docs.html               # /docs knowledge base; docpage.js builds its section nav
+  parents.html            # /parents (+ /teachers alias) teachers & parents landing — brand-kit style
   sidebar.css  sidebar.js # shared rail nav on every page
   theme-engine.js         # window.CudicTheme — pack boot/apply/install/clear
   config.js  auth.js  client.js   # shared client helpers
@@ -152,7 +153,8 @@ render.yaml               # Render service (PORT 10000)
 ### Pages & routes
 Vercel rewrites (`vercel.json`) map extensionless paths → `.html`:
 `/` → index (landing), `/login` → login.html, `/profile`, `/chat`, `/games`,
-`/themes`, `/editor`, `/servers`, `/lobbies`, `/docs`,
+`/themes`, `/editor`, `/servers`, `/lobbies`, `/docs`, `/faq`,
+`/teachers` → `/parents` (classroom landing), `/cookbook/` guides,
 `/studio` → `studio/index.html`.
 `server.js` mirrors all of these for local dev.
 

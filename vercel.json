@@ -19,6 +19,8 @@
     { "source": "/docs", "destination": "/docs.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/faq", "destination": "/faq.html" },
+    { "source": "/parents", "destination": "/parents.html" },
+    { "source": "/teachers", "destination": "/parents.html" },
     { "source": "/terms", "destination": "/terms.html" },
     { "source": "/embed", "destination": "/embed.html" },
     { "source": "/view", "destination": "/view.html" },

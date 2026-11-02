@@ -5171,6 +5171,11 @@ function slugify(s) {
     url.pathname = '/faq.html';
   }
 
+  // ── Redirect /parents and /teachers to the classroom landing ──
+  if (url.pathname === '/parents' || url.pathname === '/teachers') {
+    url.pathname = '/parents.html';
+  }
+
   // ── Redirect /terms to /terms.html ─────────────────────────────
   if (url.pathname === '/terms') {
     url.pathname = '/terms.html';

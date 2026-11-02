@@ -8,6 +8,24 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Teachers & parents landing page (`/parents`)**
+
+- New static landing at `/parents` (aliased from `/teachers`) written for
+  teachers and parents: what Cudic costs (nothing, no paid tier - copying
+  the FAQ), school-laptop/browser-only story, Scratch `.sb3` import for
+  existing lessons, one-click publishing as class-jam motivation, and an
+  honest parents section (moderation + `/api/reports` reporting, usernames
+  only, drafts unpublished by default).
+- Fully brand-`brand.html` styled, not a sidebar.css page: ink/cream/lime/
+  blue tokens with light-mode swap, hairline cell grid, section numbers,
+  big mark on the blue stage, platform pixel icons from
+  `/cudic-assets/icons/svg/` (`<use>` refs), and steps() micro-interactions
+  (hero rise, reveal-on-scroll `.rv`, hop-on-hover icons, blinking cursor,
+  check-ticker marquee). Reduced-motion honored.
+- Routes wired in `vercel.json` + `server.js` local mirror; linked from
+  the FAQ CTA row and a new docs.html FAQ item. No database, no backend
+  changes - pure static page.
+
 **In-game achievements shim** (uncommitted)
 
 - Games can now award achievements: `CudicAch.unlock('speedrun')` (via
