@@ -740,12 +740,19 @@ async function handleRequest(req, res) {
     // Free flairs + longevity badges are claimed just by opening profile.
     try { await autoGrant(user, profile); } catch {}
 
-    const [badgeRes, fRes, gRes, frRes] = await Promise.all([
+    const [badgeRes, fRes, gRes, frRes, achRes] = await Promise.all([
       supabase.from('user_badges').select('code, awarded_at').eq('user_id', profile.id),
       supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('followed_id', profile.id),
       supabase.from('follows').select('followed_id', { count: 'exact', head: true }).eq('follower_id', profile.id),
       supabase.from('friendships').select('user_id', { count: 'exact', head: true })
-        .or('user_id.eq.' + profile.id + ',friend_id.eq.' + profile.id).eq('status', 'accepted')
+        .or('user_id.eq.' + profile.id + ',friend_id.eq.' + profile.id).eq('status', 'accepted'),
+      // Recent in-game achievement unlocks, newest first, for the profile
+      // shelf. Titles ride along via the FK join; an empty table is fine.
+      supabase.from('game_achievements')
+        .select('code, awarded_at, games!game_achievements_game_id_fkey(title, id)')
+        .eq('user_id', profile.id)
+        .order('awarded_at', { ascending: false })
+        .limit(12)
     ]);
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -758,7 +765,13 @@ async function handleRequest(req, res) {
       awards: badgeRes.data || [],
       followers: fRes.count || 0,
       following: gRes.count || 0,
-      friends: frRes.count || 0
+      friends: frRes.count || 0,
+      achievements: (achRes.data || []).map((a) => ({
+        code: a.code,
+        at: a.awarded_at,
+        game_title: (a.games && a.games.title) || '',
+        game_id: (a.games && a.games.id) || null
+      }))
     }));
     return;
   }
@@ -768,13 +781,21 @@ async function handleRequest(req, res) {
       const q = new URL(req.url, 'http://localhost').searchParams;
       const userId = q.get('id') || q.get('user_id');
       if (!userId) { res.writeHead(400); res.end(JSON.stringify({ error: 'id required' })); return; }
-      const [profileRes, gamesRes, packsRes, pageRes, badgeRes, folRes] = await Promise.all([
+      const [profileRes, gamesRes, packsRes, pageRes, badgeRes, folRes, achRes] = await Promise.all([
         supabase.from('users').select('id, user_id, display_name, avatar_url, bio, interests, created_at, pack_slug, equips').eq('id', userId).single(),
         supabase.from('games').select('id, title, play_count').eq('owner_id', userId).eq('published', true).order('updated_at', { ascending: false }).limit(20),
         supabase.from('theme_packs').select('slug, name').eq('owner_id', userId).eq('published', true).order('updated_at', { ascending: false }).limit(20),
         supabase.from('creator_pages').select('accent, banner_url, pinned_game_id, links, show_games, show_packs, show_comments, custom_css').eq('user_id', userId).maybeSingle(),
         supabase.from('user_badges').select('code').eq('user_id', userId),
-        supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('followed_id', userId)
+        supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('followed_id', userId),
+        // Public achievement shelf: recent unlocks, newest first. Game titles
+        // come from the FK join; ids of other games never ride along beyond
+        // a published game's own id, which is already public.
+        supabase.from('game_achievements')
+          .select('code, awarded_at, games!game_achievements_game_id_fkey(title, id)')
+          .eq('user_id', userId)
+          .order('awarded_at', { ascending: false })
+          .limit(12)
       ]);
       const data = profileRes.data;
       if (profileRes.error || !data) { res.writeHead(404); res.end(JSON.stringify({ error: 'Not found' })); return; }
@@ -782,6 +803,12 @@ async function handleRequest(req, res) {
       data.packs = packsRes.data || [];
       data.page = pageRes.data || {};
       data.followers = folRes.count || 0;
+      data.achievements = (achRes.data || []).map((a) => ({
+        code: a.code,
+        at: a.awarded_at,
+        game_title: (a.games && a.games.title) || '',
+        game_id: (a.games && a.games.id) || null
+      }));
       // Resolve only equipped codes into catalog rows; the client doesn't
       // need the whole catalog to draw the name line and badge row.
       const eq = data.equips && typeof data.equips === 'object' ? data.equips : {};
@@ -4034,6 +4061,147 @@ function slugify(s) {
     if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not save the score.' })); return; }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true, best: score }));
+    return;
+  }
+
+  // ── In-game achievements (cudic-ach.js) ──────────────────────
+  // Same sandbox shape as scores: the frame never holds the token, view.html
+  // mediates with the viewer's session. unlock() writes one row per
+  // (game, player, code); GET is a public read of what exists.
+  if (/^\/api\/games\/[^/]+\/achievements$/.test(url.pathname) && req.method === 'GET') {
+    cors(res);
+    const gid = url.pathname.split('/')[3];
+    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
+    const { data: g } = await supabase.from('games').select('published').eq('id', gid).single();
+    if (!g || !g.published) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+    const { data: rows } = await supabase.from('game_achievements')
+      .select('code, user_id').eq('game_id', gid).limit(5000);
+    const counts = {};
+    for (const r of rows || []) counts[r.code] = (counts[r.code] || 0) + 1;
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify({
+      // Codes + holder counts, names-length never ids — public data rules
+      // match the leaderboard's (user ids never leave the door).
+      achievements: Object.keys(counts).sort().map((code) => ({ code, count: counts[code] }))
+    }));
+    return;
+  }
+  if (/^\/api\/games\/[^/]+\/achievements$/.test(url.pathname) && req.method === 'POST') {
+    cors(res);
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.replace('Bearer ', '');
+    if (!token) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+    if (!(await seatAlive(user.id, seatFromReq(req)))) { seatDead(res); return; }
+    if (!(await needVerified(user, res))) return;
+    const gid = url.pathname.split('/')[3];
+    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
+    const { data: g } = await supabase.from('games').select('published, owner_id').eq('id', gid).single();
+    if (!g || !(g.published || g.owner_id === user.id)) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+    if (!rateLimit('ach:' + user.id, 30, 60000)) { res.writeHead(429, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Slow down.' })); return; }
+    const body = await readBody(req).catch(() => ({}));
+    // Codes are short slugs the game invents — not free text. Lock the
+    // charset so nothing weird can ride into the key or a display name.
+    const code = String(body.code || '').trim();
+    if (!/^[a-z0-9][a-z0-9_-]{0,31}$/.test(code)) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Code must be 1-32 chars: lowercase letters, numbers, dash, underscore.' }));
+      return;
+    }
+    const { data: existing } = await supabase.from('game_achievements')
+      .select('awarded_at').eq('game_id', gid).eq('user_id', user.id).eq('code', code).maybeSingle();
+    if (existing) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, first: false, at: existing.awarded_at }));
+      return;
+    }
+    const { error: insErr } = await supabase.from('game_achievements')
+      .insert({ game_id: gid, user_id: user.id, code, awarded_at: new Date().toISOString() });
+    if (insErr) {
+      // Lost a race with another tab unlocking the same thing: fine, it exists.
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, first: false }));
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, first: true }));
+    return;
+  }
+
+  // ── API: game devlog posts (feature 7) ────────────────────────
+  // Markdown posts owned by a game: GET is public on published games,
+  // POST is the creator (limit 5/game, rate-limited), DELETE is the
+  // author. Events ride the existing activity feed via postEvent.
+  const devlogMatch = url.pathname.match(/^\/api\/games\/([^/]+)\/devlog(?:\/([^/]+))?$/);
+  if (devlogMatch && req.method === 'GET') {
+    cors(res);
+    const gid = devlogMatch[1];
+    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
+    const { data: g } = await supabase.from('games').select('published, owner_id').eq('id', gid).single();
+    if (!g || !g.published) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+    const { data: rows } = await supabase.from('game_posts')
+      .select('id, body, created_at')
+      .eq('game_id', gid)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify({ posts: rows || [] }));
+    return;
+  }
+  if (devlogMatch && !devlogMatch[2] && req.method === 'POST') {
+    cors(res);
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.replace('Bearer ', '');
+    if (!token) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+    if (!(await seatAlive(user.id, seatFromReq(req)))) { seatDead(res); return; }
+    if (!(await needVerified(user, res))) return;
+    const gid = devlogMatch[1];
+    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
+    const { data: g } = await supabase.from('games').select('published, owner_id').eq('id', gid).single();
+    if (!g || g.owner_id !== user.id) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+    if (!rateLimit('devlog:' + user.id, 10, 60000)) { res.writeHead(429, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Slow down.' })); return; }
+    const body = await readBody(req).catch(() => ({}));
+    const text = String(body.body || '').trim();
+    if (!text || text.length > 8000) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Body must be 1 to 8000 characters.' }));
+      return;
+    }
+    const { count } = await supabase.from('game_posts').select('id', { count: 'exact', head: true }).eq('game_id', gid);
+    if ((count || 0) >= 5) {
+      res.writeHead(409, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'This game already has 5 posts — delete one first.' }));
+      return;
+    }
+    const { data: post, error } = await supabase.from('game_posts')
+      .insert({ game_id: gid, body: text }).select('id, body, created_at').single();
+    if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not save the post.' })); return; }
+    try {
+      const { data: g } = await supabase.from('games').select('title').eq('id', gid).single();
+      await logActivity(user.id, 'devlog', 'Posted a devlog on ' + ((g && g.title) || 'their game'));
+    } catch {}
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ post }));
+    return;
+  }
+  if (devlogMatch && devlogMatch[2] && req.method === 'DELETE') {
+    cors(res);
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.replace('Bearer ', '');
+    if (!token) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+    if (!(await seatAlive(user.id, seatFromReq(req)))) { seatDead(res); return; }
+    const gid = devlogMatch[1], pid = devlogMatch[2];
+    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
+    const { data: g } = await supabase.from('games').select('owner_id').eq('id', gid).single();
+    if (!g || g.owner_id !== user.id) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+    await supabase.from('game_posts').delete().eq('id', pid).eq('game_id', gid);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
     return;
   }
 

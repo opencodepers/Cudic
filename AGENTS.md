@@ -298,6 +298,30 @@ newest published games from creators the reader follows. Recipients:
 confirmed auth accounts only (`userUnconfirmed` filter), 8×100 page cap,
 250 ms between sends. Tests: `WeeklyDigestEmail` in test_regressions.py.
 
+### In-game achievements (CudicAch shim)
+Same sandbox shape as CudicScores/CudicSave: the game frame calls
+`CudicAch.unlock('speedrun')` (public/cudic-ach.js), the request goes
+game frame → view.html postMessage → `POST /api/games/:id/achievements`
+with the viewer's own session. Server re-checks verified + seat + rate
+limit (30/min) and locks the code charset (`[a-z0-9][a-z0-9_-]{0,31}`).
+Table `game_achievements`, one row per (game, player, code) — the PK is
+the dedupe; a lost insert race resolves `first:false`, never an error.
+Signed-out/unverified players get a guest ack (`signed-out`), so the game
+shows "sign in to earn achievements". `GET .../achievements` is public:
+code + holder counts only, no ids. Profile shelf: `/api/profile` AND
+public `/api/user` both ship recent unlocks (games.title via FK join,
+limit 12) → profile.html `#sec-ach` card. Migration: `migration/achievements.sql`.
+
+### Game devlog (game_posts)
+`GET/POST/DELETE /api/games/:id/devlog(/:postId)`: GET is public on
+published games, POST/DELETE are the creator only (seat + verified +
+rate-limited 10/min, body ≤ 8000 chars, 5 posts per game server-side).
+Posting pings the follow feed via `logActivity(user.id, 'devlog', …)`;
+profile/notifications untouched. view.html renders the Devlog card as
+DOM nodes (`textContent` — post bodies are text, never markup) and
+reveals the composer to the owner via the `cudic-owner-yes` event
+checkOwner already dispatches. Migration: `migration/devlog.sql`.
+
 ### Daily login streak (rides the session beats, no new endpoints)
 `rollStreak(user.id)` fires on both `/api/session/claim` and
 `/api/session/heartbeat`. UTC day; `last_active_day === today` no-ops, the

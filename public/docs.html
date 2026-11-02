@@ -256,6 +256,7 @@ confetti({ particleCount: 120 })</pre>
                         <li>Last write wins, so finishing on two devices at once keeps whichever was later. Mid-run boards don't sync — only bests and finished state.</li>
                         <li>The game page has backup and restore next to the save, so a bad click doesn't lose a save forever.</li>
                         <li>Guests play normally, but nothing is stored — a sign-in prompt appears once per game.</li>
+                        <li>Achievements are in too: <code>CudicAch.unlock('speedrun')</code> (via <code>cudic-ach.js</code>) records each player's first unlock per game, and earned ones show on the player's profile. Call it the same way as the score submit — right after the moment the player earns it. Check <code>result.first</code> to reward them in-game.</li>
                     </ul>
                 </section>
 

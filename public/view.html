@@ -157,6 +157,15 @@
       </div>
       <p id="commentSignin" class="dim" style="display:none;margin-top:12px">Sign in to comment.</p>
     </div>
+    <div class="side-card" id="devlogCard" style="display:none;margin-top:20px">
+      <h2>Devlog</h2>
+      <div id="devlogList"></div>
+      <div id="devlogForm" style="display:none;margin-top:12px">
+        <textarea id="devlogBox" rows="3" maxlength="8000" placeholder="Patch notes… what changed since the last post?"></textarea>
+        <button class="btn btn-primary" id="devlogPost">Post update</button>
+        <p class="dim" id="devlogMsg" style="margin-top:6px"></p>
+      </div>
+    </div>
     <div class="side-card" id="scoresCard" style="display:none;margin-top:20px">
       <h2>Leaderboard <span class="dim" style="font-weight:400;font-size:0.78rem;color:var(--text-tertiary)">best run per player</span></h2>
       <div id="scoreList"></div>
@@ -428,6 +437,9 @@ setInterval(function () {
               isOwner = true;
               document.getElementById('studioBtn').style.display = '';
               document.getElementById('editGameBtn').style.display = '';
+              // Devlog composer lives in the game-load closure; the event is
+              // the only way this earlier function can reach it.
+              try { window.dispatchEvent(new Event('cudic-owner-yes')); } catch (e) {}
             }
           });
         }).catch(function(){});
@@ -697,6 +709,80 @@ setInterval(function () {
             });
           })
           .catch(function () {});
+        // Devlog: public posts, author-only composer. Same DOM-node rule as
+        // the leaderboard and comments — post bodies are markdown text and
+        // are rendered as text, never as markup.
+        var devlogLoaded = false;
+        function paintDevlog(isO) {
+          var card = document.getElementById('devlogCard');
+          var list = document.getElementById('devlogList');
+          var form = document.getElementById('devlogForm');
+          if (!card || !list) return;
+          fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/devlog')
+            .then(function (r) { return r.ok ? r.json() : { posts: [] }; })
+            .then(function (res) {
+              var posts = (res && res.posts) || [];
+              if (!posts.length && !isO) return;
+              devlogLoaded = posts.length > 0;
+              card.style.display = '';
+              list.textContent = '';
+              posts.forEach(function (p) {
+                var item = document.createElement('div');
+                item.style.cssText = 'padding:10px 0;border-top:1px solid var(--line)';
+                var head = document.createElement('div');
+                head.className = 'dim';
+                head.style.cssText = 'font-size:0.75rem;margin-bottom:4px';
+                head.textContent = p.created_at ? new Date(p.created_at).toLocaleDateString() : '';
+                var body = document.createElement('div');
+                body.style.cssText = 'font-size:0.85rem;white-space:pre-wrap;word-break:break-word';
+                body.textContent = p.body || '';
+                item.append(head, body);
+                if (isO) {
+                  var del = document.createElement('button');
+                  del.className = 'btn btn-secondary';
+                  del.style.cssText = 'margin-top:6px;font-size:0.75rem;padding:2px 10px';
+                  del.textContent = 'Delete post';
+                  del.addEventListener('click', function () {
+                    if (!confirm('Delete this devlog post?')) return;
+                    getSession().then(function (s) {
+                      if (!s) return;
+                      fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/devlog/' + encodeURIComponent(p.id), { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + s.token } })
+                        .then(function () { paintDevlog(isO); })
+                        .catch(function () {});
+                    });
+                  });
+                  item.appendChild(del);
+                }
+                list.appendChild(item);
+              });
+              if (isO && form) form.style.display = '';
+            })
+            .catch(function () {});
+        }
+        paintDevlog(false);
+        window.addEventListener('cudic-owner-yes', function () { paintDevlog(true); });
+        var dPost = document.getElementById('devlogPost');
+        if (dPost) dPost.addEventListener('click', function () {
+          var box = document.getElementById('devlogBox');
+          var msg = document.getElementById('devlogMsg');
+          var text = (box && box.value || '').trim();
+          if (!text) { if (msg) msg.textContent = 'Write something first.'; return; }
+          dPost.disabled = true;
+          getSession().then(function (s) {
+            if (!s) { dPost.disabled = false; window.location.href = '/login'; return; }
+            fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/devlog', {
+              method: 'POST',
+              headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ body: text })
+            }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); }).then(function (res) {
+              dPost.disabled = false;
+              if (!res.ok) { if (msg) msg.textContent = res.j.error || 'Could not post.'; return; }
+              if (box) box.value = '';
+              if (msg) msg.textContent = '';
+              paintDevlog(true);
+            }).catch(function () { dPost.disabled = false; if (msg) msg.textContent = 'Network error.'; });
+          });
+        });
         // Fork is visible to everyone (guests included) — signing in is asked
         // at click time, so every visitor sees the remix loop, not just users.
         var fb = document.getElementById('forkBtn');
@@ -911,9 +997,38 @@ setInterval(function () {
         window.addEventListener('message', function (e) {
           var d = e.data || {};
           if (!d || (d.type !== 'cudic-save-get' && d.type !== 'cudic-save-set' && d.type !== 'cudic-save-del'
-            && d.type !== 'cudic-score-submit' && d.type !== 'cudic-scores-top')) return;
+            && d.type !== 'cudic-score-submit' && d.type !== 'cudic-scores-top'
+            && d.type !== 'cudic-ach-unlock')) return;
           try { if (!f || e.source !== f.contentWindow) return; } catch (err) { return; }
-          if (d.type === 'cudic-save-get') {
+          if (d.type === 'cudic-ach-unlock') {
+            // In-game achievements: same mediated shape as score submits.
+            // The sandboxed game only ever sends a short code string; this
+            // page attaches the session. Signed-out players get a guest ack.
+            var code = String(d.code || '').trim();
+            if (!/^[a-z0-9][a-z0-9_-]{0,31}$/.test(code)) {
+              try { f.contentWindow.postMessage({ type: 'cudic-ach-ack', req: d.req, ok: false, error: 'bad-code' }, '*'); } catch (err) {}
+              return;
+            }
+            if (!saveSession) {
+              try { f.contentWindow.postMessage({ type: 'cudic-ach-ack', req: d.req, ok: false, error: 'signed-out' }, '*'); } catch (err) {}
+              return;
+            }
+            fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/achievements', { method: 'POST', headers: saveHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ code: code }) })
+              .then(function (r) {
+                if (r.status === 403) { if (typeof pauseSeat === 'function') pauseSeat('device'); }
+                return r.json().catch(function () { return {}; });
+              })
+              .then(function (j) {
+                if (j && j.error) {
+                  try { f.contentWindow.postMessage({ type: 'cudic-ach-ack', req: d.req, ok: false, error: j.error }, '*'); } catch (err) {}
+                  return;
+                }
+                try { f.contentWindow.postMessage({ type: 'cudic-ach-ack', req: d.req, ok: true, first: !!j.first, at: j.at || null }, '*'); } catch (err) {}
+              })
+              .catch(function () {
+                try { f.contentWindow.postMessage({ type: 'cudic-ach-ack', req: d.req, ok: false, error: 'network' }, '*'); } catch (err) {}
+              });
+          } else if (d.type === 'cudic-save-get') {
             try { f.contentWindow.postMessage({ type: 'cudic-save-data', req: d.req, save: cloudSave, loading: cloudLoading, authed: !!saveSession, storageKey: saveKey }, '*'); } catch (err) {}
           } else if (!saveSession) {
             try { f.contentWindow.postMessage({ type: 'cudic-save-ack', req: d.req, ok: false, error: 'signed-out' }, '*'); } catch (err) {}

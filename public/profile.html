@@ -153,6 +153,7 @@
         <a href="#sec-security">Security</a>
         <a href="#sec-awards">Awards</a>
         <a href="#sec-streak">Login streak</a>
+        <a href="#sec-ach">Achievements</a>
         <a href="#sec-stats">Analytics</a>
         <a href="#sec-liked">Liked games</a>
         <a href="#sec-appearance">Appearance</a>
@@ -210,6 +211,11 @@
           <span id="streakDays" style="font-family:'Geist Mono',monospace;font-size:2.2rem;font-weight:600;color:var(--signal)">–</span>
           <span class="sub" style="margin:0" id="streakLabel">day streak</span>
         </div>
+      </div>
+      <div class="profile-card" id="sec-ach">
+        <h2>Game achievements</h2>
+        <p class="sub">Earned inside games that use the CudicAch shim. Each row links the game you earned it in.</p>
+        <div id="achList" style="display:flex;flex-direction:column;gap:10px"></div>
       </div>
       <div id="delOverlay" hidden>
         <div class="del-card">
@@ -415,6 +421,28 @@
               'day streak' + (p.streak_days === 1 ? ' — come back tomorrow to grow it' : '');
           }
         })(d.profile);
+        (function (ach) {
+          var card = document.getElementById('sec-ach');
+          var list = document.getElementById('achList');
+          if (!card || !list) return;
+          if (!ach || !ach.length) { card.style.display = 'none'; return; }
+          card.style.display = '';
+          list.textContent = '';
+          ach.forEach(function (a) {
+            var row = document.createElement('div');
+            row.style.cssText = 'display:flex;justify-content:space-between;gap:12px;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:8px';
+            var l = document.createElement('a');
+            l.textContent = a.code;
+            if (a.game_id) l.href = '/play?id=' + encodeURIComponent(a.game_id);
+            l.style.cssText = 'color:var(--text-primary);font-weight:600;word-break:break-all';
+            var r = document.createElement('span');
+            r.className = 'sub';
+            r.style.whiteSpace = 'nowrap';
+            r.textContent = (a.game_title || '') + ' · ' + (a.at ? new Date(a.at).toLocaleDateString() : '');
+            row.appendChild(l); row.appendChild(r);
+            list.appendChild(row);
+          });
+        })(d.achievements || []);
         initAwards(d);
         loadLiked();
         /* Pack + liked count */

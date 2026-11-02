@@ -8,6 +8,36 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**In-game achievements shim** (uncommitted)
+
+- Games can now award achievements: `CudicAch.unlock('speedrun')` (via
+  `cudic-ach.js`) records each player's first unlock per game, verified
+  server-side through the same mediated pass-through as scores and saves
+  (the game frame never holds the session).
+- New `game_achievements` table (`migration/achievements.sql`), one row
+  per (game, player, code) — the primary key is the dedupe, so re-calling
+  `unlock()` is a quiet no-op (`first: false`), never an error.
+- `POST/GET /api/games/:id/achievements` in server.js: POST is gated by
+  the same verified + seat + rate limits as scores (codes are locked to
+  short slugs server-side); GET is public (code + holder counts only,
+  no ids). Signed-out players get a guest ack so the game can show
+  "sign in to earn achievements" instead of a failure.
+- Earned achievements surface on profiles: both the self-view profile
+  payload and the public creator profile ship the 12 most recent unlocks
+  (with the game title), and profile.html has a Game achievements card.
+
+**Game devlog posts** (uncommitted)
+
+- A game can speak in its own voice: `GET/POST/DELETE
+  /api/games/:id/devlog`, markdown text posts capped at 8000 chars and
+  5 posts per game. Public to read on published games, writeable only by
+  the game's creator (seat + verified + rate limited).
+- Posting pings the follow feed (`logActivity 'devlog'`), so followers
+  get notified patch-note-style.
+- The game page has a Devlog card: posts render as plain text (never
+  markup), the composer only appears for the owner, and owners can
+  delete their own posts. New table `game_posts` (`migration/devlog.sql`).
+
 **Weekly digest email** (uncommitted)
 
 - Verified accounts get one email every Monday: the current jam theme,
