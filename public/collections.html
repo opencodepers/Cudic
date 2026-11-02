@@ -92,7 +92,13 @@ input[type=text]:focus,select:focus,textarea:focus{border-color:var(--signal)}
       var c=d.collection;
       document.getElementById('mainTitle').textContent = c.title;
       document.getElementById('viewTitle').style.display = '';
-      document.getElementById('viewTitle').textContent = c.title + ' <span style="font-weight:400;color:var(--mute);font-size:.85rem">(' + esc(c.visibility) + ')</span>';
+      document.getElementById('viewTitle').textContent = '';
+      var vt = document.createElement('b');
+      vt.textContent = c.title;
+      var vs = document.createElement('span');
+      vs.style.cssText = 'font-weight:400;color:var(--mute);font-size:.85rem';
+      vs.textContent = ' (' + c.visibility + ')';
+      document.getElementById('viewTitle').append(vt, vs);
       document.getElementById('viewDesc').textContent = c.description || '';
       var vg=document.getElementById('viewGames');
       vg.innerHTML = d.games.length ? d.games.map(gameHtml).join('') : '<div class="empty">No games in this collection yet.</div>';

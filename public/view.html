@@ -86,6 +86,7 @@
       <button class="btn btn-secondary" id="featureBtn" style="display:none" title="Feature this game on the homepage">Feature</button>
       <button class="btn btn-secondary" id="shareBtn">Share</button>
       <button class="btn btn-secondary" id="collBtn" style="display:none">Save</button>
+      <button class="btn btn-secondary" id="inviteBtn" style="display:none" title="Invite a friend into your multiplayer room">Invite</button>
       <div data-island="report-button" id="islReportSlot" style="display:none"></div>
       <button class="btn btn-secondary" id="jamBtn" style="display:none" title="Vote for this game in this week's jam">⬆ <span id="jamCount">0</span></button>
       <button class="btn btn-secondary" id="likeBtn" style="display:none" title="Like this game">
@@ -182,6 +183,11 @@
       <h2>More like this</h2>
       <div id="similarList"></div>
     </div>
+    <div class="side-card" id="remixCard" style="display:none;margin-top:20px">
+      <h2>Remixes <span class="dim" style="font-weight:400;font-size:0.78rem;color:var(--text-tertiary)">built on this one</span></h2>
+      <div id="remixParent" style="display:none;margin-bottom:8px"></div>
+      <div id="remixList"></div>
+    </div>
     <div class="modal-overlay" id="collModal">
       <div class="modal" style="width:420px">
         <h2>Save to collection</h2>
@@ -191,6 +197,16 @@
           <button class="btn btn-primary" id="collCreate">Create</button>
         </div>
         <div class="modal-actions"><button class="btn btn-secondary" id="collClose">Done</button></div>
+      </div>
+    </div>
+    <div class="modal-overlay" id="inviteModal">
+      <div class="modal" style="width:420px">
+        <h2>Invite a friend</h2>
+        <p class="dim" style="font-size:0.78rem">They land on this game page and join your room. Only accepted friends can be invited.</p>
+        <label for="invRoom">Room code</label>
+        <input type="text" id="invRoom" maxlength="24" placeholder="main">
+        <div id="invList" style="max-height:260px;overflow-y:auto"></div>
+        <div class="modal-actions"><button class="btn btn-secondary" id="invClose">Done</button></div>
       </div>
     </div>
     <div class="modal-overlay" id="shareModal">
@@ -377,6 +393,65 @@ setInterval(function () {
       });
     });
     getSession().then(function (s) { collBtn.style.display = s ? '' : 'none'; });
+
+    /* Invite a friend into the room — reuses the friends list endpoint and
+     * the invite notification endpoint. The room code defaults to the one
+     * this page is actually in (multiRoom) or the ?room= param; the invited
+     * friend's page overrides the game's default room with the ?room= from
+     * the deep link, so both ends meet in the same room. */
+    var inviteBtn = document.getElementById('inviteBtn');
+    var invModal = document.getElementById('inviteModal');
+    var invitings = false;
+    function invOpen() {
+      getSession().then(function (s) {
+        if (!s) { location.href = '/login'; return; }
+        document.getElementById('invRoom').value = (multiRoom || new URLSearchParams(location.search).get('room') || '');
+        fetch(apiBase() + '/api/friends', { headers: { Authorization: 'Bearer ' + s.token } })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (d) {
+            var list = document.getElementById('invList');
+            var fs = (d && d.friends) || [];
+            if (!fs.length) { list.innerHTML = '<p class="dim">No friends yet — add some from your profile.</p>'; }
+            else {
+              list.innerHTML = fs.map(function (f) {
+                return '<div class="row" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)"><div style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b>' + escapeHtml(f.display_name || 'Unknown') + '</b></div><button class="btn btn-secondary" data-fid="' + f.id + '">Invite</button></div>';
+              }).join('');
+              list.querySelectorAll('[data-fid]').forEach(function (b) {
+                b.addEventListener('click', function () {
+                  if (invitings) return;
+                  invitings = true;
+                  var room = String(document.getElementById('invRoom').value || '').replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 24) || 'main';
+                  b.disabled = true;
+                  fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/invite', { method: 'POST', headers: { Authorization: 'Bearer ' + s.token, 'Content-Type': 'application/json' }, body: JSON.stringify({ friend_id: b.dataset.fid, room: room }) })
+                    .then(function (r) { return r.json(); })
+                    .then(function (d2) {
+                      invitings = false; b.disabled = false;
+                      if (d2.error) { alert(d2.error); return; }
+                      b.textContent = 'Sent ✓';
+                      setTimeout(function () { b.textContent = 'Invite'; }, 1600);
+                    })
+                    .catch(function () { invitings = false; b.disabled = false; });
+                });
+              });
+            }
+            invModal.classList.add('open');
+          })
+          .catch(function () {});
+      });
+    }
+    inviteBtn.addEventListener('click', invOpen);
+    document.getElementById('invClose').addEventListener('click', function () { invModal.classList.remove('open'); });
+    getSession().then(function (s) {
+      if (!s) return;
+      // Show the button for every signed-in user; grant.games-gates the
+      // friend check (and multiplayer stays guest-open either way).
+      inviteBtn.style.display = '';
+    });
+
+    // Room deep-link: when the URL carries ?room=, the page overrides the
+    // game's chosen room with it — that is how invites land both ends in
+    // the same room without each game hardcoding a code.
+    var roomParam = new URLSearchParams(location.search).get('room');
     function countPlay() {
       fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/play', { method: 'POST' })
         .then(function (r) { return r.json(); })
@@ -788,6 +863,47 @@ setInterval(function () {
                 listEl.appendChild(item);
               });
             }
+          })
+          .catch(function () {});
+        // Remix tree read-only list: who built on this game, plus one link
+        // back to what this game itself forked from. Same DOM-node rule as
+        // the related shelves above — a crafted title cannot inject markup.
+        fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/remixes')
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (res) {
+            if (!res) return;
+            var listEl = document.getElementById('remixList');
+            var cardEl = document.getElementById('remixCard');
+            var rows = res.remixes || [];
+            if (res.parent) {
+              var pEl = document.getElementById('remixParent');
+              pEl.style.display = '';
+              var pLab = document.createElement('span');
+              pLab.className = 'dim';
+              pLab.style.cssText = 'font-size:0.72rem;display:block';
+              pLab.textContent = 'A fork of:';
+              var pA = document.createElement('a');
+              pA.href = '/view.html?id=' + encodeURIComponent(res.parent.id);
+              pA.style.cssText = 'color:inherit;text-decoration:none;font-size:0.85rem;font-weight:700';
+              pA.textContent = res.parent.title || 'Untitled';
+              pEl.append(pLab, pA);
+            }
+            if (!rows.length || !listEl || !cardEl) return;
+            cardEl.style.display = '';
+            rows.forEach(function (g) {
+              var item = document.createElement('div');
+              item.style.cssText = 'padding:7px 0;border-top:1px solid var(--line)';
+              var a = document.createElement('a');
+              a.href = '/view.html?id=' + encodeURIComponent(g.id);
+              a.style.cssText = 'color:inherit;text-decoration:none;font-size:0.85rem;font-weight:700;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+              a.textContent = g.title || 'Untitled';
+              var meta = document.createElement('div');
+              meta.className = 'dim';
+              meta.style.cssText = 'font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+              meta.textContent = (g.name || 'Unknown') + ' · ' + (g.play_count || 0) + ' plays';
+              item.append(a, meta);
+              listEl.appendChild(item);
+            });
           })
           .catch(function () {});
         // Devlog: public posts, author-only composer. Same DOM-node rule as
@@ -1277,7 +1393,10 @@ setInterval(function () {
             multiReply({ type: 'cudic-multi-host', req: d.req });
           } else if (d.type === 'cudic-multi-join') {
             multiReq = d.req;
-            multiRoom = String(d.room || '').replace(/[^A-Za-z0-9_-]/g, '').substring(0, 24);
+            // ?room= from a deep link (an invite) wins over the game's
+            // own pick, so the invited friend lands in the inviter's room.
+            multiRoom = String((typeof roomParam !== 'undefined' && roomParam) ? roomParam : d.room || '')
+              .replace(/[^A-Za-z0-9_-]/g, '').substring(0, 24);
             multiWanted = true;
             multiConnect();
             // Rejoining a room the socket is already in (room code changed).

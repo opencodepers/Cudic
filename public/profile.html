@@ -156,6 +156,7 @@
         <a href="#sec-ach">Achievements</a>
         <a href="#sec-stats">Analytics</a>
         <a href="#sec-liked">Liked games</a>
+        <a href="#sec-collections">Collections</a>
         <a href="#sec-appearance">Appearance</a>
         <a href="#sec-creatorpage">Public profile</a>
         <div class="toc-label" style="margin-top:12px">Site</div>
@@ -240,6 +241,16 @@
         <h2>Games you liked</h2>
         <p class="sub">Saved to your account.</p>
         <div id="likedList" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+      <div class="profile-card" id="sec-collections">
+        <h2>Collections</h2>
+        <p class="sub">Lists you've made on game pages. Public ones show on your profile page and send players to other people's games.</p>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <input type="text" id="collNewTitle" maxlength="80" placeholder="New collection name" style="flex:1">
+          <button class="btn btn-secondary" id="collNewBtn" style="padding:6px 12px;font-size:0.78rem">Create</button>
+        </div>
+        <div class="status-msg" id="collMsg" style="margin-bottom:6px"></div>
+        <div id="collList" style="display:flex;flex-direction:column;gap:10px"><p class="sub">Loading…</p></div>
       </div>
       <div class="profile-card" id="sec-appearance">
         <h2>Appearance</h2>
@@ -445,6 +456,7 @@
         })(d.achievements || []);
         initAwards(d);
         loadLiked();
+        loadCollections();
         /* Pack + liked count */
         (function(p){
           var pn = document.getElementById('packName');
@@ -610,6 +622,52 @@
           msg(m, 'Awards saved.', true);
         })
         .catch(function () { btn.disabled = false; msg(m, 'Could not save.', false); });
+    });
+
+    /* Collections: my lists, made on game pages. Titles/type-ins are user
+     * authored — element content only, never raw interpolation (XSS). */
+    var collMsgTimer = null;
+    function collMsg(text, ok) {
+      var el = document.getElementById('collMsg');
+      if (!el) return;
+      el.textContent = text; el.style.color = ok ? 'var(--signal)' : 'var(--danger)';
+      clearTimeout(collMsgTimer);
+      collMsgTimer = setTimeout(function(){ el.textContent = ''; }, 2600);
+    }
+    function loadCollections() {
+      var box = document.getElementById('collList');
+      if (!box) return;
+      fetch(apiHost() + '/api/collections?mine=1', { headers: { 'Authorization': 'Bearer ' + t } })
+        .then(function (r) { return r.ok ? r.json() : { collections: [] }; })
+        .then(function (d) {
+          var cs = d.collections || [];
+          if (!cs.length) { box.innerHTML = '<p class="sub">No collections yet — tap Save on any game page.</p>'; return; }
+          box.innerHTML = cs.map(function (c) {
+            var vis = (String(c.visibility || 'public') === 'public') ? 'public' : 'unlisted';
+            return '<a class="liked-card" href="/collections.html?id=' + encodeURIComponent(c.id) + '">' +
+              '<div><div class="liked-title">' + esc(String(c.title || 'Untitled')) + '</div>' +
+              '<div class="sub">' + esc(String(c.description || '').slice(0, 120)) + '</div></div>' +
+              '<div style="text-align:right"><div class="sub">' + (c.count || 0) + ' game' + ((c.count || 0) === 1 ? '' : 's') + '</div>' +
+              '<div class="sub" style="color:var(--text-tertiary)">' + vis + '</div></div></a>';
+          }).join('');
+        })
+        .catch(function () {});
+    }
+    document.getElementById('collNewBtn').addEventListener('click', function () {
+      var inp = document.getElementById('collNewTitle');
+      var title = (inp.value || '').trim();
+      if (!title) { collMsg('Give the collection a name.', false); return; }
+      var btn = this; btn.disabled = true;
+      fetch(apiHost() + '/api/collections', { method: 'POST', headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' }, body: JSON.stringify({ title: title, visibility: 'public' }) })
+        .then(function (r) { return r.json().then(function (d2) { return { ok: r.ok, d: d2 }; }); })
+        .then(function (res) {
+          btn.disabled = false;
+          if (!res.ok) { collMsg(res.d.error || 'Could not create.', false); return; }
+          inp.value = '';
+          collMsg('Created.', true);
+          loadCollections();
+        })
+        .catch(function () { btn.disabled = false; collMsg('Could not create.', false); });
     });
 
     function loadLiked() {
@@ -1090,7 +1148,7 @@
   /* Tabbed settings nav: one section visible at a time, preview stays put.
      Site links (Privacy/Guide/Terms) navigate away untouched. */
   (function(){
-    var SECTIONS = ['sec-profile', 'sec-security', 'sec-awards', 'sec-streak', 'sec-coins', 'sec-stats', 'sec-liked', 'sec-appearance', 'sec-creatorpage'];
+    var SECTIONS = ['sec-profile', 'sec-security', 'sec-awards', 'sec-streak', 'sec-coins', 'sec-stats', 'sec-liked', 'sec-collections', 'sec-appearance', 'sec-creatorpage'];
     var links = Array.prototype.slice.call(document.querySelectorAll('.pnav a[href^="#sec-"]'));
     if (!links.length) return;
     function show(id, push) {

@@ -8,6 +8,15 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Server-chat small features batch: pins, reactions, slow mode, owner/mod tools**
+
+- **Pinned messages.** The author of a message (DMs included) and a server's owner/mods can pin/unpin any message in a server channel; `messages.pinned` rides the normal history select, so history rows show the pinned outline. A `?pinned=1` fetch on the GET messages endpoint powers the pinned shelf above the chat; shelf rows scroll to and flash the message. Live `pin` WS events repaint open rooms without a reload.
+- **Emoji reactions.** A quick picker (👍 ❤️ 😂 🎉 🔥 👀 ✨ 👎) opens from the ＋ button on any message; one row per (message, user, emoji) in the new `message_reactions` table means re-reacting can't double-count. Chips show counts and flip to signal your own reaction; per-room `GET /api/messages/reactions` repaints reopened chats, and live `react` WS events keep open rooms in sync.
+- **Slow mode.** Channel PATCH accepts `slow_seconds` (0–600, 0 = off); the server enforces the gap between a member's messages in server channels, and the chat shows a one-line hint when a channel has slow mode on.
+- **Owner/mod tools in the chat.** The Mod button (owner/mods only) opens a roster panel: make/demote mods (owner-only), kick (owner or mods, mods can't kick each other), and ban/unban — bans remove membership and JOIN refuses banned ids. The server enforces every one of these rules; the panel just surfaces them.
+- Migrations: `migration/pins-reactions-slowmode.sql` (pinned column, message_reactions, lobbies.slow_seconds) and `migration/server-roles.sql` (server_bans). No direct-PostgREST path; written only through server.js with the service key.
+- Tests: 202 pass (`python tests/run_tests.py`, run #52).
+
 **Tagging in the publish flow (gallery filter + "More like this" activation)**
 
 - **Publish modal gains a tags row.** The editor's publish modal gets a tags input with one-tap suggestion chips (platformer, puzzle, clicker, horror, arcade, retro) — chips fill/clear the comma list, capped at 3; loading an existing game prefills its tags. Both the create (POST) and update (PUT) paths now send them.

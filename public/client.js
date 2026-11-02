@@ -63,6 +63,14 @@ var emptyFind = document.getElementById('emptyFind');
 var rulesOverlay = document.getElementById('rulesOverlay');
 var pendingRulesServer = null;
 var convLoadFailed = false;
+var modOpener = document.getElementById('modOpener');
+var modPanel = document.getElementById('modPanel');
+var pinnedShelf = document.getElementById('pinnedShelf');
+var slowNote = document.getElementById('slowNote');
+var myRole = null;           // null | 'member' | 'mod' | 'owner' (server channel)
+var myReacts = Object.create(null);  // midSet -> Set(emoji) I myself reacted with
+var slowUntil = 0;           // epoch ms while the slow-mode throttle is active
+var REACTIONS = ['👍', '❤️', '😂', '🎉', '🔥', '😮'];
 var convFilter = '';
 var peerReadAt = null;
 var oldestTs = null;
@@ -278,6 +286,22 @@ function onWs(e) {
       // Live message now has a row id: arm its Flag button (plan.md 2.1).
       armFlagForCid(msg.cid, msg.id);
       break;
+    case 'react':
+      // Another device reacted in this room — repaint the chips.
+      if (current && msg.lobby === current.name) paintReactions(msg.id, msg.counts);
+      break;
+    case 'pin':
+      // Someone pinned/unpinned in this room: repaint the row and shelf.
+      if (current && msg.lobby === current.name) {
+        var pinDiv = messagesEl.querySelector('.msg[data-mid="' + msg.id + '"]');
+        if (pinDiv) {
+          pinDiv.classList.toggle('pinned', !!msg.pinned);
+          var pinBtn = pinDiv.querySelector('.msg-pin');
+          if (pinBtn) pinBtn.textContent = msg.pinned ? 'Unpin' : 'Pin';
+        }
+        loadPinned();
+      }
+      break;
     case 'conversation_dirty':
       refreshConvs();
       if (current && current.kind === 'dm') fetchPeer();
@@ -378,6 +402,13 @@ async function openConv(conv) {
   rulesOverlay.hidden = true;
   pendingRulesServer = null;
   onlineUsers = [];
+  myRole = null;
+  myReacts = Object.create(null);
+  slowUntil = 0;
+  if (pinnedShelf) { pinnedShelf.hidden = true; pinnedShelf.innerHTML = ''; }
+  if (modPanel) { modPanel.hidden = true; modPanel.innerHTML = ''; }
+  if (modOpener) { modOpener.hidden = true; modOpener.textContent = 'Mod'; }
+  if (slowNote) { slowNote.hidden = true; slowNote.textContent = ''; }
   if (!conv) { showEmpty(); return; }
   chatTopbar.hidden = false;
   messagesEl.hidden = false;
@@ -385,6 +416,11 @@ async function openConv(conv) {
   chatForm.hidden = false;
   chatTitle.textContent = conv.display;
   chatTopic.textContent = conv.topic || '';
+  // Slow mode hint: the conversations list carries the channel's seconds.
+  if (slowNote && conv.kind !== 'dm' && conv.slow_seconds > 0) {
+    slowNote.hidden = false;
+    slowNote.textContent = 'Slow mode on — one message every ' + conv.slow_seconds + 's.';
+  }
   renderOnline();
   renderConvs();
   try { history.replaceState(null, '', '/chat?c=' + conv.id); } catch (e) {}
@@ -393,13 +429,31 @@ async function openConv(conv) {
     const d = await api('/api/messages?lobby=' + encodeURIComponent(conv.name));
     if (current !== conv) return;
     if (d.messages && d.messages.length) {
-      d.messages.forEach(m => addChatMessage(m.display_name, m.text, fmtTime(m.created_at), m.users && m.users.avatar_url, m.user_id, m.created_at, m.id, null));
+      d.messages.forEach(m => addChatMessage(m.display_name, m.text, fmtTime(m.created_at), m.users && m.users.avatar_url, m.user_id, m.created_at, m.id, null, !!m.pinned));
       oldestTs = d.messages[0].created_at;
       if (d.messages.length >= 100) showLoadOlder(); else hideLoadOlder();
     } else {
       addSystemMessage('No messages yet — say hello.');
     }
   } catch (e) {}
+  // Existing reactions for the room, so a reopened chat paints the emoji
+  // that already happened instead of waiting for a new broadcast.
+  if (current === conv && conv.kind !== 'dm') {
+    api('/api/messages/reactions?lobby=' + encodeURIComponent(conv.name)).then(function (dr) {
+      if (current !== conv || !dr || !dr.reactions) return;
+      Object.keys(dr.reactions).forEach(function (mid) { paintReactions(mid, dr.reactions[mid]); });
+    }).catch(function () {});
+  }
+  // The pinned shelf boots with the room: one extra fetch, hidden for DMs.
+  loadPinned();
+  // My role in a server channel gates the mod panel + pin buttons.
+  if (current === conv && conv.server_id && current.kind !== 'dm') {
+    api('/api/servers/' + conv.server_id + '/membership').then(function (m) {
+      if (current !== conv) return;
+      myRole = (m && m.role) || null;
+      if (myRole === 'owner' || myRole === 'mod') { if (modOpener) modOpener.hidden = false; }
+    }).catch(function () {});
+  }
   markRead();
   flashCount = 0; flashTitle();
   fetchPeer();
@@ -758,11 +812,12 @@ document.getElementById('rulesOverlayAccept').addEventListener('click', async ()
 });
 
 // ── Render functions ─────────────────────────────────────────────
-function addChatMessage(author, text, time, avatar, userId, ts, mid, cid) {
+function addChatMessage(author, text, time, avatar, userId, ts, mid, cid, pinned) {
   const div = document.createElement('div');
   const mine = !!(userId && ME && userId === ME);
-  div.className = 'msg' + (mine ? ' mine' : '');
+  div.className = 'msg' + (mine ? ' mine' : '') + (pinned ? ' pinned' : '');
   if (cid && /^[A-Za-z0-9-]{1,32}$/.test(cid)) div.dataset.cid = cid;
+  if (mid && /^[0-9a-f-]{36}$/i.test(mid)) div.dataset.mid = mid;
   if (!mine && typeof userId === 'string' && /^[0-9a-f-]{36}$/i.test(userId)) div.dataset.uid = userId;
   const av = avatar
     ? '<img src="' + escapeHtml(avatar) + '" alt="">'
@@ -770,9 +825,9 @@ function addChatMessage(author, text, time, avatar, userId, ts, mid, cid) {
   div.innerHTML = '<div class="msg-ava"><a href="#" onclick="window.showProfileModal && window.showProfileModal(event, \'' + (userId || '') + '\'); return false;" style="display:block;width:100%;height:100%;text-decoration:none;color:inherit">' + av + '</a></div>'
     + '<div class="msg-main"><span class="author" style="color:' + nameColor(author) + '">' + escapeHtml(author) + '</span>'
     + '<span class="time">' + time + '</span>'
-    + '<div class="msg-text">' + renderMsgText(text) + (mine ? ' <span class="ticks" data-ts="' + escapeHtml(ts || '') + '">✓</span>' : '') + '</div></div>';
+    + '<div class="msg-text">' + renderMsgText(text) + (mine ? ' <span class="ticks" data-ts="' + escapeHtml(ts || '') + '">✓</span>' : '') + '</div>' + '</div><div class="msg-actions"></div>';
   messagesEl.appendChild(div);
-  if (!mine && mid) armFlag(div, mid, userId);
+  if (!mine && mid) armFlag(div, mid, userId);  if (mid) { div.dataset.mid = mid; armActions(div, mid, userId); }
   if (mine) paintTicks();
   scrollToBottom();
   shrinkWrapBubble(div);
@@ -804,7 +859,105 @@ function armFlagForCid(cid, mid) {
   // only cid + row id. Skip rather than guess.
   const uid = div.dataset.uid || null;
   if (uid) armFlag(div, mid, uid);
+  div.dataset.mid = mid;
+  armActions(div, mid, uid);
+  paintReactions(mid, null);
 }
+
+// ── Reactions + pin actions on a message ─────────────────────────
+// The actions row is server-gated on the server side (who may pin is
+// checked against the channel's server role), so the buttons only fake
+// nothing; wrong clicks return the server error as a system message.
+function armActions(div, mid, uid) {
+  if (!div || div.querySelector('.msg-react')) return;
+  const row = div.querySelector('.msg-actions');
+  if (!row) return;
+  const react = document.createElement('button');
+  react.type = 'button';
+  react.className = 'msg-react';
+  react.textContent = '＋';
+  react.title = 'Add reaction';
+  react.dataset.mid = mid;
+  react.setAttribute('aria-label', 'React to this message');
+  row.appendChild(react);
+  if ((myRole === 'owner' || myRole === 'mod') && current && current.kind !== 'dm') {
+    addPinBtn(div, mid);
+  } else if (div.classList.contains('mine')) {
+    // Authors may pin their own messages (DMs included) — server enforces it.
+    addPinBtn(div, mid);
+  }
+}
+
+function addPinBtn(div, mid) {
+  if (div.querySelector('.msg-pin')) return;
+  const row = div.querySelector('.msg-actions');
+  if (!row) return;
+  const pin = document.createElement('button');
+  pin.type = 'button';
+  pin.className = 'msg-react msg-pin';
+  pin.textContent = div.classList.contains('pinned') ? 'Unpin' : 'Pin';
+  pin.title = 'Pin or unpin this message';
+  pin.dataset.mid = mid;
+  row.appendChild(pin);
+}
+
+function paintReactions(mid, counts) {
+  if (!mid || !/^[0-9a-f-]{36}$/i.test(mid)) return;
+  const div = messagesEl.querySelector('.msg[data-mid="' + mid + '"]');
+  if (!div) return;
+  const row = div.querySelector('.msg-actions');
+  if (!row) return;
+  // Drop only the counter chips; the ＋ button and (for mods) pin stay.
+  row.querySelectorAll('.msg-chip').forEach(el => el.remove());
+  counts = counts || {};
+  var mineSet = myReacts[mid];
+  Object.keys(counts).forEach(function (emoji) {
+    if (!emoji || emoji.length > 8 || /[<>"'`\\]/.test(emoji)) return;
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'msg-react msg-chip' + ((mineSet && mineSet.has && mineSet.has(emoji)) ? ' on' : '');
+    chip.textContent = emoji + ' ' + counts[emoji];
+    chip.dataset.mid = mid;
+    chip.dataset.emoji = emoji;
+    chip.title = 'React with ' + emoji;
+    row.appendChild(chip);
+  });
+}
+
+function toggleReact(mid, emoji) {
+  if (!ME) return;
+  var mineSet = myReacts[mid] || (myReacts[mid] = new Set());
+  var on = mineSet.has(emoji);
+  if (on) mineSet.delete(emoji); else mineSet.add(emoji);
+  api('/api/messages/' + mid + '/react', { method: on ? 'DELETE' : 'POST', body: JSON.stringify({ emoji: emoji }) })
+    .then(function (d) {
+      if (!me_visibleRow(mid)) return;
+      if (d && d.error) { addSystemMessage(d.error); return; }
+      if (d && d.counts) paintReactions(mid, d.counts);
+    })
+    .catch(function () { addSystemMessage('Could not react.'); });
+}
+function me_visibleRow(mid) { return current && messagesEl.querySelector('.msg[data-mid="' + mid + '"]'); }
+
+function togglePin(mid) {
+  api('/api/messages/' + mid + '/pin', { method: 'POST', body: JSON.stringify({ pin: true }) })
+    .then(function (d) {
+      if (!me_visibleRow(mid)) return;
+      if (d && d.error) { addSystemMessage(d.error); return; }
+      var div = messagesEl.querySelector('.msg[data-mid="' + mid + '"]');
+      if (div) {
+        div.classList.toggle('pinned', !!(d && d.pinned));
+        var pb = div.querySelector('.msg-pin');
+        if (pb) pb.textContent = d.pinned ? 'Unpin' : 'Pin';
+      }
+      loadPinned();
+    })
+    .catch(function () { addSystemMessage('Pin failed.'); });
+}
+
+// Only owner/mods see the pin button; a fresh member's rows won't have
+// the pin affordance. Message-saved arms these after WS render.
+(function () { /* role can change mid-session; nothing to bind */ })();
 
 function addSystemMessage(text, cls) {
   const div = document.createElement('div');
@@ -1052,3 +1205,177 @@ async function loadOlderMessages() {
   }
 }
 if (loadOlderBtn) loadOlderBtn.addEventListener('click', loadOlderMessages);
+
+// ── Reactions: click wiring + quick picker ─────────────────────
+// One delegated listener covers chips (toggle), the ＋ button (picker)
+// and pin buttons, so live and history rows behave identically.
+var QUICK_REACTIONS = ['👍', '👎', '❤️', '😂', '🎉', '🔥', '👀', '✨'];
+
+function openReactPicker(btn, mid) {
+  closeReactPicker();
+  var p = document.createElement('div');
+  p.className = 'react-picker';
+  QUICK_REACTIONS.forEach(function (e) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = e;
+    b.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      closeReactPicker();
+      toggleReact(mid, e);
+    });
+    p.appendChild(b);
+  });
+  var rect = btn.getBoundingClientRect();
+  p.style.position = 'fixed';
+  p.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - 260)) + 'px';
+  p.style.top = Math.max(8, rect.top - 44) + 'px';
+  document.body.appendChild(p);
+}
+function closeReactPicker() {
+  var p = document.querySelector('.react-picker');
+  if (p) p.remove();
+}
+messagesEl.addEventListener('click', function (ev) {
+  var t = ev.target;
+  if (!t || !t.closest) return;
+  var chip = t.closest('.msg-chip');
+  if (chip && chip.dataset.mid && chip.dataset.emoji) {
+    ev.stopPropagation();
+    toggleReact(chip.dataset.mid, chip.dataset.emoji);
+    return;
+  }
+  var pinBtn = t.closest('.msg-pin');
+  if (pinBtn && pinBtn.dataset.mid) {
+    ev.stopPropagation();
+    togglePin(pinBtn.dataset.mid);
+    return;
+  }
+  var plus = t.closest('.msg-react');
+  if (plus && plus.dataset.mid && !plus.classList.contains('msg-chip') && !plus.classList.contains('msg-pin')) {
+    ev.stopPropagation();
+    openReactPicker(plus, plus.dataset.mid);
+    return;
+  }
+  closeReactPicker();
+});
+document.addEventListener('click', function (ev) {
+  if (ev.target.closest && ev.target.closest('.react-picker')) return;
+  closeReactPicker();
+});
+
+// ── Pinned shelf ─────────────────────────────────────────────
+// Rendered per room from ?pinned=1; WS 'pin' events keep it live
+// (the pinned-row list mutates shoulder-to-shoulder with the badges).
+var pinnedRows = [];
+
+async function loadPinned() {
+  pinnedRows = [];
+  if (!current || current.kind === 'dm') { renderPinnedShelf(); return; }
+  var here = current;
+  try {
+    var d = await api('/api/messages?lobby=' + encodeURIComponent(here.name) + '&pinned=1');
+    if (current !== here) return;
+    pinnedRows = (d.messages || []).slice();
+  } catch (e) {}
+  renderPinnedShelf();
+}
+
+function renderPinnedShelf() {
+  if (!pinnedShelf) return;
+  if (!pinnedRows.length) { pinnedShelf.hidden = true; pinnedShelf.innerHTML = ''; return; }
+  var html = '<div class="ps-head">📌 Pinned</div>';
+  pinnedRows.forEach(function (m) {
+    html += '<div class="ps-row" data-pin-mid="' + escapeHtml(m.id || '') + '"><b>' + escapeHtml(m.display_name || '?') + '</b> '
+      + escapeHtml(String(m.text || '').replace(/\s+/g, ' ').substring(0, 120)) + '</div>';
+  });
+  pinnedShelf.innerHTML = html;
+  pinnedShelf.hidden = false;
+  pinnedShelf.querySelectorAll('.ps-row').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var mid = el.getAttribute('data-pin-mid');
+      var div = mid && messagesEl.querySelector('.msg[data-mid="' + mid + '"]');
+      if (div) {
+        div.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        div.classList.add('pin-flash');
+        setTimeout(function () { div.classList.remove('pin-flash'); }, 1200);
+      } else {
+        addSystemMessage('That message is older than the loaded history.');
+      }
+    });
+  });
+}
+
+// ── Mod panel (owner/mod roster) ─────────────────────────────
+// Fetches GET /api/servers/:sid/members and renders per-member actions:
+// kick, ban (mods too; owner-only role changes) — server enforces the
+// same rules, so a stale role hides buttons but can't do anything.
+modOpener.addEventListener('click', async function () {
+  if (!current || !current.server_id) return;
+  if (!modPanel.hidden) { modPanel.hidden = true; modPanel.innerHTML = ''; modOpener.textContent = 'Mod'; return; }
+  modPanel.hidden = false;
+  modPanel.innerHTML = '<div class="mp-head"><b>Members</b></div><div class="mp-empty">Loading…</div>';
+  try {
+    var d = await api('/api/servers/' + current.server_id + '/members');
+    renderModPanel(d);
+  } catch (e) {
+    modPanel.innerHTML = '<div class="mp-empty">Could not load members.</div>';
+  }
+});
+
+function renderModPanel(d) {
+  var members = (d && d.members) || [];
+  var bans = (d && d.bans) || [];
+  var html = '<div class="mp-head"><b>Members</b><span class="mp-tag">' + members.length + '</span></div>';
+  if (!members.length) html += '<div class="mp-empty">Nobody here yet.</div>';
+  members.forEach(function (m) {
+    if (m.role === 'owner' || m.user_id === ME) return;   // owner + self: not actionable
+    var acts = '';
+    if (myRole === 'owner') {
+      acts += '<button class="mp-btn" data-mact="role" data-uid="' + m.user_id + '">' + (m.role === 'mod' ? 'Demote' : 'Make mod') + '</button>';
+    }
+    acts += '<button class="mp-btn" data-mact="kick" data-uid="' + m.user_id + '">Kick</button>';
+    acts += '<button class="mp-btn danger" data-mact="ban" data-uid="' + m.user_id + '">Ban</button>';
+    html += '<div class="mp-row"><span class="mp-name">' + escapeHtml(m.display_name || 'Unknown') + '</span>'
+      + '<span class="mp-tag">' + (m.role || 'member') + '</span>' + acts + '</div>';
+  });
+  if (bans.length) {
+    html += '<div class="mp-head" style="margin-top:10px"><b>Banned</b></div>';
+    bans.forEach(function (b) {
+      var act = (myRole === 'owner' || myRole === 'mod')
+        ? '<button class="mp-btn" data-mact="unban" data-uid="' + b.user_id + '">Unban</button>' : '';
+      html += '<div class="mp-row"><span class="mp-name">' + escapeHtml(b.name || 'Unknown') + '</span>'
+        + (b.reason ? '<span class="mp-tag">' + escapeHtml(String(b.reason).substring(0, 40)) + '</span>' : '') + act + '</div>';
+    });
+  }
+  modPanel.innerHTML = html;
+}
+
+modPanel.addEventListener('click', async function (ev) {
+  var btn = ev.target.closest && ev.target.closest('.mp-btn[data-mact]');
+  if (!btn || !current || !current.server_id) return;
+  var act = btn.getAttribute('data-mact');
+  var uid = btn.getAttribute('data-uid');
+  var sid = current.server_id;
+  if (!/^[0-9a-f-]{36}$/i.test(uid || '')) return;
+  btn.disabled = true;
+  try {
+    if (act === 'role') {
+      // Toggle: a member becomes a mod, a mod goes back to member.
+      var cur = (btn.textContent === 'Demote') ? 'member' : 'mod';
+      await api('/api/servers/' + sid + '/members/' + uid, { method: 'PUT', body: JSON.stringify({ role: cur }) });
+    } else if (act === 'kick') {
+      await api('/api/servers/' + sid + '/members/' + uid, { method: 'DELETE' });
+    } else if (act === 'ban') {
+      await api('/api/servers/' + sid + '/bans/' + uid, { method: 'POST', body: JSON.stringify({}) });
+    } else if (act === 'unban') {
+      await api('/api/servers/' + sid + '/bans/' + uid, { method: 'DELETE' });
+    }
+    var d = await api('/api/servers/' + sid + '/members');
+    renderModPanel(d);
+  } catch (e) {
+    btn.disabled = false;
+    addSystemMessage('That did not go through — try again.');
+  }
+});
+

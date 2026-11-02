@@ -264,6 +264,36 @@
     .msg-text .msg-hr { border: 0; border-top: 1px solid var(--line); margin: 6px 0; }
     .load-older { display: block; margin: 8px auto; padding: 6px 14px; border: 1px solid var(--line); background: var(--panel); color: var(--text-secondary); border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
     .load-older:hover { background: var(--bg); color: var(--text-primary); }
+    /* ── Pinned shelf, reactions, slow mode, mod panel ───────── */
+    #pinnedShelf { padding: 10px 20px; border-bottom: 1px solid var(--line); background: var(--panel); flex-shrink: 0; max-height: 130px; overflow-y: auto; }
+    #pinnedShelf .ps-head { font-size: 0.72rem; font-weight: 700; color: var(--text-tertiary); font-family: var(--font-head); margin-bottom: 4px; }
+    #pinnedShelf .ps-row { font-size: 0.8rem; color: var(--text-secondary); padding: 4px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+    #pinnedShelf .ps-row b { color: var(--text-primary); }
+    .msg.pinned .msg-text { outline: 1px solid var(--signal); border-radius: 6px; }
+    .msg.pin-flash { background: var(--signal-tint, rgba(184,242,58,.12)); border-radius: 8px; transition: background 1s; }
+    .msg-actions { display: flex; gap: 2px; margin-top: 4px; flex-wrap: wrap; align-items: center; }
+    .msg-react {
+      background: none; border: 1px solid transparent; padding: 1px 6px; font-size: 0.78rem;
+      font-family: inherit; cursor: pointer; border-radius: 999px; color: var(--text-tertiary);
+    }
+    .msg-react:hover { border-color: var(--line); color: var(--text-primary); }
+    .msg-react.on { border-color: var(--signal); color: var(--signal); background: var(--signal-tint); }
+    .react-picker { position: absolute; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px; display: flex; gap: 2px; z-index: 30; box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+    .react-picker button { background: none; border: 0; font-size: 1rem; cursor: pointer; padding: 2px 4px; border-radius: 4px; }
+    .react-picker button:hover { background: var(--bg); }
+    #slowNote { font-size: 0.74rem; color: var(--text-tertiary); padding: 0 18px 4px; flex-shrink: 0; }
+    #modOpener { padding: 6px 12px; font-size: 0.78rem; }
+    #modPanel { padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--panel); flex-shrink: 0; max-height: 220px; overflow-y: auto; }
+    #modPanel .mp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    #modPanel .mp-head b { font-family: var(--font-head); font-size: 0.85rem; }
+    #modPanel .mp-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-top: 1px solid var(--line); font-size: 0.82rem; }
+    #modPanel .mp-row:first-of-type { border-top: 0; }
+    #modPanel .mp-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #modPanel .mp-tag { font-size: 0.68rem; color: var(--signal); font-family: var(--font-mono); flex-shrink: 0; }
+    #modPanel .mp-btn { border: 1px solid var(--line); background: var(--panel-raised); color: var(--text-secondary); border-radius: var(--radius-sm); padding: 2px 8px; font-size: 0.7rem; cursor: pointer; font-family: inherit; flex-shrink: 0; }
+    #modPanel .mp-btn:hover { border-color: var(--signal); color: var(--text-primary); }
+    #modPanel .mp-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+    #modPanel .mp-empty { font-size: 0.8rem; color: var(--text-tertiary); padding: 6px 0; }
   </style><link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
 </head>
 <body data-page="chat">
@@ -297,7 +327,8 @@
         <span id="chatTitle"></span>
         <span class="topic" id="chatTopic"></span>
         <span class="online" id="onlineCount"></span>
-        <button class="btn btn-secondary" id="msgSearchBtn" title="Search this conversation" style="margin-left:auto;padding:6px 12px;font-size:0.78rem">Search</button>
+        <button class="btn btn-secondary" id="modOpener" hidden title="Members and moderation" style="margin-left:auto;padding:6px 12px;font-size:0.78rem">Mod</button>
+        <button class="btn btn-secondary" id="msgSearchBtn" title="Search this conversation" style="padding:6px 12px;font-size:0.78rem">Search</button>
       </div>
       <div class="ad-frame ad-leaderboard" style="flex-shrink:0;margin:12px"><span class="ad-cap" aria-hidden="true">Advertisement</span><script>
   atOptions = {
@@ -317,6 +348,8 @@
         </div>
         <div id="msgSearchResults" style="margin-top:10px;max-height:180px;overflow-y:auto"></div>
       </div>
+      <div id="pinnedShelf" hidden></div>
+      <div id="modPanel" hidden></div>
       <div id="messages" class="messages" hidden></div>
       <div id="chatEmpty" class="empty-wrap">
         <div class="empty-card">
@@ -328,6 +361,7 @@
         </div>
       </div>
       <div id="typingIndicator" class="typing-indicator" style="display:none"></div>
+      <p id="slowNote" hidden></p>
       <button type="button" id="loadOlderBtn" class="load-older" hidden>Load older messages</button>
       <form id="chatForm" class="chat-input-area" hidden>
         <button type="button" id="emojiBtn" class="btn-emoji" title="Insert emoji" aria-label="Insert emoji">😀</button>

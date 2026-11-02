@@ -185,6 +185,18 @@ GET  /auth/verification-required (login hard gate — same rule as needVerified)
 GET  /auth/callback (GitHub OAuth)
 GET  /api/session               GET|PUT /api/profile
 GET  /api/messages              (newest 100, oldest-first; lobby list runs over WS, not REST)
+                                  ?before=<ts> paginates older rows; ?pinned=1 returns
+                                  only pinned rows — powers the chat's pinned shelf
+GET  /api/messages/reactions    ← per-room reaction counts (newest 200 messages)
+POST /api/messages/:mid/pin     ← author or the channel's owner/mod toggles `pinned`
+POST|DELETE /api/messages/:mid/react ← emoji reaction; one row per (msg, user, emoji),
+                                  so re-reacting upserts, never double-counts
+                                  (table: `message_reactions`, migration/pins-reactions-slowmode.sql)
+GET  /api/servers/:sid/members  ← owner/mod roster incl. bans (chat mod panel)
+PUT|DELETE /api/servers/:sid/members/:uid ← owner sets mod/member; kick (owner or mod)
+POST|DELETE /api/servers/:sid/bans/:uid   ← ban (drops membership; JOIN refuses banned
+                                  ids) / unban (migration/server-roles.sql). Channel
+                                  PATCH also takes `slow_seconds` (0–600; 0 = off)
 GET|POST /api/servers           GET /api/servers/mine
 GET  /api/games                 GET|POST /api/games     GET /api/games/mine
 GET  /api/games/:id/thumbnail   ← card art as real image bytes (1-day cache)

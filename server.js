@@ -1183,6 +1183,24 @@ async function handleRequest(req, res) {
   // GET /api/collections/:id — one collection + its games (public/unlisted, or owner)
   // POST /api/collections — create; PATCH /api/collections/:id — edit
   // DELETE /api/collections/:id — delete; POST/DELETE /api/collections/:id/items
+  // PUBLIC shelf: one user's public collections (profile + creator pages).
+  // Titles/counts only — the items live behind the existing :id GET.
+  if (/^\/api\/users\/([^/]+)\/collections$/.test(url.pathname) && req.method === 'GET') {
+    cors(res);
+    const uid = url.pathname.split('/')[3];
+    if (!isUuid(uid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid user.' })); return; }
+    const { data: rows } = await supabase.from('collections').select('id, title, description, created_at').eq('owner_id', uid).eq('visibility', 'public').order('created_at', { ascending: false }).limit(50);
+    const ids = (rows || []).map(c => c.id);
+    const counts = {};
+    if (ids.length) {
+      const { data: items } = await supabase.from('collection_items').select('collection_id').in('collection_id', ids);
+      (items || []).forEach(i => { counts[i.collection_id] = (counts[i.collection_id] || 0) + 1; });
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ collections: (rows || []).map(c => ({ ...c, count: counts[c.id] || 0 })) }));
+    return;
+  }
+
   if (url.pathname === '/api/collections' && req.method === 'GET') {
     cors(res);
     const me = await requireUser(req, res); if (!me) return;
@@ -1587,11 +1605,14 @@ async function handleRequest(req, res) {
     const before = url.searchParams.get('before');
     let q = supabase
       .from('messages')
-      .select('id, display_name, text, created_at, user_id, users!messages_user_id_fkey(avatar_url)')
+      .select('id, display_name, text, created_at, user_id, pinned, users!messages_user_id_fkey(avatar_url)')
       .eq('lobby_id', lobby.id)
       .order('created_at', { ascending: false })
       .limit(100);
     if (before) q = q.lt('created_at', before);
+    // ?pinned=1 powers the pinned shelf on the client — same room gate
+    // above, so it can't leak pins from a channel you can't open.
+    if (url.searchParams.get('pinned') === '1') q = q.eq('pinned', true);
     const { data: recent } = await q;
     const messages = (recent || []).reverse();
 
@@ -1600,9 +1621,95 @@ async function handleRequest(req, res) {
     return;
   }
 
+  // ── API: reactions summary for a room ────────────────────────
+  // GET /api/messages/reactions?lobby=<name> — aggregates the room's recent
+  // reactions so an opened chat paints existing emoji without waiting for a
+  // broadcast. Same visibility gate as history; capped at the newest 200
+  // messages so a huge room can't make this endpoint heavy.
+  if (url.pathname === '/api/messages/reactions' && req.method === 'GET') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    const lobbyName = String(url.searchParams.get('lobby') || '');
+    if (!validName(lobbyName)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid lobby name.' })); return; }
+    const { data: lob } = await supabase.from('lobbies').select('id, name, kind, server_id, is_private').eq('name', lobbyName).single();
+    if (!lob || !(await canSeeLobby(user.id, lob))) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found.' })); return; }
+    const { data: recent } = await supabase.from('messages').select('id').eq('lobby_id', lob.id).order('created_at', { ascending: false }).limit(200);
+    const ids = (recent || []).map(m => m.id);
+    var reactions = {};
+    if (ids.length) {
+      const { data: rows } = await supabase.from('message_reactions').select('message_id, emoji').in('message_id', ids);
+      for (const r of rows || []) {
+        if (!reactions[r.message_id]) reactions[r.message_id] = {};
+        reactions[r.message_id][r.emoji] = (reactions[r.message_id][r.emoji] || 0) + 1;
+      }
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ reactions }));
+    return;
+  }
+
   // ── API: search messages in one conversation ──────────────────
   // Same gate as reading a room (canSeeLobby), so search can't be used to
   // read channels you can't open. 3+ chars, newest first.
+  // ── API: pin / unpin a message (author or the channel's owner/mod) ─
+  // POST /api/messages/:mid/pin { pin: true|false } — toggles the flag.
+  // Pinned rows ride the normal ?pinned=1 history fetch; a live WS event
+  // lets the open room re-render its pinned shelf without a reload.
+  const msgMid = /^\/api\/messages\/([^/]+)\/(pin|react)$/.exec(url.pathname);
+  if (msgMid && req.method === 'POST' && msgMid[2] === 'pin') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    if (!(await needVerified(user, res))) return;
+    const mid = msgMid[1];
+    if (!isUuid(mid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid message.' })); return; }
+    const { data: msg } = await supabase.from('messages').select('id, user_id, lobby_id, lobbies!messages_lobby_id_fkey(id, name, kind, server_id)').eq('id', mid).single();
+    if (!msg) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found.' })); return; }
+    let allowed = msg.user_id === user.id;
+    if (!allowed && msg.lobbies && msg.lobbies.server_id) {
+      const { role } = await serverRole(user.id, msg.lobbies.server_id);
+      allowed = role === 'owner' || role === 'mod';
+    }
+    if (!allowed) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not your message or channel.' })); return; }
+    const body = await readBody(req).catch(() => ({}));
+    const pinned = !!(body && body.pin);
+    const { error } = await supabase.from('messages').update({ pinned }).eq('id', mid);
+    if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not pin.' })); return; }
+    if (msg.lobbies && msg.lobbies.name) broadcast(msg.lobbies.name, { type: 'pin', lobby: msg.lobbies.name, id: mid, pinned });
+    res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true, pinned }));
+    return;
+  }
+  // ── API: reactions on a message ─────────────────────────────────
+  // One row per (message, user, emoji) — reacting twice with the same
+  // emoji upserts, never double-counts. Visible only if you can see the
+  // conversation (same rule as history); a live WS event updates open rooms.
+  if (msgMid && msgMid[2] === 'react' && (req.method === 'POST' || req.method === 'DELETE')) {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    if (!(await needVerified(user, res))) return;
+    if (!rateLimit('react:' + user.id, 30, 60 * 1000)) { res.writeHead(429, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Slow down.' })); return; }
+    const mid = msgMid[1];
+    if (!isUuid(mid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid message.' })); return; }
+    const { data: msg } = await supabase.from('messages').select('id, lobby_id, lobbies!messages_lobby_id_fkey(id, name)').eq('id', mid).single();
+    if (!msg) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found.' })); return; }
+    const { data: lob } = await supabase.from('lobbies').select('id, kind, server_id, is_private').eq('id', msg.lobby_id).single();
+    if (!lob || !(await canSeeLobby(user.id, { ...lob, name: (msg.lobbies && msg.lobbies.name) || '' }))) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found.' })); return; }
+    const body = await readBody(req).catch(() => ({}));
+    const emoji = String((body && body.emoji) || '').trim();
+    if (!emoji || emoji.length > 8 || /[<>"'`\\]/.test(emoji)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid emoji.' })); return; }
+    if (req.method === 'POST') {
+      const { error } = await supabase.from('message_reactions').upsert({ message_id: mid, user_id: user.id, emoji });
+      if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not react.' })); return; }
+    } else {
+      await supabase.from('message_reactions').delete().eq('message_id', mid).eq('user_id', user.id).eq('emoji', emoji);
+    }
+    const { data: rows } = await supabase.from('message_reactions').select('emoji, user_id').eq('message_id', mid);
+    const counts = {};
+    for (const r of rows || []) counts[r.emoji] = (counts[r.emoji] || 0) + 1;
+    if (msg.lobbies && msg.lobbies.name) broadcast(msg.lobbies.name, { type: 'react', lobby: msg.lobbies.name, id: mid, counts });
+    res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true, counts }));
+    return;
+  }
+
   if (url.pathname === '/api/messages/search') {
     cors(res);
     const user = await requireUser(req, res); if (!user) return;
@@ -1860,6 +1967,11 @@ async function handleRequest(req, res) {
     if (server.visibility === 'private' && body.invite_code !== server.invite_code) {
       res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid invite code' })); return;
     }
+    // Banned people stay out, invite code or not.
+    const { data: banRow } = await supabase.from('server_bans').select('reason, created_at').eq('server_id', server.id).eq('user_id', user.id).single();
+    if (banRow) {
+      res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'You are banned from this server.' + (banRow.reason ? ' Reason: ' + banRow.reason : '') })); return;
+    }
     await supabase.from('server_members').upsert({ server_id: server.id, user_id: user.id }, { onConflict: 'server_id,user_id' });
     sendConversationsDirty();
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -2031,15 +2143,15 @@ function sanitizeTags(raw) {
     const myIds = (myRows || []).map(r => r.lobby_id);
     var lobbyRows = [];
     if (myIds.length) {
-      const { data } = await supabase.from('lobbies').select('id, name, kind, server_id, topic, is_private, created_at').in('id', myIds);
+      const { data } = await supabase.from('lobbies').select('id, name, kind, server_id, topic, is_private, slow_seconds, created_at').in('id', myIds);
       (data || []).forEach(r => lobbyRows.push(r));
     }
     if (serverIds.length) {
-      const { data } = await supabase.from('lobbies').select('id, name, kind, server_id, topic, is_private, created_at').eq('kind', 'channel').in('server_id', serverIds).eq('is_private', false);
+      const { data } = await supabase.from('lobbies').select('id, name, kind, server_id, topic, is_private, slow_seconds, created_at').eq('kind', 'channel').in('server_id', serverIds).eq('is_private', false);
       (data || []).forEach(r => { if (!lobbyRows.some(x => x.id === r.id)) lobbyRows.push(r); });
     }
     if (ownedIds.length) {
-      const { data } = await supabase.from('lobbies').select('id, name, kind, server_id, topic, is_private, created_at').eq('kind', 'channel').in('server_id', ownedIds);
+      const { data } = await supabase.from('lobbies').select('id, name, kind, server_id, topic, is_private, slow_seconds, created_at').eq('kind', 'channel').in('server_id', ownedIds);
       (data || []).forEach(r => { if (!lobbyRows.some(x => x.id === r.id)) lobbyRows.push(r); });
     }
     if (!lobbyRows.length) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ conversations: [] })); return; }
@@ -2077,7 +2189,7 @@ function sanitizeTags(raw) {
       }
       var online = 0;
       try { const rm = lobbies.get(row.name); if (rm) online = rm.size; } catch (e) {}
-      const item = { id: row.id, name: row.name, kind: row.kind, topic: row.topic || '', is_private: !!row.is_private, last, unread, online };
+      const item = { id: row.id, name: row.name, kind: row.kind, topic: row.topic || '', is_private: !!row.is_private, slow_seconds: row.slow_seconds || 0, last, unread, online };
       if (row.kind === 'dm') {
         const peer = peerByLobby[row.id] || null;
         item.display = peer ? peer.display_name : 'Direct message';
@@ -2583,7 +2695,7 @@ function sanitizeTags(raw) {
     if (!server) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Server not found.' })); return; }
     if (req.method === 'GET') {
       if (server.visibility !== 'public' && !role) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Join this server first.' })); return; }
-      let q = supabase.from('lobbies').select('id, name, topic, is_private, created_at').eq('kind', 'channel').eq('server_id', sid).order('created_at', { ascending: true });
+      let q = supabase.from('lobbies').select('id, name, topic, is_private, slow_seconds, created_at').eq('kind', 'channel').eq('server_id', sid).order('created_at', { ascending: true });
       const { data } = await q;
       var chans = data || [];
       if (role !== 'owner') {
@@ -2593,7 +2705,7 @@ function sanitizeTags(raw) {
         chans = chans.filter(c => !c.is_private || mineSet[c.id]);
       }
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ channels: chans.map(c => ({ id: c.id, name: c.name, slug: c.name.split(':').pop(), display: chanDisplay(c.name), topic: c.topic || '', is_private: !!c.is_private, created_at: c.created_at })) }));
+      res.end(JSON.stringify({ channels: chans.map(c => ({ id: c.id, name: c.name, slug: c.name.split(':').pop(), display: chanDisplay(c.name), topic: c.topic || '', is_private: !!c.is_private, slow_seconds: c.slow_seconds || 0, created_at: c.created_at })) }));
       return;
     }
     // POST: create channel (owner only)
@@ -2631,6 +2743,10 @@ function sanitizeTags(raw) {
     }
     if (body.topic !== undefined) updates.topic = String(body.topic || '').substring(0, 200);
     if (body.is_private !== undefined) updates.is_private = !!body.is_private;
+    if (body.slow_seconds !== undefined) {
+      const s = parseInt(body.slow_seconds, 10);
+      updates.slow_seconds = (isNaN(s) || s < 0 || s > 600) ? 0 : s;
+    }
     if (!Object.keys(updates).length) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Nothing to update.' })); return; }
     const { data, error } = await supabase.from('lobbies').update(updates).eq('id', cid).select('id, name').single();
     if (error) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Channel exists.' })); return; }
@@ -2638,6 +2754,95 @@ function sanitizeTags(raw) {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ channel: data }));
     return;
+  }
+
+  // ── API: server member roster (owner/mod view) ───────────────
+  // GET /api/servers/:sid/members — powers the in-chat moderation panel.
+  // Owner or mods only; owner/mods never appear actionable (server calls
+  // them out and the UI hides the buttons).
+  if (url.pathname.startsWith('/api/servers/') && url.pathname.endsWith('/members') && req.method === 'GET') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    const sid = url.pathname.split('/')[3];
+    if (!isUuid(sid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid server.' })); return; }
+    const { role } = await serverRole(user.id, sid);
+    if (role !== 'owner' && role !== 'mod') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Owner or mods only.' })); return; }
+    const [mRes, bRes] = await Promise.all([
+      supabase.from('server_members').select('role, user_id').eq('server_id', sid).limit(500),
+      supabase.from('server_bans').select('user_id, reason, created_at').eq('server_id', sid).limit(500)
+    ]);
+    const ids = [...new Set([...(mRes.data || []).map(m => m.user_id), ...(bRes.data || []).map(b => b.user_id)])];
+    var byId = {};
+    if (ids.length) {
+      const { data: us } = await supabase.from('users').select('id, display_name, user_id').in('id', ids);
+      (us || []).forEach(u => { byId[u.id] = u; });
+    }
+    const members = (mRes.data || []).map(m => ({ user_id: m.user_id, display_name: (byId[m.user_id] && byId[m.user_id].display_name) || 'Unknown', num_id: (byId[m.user_id] && byId[m.user_id].user_id) || null, role: m.role }))
+      .sort((a, b) => (a.role === 'owner' ? -1 : b.role === 'owner' ? 1 : 0) || String(a.display_name).localeCompare(b.display_name));
+    const bans = (bRes.data || []).map(b => ({ user_id: b.user_id, reason: b.reason || null, name: (byId[b.user_id] && byId[b.user_id].display_name) || 'Unknown' }));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ members, bans }));
+    return;
+  }
+
+  // ── API: per-server roles + kicks + bans (owner/mod) ─────────────
+  // PUT    /api/servers/:sid/members/:uid { role: 'mod'|'member' } — owner
+  //        promotes/demotes. The owner row never changes hands.
+  // DELETE /api/servers/:sid/members/:uid — owner or mod kicks (mods can't
+  //        kick their peers). Same-hour rules gate stays untouched.
+  // POST   /api/servers/:sid/bans/:uid { reason } — owner or mod bans:
+  //        membership row + ban row together, and JOIN refuses a banned id.
+  // DELETE /api/servers/:sid/bans/:uid — owner or mod unbans.
+  const srvMm = /^\/api\/servers\/([^/]+)\/(members|bans)\/([^/]+)$/.exec(url.pathname);
+  if (srvMm && (req.method === 'PUT' || req.method === 'POST' || req.method === 'DELETE')) {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    if (!(await needVerified(user, res))) return;
+    const sid = srvMm[1], list = srvMm[2], target = srvMm[3];
+    if (!isUuid(sid) || !isUuid(target)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid server or user.' })); return; }
+    const { role: myRole } = await serverRole(user.id, sid);
+    if (!myRole) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Join this server first.' })); return; }
+    const { data: tRole0 } = await supabase.from('server_members').select('role').eq('server_id', sid).eq('user_id', target).single();
+    const tRole = (tRole0 && tRole0.role) || null;
+    if (tRole === 'owner') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'That is the owner.' })); return; }
+    if (user.id === target) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'No self-actions — leave the server instead.' })); return; }
+    if (list === 'members' && req.method === 'PUT') {
+      if (myRole !== 'owner') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Only the owner sets roles.' })); return; }
+      const body = await readBody(req).catch(() => ({}));
+      const r = body.role === 'mod' ? 'mod' : 'member';
+      const { error } = await supabase.from('server_members').update({ role: r }).eq('server_id', sid).eq('user_id', target);
+      if (error && !/no rows/.test(String(error.message))) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'They are not a member.' })); return; }
+      sendConversationsDirty();
+      res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true, role: r }));
+      return;
+    }
+    if (list === 'members' && req.method === 'DELETE') {
+      if (myRole !== 'owner' && myRole !== 'mod') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Owner or mods only.' })); return; }
+      if (tRole === 'mod' && myRole !== 'owner') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Only the owner kicks a mod.' })); return; }
+      await supabase.from('server_members').delete().eq('server_id', sid).eq('user_id', target);
+      sendConversationsDirty();
+      res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true }));
+      return;
+    }
+    if (list === 'bans') {
+      if (myRole !== 'owner' && myRole !== 'mod') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Owner or mods only.' })); return; }
+      if (tRole === 'mod' && myRole !== 'owner') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Only the owner bans a mod.' })); return; }
+      if (req.method === 'POST') {
+        const body = await readBody(req).catch(() => ({}));
+        await supabase.from('server_members').delete().eq('server_id', sid).eq('user_id', target);
+        const { error } = await supabase.from('server_bans').upsert({
+          server_id: sid, user_id: target, banned_by: user.id,
+          reason: String((body && body.reason) || '').substring(0, 240) || null
+        }, { onConflict: 'server_id,user_id' });
+        if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not ban.' })); return; }
+        sendConversationsDirty();
+        res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true }));
+      } else {
+        await supabase.from('server_bans').delete().eq('server_id', sid).eq('user_id', target);
+        res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true }));
+      }
+      return;
+    }
   }
 
   // ── API: private-channel membership (owner only) ────────────────
@@ -4039,6 +4244,67 @@ function sanitizeTags(raw) {
     }));
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
     res.end(JSON.stringify({ by_creator: shape(creatorRes.data), similar: shape(similarRes.data) }));
+    return;
+  }
+
+  // ── API: remixes of a game (remix tree shelf) ─────────────────────
+  // PUBLIC read-only: every published game that forked this one. Data
+  // already exists ('forked_from' + the cached title); this only surfaces
+  // it, so the original maker SEES who built on their work — the loop
+  // Scratch proved drives creators to keep going. Above the generic :id GET.
+  if (/^\/api\/games\/[^/]+\/remixes$/.test(url.pathname) && req.method === 'GET') {
+    cors(res);
+    const rid = url.pathname.split('/')[3];
+    if (!isUuid(rid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
+    const { data: g } = await supabase.from('games').select('published').eq('id', rid).single();
+    if (!g || !g.published) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+    const { data: rows } = await supabase.from('games')
+      .select('id, title, play_count, updated_at, users!owner_id(display_name, user_id)')
+      .eq('published', true).eq('forked_from', rid)
+      .order('updated_at', { ascending: false }).limit(24);
+    const remixes = (rows || []).map((r) => ({
+      id: r.id, title: r.title, play_count: r.play_count || 0, updated_at: r.updated_at,
+      name: (r.users && r.users.display_name) || 'Unknown', user_id: (r.users && r.users.user_id) || null
+    }));
+    // One level up: what this game itself forked from (read-only chain tip).
+    let parent = null;
+    const { data: me0 } = await supabase.from('games').select('forked_from, forked_from_title').eq('id', rid).single();
+    if (me0 && me0.forked_from) parent = { id: me0.forked_from, title: me0.forked_from_title || 'Untitled' };
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify({ remixes, parent }));
+    return;
+  }
+
+  // ── API: invite a friend into a multiplayer room ───────────────────
+  // POST /api/games/:id/invite { friend_id, room } — writes a single
+  // notification; the recipient deep-links view.html?id=..&room=<code>.
+  // The room join itself stays anonymous/guest-open (CudicMulti rules);
+  // this only carries the invite, gated + rate-limited like follows.
+  if (/^\/api\/games\/[^/]+\/invite$/.test(url.pathname) && req.method === 'POST') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    if (!(await needVerified(user, res))) return;
+    if (!rateLimit('invite:' + user.id, 10, 3600 * 1000)) { res.writeHead(429, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Too many invites. Try later.' })); return; }
+    const gid = url.pathname.split('/')[3];
+    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
+    const body = await readBody(req).catch(() => ({}));
+    const fid = String((body && body.friend_id) || '').trim();
+    const room = String((body && body.room) || 'main').replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 40) || 'main';
+    if (!isUuid(fid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Pick who to invite.' })); return; }
+    // Must actually be an accepted friend — a public game id alone cannot
+    // be used to point notifications at arbitrary accounts.
+    let isFriend = false;
+    for (const row of (await Promise.all([
+      supabase.from('friendships').select('user_id').eq('status', 'accepted').eq('user_id', user.id).eq('friend_id', fid),
+      supabase.from('friendships').select('user_id').eq('status', 'accepted').eq('friend_id', user.id).eq('user_id', fid)
+    ]))) { if (row.data && row.data.length) isFriend = true; }
+    if (!isFriend) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invite your friends, not strangers.' })); return; }
+    const { data: g } = await supabase.from('games').select('title, published').eq('id', gid).single();
+    if (!g || !g.published) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+    const { data: profile } = await supabase.from('users').select('display_name').eq('id', user.id).single();
+    notify(fid, 'invite', (profile && profile.display_name) || 'A friend', 'You are invited to the room "' + room + '" in ' + (g.title || 'a game') + '.', 'game', gid);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
     return;
   }
 
@@ -5641,6 +5907,24 @@ async function saveMessage(lobbyName, userId, displayName, text) {
   }
 }
 
+// owner | member | mod | null for a server (module scope: used by HTTP + WS)
+// Channel context for the WS chat path: slow seconds + server id, key
+// by room name. 30s TTL — setting a new slow mode lands within a breath.
+const chanCtxCache = new Map();
+const lastSay = Object.create(null);
+async function channelContext(name) {
+  if (!name) return null;
+  const hit = chanCtxCache.get(name);
+  if (hit && (Date.now() - hit.ts < 30000)) return hit.v;
+  let v = null;
+  try {
+    const { data: lob } = await supabase.from('lobbies').select('id, kind, server_id, slow_seconds').eq('name', name).single();
+    if (lob) v = lob;
+  } catch {}
+  chanCtxCache.set(name, { v, ts: Date.now() });
+  return v;
+}
+
 // owner | member | null for a server (module scope: used by HTTP + WS)
 async function serverRole(me, serverId) {
   const { data: srv } = await supabase.from('servers').select('id, visibility, owner_id, rules').eq('id', serverId).single();
@@ -5835,6 +6119,32 @@ wss.on('connection', (ws, req) => {
       if (!rateLimit('chat:' + info.userId, 60, 10 * 1000)) {
         ws.send(JSON.stringify({ type: 'error', code: 'chat_slow', text: 'Slow down — too many messages at once.' }));
         return;
+      }
+
+      // Channel context (slow mode + server gate), TTL-cached per room name
+      // — one small query per 30s per active room, not per message.
+      if (typeof channelContext === 'function') {
+        const ctx = await channelContext(info.lobby);
+        if (ctx) {
+          if (ctx.kind === 'channel' && ctx.server_id) {
+            const { role: wsRole } = await serverRole(info.userId, ctx.server_id);
+            if (!wsRole) {
+              ws.send(JSON.stringify({ type: 'error', code: 'not_member', text: 'You are no longer in this server.' }));
+              return;
+            }
+          }
+          const slow = ctx.slow_seconds || 0;
+          if (slow > 0) {
+            const skey = info.userId + '|' + info.lobby;
+            const now = Date.now();
+            const last = (typeof lastSay === 'object' && lastSay[skey]) || 0;
+            if (now - last < slow * 1000) {
+              ws.send(JSON.stringify({ type: 'error', code: 'slow_mode', text: 'Slow mode on — wait ' + Math.ceil((slow * 1000 - (now - last)) / 1000) + 's before sending again.' }));
+              return;
+            }
+            lastSay[skey] = now;
+          }
+        }
       }
 
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
