@@ -8,6 +8,15 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Follow from the game page** (uncommitted)
+
+- The game page's author row now has the same Follow/Following ✓ toggle the
+  creator page has — tap the name of anyone whose game you like and their
+  future publishes land on your homepage “New from creators you follow”
+  shelf. Guests get bounced to sign-in; owners are not offered the button
+  for themselves. Initial state comes from the profile endpoint's
+  `viewer_follows`, never a guessed default.
+
 **Real share cards on the play link** (uncommitted)
 
 - Sharing `/view.html?id=…` — the URL people copy from the address bar — used

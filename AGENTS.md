@@ -201,6 +201,8 @@ POST /api/session/claim|heartbeat  DELETE /api/session
 GET|PUT|DELETE /api/saves/:gameId  ← account-bound saves (100KB cap)
 POST /api/scratch/import           ← .sb3 / Scratch URL → split player files
 POST/DELETE /api/follow/:id        ← one-way follow (30/h). GET /api/feed (me+followed, 60)
+                                    the game page's author row also follows via
+                                    POST/DELETE /api/follow/<author id> (view.html)
 GET  /api/badges                   ← public award catalog + equip caps
 GET  /api/feed/games               ← follow feed SHELF: newest published games by
                                     who this viewer follows (distinct from /api/feed)

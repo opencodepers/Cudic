@@ -77,7 +77,7 @@
     <div class="game-head">
       <a class="btn btn-secondary" href="/games" style="padding:9px 14px">&larr; Gallery</a>
       <h1 id="gameTitle">Loading…</h1>
-      <div class="author"><div class="author-avatar" id="authorAvatar">?</div><span id="authorName"></span></div>
+      <div class="author"><div class="author-avatar" id="authorAvatar">?</div><span id="authorName"></span><button class="btn btn-secondary" id="followAuthorBtn" style="display:none;padding:5px 12px;font-size:0.72rem" title="Follow this creator — their new games land on your homepage shelf">Follow</button></div>
       <div class="spacer"></div>
       <button class="btn btn-secondary" id="scrollBtn" title="Allow the game page to scroll (for website-style games)">Scroll: off</button>
       <button class="btn btn-secondary" id="fsBtn">Fullscreen</button>
@@ -541,6 +541,37 @@ setInterval(function () {
         document.getElementById('commentPost').addEventListener('click', postComment);
       });
     }
+    // Author follow button: same toggle as the creator page, right where
+    // people decide they like the game. Feeds the homepage follow shelf.
+    // Hidden for the owner; guests see it and get bounced to sign-in.
+    function initAuthorFollow(author) {
+      var btn = document.getElementById('followAuthorBtn');
+      if (!btn || !author.id) return;
+      var viewerFollows = false;
+      function paint() { btn.textContent = viewerFollows ? 'Following ✓' : 'Follow'; btn.style.display = ''; }
+      getSession().then(function (s) {
+        if (s && s.uid === author.id) return; // your own game: no follow yourself
+        if (!s) { paint(); return; }
+        fetch(apiBase() + '/api/user?id=' + encodeURIComponent(author.id), { headers: { 'Authorization': 'Bearer ' + s.token } })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (d) { if (d && d.profile) { viewerFollows = !!d.profile.viewer_follows; } paint(); })
+          .catch(function () { paint(); });
+      }).catch(function () { paint(); });
+      btn.addEventListener('click', function () {
+        getSession().then(function (s) {
+          if (!s) { location.href = '/login'; return; }
+          btn.disabled = true;
+          fetch(apiBase() + '/api/follow/' + encodeURIComponent(author.id), {
+            method: viewerFollows ? 'DELETE' : 'POST',
+            headers: { 'Authorization': 'Bearer ' + s.token }
+          }).then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+            .then(function (d) { viewerFollows = !!d.following; paint(); })
+            .catch(function () { paint(); })
+            .finally(function () { btn.disabled = false; });
+        });
+      });
+    }
+
     // Weekly jam vote: a one-click toggle for entries of this week's build
     // theme. Fails quiet-safe — no jam, no button.
     function initJam(game) {
@@ -599,6 +630,7 @@ setInterval(function () {
         liveOnPage = game.playing || 0;
         paintLive();        var author = game.users || {};
         var name = author.display_name || 'Unknown';
+        initAuthorFollow(author);
         var authorEl = document.getElementById('authorName');
         authorEl.textContent = name + (author.user_id ? ' #' + author.user_id : '');
         if (author.id) {
