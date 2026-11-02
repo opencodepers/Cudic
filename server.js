@@ -2006,6 +2006,17 @@ function slugify(s) {
     .slice(0, 40) || 'game';
 }
 
+// Game tags: lowercased, letters/numbers/dashes only, deduped, capped.
+// One column on `games`, so the gallery can filter and the "More like
+// this" shelf can match without a join. Shared by POST (create) and PUT
+// (edit) so the two can never drift apart.
+function sanitizeTags(raw) {
+  const list = (Array.isArray(raw) ? raw : String(raw || '').split(','))
+    .map((t) => String(t).toLowerCase().trim().replace(/[^a-z0-9-]/g, '').slice(0, 24))
+    .filter(Boolean);
+  return [...new Set(list)].slice(0, 8);
+}
+
   // ── API: my conversations (chat sidebar) ───────────────────────
   if (url.pathname === '/api/conversations' && req.method === 'GET') {
     cors(res);
@@ -4387,6 +4398,10 @@ function slugify(s) {
       assets: body.assets || null,
       thumbnail: (typeof body.thumbnail === 'string' && body.thumbnail.length <= 700 * 1024) ? body.thumbnail : null,
       published: body.published || false,
+      // Create-time tags: the publish modal sends them with the first PUT
+      // for existing projects; new games get them right in the insert so a
+      // first publish is already filterable in the gallery.
+      tags: sanitizeTags(body.tags),
     }).select().single();
     if (error) console.error('games insert error:', error.message);
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -4999,14 +5014,9 @@ function slugify(s) {
       else if (typeof body.thumbnail === 'string' && body.thumbnail.length <= 700 * 1024) updates.thumbnail = body.thumbnail;
       else { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Thumbnail too large (700KB max).' })); return; }
     }
-    // Tags: lowercased, deduped, vocabulary trimmed. One column, so the
-    // gallery can filter without a join.
-    if (body.tags !== undefined) {
-      const list = (Array.isArray(body.tags) ? body.tags : [])
-        .map((t) => String(t).toLowerCase().trim().replace(/[^a-z0-9-]/g, '').slice(0, 24))
-        .filter(Boolean);
-      updates.tags = [...new Set(list)].slice(0, 8);
-    }
+    // Tags: sanitized by the shared helper (see slugify's neighbor) so the
+    // product rules live in exactly one place.
+    if (body.tags !== undefined) updates.tags = sanitizeTags(body.tags);
     // Only a false → true flip fires the publish hook; unpublishing can't.
     const wasPub = updates.published === true
       ? (((await supabase.from('games').select('published').eq('id', id).eq('owner_id', user.id).single()).data || {}).published)

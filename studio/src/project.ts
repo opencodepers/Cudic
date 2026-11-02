@@ -567,17 +567,35 @@ async function setPublished(pub: boolean): Promise<void> {
     vscode.window.showWarningMessage('Save the project first, then publish.');
     return;
   }
+  // Tags ride the publish PUT: one comma-separated ask, max 3. The server
+  // sanitizes everything (lowercase, letters/digits/dashes, dedupe), so
+  // the input box only has to be friendly — 'skip' just publishes untagged
+  // and can be edited later on the game page or classic editor.
+  let tags: string[] = [];
+  let tagAnswer: string | undefined;
+  if (pub) {
+    tagAnswer = await vscode.window.showInputBox({
+      prompt: 'Tags — up to 3, comma-separated (what the game is)',
+      placeHolder: 'e.g. platformer, retro, cats — press Enter to skip',
+      ignoreFocusOut: false
+    });
+    if (tagAnswer !== undefined) {
+      tags = tagAnswer.split(',').map(t => t.trim().toLowerCase().replace(/[^a-z0-9-]/g, '')).filter(Boolean).slice(0, 3);
+    }
+  }
   const base = await apiBase();
   try {
+    const body: Record<string, unknown> = { published: pub };
+    if (pub && tagAnswer !== undefined) body.tags = tags;
     const res = await fetch(base + '/api/games/' + encodeURIComponent(projectId), {
       method: 'PUT',
       headers: headers(true),
-      body: JSON.stringify({ published: pub })
+      body: JSON.stringify(body)
     });
     const d = await res.json();
     if (d?.error != null && d.game == null) throw new Error(d.error);
     vscode.window.showInformationMessage(
-      pub ? 'Cudic: Published "' + projectTitle + '"' : 'Cudic: Unpublished (back to draft).'
+      pub ? 'Cudic: Published "' + projectTitle + '"' + (tags.length ? ' — tags: ' + tags.join(', ') : '') : 'Cudic: Unpublished (back to draft).'
     );
   } catch (e) {
     vscode.window.showErrorMessage('Publish failed: ' + (e as Error).message);

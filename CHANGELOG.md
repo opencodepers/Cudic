@@ -8,6 +8,14 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Tagging in the publish flow (gallery filter + "More like this" activation)**
+
+- **Publish modal gains a tags row.** The editor's publish modal gets a tags input with one-tap suggestion chips (platformer, puzzle, clicker, horror, arcade, retro) — chips fill/clear the comma list, capped at 3; loading an existing game prefills its tags. Both the create (POST) and update (PUT) paths now send them.
+- **Studio publishes ask for tags too.** The `Cudic: Publish project` command shows a one-line prompt (up to 3, comma-separated); Enter-to-skip publishes untagged and never blocks.
+- **Server: one sanitizer, two call sites.** `sanitizeTags()` (lowercase, letters/digits/dashes, dedupe, ≤8) now runs on both create and edit, replacing the PUT-only inline copy — a new game's first publish is immediately gallery-filterable, and raw tag strings can never reach the column.
+- **Docs updated:** the stale "tags come from Studio project fields" line is replaced with the publish-modal + Studio-prompt reality.
+- Tests: new pin class `TaggingInPublishFlow` (server sanitizer single-source, editor chips + readModalTags, Studio prompt, docs mention).
+
 **Game-page next-up shelves + week leaderboard (shelves feature batch)**
 
 - **"More from this creator" + "More like this" shelves on every game page.** New public endpoint `GET /api/games/:id/related` returns the maker's other published games (by recency) plus published games sharing a tag (by plays, excluding the same maker). Rendered as two side cards below the leaderboard, thumbnail-free like the gallery list, titles/names as DOM text so a crafted title can't inject markup. Finishing a game now leads one click to the next.

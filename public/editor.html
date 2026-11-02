@@ -283,6 +283,20 @@ body{font-family:'Satoshi',sans-serif;background:var(--ed-bg);color:var(--ed-tex
     <textarea id="modalDescription" rows="2" maxlength="200"></textarea>
     <label>Credits</label>
     <input type="text" id="modalCredits" maxlength="100">
+    <label>Tags <span style="color:var(--text-tertiary)">— up to 3, what the game is</span></label>
+    <input type="text" id="modalTags" maxlength="90" placeholder="e.g. platformer, retro, cats">
+    <div id="modalTagChips" style="display:flex;flex-wrap:wrap;gap:6px;margin:-2px 0 10px">
+      <button type="button" class="tag-chip" data-tag="platformer">platformer</button>
+      <button type="button" class="tag-chip" data-tag="puzzle">puzzle</button>
+      <button type="button" class="tag-chip" data-tag="clicker">clicker</button>
+      <button type="button" class="tag-chip" data-tag="horror">horror</button>
+      <button type="button" class="tag-chip" data-tag="arcade">arcade</button>
+      <button type="button" class="tag-chip" data-tag="retro">retro</button>
+    </div>
+    <style>
+      .tag-chip { padding:3px 10px; border-radius:999px; border:1px solid var(--line); background:none; color:var(--text-tertiary); font-family:inherit; font-size:0.78rem; cursor:pointer; }
+      .tag-chip.on { border-color:var(--signal); color:var(--signal); }
+    </style>
     <label>Thumbnail</label>
     <div class="thumb-upload" id="thumbUpload">
       <span id="thumbPlaceholder">Click to upload cover image</span>
@@ -587,10 +601,41 @@ async function quickSave() {
 function openPublishModal() {
   document.getElementById('publishModal').classList.add('open');
   document.getElementById('modalGameTitle').value = document.getElementById('gameTitle').value || '';
+  document.getElementById('modalTags').value = (currentGameTags || []).join(', ');
+  paintTagChips();
   pendingThumbData = null;
   document.getElementById('thumbPreview').style.display = 'none';
   document.getElementById('thumbPlaceholder').style.display = '';
 }
+// Tags: the comma list in the input is the truth; the chips simply toggle
+// words in and out of it. Cap matters twice — the input blocks a fourth
+// comma entry, and sanitizeTags() on the server trims to 8 as a hard backstop.
+var currentGameTags = [];
+function readModalTags() {
+  return document.getElementById('modalTags').value
+    .split(',').map(function (t) { return t.trim().toLowerCase().replace(/[^a-z0-9-]/g, ''); })
+    .filter(Boolean);
+}
+function paintTagChips() {
+  var have = readModalTags();
+  document.querySelectorAll('#modalTagChips .tag-chip').forEach(function (c) {
+    c.classList.toggle('on', have.indexOf(c.getAttribute('data-tag')) !== -1);
+  });
+}
+document.getElementById('modalTags').addEventListener('input', paintTagChips);
+document.querySelectorAll('#modalTagChips .tag-chip').forEach(function (c) {
+  c.addEventListener('click', function () {
+    var want = [c.getAttribute('data-tag')];
+    var have = readModalTags();
+    var i = have.indexOf(want[0]);
+    if (i === -1) {
+      if (have.length >= 3) { c.style.animation = 'none'; return; }
+      have.push(want[0]);
+    } else have.splice(i, 1);
+    document.getElementById('modalTags').value = have.join(', ');
+    paintTagChips();
+  });
+});
 function closePublishModal() { document.getElementById('publishModal').classList.remove('open'); }
 document.getElementById('modalCancelBtn').addEventListener('click', closePublishModal);
 document.getElementById('modalPublishBtn2').addEventListener('click', confirmSave);
@@ -617,7 +662,7 @@ async function confirmSave() {
   if (!window.currentToken) { alert('Sign in to publish projects'); return; }
   var c = await getCfg();
   try {
-    var body = { title: title, files: snapshot(), published: true, description: description, credits: credits };
+    var body = { title: title, files: snapshot(), published: true, description: description, credits: credits, tags: readModalTags() };
     if (pendingThumbData) body.thumbnail = pendingThumbData;
     if (currentGameId) {
       await fetch(c.api + '/api/games/' + currentGameId, { method: 'PUT', headers: authHeaders(true), body: JSON.stringify(body) });
@@ -667,6 +712,7 @@ async function loadGame() {
     document.getElementById('gameTitle').value = d.game.title || 'Untitled Game';
     document.getElementById('modalDescription').value = d.game.description || '';
     document.getElementById('modalCredits').value = d.game.credits || '';
+    currentGameTags = Array.isArray(d.game.tags) ? d.game.tags : [];
     if (d.game.thumbnail) {
       document.getElementById('thumbPreview').src = d.game.thumbnail;
       document.getElementById('thumbPreview').style.display = 'block';

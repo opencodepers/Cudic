@@ -138,8 +138,9 @@ public/                   # the classic app (served at Vercel output root)
 studio/
   vite.config.js          # base '/studio/', outDir '../public/studio'
   src/main.ts             # workbench bootstrap, service overrides, title bar icon
-  src/glox.ts             # Preview tab, Run, context menus, preview assembly
-  src/project.ts          # save/import/export/publish/delete project commands
+  src/glox.ts             # Preview tab, Run, context menus, preview assembly   src/project.ts          # save/import/export/publish/delete project commands
+                          # publish asks for ≤3 tags (showInputBox) and PUTs them
+
   src/cudic-ai/           # ← the AI panel (see §7)
   src/collab.ts           # ← collab editing panel: P2P co-edit, chat, names (see §7b)
 supabase/
@@ -200,6 +201,10 @@ GET  /api/games/:id/related     ← PUBLIC: `{by_creator, similar}` for the game
                                   this" shelves — same maker's other published
                                   games + tag overlaps, thumbnail-free rows,
                                   must stay above the generic :id GET
+POST /api/games                 ← create: accepts tags via shared sanitizeTags
+                                  (lowercase, [a-z0-9-], dedupe, ≤8) — same rules
+                                  as the PUT edit path; editor publish modal +
+                                  Studio publish prompt are the two tag UIs
 GET|POST /api/music             ← Music Lab cloud saves (owner-scoped); browse-by-title
 GET  /api/music/browse           ← PUBLIC: any user's track titles/owners, no data
 GET  /api/music/:id/public       ← PUBLIC: one track's playable data (1-min cache);
