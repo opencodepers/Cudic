@@ -2696,7 +2696,11 @@ function sanitizeTags(raw) {
     if (req.method === 'GET') {
       if (server.visibility !== 'public' && !role) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Join this server first.' })); return; }
       let q = supabase.from('lobbies').select('id, name, topic, is_private, slow_seconds, created_at').eq('kind', 'channel').eq('server_id', sid).order('created_at', { ascending: true });
-      const { data } = await q;
+      const { data, error: chanErr } = await q;
+      // A select error (e.g. a migration column not applied yet) used to be
+      // discarded and rendered as `{channels: []}` — a template server looked
+      // empty with no trace. Fail loudly so the cause is visible.
+      if (chanErr) { console.error('channels select failed:', chanErr.message); res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not load channels.' })); return; }
       var chans = data || [];
       if (role !== 'owner') {
         const { data: mine } = await supabase.from('conversation_members').select('lobby_id').eq('user_id', me);

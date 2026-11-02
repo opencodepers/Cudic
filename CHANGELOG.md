@@ -8,6 +8,18 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Fix: template servers showed "no channels" (silent select error)**
+
+- **Root cause:** `migration/pins-reactions-slowmode.sql` had never been applied to the current Supabase project, so `lobbies.slow_seconds` didn't exist. Every channels query errored on the unknown column — and the `/api/servers/:id/channels` GET discarded the error (`const { data }`), rendering `{channels: []}`. A freshly created Gaming-template server had all four channels in the DB but displayed none.
+- **Fix:** the migration is applied to the live project (verified: general, clips, lfg, off-topic now return), and the endpoint fails loudly — a `500 {error}` + console log instead of an innocent-looking empty list, so the next missing-column bug can't hide again.
+- Migration run via the Supabase Management API against project `qgcydphkaujomxyzwcht`.
+
+**Fix: owned public servers rendered twice on /servers**
+
+- **Cause:** `loadServers()` pushed every public server (owned ones included) into the “Public servers” grid, and owners also got their server in “Your servers” via `/api/servers/mine` — one server, two cards. Verified the same fetch sequence with a throwaway account before/after: `dup present: false` now.
+- **Fix:** the public grid skips ids already in the own list (`mineSet`), so a server shows once — in “Your servers” for its owner, in “Public servers” for everyone else. Joined-but-not-owned servers stay in Public.
+- Also removed the leftover `probetest` server (debug probe artifact) from the live DB, channels and members included.
+
 **Server space page (`/server/<id>` — servers grow their own room)**
 
 - **Servers now live at `/server/<id>`, separate from `/chat` and in the same visual capsule** as themes/quests/DMs (site sidebar rail, `page-panel`, same chat styling). Inside it: a Discord-style left rail (server icon + name + member count, back link, channel list with `#` rows and 🔒 privates) and the live message stream on the right — same message recipe as chat: own-message bubbles, markdown-lite + emoji shortcodes, reactions with the quick picker, pinned shelf, slow-mode note, typing indicator, and online count.
