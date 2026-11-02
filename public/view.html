@@ -87,6 +87,7 @@
       <button class="btn btn-secondary" id="shareBtn">Share</button>
       <button class="btn btn-secondary" id="collBtn" style="display:none">Save</button>
       <div data-island="report-button" id="islReportSlot" style="display:none"></div>
+      <button class="btn btn-secondary" id="jamBtn" style="display:none" title="Vote for this game in this week's jam">⬆ <span id="jamCount">0</span></button>
       <button class="btn btn-secondary" id="likeBtn" style="display:none" title="Like this game">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:-2px"><path d="M12 20s-7-4.6-7-9.3A4.2 4.2 0 0 1 12 8a4.2 4.2 0 0 1 7 2.7C19 15.4 12 20 12 20Z"/></svg>
         <span id="likeCount">0</span>
@@ -540,6 +541,40 @@ setInterval(function () {
         document.getElementById('commentPost').addEventListener('click', postComment);
       });
     }
+    // Weekly jam vote: a one-click toggle for entries of this week's build
+    // theme. Fails quiet-safe — no jam, no button.
+    function initJam(game) {
+      var btn = document.getElementById('jamBtn'), cnt = document.getElementById('jamCount');
+      if (!btn || !cnt) return;
+      var voted = false;
+      function paint(v) {
+        cnt.textContent = v.count;
+        btn.innerHTML = v.voted ? '✓ Voted · ' + v.count : '⬆ Vote · ' + v.count;
+        voted = !!v.voted;
+        btn.style.display = '';
+      }
+      getSession().then(function (s) {
+        var headers = s ? { 'Authorization': 'Bearer ' + s.token } : undefined;
+        fetch(apiBase() + '/api/jam/vote?game_id=' + encodeURIComponent(id), headers ? { headers: headers } : undefined)
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (d) { if (d && d.entry) paint({ count: d.votes, voted: d.voted }); })
+          .catch(function () {});
+        if (btn) btn.addEventListener('click', function () {
+          if (!s) { location.href = '/login'; return; }
+          fetch(apiBase() + '/api/jam/vote', {
+            method: voted ? 'DELETE' : 'POST',
+            headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ game_id: id })
+          }).then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+            .then(function (d) { paint({ count: d.votes, voted: d.voted }); })
+            .catch(function (code) {
+              if (code === 400 || code === 401) return; // stale entry or guest — quietly ignore
+              paint({ count: cnt.textContent, voted: voted });
+            });
+        });
+      });
+    }
+
     fetch(apiBase() + '/api/games/' + encodeURIComponent(id))
       .then(function(r){ return r.json(); })
       .then(function(d){
@@ -557,6 +592,7 @@ setInterval(function () {
         paintLikes(game.likes || 0, !!game.liked);
         paintPlays(game.play_count || 0);
         paintRating(game.rating_avg || 0, game.rating_count || 0, game.my_rating || 0);
+        initJam(game);
         // Room head-count from the fetch: shown until the game itself joins a
         // room, at which point the live peer list takes over (it is per-room
         // and exact, where this number spans every room code).

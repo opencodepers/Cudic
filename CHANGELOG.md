@@ -8,6 +8,29 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Weekly game jam + follow-feed shelf on the homepage** (uncommitted)
+
+- **Game jams**: the weekly build theme now doubles as a jam. Signed-in
+  players vote for published entries from the game page (⬆ button — one
+  vote per person per week, and voting for another entry *moves* the vote),
+  `GET /api/jam` serves public standings, and the Monday rollover pays the
+  top three (150 / 75 / 40 coins via `grant_coins`, idempotent through the
+  ledger reason `jam:<week>:<place>`) plus the **Jam Champion** badge, with
+  notifications and the trio pinned to a homepage **winner spotlight** shim
+  that rides `GET /api/weekly` (`jam.winners`). Migration:
+  `migration/jam-votes.sql` (`jam_votes`, RLS-closed, server-only).
+- **Follow-feed shelf**: `GET /api/feed/games` returns the newest published
+  games from creators the viewer follows (thumbnail-free cards, same shape
+  as the gallery) and the homepage renders a *New from creators you follow*
+  shelf. Distinct path from the older activity feed `/api/feed`, whose
+  route and consumer are untouched.
+- Vote response now distinct for guests: the game-page button prompt-signs
+  in rather than erroring.
+- Docs: `docs.html` gains a **Game jams** section; AGENTS.md documents the
+  jam endpoints, one-vote semantics and lazy settle; regression tests cover
+  the swap rule (`test_jam_vote_endpoints_exist`) and shelf routing
+  (`test_follow_feed_endpoint`, gates in `test_api_gates.py`).
+
 **Cudic AI panel — user-tuned prompts + brand skin** (uncommitted)
 
 - **System prompt addendum** (`AiSettings.sysExtra`, 4000-char cap): write what

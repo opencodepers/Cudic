@@ -283,6 +283,14 @@
             <p class="lead2" style="margin-top:36px">Community picks — featured by the Cudic mods.</p>
             <div class="picks" id="pickRow" style="display:none"></div>
             <p id="picksEmpty" style="display:none;color:var(--mute);font-size:.9rem">No featured picks yet. Make something good — a mod might pick it.</p>
+            <div id="jamBlock" style="display:none;margin-top:30px">
+                <p class="lead2" style="margin-bottom:6px">Winners of last week's jam</p>
+                <div class="picks" id="jamRow"></div>
+            </div>
+            <div id="followBlock" style="display:none;margin-top:30px">
+                <p class="lead2" style="margin-bottom:6px">From creators you follow</p>
+                <div class="picks" id="followRow"></div>
+            </div>
         </section>
 
         <section class="block">
@@ -473,6 +481,49 @@
                     row.style.display = '';
                 })
                 .catch(function(){ var e = document.getElementById('picksEmpty'); if (e) e.style.display = 'block'; });
+        })();
+        // Jam winners + follow feed. Winners ride in on /api/weekly; the feed
+        // needs a token, so it only fires while signed in. Both fail quiet-safe.
+        (function(){
+            var api = (typeof WS_URL !== 'undefined' && WS_URL)
+                ? WS_URL.replace(/^wss?:\/\//, 'https://')
+                : ((location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? '' : 'https://glox-o7rr.onrender.com');
+            function esc(s){ var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
+            function card(row, list, api2){
+                row.innerHTML = list.map(function(g){
+                    var thumb = api2 + '/api/games/' + encodeURIComponent(g.game_id || g.id) + '/thumbnail';
+                    return '<a class="pick-card" href="/view.html?id=' + encodeURIComponent(g.game_id || g.id) + '" title="' + esc(g.title) + '">' +
+                        '<span class="pick-thumb"><img loading="lazy" src="' + thumb + '" alt="" onerror="this.remove()"></span>' +
+                        '<span class="pick-body"><b>' + (g.place ? '#' + g.place + ' ' : '') + esc(g.title) + '</b><span>' +
+                        esc(g.owner ? (g.place ? 'by ' : '') + g.owner : (g.users && g.users.display_name ? 'by ' + g.users.display_name : '')) + '\u00b7 ' +
+                        (g.place ? ((g.votes || 0) + ' votes') : ((g.play_count || 0) + ' plays')) + '</span></span></a>';
+                }).join('');
+                row.style.display = '';
+            }
+            fetch(api + '/api/weekly')
+                .then(function(r){ return r.ok ? r.json() : null; })
+                .then(function(d){
+                    var winners = (d && d.jam && d.jam.winners) || [];
+                    if (winners.length && document.getElementById('jamRow')) {
+                        card(document.getElementById('jamRow'), winners, api);
+                        document.getElementById('jamBlock').style.display = '';
+                    }
+                })
+                .catch(function(){});
+            if (typeof window.getAuthToken === 'function') {
+                window.getAuthToken().then(function (tok) {
+                    if (!tok || !document.getElementById('followRow')) return;
+                    fetch(api + '/api/feed/games', { headers: { 'Authorization': 'Bearer ' + tok } })
+                        .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+                        .then(function (d) {
+                            var list = (d && d.games) || [];
+                            if (!list.length) return;
+                            card(document.getElementById('followRow'), list, api);
+                            document.getElementById('followBlock').style.display = '';
+                        })
+                        .catch(function () {});
+                }).catch(function () {});
+            }
         })();
     </script>
     <script type="module">

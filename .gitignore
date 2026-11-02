@@ -28,3 +28,6 @@ tests.results.md
 
 # Weekly challenge state (server runtime, auto-regenerates)
 /weekly.json
+
+# Agent scratch space (debug hops, throwaway checks) — never commit
+/freebuff/

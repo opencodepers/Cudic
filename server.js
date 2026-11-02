@@ -180,6 +180,7 @@ const AWARDS = {
   viral:        { kind: 'badge', label: 'Viral', icon: 'social/star', how: 'One of your games reaches 100 plays' },
   worldbuilder: { kind: 'title', label: 'Worldbuilder', icon: 'social/crown', how: 'Publish five games' },
   renowned:     { kind: 'title', label: 'Renowned', icon: 'social/trophy', how: 'One of your games reaches 100 plays' },
+  jam_champion: { kind: 'badge', label: 'Jam Champion', icon: 'social/crown', how: 'Win a weekly game jam' },
 };
 // Equip caps per kind — b badges / f flairs / t titles.
 const EQUIP_CAPS = { b: 5, f: 10, t: 2 };
@@ -961,8 +962,13 @@ async function handleRequest(req, res) {
   if (url.pathname === '/api/weekly' && req.method === 'GET') {
     cors(res);
     const state = loadWeekly();
+    // The rollover settle rides the first /api/weekly call of a new week:
+    // top-3 payouts run once, then winners ride along in every response so
+    // the homepage spotlight needs no second request.
+    let winners = jamWinners;
+    try { winners = await settleJam(weekStartISO(new Date(Date.now() - 7 * 86400000))); } catch {}
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' });
-    res.end(JSON.stringify({ week_start: state.week, theme: state.theme, set_by: state.set_by || null }));
+    res.end(JSON.stringify({ week_start: state.week, theme: state.theme, set_by: state.set_by || null, jam: { winners } }));
     return;
   }
   if (url.pathname === '/api/weekly' && req.method === 'POST') {
@@ -985,7 +991,128 @@ async function handleRequest(req, res) {
     return;
   }
 
-  // ── API: featured games for the homepage spotlight shelf ────────
+  // ── Weekly jam (the build theme doubles as the jam) ─────────────
+  // A signed-in player votes for published games tagged with this week's
+  // theme; unlike / relieses a vote. Settling happens lazily at the week
+  // rollover: top three games bank coins for their maker and a badge.
+  var JAM_PRIZES = [
+    { coins: 150, place: 1 }, { coins: 75, place: 2 }, { coins: 40, place: 3 }
+  ];
+  var jamSettledWeek = null, jamWinners = []; // per-process settle guard.
+  // Pay out one week's winners. Failures are logged, never thrown — the
+  // weekly endpoint must answer even if Supabase hiccups mid-settle.
+  async function settleJam(prevWeek) {
+    if (!prevWeek || jamSettledWeek === prevWeek) return jamWinners;
+    const { data: votes } = await supabase.from('jam_votes').select('game_id, user_id').eq('week_start', prevWeek).limit(5000);
+    if (!votes || !votes.length) { jamSettledWeek = prevWeek; jamWinners = []; return jamWinners; }
+    const tally = {};
+    for (const v of votes) tally[v.game_id] = (tally[v.game_id] || 0) + 1;
+    const top = Object.keys(tally).map(id => ({ id, votes: tally[id] })).sort((a, b) => b.votes - a.votes).slice(0, 3);
+    if (!top.length) { jamSettledWeek = prevWeek; jamWinners = []; return jamWinners; }
+    const { data: rows } = await supabase.from('games')
+      .select('id, title, slug, owner_id, users!owner_id(display_name, user_id)').in('id', top.map(t => t.id));
+    const games = rows || [];
+    jamWinners = [];
+    for (const p of JAM_PRIZES) {
+      const t = top[p.place - 1];
+      const g = games.find(x => x && x.id === t.id);
+      if (!g || !g.owner_id) continue;
+      // Idempotent per (owner, week, place): a redeploy mid-week must not
+      // double-pay checked via the ledger reason, not memory.
+      const reason = 'jam:' + prevWeek + ':' + p.place;
+      const { count: paid } = await supabase.from('coin_ledger')
+        .select('id', { count: 'exact', head: true }).eq('user_id', g.owner_id).eq('reason', reason);
+      if (!paid) {
+        try {
+          await supabase.rpc('grant_coins', { p_user: g.owner_id, p_delta: p.coins, p_reason: reason, p_ref: g.id });
+          await notify(g.owner_id, 'jam', 'Jam place #' + p.place + ': ' + (g.title || 'your game'),
+            'You won +' + p.coins + ' coins in last week\'s game jam.', 'game', g.id);
+        } catch (e) { console.error('jam settle: payout failed:', e && e.message); }
+      }
+      try { await awardUser(g.owner_id, 'jam_champion'); } catch {}
+      jamWinners.push({ place: p.place, game_id: g.id, title: g.title || 'Untitled', slug: g.slug, owner: (g.users && g.users.display_name) || 'Unknown', votes: t.votes });
+    }
+    jamSettledWeek = prevWeek;
+    console.log('jam: settled', prevWeek, '—', jamWinners.length, 'winners');
+    return jamWinners;
+  }
+  // Vote state for one game this week: entry check + tally + viewer's vote.
+  // GET is public — the game page needs it signed out too; absent token
+  // simply reports `voted: false`.
+  const jamVoteMatch = url.pathname === '/api/jam/vote';
+  if (jamVoteMatch && (req.method === 'GET' || req.method === 'POST' || req.method === 'DELETE')) {
+    cors(res);
+    const state = loadWeekly();
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.replace('Bearer ', '');
+    let user = null;
+    if (token) {
+      const { data: { user: u } } = await supabase.auth.getUser(token);
+      user = u || null;
+    }
+    if (req.method !== 'GET') {
+      if (!user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+      if (!(await seatAlive(user.id, seatFromReq(req)))) { seatDead(res); return; }
+      if (!(await needVerified(user, res))) return;
+      if (!rateLimit('jamvote:' + user.id, 30, 3600000)) { res.writeHead(429, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Slow down.' })); return; }
+    }
+    const body = req.method === 'GET' ? null : await readBody(req).catch(() => ({}));
+    const gid = req.method === 'GET' ? String(url.searchParams.get('game_id') || '') : String(body.game_id || '');
+    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
+    const { data: g } = await supabase.from('games').select('published, owner_id, tags').eq('id', gid).single();
+    if (!g || !g.published) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+    const isEntry = Array.isArray(g.tags) && state.theme && g.tags.map(t => String(t).toLowerCase()).includes(state.theme);
+    const { count } = await supabase.from('jam_votes').select('user_id', { count: 'exact', head: true }).eq('week_start', state.week).eq('game_id', gid);
+    const votes = count || 0;
+    let voted = false;
+    if (user) {
+      const { data: mine } = await supabase.from('jam_votes').select('user_id').eq('week_start', state.week).eq('game_id', gid).eq('user_id', user.id).maybeSingle();
+      voted = !!mine;
+    }
+    if (req.method === 'GET') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ week: state.week, theme: state.theme, entry: isEntry, votes, voted })); return; }
+    if (!isEntry) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'This game is not in this week\'s jam.' })); return; }
+    if (g.owner_id === user.id) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'You can\'t vote for your own game.' })); return; }
+    if (req.method === 'POST') {
+      // One vote per person per week: voting for a different game moves the
+      // vote instead of stacking a second one (upsert keyed per game would
+      // otherwise let one user back several entries at once).
+      const { data: prior } = await supabase.from('jam_votes').select('game_id').eq('week_start', state.week).eq('user_id', user.id).maybeSingle();
+      if (prior && prior.game_id && prior.game_id !== gid) {
+        await supabase.from('jam_votes').delete().eq('week_start', state.week).eq('game_id', prior.game_id).eq('user_id', user.id);
+      }
+      await supabase.from('jam_votes').upsert({ week_start: state.week, game_id: gid, user_id: user.id }, { onConflict: 'week_start,game_id,user_id', ignoreDuplicates: true });
+      const { count: now } = await supabase.from('jam_votes').select('user_id', { count: 'exact', head: true }).eq('week_start', state.week).eq('game_id', gid);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, voted: true, votes: now || votes + 1 }));
+    } else {
+      await supabase.from('jam_votes').delete().eq('week_start', state.week).eq('game_id', gid).eq('user_id', user.id);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, voted: false, votes: Math.max(0, votes - 1) }));
+    }
+    return;
+  }
+  // Public standings for the current week: entries ranked by votes. Small:
+  // the vote table stays capped in practice, and the shelf shows the top
+  // slice only.
+  if (url.pathname === '/api/jam' && req.method === 'GET') {
+    cors(res);
+    const state = loadWeekly();
+    const { data: votes } = await supabase.from('jam_votes').select('game_id').eq('week_start', state.week).limit(5000);
+    const tally = {};
+    for (const v of votes || []) tally[v.game_id] = (tally[v.game_id] || 0) + 1;
+    const ids = Object.keys(tally);
+    let games = [];
+    if (ids.length) {
+      const { data: rows } = await supabase.from('games')
+        .select('id, title, slug, thumbnail, owner_id, users!owner_id(display_name, user_id)').eq('published', true).in('id', ids.slice(0, 50));
+      games = (rows || []).map(({ thumbnail, ...x }) => ({ ...x, has_thumb: !!thumbnail, votes: tally[x.id] || 0 }))
+        .sort((a, b) => b.votes - a.votes);
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ week_start: state.week, theme: state.theme, games }));
+    return;
+  }
+
   if (url.pathname === '/api/games/featured' && req.method === 'GET') {
     cors(res);
     const { data, error } = await supabase.from('games')
@@ -995,6 +1122,32 @@ async function handleRequest(req, res) {
     if (error) console.error('featured list error:', error.message);
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     res.end(JSON.stringify({ games: data || [], error: error ? 'Could not load featured games.' : undefined }));
+    return;
+  }
+
+  // ── API: follow feed shelf for the homepage ──────────────────
+  // Recently published games from creators this viewer follows. Distinct
+  // path from the activity feed (/api/feed, §follow/:id area): that one
+  // serves activity lines, this one serves games to browse further.
+  if (url.pathname === '/api/feed/games' && req.method === 'GET') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    const { data: subs } = await supabase.from('follows').select('followed_id').eq('follower_id', user.id);
+    const ids = [...new Set((subs || []).map(s => s.followed_id))];
+    if (!ids.length) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ games: [], following: 0 }));
+      return;
+    }
+    // Same shape the gallery ships (thumbnails stripped, has_thumb flag):
+    // the shelf cards are built by the same code as the picks row.
+    const { data, error } = await supabase.from('games')
+      .select('id, title, description, credits, thumbnail, tags, play_count, owner_id, forked_from, forked_from_title, created_at, updated_at, users!owner_id(display_name, user_id, avatar_url)')
+      .in('owner_id', ids.slice(0, 200)).eq('published', true)
+      .order('created_at', { ascending: false }).limit(12);
+    if (error) console.error('feed list error:', error.message);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ games: (data || []).map(({ thumbnail, ...g }) => ({ ...g, has_thumb: !!thumbnail })), following: ids.length }));
     return;
   }
 

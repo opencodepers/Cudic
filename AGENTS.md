@@ -202,6 +202,13 @@ GET|PUT|DELETE /api/saves/:gameId  ← account-bound saves (100KB cap)
 POST /api/scratch/import           ← .sb3 / Scratch URL → split player files
 POST/DELETE /api/follow/:id        ← one-way follow (30/h). GET /api/feed (me+followed, 60)
 GET  /api/badges                   ← public award catalog + equip caps
+GET  /api/feed/games               ← follow feed SHELF: newest published games by
+                                    who this viewer follows (distinct from /api/feed)
+GET  /api/jam                      ← PUBLIC jam standings for this week
+GET|POST|DELETE /api/jam/vote      ← vote state / vote / unvote; one vote per
+                                    account per week — a second vote MOVES it
+                                    (prior row is deleted first); votes live
+                                    in `jam_votes` (migration/jam-votes.sql)
 GET  /api/friends                  ← also returns `following`/`followers` lists
 GET  /api/notifications            ← per-user inbox; POST /api/notifications/read marks all
 GET  /api/mod/*                    ← mod-only: users search, user-awards, grant/revoke, message, ban/unban/bans
@@ -740,6 +747,27 @@ and returns 4 files Studio drops into the workspace: `index.html` (player shell)
   (mod-only, exists since the featured-games migration) — the button on
   `/view.html?id=…` shows only when `/api/profile` reports `is_moderator`.
 - Mod membership is by account (auth UUID), never by display name.
+
+### Game jams (weekly)
+- `GET /api/jam` (public): this week's standings — `theme` plus the ranked
+  published games that carry votes; cards ship `has_thumb`, never the data
+  URL (same shape as the gallery list).
+- Votes are rows in `jam_votes` (PK `(week_start, game_id, user_id)`,
+  RLS-closed — server-only, like `game_scores`; migration/jam-votes.sql).
+- `GET|POST|DELETE /api/jam/vote {game_id}`: GET is public (the game page
+  needs the pill signed out too); POST/DELETE are auth + verified +
+  seat-checked + rate-limited. **One vote per account per week**: POSTing
+  for a different game deletes the prior row, it never stacks. Entry check:
+  the game must be published and its `tags` must include the current theme;
+  self-voting is 400'd.
+- **Monday rollover** settles lazily: `settleJam(prevWeek)` runs on the
+  first `/api/weekly` call of a new week, pays the top-3 by vote count
+  (150/75/40 coins via `grant_coins`), grants the `jam_champion` badge,
+  and notifies each maker. Double-pays are blocked by the ledger `reason`
+  (`jam:<week>:<place>`), not by memory — a redeploy mid-settle is safe.
+  `GET /api/weekly` always ships `jam.winners` (the in-memory settle result)
+  for the homepage spotlight; settle failures are logged and never stall
+  the response.
 
 ### Thumbnails
 `games.thumbnail` (text, data-URL) — column, PUT field, and both `/api/games`
