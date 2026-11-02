@@ -769,12 +769,22 @@ and returns 4 files Studio drops into the workspace: `index.html` (player shell)
   for the homepage spotlight; settle failures are logged and never stall
   the response.
 
-### Thumbnails
+### Thumbnails & share cards
 `games.thumbnail` (text, data-URL) — column, PUT field, and both `/api/games`
 list endpoints already supported it; **only Studio lacked a control**.
 `glox.setThumbnail` offers Upload / Capture-from-preview / Remove → `PUT`.
 - Gallery card renders card art from `GET /api/games/:id/thumbnail` (fallback: cube SVG). The list endpoints (`/api/games`, `/api/games/mine`, `/api/games/liked`) send `has_thumb`, never the data URL — one 266KB list became 4KB. Single-game GETs still carry `thumbnail`.
 - Images are downscaled to ≤1000px JPEG before saving (keeps rows small).
+- **Share cards on the normal play link**: `/g/:id` is the SSR page for
+  scrapers, but users copy `/view.html?id=…` from the address bar — so the
+  static-file server runs `decorateViewHead(req, url, data)` on that page
+  and rewrites `<title>` + og/twitter/description meta per game (title,
+  description slug, card image `…/g/<slug>/thumb`, canonical
+  `/view.html?id=<id>`). 60s module cache (`viewOgCache`) so unfurl bursts
+  don't query Supabase per hit. Best-effort by design: unknown id,
+  unpublished game, or any error inside the rewrite just serves the file
+  with the generic card. width/height are only removed when the real
+  thumbnail ships (og.png really is 1200×630; user art is not).
 - **Capture is best-effort**: the preview iframe is `sandbox="allow-scripts"`
   (opaque origin) so the parent can't read it. Instead `mount()` appends
   `CAPTURE_SNIPPET`, which rasterizes its own DOM via SVG `foreignObject` and

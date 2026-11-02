@@ -8,6 +8,19 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Real share cards on the play link** (uncommitted)
+
+- Sharing `/view.html?id=…` — the URL people copy from the address bar — used
+  to unfurl with one generic Cudic card everywhere (`og.png`, static title).
+  The static-file server now rewrites that page's head per game at serve
+  time (`decorateViewHead` in server.js): real title + " by <creator>" in
+  `<title>`, the game's description in og/twitter/description tags, and the
+  game's card art via the stable `/g/<slug>/thumb` share URL when it has a
+  thumbnail. No-thumbnail games keep the generic card (and honest 1200×630
+  dimensions). Cached 60s per game so unfurl bursts don't hammer Supabase;
+  unpublished or unknown games serve the file untouched. /g/:id remains for
+  slug shares and scrapers.
+
 **Weekly game jam + follow-feed shelf on the homepage** (uncommitted)
 
 - **Game jams**: the weekly build theme now doubles as a jam. Signed-in
