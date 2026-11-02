@@ -1,4 +1,4 @@
-﻿CREATE TABLE IF NOT EXISTS public.lobbies (
+CREATE TABLE IF NOT EXISTS public.lobbies (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   name text NOT NULL,
   created_by uuid,
