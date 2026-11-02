@@ -8,6 +8,26 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**AI playtester — /review before publishing** (uncommitted)
+
+- New slash command in the Cudic AI panel: `/review` seeds a playtester task
+  — boot the game with `run_preview()`, read its runtime errors through the
+  new `get_preview_errors()` tool, read the entry file for context, then
+  reply with a checklist only (runtime errors with file+line, broken
+  file/asset references, controls wired to nothing, save flow) ending in a
+  "ready to publish" / "fix first" verdict. The prompt forbids file edits —
+  review is a report, not a rewrite.
+- The errors feed is new plumbing in glox.ts: CAPTURE_SNIPPET (injected in
+  every preview frame) forwards `error`, `unhandledrejection` and
+  `console.error` up over the existing capture postMessage channel
+  (`cudic:'perr'`); the host keeps a 20-entry buffer that `mount()` drains
+  on every frame reload, so `get_preview_errors` always reports exactly the
+  current run. Tool is agent/edit mode + openai-chat providers, like the
+  rest of the toolbox.
+- Studio build verified (`npm run build`); regression pins in
+  `PlaytesterReview` (test_regressions.py) cover the command, the frame→host
+  pipeline and the tool registration; docs.html, AGENTS.md, changelog.
+
 **Login streak** (uncommitted)
 
 - Every day your seat claims or heartbeats (i.e. any signed-in visit) counts

@@ -30,7 +30,7 @@ import { streamChat, fetchModels, friendlyError, suggestModels, ChatMessage, Too
 // Agent tools reach outside the panel: gloxRun (opens/reloads the preview
 // pane) and createSnapshot(true) (headless project checkpoint). Neither
 // imports this module, so no cycle.
-import { gloxRun } from '../glox';
+import { gloxRun, drainPreviewErrors } from '../glox';
 import { createSnapshot } from '../revisions';
 import { SKILLS } from './skills';
 // MCP: external tool servers (Streamable HTTP). Catalogs are cached in-module
@@ -220,6 +220,7 @@ function systemPrompt(
       '- search_project(query): regex search; results are path:line: text.\n' +
       '- delete_file(path) / rename_file(from, to): caret work. Deleting or renaming the project\'s only HTML entry point is blocked server-side — rewrite its contents instead.\n' +
       '- run_preview(): opens/reloads the Cudic Preview pane. Call it after your last edit so the user sees the result.\n' +
+      '- get_preview_errors(): the runtime errors the current Preview run threw (uncaught errors, unhandled rejections, console.error). Call right after run_preview() when playtesting.\n' +
       '- snapshot(label): checkpoints the whole project headless. Call it BEFORE deleting or rewriting several files — the user can restore it.\n' +
       '- ask_user(question, options): one card the user clicks; use sparingly for real design branches (theme, mechanics), never for trivia.\n' +
       'Work like an agent: list/search before you edit, one file at a time with complete content, snapshot before mass rewrites, run_preview when finished, then summarize what changed in 2-3 lines. Tell the user to save their project afterwards. Use fences only when the user wants to review before applying.';
@@ -300,6 +301,11 @@ const TOOL_DEFS: ToolDef[] = [
   {
     name: 'run_preview',
     description: 'Open or reload the Cudic Preview pane with the active game file. Call this after file edits so the user can see (and you can assume) the game runs.',
+    parameters: { type: 'object', properties: {} }
+  },
+  {
+    name: 'get_preview_errors',
+    description: 'Playtester feed: returns the runtime errors thrown since the current Preview run began (uncaught errors, unhandled promise rejections, console.error). Call run_preview first when you need a fresh boot, then this to read what it said.',
     parameters: { type: 'object', properties: {} }
   },
   {
@@ -385,6 +391,16 @@ async function runTool(call: ToolCall): Promise<{ ok: boolean; summary: string; 
     if (call.name === 'run_preview') {
       await gloxRun();
       return { ok: true, summary: 'preview opened/reloaded', payload: JSON.stringify({ ok: true }) };
+    }
+    if (call.name === 'get_preview_errors') {
+      await gloxRun(); // observe the freshest build, not a stale frame
+      await new Promise<void>((r) => setTimeout(r, 1500)); // let the boot speak
+      const errs = drainPreviewErrors();
+      return {
+        ok: true,
+        summary: errs.length ? errs.length + ' runtime error(s) since boot' : 'no runtime errors since boot',
+        payload: JSON.stringify({ errors: errs })
+      };
     }
     if (call.name === 'snapshot') {
       const label = String(args.label ?? '').slice(0, 80);

@@ -935,8 +935,18 @@ button:disabled { opacity: 0.35; cursor: default; }
     { cmd: '/connect', blurb: 'connect a provider you haven\'t yet' },
     { cmd: '/session', blurb: 'switch · create · rename sessions' },
     { cmd: '/mcp', blurb: 'manage mcp tool servers' },
+    { cmd: '/review', blurb: 'play-test the game, report a checklist' },
     { cmd: '/clear', blurb: 'clear chat' }
   ];
+  /* /review seeds a playtester task: run the game, read its runtime errors
+     through get_preview_errors, then report a checklist without editing
+     anything. Full loop rides the normal agent machinery in extension.ts. */
+  var REVIEW_PROMPT =
+    'Playtest review before publishing — run the game and report what breaks. Do NOT change any files.\n' +
+    '1. run_preview() to boot the current project.\n' +
+    '2. get_preview_errors() and read the runtime errors (uncaught errors, unhandled rejections, console.error).\n' +
+    '3. read_file() the entry file and any modules it imports so error lines make sense.\n' +
+    '4. Reply with a checklist only: runtime errors (file + line when known) · broken file/asset references · controls or buttons wired to nothing · save flow (does it call window.CudicSave) · verdict: "ready to publish" or "fix first", with the 1-3 most important fixes.';
   function slashMatch() {
     var v = q.value;
     if (v.charAt(0) !== '/') return null;
@@ -974,7 +984,8 @@ button:disabled { opacity: 0.35; cursor: default; }
       return true;
     }
     if (cmd === '/mcp') { openMcpScreen(); return true; }
-    if (cmd === '/status') { sysline(modelName() + ' · mode ' + modeSafe(SETTINGS.mode) + ' · tools ' + ['save_file','read_file','list_files','search_project','rename_file','delete_file','run_preview','snapshot','ask_user'].length + (mcpServersExtract().length ? ' +' + mcpServersExtract().length + ' mcp' : '') + ' · session ' + sessLabelOf(activeSession) + ' · ' + history.length + ' msgs' + (sessionsMeta.length > 1 ? ' (' + sessionsMeta.length + ' total)' : '') + ' · cudic login ' + (hasSupa ? 'yes — sessions sync' : 'no') ); return true; }
+    if (cmd === '/review') { if (!streaming) { q.value = REVIEW_PROMPT; send(); } return true; }
+    if (cmd === '/status') { sysline(modelName() + ' · mode ' + modeSafe(SETTINGS.mode) + ' · tools ' + ['save_file','read_file','list_files','search_project','rename_file','delete_file','run_preview','get_preview_errors','snapshot','ask_user'].length + (mcpServersExtract().length ? ' +' + mcpServersExtract().length + ' mcp' : '') + ' · session ' + sessLabelOf(activeSession) + ' · ' + history.length + ' msgs' + (sessionsMeta.length > 1 ? ' (' + sessionsMeta.length + ' total)' : '') + ' · cudic login ' + (hasSupa ? 'yes — sessions sync' : 'no') ); return true; }
     if (cmd === '/help') {
       sysline('commands — ' + SLASH.map(function (s) { return s.cmd + ' (' + s.blurb + ')'; }).join(' · '));
       return true;

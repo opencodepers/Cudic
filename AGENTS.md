@@ -463,11 +463,25 @@ rounds until the model stops calling tools. Tools: `save_file`, `read_file`,
 `rename_file`, `run_preview` (→ `gloxRun()` from glox.ts — no import cycle,
 glox never imports cudic-ai; when no Preview tab exists it opens one itself
 via `ensurePreviewPanes()` instead of erroring — used to be a toast telling
-the user to reopen the preview), `snapshot` (→ `revisions.createSnapshot(true,
+the user to reopen the preview), `get_preview_errors` (→ glox.ts
+`drainPreviewErrors()` — runtime errors thrown since the last Preview run:
+uncaught errors, unhandled rejections and console.error posted up from the
+sandboxed frame by the CAPTURE_SNIPPET `cudic:'perr'` channel; `mount()`
+drains the buffer on every reload so the feed is always "this run"),
+`snapshot` (→ `revisions.createSnapshot(true,
 label)` headless), `ask_user` (posts `ai:ask`, awaits `askResolvers`, 120s
 timeout fallback string). Deletes are guarded: never `package-lock.json`,
 never the project's last HTML entry. Modes cycle in chat via `/mode`
 (ask → edit → agent); `ask` sends no tools, `edit` gets file-write tools only.
+
+### AI playtester (/review)
+`/review` in the panel seeds a fixed playtester prompt (`REVIEW_PROMPT` in
+chat.html): `run_preview()` → `get_preview_errors()` → read the entry file →
+reply with a checklist only (runtime errors, broken references, controls
+wired to nothing, save flow, verdict "ready to publish" / "fix first"). It
+edits nothing — the prompt forbids file changes. The whole loop rides the
+normal agent machinery (12 tool rounds); works only for providers with the
+openai-chat tool format in agent/edit mode, same as the other tools.
 
 Multi-session chat (`/session` screen): transcripts are host-side —
 `AiSettings.sessions` (capped 20, `msg {q,a}` pairs) plus `activeSession`. The

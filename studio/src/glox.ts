@@ -444,6 +444,12 @@ const CAPTURE_SNIPPET = [
   '<scr' + 'ipt>(function(){',
   'function send(m){parent.postMessage(m,"*")}',
   'function fail(e){send({cudic:"cap",ok:false,error:String(e)})}',
+  // Playtester feed (/review): frames are sandboxed + opaque, so runtime
+  // errors must be posted up, not read. Same transport as the capture chip.
+  'function perr(t){try{send({cudic:"perr",text:String(t).slice(0,300)})}catch(x){}}',
+  'window.addEventListener("error",function(e){perr((e&&e.message)||(e&&e.error)||e)});',
+  'window.addEventListener("unhandledrejection",function(e){var r=e&&e.reason;perr(typeof r==="string"?r:(r&&r.message)||String(r))});',
+  'var _ce=console.error;console.error=function(){try{perr([].slice.call(arguments).map(function(a){return typeof a==="string"?a:(a&&a.message)||String(a)}).join(" "))}catch(x){}_ce.apply(console,arguments)};',
   'window.addEventListener("message",function(e){',
   'var d=e.data;if(!d||d.cudic!=="capture")return;',
   'try{',
@@ -507,6 +513,23 @@ function capturePreviewThumbnail(): Promise<{ data: string } | { error: string }
     frame.contentWindow?.postMessage({ cudic: 'capture' }, '*');
   });
 }
+
+// ── Runtime-error buffer (the /review playtester's evidence) ─────
+// The list always reads "errors since the last Preview run": mount()
+// drains it when it mounts a fresh frame, so a reload starts a clean page.
+const previewErrs: string[] = [];
+export function drainPreviewErrors(): string[] {
+  return previewErrs.splice(0, previewErrs.length);
+}
+window.addEventListener('message', (e: MessageEvent) => {
+  if (!PreviewPane.livePanes().some((p) => p.frameEl()?.contentWindow === e.source)) return;
+  const d = e.data as { cudic?: string; text?: string } | null;
+  if (d == null || d.cudic !== 'perr' || typeof d.text !== 'string' || !d.text.trim()) return;
+  const text = d.text.trim().slice(0, 300);
+  if (previewErrs[previewErrs.length - 1] === text) return; // noisy repeat
+  if (previewErrs.length >= 20) previewErrs.splice(0, previewErrs.length - 19);
+  previewErrs.push(text);
+});
 
 // ---- CudicMulti host for the preview (twin of public/view.html) -----------
 // The preview frame is sandboxed, so a game inside it holds neither the socket
@@ -676,6 +699,7 @@ class PreviewPane extends SimpleEditorPane {
     if (this.slot == null) return;
     registerPreviewMulti(); // multiplayer in the preview: see the note above
     registerPreviewSave(); // saves in the preview: see the note above
+    drainPreviewErrors(); // a fresh run starts with a clean error sheet
     const fresh = document.createElement('iframe');
     fresh.setAttribute('sandbox', 'allow-scripts');
     fresh.style.cssText = 'flex:1;width:100%;border:none;background:#fff;';
