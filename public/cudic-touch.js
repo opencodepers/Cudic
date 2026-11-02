@@ -1,10 +1,11 @@
 /* CudicTouch — on-screen controls for phones, one script tag.
  *
- *   <script src="/cudic-touch.js?v=1" data-cudic-touch="auto"></script>
- *      (customize: data-cudic-touch="auto:A=Space,B=z,D=arrows,dpad=false")
+ *   <script src="/cudic-touch.js?v=2" data-cudic-touch="auto"></script>
+ *      (customize: data-cudic-touch="auto:A=Space,B=z,D=arrows,J=on,dpad=false")
  *
  *   var t = CudicTouch.auto();   // mounts only on touch-first devices
- *   CudicTouch.mount({ keys:'wasd', buttons:[{ key:'Space', label:'JUMP' }] });
+ *   CudicTouch.mount({ keys:'wasd', joystick:true,
+ *                      buttons:[{ key:'Space', label:'JUMP' }] });
  *   CudicTouch.hide(); CudicTouch.show(); CudicTouch.unmount();
  *   CudicTouch.mounted;  CudicTouch.version;
  *
@@ -16,7 +17,13 @@
  *
  * The D-pad is one 3x3 cluster whose corners are real multitouch zones:
  * pressing two adjacent directions yields a diagonal without dead spots.
- * Style: pixel squares, brand palette (lime action button, ink dpad),
+ * Joystick mode (J=on, or { joystick: true }) swaps the cluster for a
+ * drag-anywhere stick: hold it anywhere in the base, drag to steer, and
+ * 8 compass sectors map to key pairs so diagonals are first-class. Both
+ * keep working when the finger drifts or leaves the base — the stick
+ * re-centers and releases the keys on pointerup/leave, never leaving a
+ * key stuck down.
+ * Style: pixel squares, brand palette (lime action button, ink pad),
  * ~45% idle opacity, short vibrate on press where the phone allows it.
  */
 (function () {
@@ -136,12 +143,86 @@
     return pad;
   }
 
+  // ── Joystick: drag-anywhere stick, 8 compass sectors → key pairs ──
+  var stickHeld = {};
+  function stickApply(want) {
+    Object.keys(stickHeld).forEach(function (k) {
+      if (stickHeld[k] && want.indexOf(k) === -1) { stickHeld[k] = false; dispatch(k, false); }
+    });
+    want.forEach(function (k) {
+      if (!stickHeld[k]) { stickHeld[k] = true; dispatch(k, true); }
+    });
+  }
+  // Sector round(angle/45°): ±0 right, ±1 diagonal, ±2 vertical, ±4 left.
+  function wantKeys(s, map) {
+    switch (s) {
+      case 0: return [map.right];
+      case 1: return [map.up, map.right];
+      case 2: return [map.up];
+      case 3: return [map.up, map.left];
+      case 4: case -4: return [map.left];
+      case -1: return [map.down, map.right];
+      case -2: return [map.down];
+      case -3: return [map.down, map.left];
+    }
+    return [];
+  }
+  function buildStick(map) {
+    var R = size * 1.35, K = size * 0.7;
+    var base = document.createElement('div');
+    base.setAttribute('aria-label', 'touch joystick');
+    base.style.cssText = styleBtn('position:relative') + ';width:' + R + 'px;height:' + R + 'px;border-color:#b8f23a;color:currentColor';
+    // static hint arrows on the four mid-edges, tiny and dim
+    [['up', R / 2 - 11, 6], ['down', R / 2 - 11, R - 28], ['left', 6, R / 2 - 11], ['right', R - 28, R / 2 - 11]].forEach(function (h) {
+      var hint = document.createElement('div');
+      hint.style.cssText = 'position:absolute;left:' + h[1] + 'px;top:' + h[2] + 'px;color:currentColor;opacity:.35;pointer-events:none';
+      hint.innerHTML = icon(h[0]);
+      base.appendChild(hint);
+    });
+    var knob = document.createElement('div');
+    knob.style.cssText = 'position:absolute;left:' + ((R - K) / 2) + 'px;top:' + ((R - K) / 2) + 'px;width:' + K + 'px;height:' + K + 'px;box-sizing:border-box;border:2px solid #b8f23a;background:rgba(184,242,58,.25);transition:transform .07s steps(2);pointer-events:none';
+    base.appendChild(knob);
+    var grabbed = false;
+    function apply(e) {
+      var r = base.getBoundingClientRect();
+      var dx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2);
+      var dy = (e.clientY - (r.top + r.height / 2)) / (r.height / 2);
+      var mag = Math.hypot(dx, dy);
+      var px = Math.max(-0.62, Math.min(0.62, dx)) * (R - K);
+      var py = Math.max(-0.62, Math.min(0.62, dy)) * (R - K);
+      knob.style.transform = 'translate(' + Math.round(px) + 'px,' + Math.round(py) + 'px)';
+      if (mag < 0.28) stickApply([]);
+      else stickApply(wantKeys(Math.round(Math.atan2(-dy, dx) / (Math.PI / 4)), map));
+    }
+    function recentre() {
+      grabbed = false;
+      base.style.opacity = '';
+      knob.style.transform = '';
+      stickApply([]);
+    }
+    base.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    base.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      try { base.setPointerCapture(e.pointerId); } catch (err) {}
+      grabbed = true;
+      base.style.opacity = '.92';
+      buzz();
+      apply(e);
+    });
+    base.addEventListener('pointermove', function (e) { if (grabbed) apply(e); });
+    base.addEventListener('pointerup', function (e) { e.preventDefault(); recentre(); });
+    base.addEventListener('pointercancel', function () { recentre(); });
+    base.addEventListener('lostpointercapture', function () { if (grabbed) recentre(); });
+    return base;
+  }
+
   function layout(opts) {
     unmount();
     root = document.createElement('div');
     root.setAttribute('data-cudic-touch', 'on');
     root.style.cssText = 'position:fixed;left:0;right:0;bottom:0;padding:0 18px calc(14px + env(safe-area-inset-bottom,0px));display:flex;justify-content:space-between;align-items:flex-end;gap:12px;z-index:2147483000;pointer-events:none;user-select:none;-webkit-user-select:none';
-    if (opts.dpad !== false) root.appendChild(buildDpad(KEYMAPS[opts.keys] || KEYMAPS.arrows));
+    if (opts.joystick) root.appendChild(buildStick(KEYMAPS[opts.keys] || KEYMAPS.arrows));
+    else if (opts.dpad !== false) root.appendChild(buildDpad(KEYMAPS[opts.keys] || KEYMAPS.arrows));
     var col = document.createElement('div');
     col.style.cssText = 'display:flex;gap:14px;align-items:flex-end;flex:1;justify-content:flex-end;pointer-events:none';
     (opts.buttons || []).forEach(function (c) { col.appendChild(buildBtn(c)); });
@@ -153,7 +234,8 @@
   function unmount() {
     if (root && root.parentNode) root.parentNode.removeChild(root);
     Object.keys(held).forEach(function (k) { if (held[k]) dispatch(k, false); });
-    held = {}; root = null;
+    Object.keys(stickHeld).forEach(function (k) { if (stickHeld[k]) dispatch(k, false); });
+    held = {}; stickHeld = {}; root = null;
   }
 
   function auto(spec) {
@@ -180,6 +262,7 @@
       var v = kv.slice(1).join('=').trim();
       if (k === 'd') o.keys = v.toLowerCase();
       else if (k === 'dpad') o.dpad = v !== 'false';
+      else if (k === 'j') o.joystick = v !== 'off' && v !== 'false';
       else {
         // "A=Space" → a button whose label is the token before '=' and
         // whose key is what follows. First button lime, later ones blue.
@@ -196,7 +279,7 @@
     hide: function () { if (root) root.style.display = 'none'; return !!root; },
     unmount: unmount,
     get mounted() { return !!root; },
-    version: 1
+    version: 2
   };
 
   // Self-boot: <script ... data-cudic-touch="auto"> mounts with defaults on

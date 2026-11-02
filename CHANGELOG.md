@@ -8,6 +8,25 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Joystick mode for CudicTouch (`J=on` / `{ joystick: true }`, version 2)**
+
+- `CudicTouch` can now swap the D-pad cluster for a drag-anywhere analog-
+  feel joystick: press anywhere in the square base and steer — the knob
+  follows in clamped steps and the 8 compass sectors emit the right key
+  pairs, so diagonals (up-right etc.) are first-class press combinations,
+  not lucky multitouch.
+- Key safety built in: a dead zone at the centre releases all direction
+  keys, crossing sectors releases exactly the keys that dropped out of
+  the pair (verified: left→down releases ArrowLeft before ArrowDown),
+  pointerup/leave re-centres and releases everything, and `unmount()`
+  flushes held stick keys too — a keyboard-driven game never sees a key
+  stick down.
+- Same key contract as the D-pad (document-level `keydown`/`keyup` with
+  `key`, `code`, legacy `keyCode`/`which`), same pixel styling with lime
+  knob/hints. Usage: `data-cudic-touch="auto:J=on"` on the script tag,
+  or `CudicTouch.mount({ joystick: true })`. Version bumps to 2; docs,
+  cookbook guide and example tags updated.
+
 **On-screen touch controls for games (`CudicTouch`, `cudic-touch.js`)**
 
 - The #1 reason players bounce off game links on phones is missing keys.
