@@ -5788,6 +5788,141 @@ setInterval(() => {
   sendLobbyListToAll();
 }, 5000);
 
+// ── Weekly digest email (Monday, verified users) ─────────────
+// One email a week: this week's build theme, last week's jam winners, and
+// up to 3 newest games from creators the reader follows (the follow-shelf
+// data, in your inbox). Recipients = confirmed accounts only, page-scanned
+// from auth like purgeUnconfirmed below. Nothing here mutates game state:
+// the winner tally is only ever read — settleJam's payouts stay untouched.
+// The "already sent this week" marker is digest.json (same file trick as
+// weekly.json), so a redeploy re-runs the job but cannot re-send the week.
+const DIGEST_FILE = path.join(__dirname, 'digest.json');
+function digestWeekStart(d) {
+  // Monday 00:00 UTC of the week containing d — same rule as weekStartISO.
+  const t = d ? new Date(d) : new Date();
+  const day = (t.getUTCDay() + 6) % 7;
+  t.setUTCDate(t.getUTCDate() - day);
+  t.setUTCHours(0, 0, 0, 0);
+  return t.toISOString().slice(0, 10);
+}
+function mailTransportReady() {
+  return !!(process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET && process.env.GMAIL_REFRESH_TOKEN && process.env.GMAIL_SENDER) ||
+    !!process.env.RESEND_API_KEY || !!process.env.BREVO_API_KEY;
+}
+async function sendDigestMail(email, subject, html) {
+  const gErr = await sendViaGmail(email, subject, html);
+  if (!gErr) return null;
+  if (gErr.message !== 'gmail not configured') console.error('Digest gmail error:', gErr.message);
+  if (resend) {
+    try {
+      const { error } = await resend.emails.send({
+        from: process.env.RESEND_FROM || 'Cudic <onboarding@resend.dev>',
+        to: email, subject, html,
+      });
+      if (!error) return null;
+      console.error('Digest resend error:', error);
+    } catch (e) { console.error('Digest resend error:', (e && e.message) || e); }
+  }
+  if (process.env.BREVO_API_KEY) {
+    try {
+      const r = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'accept': 'application/json', 'content-type': 'application/json', 'api-key': process.env.BREVO_API_KEY },
+        body: JSON.stringify({
+          sender: { name: 'Cudic', email: process.env.BREVO_SENDER || 'cudic.codes@outlook.com' },
+          to: [{ email: email }],
+          subject: subject,
+          htmlContent: html,
+        }),
+      });
+      if (r.ok) return null;
+      try { console.error('Digest brevo error:', r.status, await r.text()); } catch (e) { console.error('Digest brevo error:', r.status); }
+    } catch (e) { console.error('Digest brevo error:', (e && e.message) || e); }
+  }
+  return new Error('mail unavailable');
+}
+async function weeklyDigest() {
+  const week = digestWeekStart();
+  const prevWeek = digestWeekStart(new Date(Date.now() - 7 * 86400000));
+  let state = null;
+  try { state = JSON.parse(fs.readFileSync(DIGEST_FILE, 'utf8')); } catch {}
+  if (state && state.week === week) return; // this week already went out
+  if (!mailTransportReady()) return; // wait until mail exists; retry next tick
+  // This week's theme lives in weekly.json; may still be last week's file
+  // if nobody has hit /api/weekly yet this week — fine for a digest.
+  let theme = '';
+  try { const w = JSON.parse(fs.readFileSync(path.join(__dirname, 'weekly.json'), 'utf8')); if (w && w.theme) theme = String(w.theme); } catch {}
+  // Read-only winner tally for last week (payouts stay in settleJam).
+  const winners = [];
+  try {
+    const { data: votes } = await supabase.from('jam_votes').select('game_id, user_id').eq('week_start', prevWeek).limit(5000);
+    if (votes && votes.length) {
+      const tally = {};
+      for (const v of votes) tally[v.game_id] = (tally[v.game_id] || 0) + 1;
+      const top = Object.keys(tally).map(id => ({ id, votes: tally[id] })).sort((a, b) => b.votes - a.votes).slice(0, 3);
+      const { data: rows } = await supabase.from('games')
+        .select('id, title, slug, owner_id, users!owner_id(display_name, user_id)').in('id', top.map(t => t.id));
+      const games = rows || [];
+      for (const t of top) {
+        const g = games.find(x => x && x.id === t.id);
+        if (g) winners.push({ title: g.title || 'Untitled', owner: (g.users && g.users.display_name) || 'Unknown', votes: t.votes });
+      }
+    }
+  } catch (e) { console.error('digest winners:', e && e.message); }
+  let sent = 0, skipped = 0;
+  try {
+    for (let page = 1; page <= 8; page++) { // 8×100 = 500 accounts/run cap
+      const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 100 });
+      if (error) break;
+      const batch = (data && data.users) || [];
+      if (!batch.length) break;
+      for (const u of batch) {
+        if (!u || !u.email || userUnconfirmed(u)) continue;
+        // Three newest published games from creators this reader follows.
+        let picks = [];
+        try {
+          const { data: fw } = await supabase.from('follows').select('followed_id').eq('follower_id', u.id).limit(200);
+          const ids = (fw || []).map(f => f.followed_id);
+          if (ids.length) {
+            const { data: gs } = await supabase.from('games')
+              .select('id, title, slug, users!owner_id(display_name)')
+              .in('owner_id', ids).eq('published', true)
+              .order('created_at', { ascending: false }).limit(3);
+            picks = gs || [];
+          }
+        } catch (e) { console.error('digest picks:', e && e.message); }
+        const rows = [];
+        if (theme) rows.push('<p style="font-size:15px;margin:0 0 12px">This week\'s jam theme: <b style="text-transform:capitalize">' + theme.replace(/[<>&]/g, '') + '</b> — one week to build something around it.</p>');
+        if (winners.length) {
+          rows.push('<p style="font-size:13px;color:#5C5878;margin:0 0 6px">Last week\'s jam winners</p>');
+          winners.forEach((w, i) => rows.push('<p style="font-size:14px;margin:0 0 4px">#' + (i + 1) + ' ' + String(w.title).replace(/[<>&]/g, '') + ' by ' + String(w.owner).replace(/[<>&]/g, '') + ' (' + w.votes + ')</p>'));
+        }
+        if (picks.length) {
+          rows.push('<p style="font-size:13px;color:#5C5878;margin:10px 0 6px">New from creators you follow</p>');
+          picks.forEach(g => rows.push('<p style="font-size:14px;margin:0 0 4px">' + String(g.title || 'A new game').replace(/[<>&]/g, '') + (' by ' + ((g.users && g.users.display_name) || 'someone')) + '</p>'));
+        }
+        if (!rows.length) rows.push('<p style="font-size:14px;margin:0">A quiet week — maybe yours to change. The Cudic Studio is one click away.</p>');
+        const html =
+          '<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:28px 24px;background:#FFFFFF;color:#2E2A4B;border-radius:16px;border:1px solid #C9D5F0">' +
+          '<h1 style="font-size:22px;margin:0 0 4px">cudic<span style="color:#774DCB;">.</span> weekly</h1>' +
+          '<p style="font-size:12px;color:#9C97B8;margin:0 0 18px">Week of ' + week + '</p>' +
+          rows.join('') +
+          '<p style="font-size:12px;color:#9C97B8;margin-top:18px">You get this because you verified your email at Cudic — one a week, that\'s all.</p>' +
+          '</div>';
+        const err = await sendDigestMail(u.email, 'Cudic weekly: ' + (theme ? theme : 'new week') + (winners.length ? ' + jam winners' : ''), html);
+        if (err) { skipped++; } else { sent++; }
+        await new Promise(r => setTimeout(r, 250)); // gentle on the transports
+      }
+      if (batch.length < 100) break;
+    }
+  } catch (e) { console.error('digest run:', (e && e.message) || e); }
+  try { fs.writeFileSync(DIGEST_FILE, JSON.stringify({ week, sent_at: new Date().toISOString(), sent, skipped }, null, 2)); }
+  catch (e) { console.warn('digest: could not persist state:', e.message); }
+  console.log('digest: week', week, '— sent', sent, 'skipped', skipped);
+}
+setInterval(weeklyDigest, 30 * 60 * 1000); // half-hourly check, sends once per week
+setTimeout(weeklyDigest, 3 * 60 * 1000); // first check 3 min after start
+
 // ── Purge: delete email accounts that never confirmed (24h grace) ──
 // Drive-by signups vanish instead of rotting in the user list. Reuses
 // userUnconfirmed(), so GitHub OAuth + pre-code accounts are exempt by

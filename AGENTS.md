@@ -287,6 +287,17 @@ the server can't tell tabs apart; only the leader beats. Seat travels as
 (RLS locked, service key only). Tested end-to-end (20 checks, temp user,
 cleaned up) — see `/api/session/claim|heartbeat` + `seatAlive()`.
 
+### Weekly digest email (Monday, verified accounts)
+Module-level `weeklyDigest()` near the purge job: half-hourly interval,
+sends once per week (marker = `digest.json`, same file trick as
+`weekly.json`). Waits for a configured transport (GMAIL_* / RESEND_API_KEY /
+BREVO_API_KEY) before spending the week — no config, no send, no marker.
+Content: current jam theme (from weekly.json), last week's winner tally
+(READ-ONLY `jam_votes` scan — payouts stay in settleJam), and up to 3
+newest published games from creators the reader follows. Recipients:
+confirmed auth accounts only (`userUnconfirmed` filter), 8×100 page cap,
+250 ms between sends. Tests: `WeeklyDigestEmail` in test_regressions.py.
+
 ### Daily login streak (rides the session beats, no new endpoints)
 `rollStreak(user.id)` fires on both `/api/session/claim` and
 `/api/session/heartbeat`. UTC day; `last_active_day === today` no-ops, the

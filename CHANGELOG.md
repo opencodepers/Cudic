@@ -8,6 +8,22 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Weekly digest email** (uncommitted)
+
+- Verified accounts get one email every Monday: the current jam theme,
+  last week's winner tally, and up to 3 newest published games from
+  creators they follow (the follow-shelf data, in your inbox).
+- `weeklyDigest()` in server.js — module-level job next to the purge job,
+  half-hourly interval, once-per-week marker in `digest.json` so a
+  redeploy cannot re-send the week. waits for a configured mail transport
+  (Gmail → Resend → Brevo, same chain the verification codes use) before
+  spending the marker. Read-only by design: the winner tally never pays
+  anything — settleJam stays the only payer. Confirmed accounts only
+  (`userUnconfirmed` filter), 500 accounts/run cap, 250 ms between sends.
+- Regression pins in `WeeklyDigestEmail` (once-per-week marker,
+  confirmed-only, no `grant_coins`, three content sections); AGENTS.md +
+  docs.html + changelog.
+
 **AI playtester — /review before publishing** (uncommitted)
 
 - New slash command in the Cudic AI panel: `/review` seeds a playtester task
