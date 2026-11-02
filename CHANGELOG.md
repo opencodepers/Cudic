@@ -8,6 +8,15 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Server space page (`/server/<id>` — servers grow their own room)**
+
+- **Servers now live at `/server/<id>`, separate from `/chat` and in the same visual capsule** as themes/quests/DMs (site sidebar rail, `page-panel`, same chat styling). Inside it: a Discord-style left rail (server icon + name + member count, back link, channel list with `#` rows and 🔒 privates) and the live message stream on the right — same message recipe as chat: own-message bubbles, markdown-lite + emoji shortcodes, reactions with the quick picker, pinned shelf, slow-mode note, typing indicator, and online count.
+- Deep-link friendly: non-members hitting a public server URL auto-join; rules-required servers get the accept overlay inline before sending works. Private servers without membership point back to the browse page.
+- Route wired twice: `vercel.json` rewrite (`/server`, `/server/:id` → server.html) and the mirrored redirect in server.js for local dev.
+- The `/servers` browse page's "Open chat" buttons now open the server space; `/chat` keeps DMs (and still lists channels for unified access).
+- Lean by design: reporting and the mod panel stay on `/chat` — this page is the room, not the admin desk.
+- Tests: 202 pass (`python tests/run_tests.py`, run #53).
+
 **Server-chat small features batch: pins, reactions, slow mode, owner/mod tools**
 
 - **Pinned messages.** The author of a message (DMs included) and a server's owner/mods can pin/unpin any message in a server channel; `messages.pinned` rides the normal history select, so history rows show the pinned outline. A `?pinned=1` fetch on the GET messages endpoint powers the pinned shelf above the chat; shelf rows scroll to and flash the message. Live `pin` WS events repaint open rooms without a reload.

@@ -114,6 +114,9 @@ public/                   # the classic app (served at Vercel output root)
   index.html              # marketing landing (dark, animated, GSAP)
   login.html              # auth split screen (sign in / create / guest)
   chat.html  lobbies.html # chat
+  server.html             # server space: /server/<id> — Discord-style channel sidebar
+                          # + live stream in the site capsule (same WS protocol as chat;
+                          # lean by design — no reporting/mod panel, use /chat for those)
   servers.html            # server list + comments
   games.html  view.html   # gallery + game view (GSAP motion)
   play.html  run.html     # play + run harness (document.write player)
@@ -155,8 +158,8 @@ render.yaml               # Render service (PORT 10000)
 ### Pages & routes
 Vercel rewrites (`vercel.json`) map extensionless paths → `.html`:
 `/` → index (landing), `/login` → login.html, `/profile`, `/chat`, `/games`,
-`/themes`, `/editor`, `/servers`, `/lobbies`, `/docs`, `/faq`,
-`/teachers` → `/parents` (classroom landing), `/cookbook/` guides,
+`/themes`, `/editor`, `/servers`, `/server/:id` (server space), `/lobbies`, `/docs`,
+`/faq`, `/teachers` → `/parents` (classroom landing), `/cookbook/` guides,
 `/studio` → `studio/index.html`.
 `server.js` mirrors all of these for local dev.
 

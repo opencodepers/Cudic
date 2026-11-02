@@ -27,6 +27,8 @@
     { "source": "/editor", "destination": "/editor.html" },
     { "source": "/music", "destination": "/music.html" },
     { "source": "/servers", "destination": "/servers.html" },
+    { "source": "/server", "destination": "/server.html" },
+    { "source": "/server/:id", "destination": "/server.html" },
     { "source": "/moderate", "destination": "/moderate.html" },
 { "source": "/grant", "destination": "/grant.html" },
 { "source": "/updlog", "destination": "/updlog.html" },

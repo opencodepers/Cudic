@@ -5397,6 +5397,12 @@ function sanitizeTags(raw) {
     url.pathname = '/servers.html';
   }
 
+  // ── Server space: /server/<id> → server.html (reads the id from the
+  // path; ?id= also works). Same WS/lobby protocol as /chat underneath.
+  if (url.pathname === '/server' || url.pathname.startsWith('/server/')) {
+    url.pathname = '/server.html';
+  }
+
   // ── Redirect /moderate to /moderate.html ───────────────────────
   if (url.pathname === '/moderate') {
     url.pathname = '/moderate.html';
