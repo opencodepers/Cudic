@@ -152,6 +152,7 @@
         <a href="#sec-profile">Public profile</a>
         <a href="#sec-security">Security</a>
         <a href="#sec-awards">Awards</a>
+        <a href="#sec-streak">Login streak</a>
         <a href="#sec-stats">Analytics</a>
         <a href="#sec-liked">Liked games</a>
         <a href="#sec-appearance">Appearance</a>
@@ -201,6 +202,14 @@
         <div class="aw-group"><div class="toc-label">Badges <span class="aw-cap" id="capB"></span></div><div class="aw-grid" id="awBadges"></div></div>
         <button class="btn btn-primary" id="saveEquips">Save awards</button>
         <div class="status-msg" id="awardsMsg"></div>
+      </div>
+      <div class="profile-card" id="sec-streak">
+        <h2>Login streak</h2>
+        <p class="sub">One check-in a day keeps the chain alive — a missed day resets it to 1. Longer chains pay bigger daily coin bonuses (capped at 25 a day). You don't have to claim anything: being signed in counts.</p>
+        <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+          <span id="streakDays" style="font-family:'Geist Mono',monospace;font-size:2.2rem;font-weight:600;color:var(--signal)">–</span>
+          <span class="sub" style="margin:0" id="streakLabel">day streak</span>
+        </div>
       </div>
       <div id="delOverlay" hidden>
         <div class="del-card">
@@ -392,6 +401,20 @@
         document.getElementById('bioField').value = d.profile.bio || '';
         document.getElementById('interestField').value = (d.profile.interests || []).join(', ');
         paintBioCard(d.profile);
+        /* Login streak: ships on the self-view payload only; the public
+           profile projection omits it (login cadence is private). */
+        (function (p) {
+          var card = document.getElementById('sec-streak');
+          var el = document.getElementById('streakDays');
+          if (!card || !el) return;
+          var has = typeof p.streak_days === 'number';
+          card.style.display = has ? '' : 'none';
+          if (has) {
+            el.textContent = p.streak_days;
+            document.getElementById('streakLabel').textContent =
+              'day streak' + (p.streak_days === 1 ? ' — come back tomorrow to grow it' : '');
+          }
+        })(d.profile);
         initAwards(d);
         loadLiked();
         /* Pack + liked count */
@@ -1039,7 +1062,7 @@
   /* Tabbed settings nav: one section visible at a time, preview stays put.
      Site links (Privacy/Guide/Terms) navigate away untouched. */
   (function(){
-    var SECTIONS = ['sec-profile', 'sec-security', 'sec-awards', 'sec-coins', 'sec-stats', 'sec-liked', 'sec-appearance', 'sec-creatorpage'];
+    var SECTIONS = ['sec-profile', 'sec-security', 'sec-awards', 'sec-streak', 'sec-coins', 'sec-stats', 'sec-liked', 'sec-appearance', 'sec-creatorpage'];
     var links = Array.prototype.slice.call(document.querySelectorAll('.pnav a[href^="#sec-"]'));
     if (!links.length) return;
     function show(id, push) {

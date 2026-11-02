@@ -287,6 +287,16 @@ the server can't tell tabs apart; only the leader beats. Seat travels as
 (RLS locked, service key only). Tested end-to-end (20 checks, temp user,
 cleaned up) — see `/api/session/claim|heartbeat` + `seatAlive()`.
 
+### Daily login streak (rides the session beats, no new endpoints)
+`rollStreak(user.id)` fires on both `/api/session/claim` and
+`/api/session/heartbeat`. UTC day; `last_active_day === today` no-ops, the
+chain continues only when the last day was yesterday. The day update filters
+on the previously-seen `last_active_day` so two racing tabs advance it at
+most once; coins pay via `grant_coins` with reason `streak:<date>` (ledger
+idempotent, `5 + days` capped at 25). Self-view `/api/profile` ships
+`streak_days` (profile.html `#sec-streak` card); the public `/api/user`
+projection omits it. Migration: `migration/streak.sql`.
+
 ### Project revisions (staged snapshots, `project_revisions` table)
 `POST/GET /api/games/:id/revisions` (+ `/restore`, `DELETE /:revId`), owner
 only, newest 20 kept (oldest row deleted when the ring overflows). **Save

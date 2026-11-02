@@ -8,6 +8,25 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Login streak** (uncommitted)
+
+- Every day your seat claims or heartbeats (i.e. any signed-in visit) counts
+  a day in `users.streak_days`, server-side UTC. The chain continues when
+  the last active day was yesterday and resets to 1 after a gap; a same-day
+  revisit no-ops.
+- Each new day pays bonus coins through `grant_coins` with the ledger reason
+  `streak:<date>` — idempotent, so a redeploy can never double-pay a banked
+  day. Bonus = 5 + streak days, capped at 25 (day 1 → 6 coins).
+- Migration `migration/streak.sql`: `last_active_day date` +
+  `streak_days integer not null default 0` on `public.users`.
+- The self-view profile payload ships `streak_days`; the public `/api/user`
+  projection deliberately omits it (login cadence is private). profile.html
+  gains a **Login streak** tab card (`#sec-streak`) that reads the counter
+  and hides itself when the field is absent.
+- AGENTS.md documents the ride-on-session-beats design; regression pins
+  cover claim/heartbeat wiring, race/double-pay safety, payload privacy and
+  the shelf (`LoginStreak` in `test_regressions.py`).
+
 **Follow from the game page** (uncommitted)
 
 - The game page's author row now has the same Follow/Following ✓ toggle the

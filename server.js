@@ -727,7 +727,7 @@ async function handleRequest(req, res) {
 
     const { data: profile, error: profErr } = await supabase
       .from('users')
-      .select('id, user_id, display_name, avatar_url, bio, interests, setup_done, theme, pack_slug, equips, created_at')
+      .select('id, user_id, display_name, avatar_url, bio, interests, setup_done, theme, pack_slug, equips, created_at, streak_days')
       .eq('id', user.id)
       .single();
 
@@ -1919,6 +1919,8 @@ async function handleRequest(req, res) {
     const seat = String(body.seat || '').substring(0, 64);
     if (!seat) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Missing seat.' })); return; }
     await claimSeatRow(user.id, seat);
+    // Streak counts on claim too: a quick tab-then-close still counts as a day.
+    try { await rollStreak(user.id); } catch {}
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true }));
     return;
@@ -1934,6 +1936,9 @@ async function handleRequest(req, res) {
     // fighting a silent takeover war one beat at a time.
     if (!(await seatAlive(user.id, seat))) { seatDead(res); return; }
     await claimSeatRow(user.id, seat);
+    // Daily streak: riding the beats that already exist means no extra
+    // client work and no new endpoint.
+    try { await rollStreak(user.id); } catch {}
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true }));
     return;
@@ -5320,6 +5325,33 @@ const SEAT_TTL_MS = 90 * 1000;
 function seatFromReq(req) {
   return String(req.headers['x-seat'] || '').substring(0, 64);
 }
+// ── Daily login streak ───────────────────────────────────────────
+// Rides the session endpoints that already fire on every tab. The day is
+// UTC; the streak continues when the last active day was yesterday, resets
+// to 1 after any gap, and no-ops when today was already counted. The
+// optimistic `.eq('last_active_day', …)` filter makes two tabs racing make
+// at most one payout: the loser's update matches zero rows. Bonus coins
+// are ledger-idempotent (`streak:<date>` reason), same shape as jam
+// payouts — a redeploy cannot double-pay an already-banked day.
+async function rollStreak(userId) {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: row } = await supabase.from('users')
+    .select('last_active_day, streak_days').eq('id', userId).single();
+  if (row && row.last_active_day === today) return;
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const chain = row && row.last_active_day === yesterday ? (row.streak_days || 0) + 1 : 1;
+  let up = supabase.from('users')
+    .update({ last_active_day: today, streak_days: chain })
+    .eq('id', userId);
+  if (row) up = up.eq('last_active_day', row.last_active_day || '');
+  else up = up.is('last_active_day', null);
+  const { data: won, error } = await up;
+  if (error || !won || !won.length) return; // raced × already-banked this day
+  const days = typeof chain === 'number' ? Math.max(1, chain) : 1;
+  const bonus = Math.min(5 + days, 25); // day 1 → 6 coins; caps at 25
+  await supabase.rpc('grant_coins', { p_user: userId, p_delta: bonus, p_reason: 'streak:' + today, p_ref: null });
+}
+
 async function claimSeatRow(userId, seatId) {
   await supabase.from('active_sessions').upsert(
     { user_id: userId, seat_id: seatId, heartbeat_at: new Date().toISOString() },
