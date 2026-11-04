@@ -78,7 +78,7 @@
                     <h3>Commands</h3>
                     <table>
                         <tr><th>Command</th><th>What it does</th></tr>
-                        <tr><td><strong>Save project</strong></td><td>Saves the workspace to your Cudic account (needs a sign-in).</td></tr>
+                        <tr><td><strong>Save project</strong> <code>Ctrl+S</code></td><td>Saves the workspace to your Cudic account (needs a sign-in).</td></tr>
                         <tr><td><strong>Insert icon</strong></td><td>Browse a library of 670+ ready-made game and board-game icons. Picking one drops the file into your project and an <code>&lt;img&gt;</code> at your cursor.</td></tr>
                         <tr><td><strong>Import files</strong></td><td>Pull a set of files into the workspace, merging over what's there.</td></tr>
                         <tr><td><strong>Import folder</strong></td><td>Same, for a whole folder — relative paths are kept.</td></tr>
@@ -98,7 +98,7 @@
                     <h3>Project</h3>
                     <table>
                         <tr><th>Command</th><th>What it does</th></tr>
-                        <tr><td><strong>Save project</strong></td><td>Saves the workspace to your Cudic account.</td></tr>
+                        <tr><td><strong>Save project</strong> <code>Ctrl+S</code></td><td>Saves the workspace to your Cudic account.</td></tr>
                         <tr><td><strong>Import files / Import folder</strong></td><td>Pulls files or a whole folder into the workspace, merging over what's there.</td></tr>
                         <tr><td><strong>Import Scratch project</strong></td><td>Turns a <code>.sb3</code> or shared Scratch link into a playable project.</td></tr>
                         <tr><td><strong>Export project as zip</strong></td><td>Downloads the workspace.</td></tr>
@@ -273,6 +273,25 @@ confetti({ particleCount: 120 })</pre>
                     </ul>
                 </section>
 
+                <section id="clip">
+                    <h2>Share clips</h2>
+                    <p>Any game with a canvas can be turned into a short video without screen-recording software: on a game page press <strong>Clip</strong>. Cudic records about eight seconds of play, draws the game's title, creator and your last score over it, and drops the finished file on the page.</p>
+                    <h3>What you get</h3>
+                    <ul>
+                        <li><strong>8 seconds, 30fps</strong>, capped at 1280px on the long edge — small enough to post straight to YouTube Shorts, TikTok or Discord.</li>
+                        <li><strong>Overlay included:</strong> the game's title, its creator's name, the Cudic address, a score chip when the game reports scores through <code>CudicScores</code>, and a lime progress bar so viewers know it's a clip.</li>
+                        <li><strong>Formats:</strong> WebM in Chrome, Edge and Firefox; MP4 where the browser can encode it (Safari). The download button is named after the game.</li>
+                    </ul>
+                    <h3>How it works (and what it never does)</h3>
+                    <ul>
+                        <li>The recording is made <em>inside</em> the game's own frame by the platform, so it works even though games are sandboxed away from the page — no game needs to change a line of code.</li>
+                        <li>Nothing is uploaded. The video exists only in your browser until you save it; closing the page throws it away.</li>
+                        <li>No audio track: the file is video only. Add music or voice in your editor.</li>
+                        <li>Click-only games that draw with DOM elements instead of a <code>&lt;canvas&gt;</code> have nothing to capture, so the Clip button simply doesn't appear.</li>
+                    </ul>
+                    <div class="note"><p>If you post a clip of someone else's game, credit the creator — their name is already in the video, and the game page is the best link to share alongside it.</p></div>
+                </section>
+
                 <section id="chat">
                     <h2>Chat &amp; servers</h2>
                     <p>A <strong>server</strong> holds channels; a <strong>channel</strong> holds messages. You can also message people directly. Chat history is permanent — messages stay unless a moderator removes them.</p>
@@ -402,15 +421,39 @@ confetti({ particleCount: 120 })</pre>
                     <p>Anyone can report a pack — see <a href="#reports">Reports</a>. Prefer plain CSS? You don't need a pack: any project you publish can include its own stylesheet.</p>
                 </section>
 
+                <section id="shop">
+                    <h2>Shop — cosmetics</h2>
+                    <p>Coins do something besides theme packs: the <a href="/shop">Shop</a> sells looks for your profile. Nothing here changes gameplay, gives you an advantage, or costs real money — it's the place your quest, streak and jam coins go once you own the packs you want.</p>
+                    <h3>Six slots</h3>
+                    <ul>
+                        <li><strong>Frame</strong> — a ring around your avatar (Leaf, Ice, Ember, Void, Circuit, Holo, Champion gold).</li>
+                        <li><strong>Banner</strong> — the wash behind your profile header (Blueprint, Terminal, Aurora, Sunset, Starfield, Prism).</li>
+                        <li><strong>Profile effect</strong> — motion over your whole card (Scanlines, Bubbles, Sparks, Orbit, Drift).</li>
+                        <li><strong>Name effect</strong> — your username itself (Mono, Glow, Typing, Gradient, Glitch).</li>
+                        <li><strong>Title</strong> — a line under your name (Maker, Tinkerer, Speedrunner, Game Jammer, Architect, Legend). Earned award titles share the same two title slots.</li>
+                        <li><strong>Emoji pack</strong> — ten extra chat emojis each (Classic Mix, Cozy, Spooky, Space) that your account can type in servers and DMs.</li>
+                    </ul>
+                    <h3>Buying and wearing</h3>
+                    <ol class="steps">
+                        <li><strong>Browse</strong> on <a href="/shop">/shop</a>. Every item shows its price, and the balance in the header updates as you spend.</li>
+                        <li><strong>Buy once, keep forever.</strong> A purchase is recorded against your account; the same item can't be charged twice, and prices are set by the server so the page can't be tricked.</li>
+                        <li><strong>Wear it</strong> on your profile → <em>Cosmetics</em>. Frame, banner, effect, name style and emoji pack are one-at-a-time; titles hold two (5 badges and 10 flairs still cap the awards).</li>
+                        <li><strong>Unequip</strong> any slot to go back to plain. Everything stays owned.</li>
+                    </ol>
+                    <div class="note"><p>Your profile preview updates live before you save, and the same renderer draws your public creator page — so what you pick here is exactly what visitors see. Everything stops under <code>prefers-reduced-motion</code>.</p></div>
+                    <p>Spending is capped per day and per hour, so a stolen account can't drain a balance in one go.</p>
+                </section>
+
                 <section id="coins">
                     <h2>Coins</h2>
-                    <p>Coins are Cudic's own currency — there is no real money and no cash-out, ever. You earn them for being around and making things, and spend them on theme packs.</p>
+                    <p>Coins are Cudic's own currency — there is no real money and no cash-out, ever. You earn them for being around and making things, and spend them on theme packs and <a href="#shop">profile cosmetics</a>.</p>
                     <ul>
                         <li><strong>Daily claim</strong> on your profile's Earn panel.</li>
                         <li><strong>Quests</strong> — small tasks like publishing a game or joining a server.</li>
                         <li><strong>Activity</strong> — chatting counts toward a small daily trickle.</li>
                         <li><strong>Bonus from ads</strong> — watch an ad for coins on top, with a weekly cap.</li>
                         <li><strong>Selling packs</strong> earns coins every time someone buys one.</li>
+                        <li><strong>Cosmetics</strong> in the <a href="#shop">Shop</a> are the other sink — frames, banners, effects, name styles, titles and emoji packs.</li>
                         <li><strong>Login streak</strong> — being signed in on Cudic counts a day automatically (no button to press). Each new day pays bonus coins — the longer your chain, the bigger the bonus, up to 25 — and your current streak is shown on your profile. Miss a day and the chain restarts at 1.</li>
                         <li><strong>Verified by email?</strong> You also get the Cudic weekly — one email every Monday with the new jam theme, last week's winners, and the newest games from creators you follow. That's the only marketing email we ever send.</li>
                     </ul>
@@ -533,6 +576,6 @@ confetti({ particleCount: 120 })</pre>
     <script src="/theme-toggle.js?v=2"></script>
     <script src="/ads.js?v=1" defer></script>
 
-</body>
+<script src="/cudic-modals.js?v=3"></script></body>
 
 </html>

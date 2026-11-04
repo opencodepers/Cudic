@@ -470,6 +470,55 @@ Migrations:
 - Hooks: publish flip → `onPublished()` (feed line + first_game + worldbuilder); server create → `host`; scratch import → `bolt`; play bump ≥100 → `viral` + `renowned` (both fire-and-forget). `awardUser()` dedupes via the PK; feed lines only for badges/titles, never flairs.
 - Equip caps **5 badges / 10 flairs / 2 titles**, validated server-side in `PUT /api/profile` (`equips` block) — codes must match their slot and be owned, else 403 "Not yours to equip." Client grid: profile `#sec-awards`, public display on `creator.html`, feed/follow lists on `friends.html`.
 
+### Share clips (`public/cudic-clip.js`, in-frame recorder)
+
+Game page `Clip` button → `{type:'cudic-clip-start', seconds, title, by,
+score}` posted to the player frame → the frame composites the biggest game
+canvas plus the overlay onto an offscreen canvas, records it with
+MediaRecorder, and posts `{type:'cudic-clip-done', blob, ext}` back. **Why it
+lives in the frame:** the player iframe is sandboxed `allow-scripts` with no
+`allow-same-origin` (that's what keeps the account token away from published
+games), so view.html cannot read the game canvas at all. Do not "simplify"
+this into the page, and do not add `allow-same-origin` to fix it — both are
+pinned by `tests/test_regressions.py::ShareClip`.
+
+- Frame acks capability first (`cudic-clip-ready` → `can`); the button only
+  appears when the browser can record. No canvas → `cudic-clip-error
+  no-canvas`. No audio track (canvas streams have none).
+- Score overlay: view.html keeps the last `CudicScores.submit()` value (a
+  `cudic-score` CustomEvent on window) and passes it in at start; games that
+  never submit get no chip.
+- Injected in `run.html`'s `fwd` string next to the localStorage shim. Bump
+  `?v=` there and the `V` in the clip script on protocol changes.
+- Nothing is uploaded: a blob URL + `<a download>`; the previous URL is
+  revoked on each new clip.
+
+### Cosmetics shop (`/shop`, `user_cosmetics`, `users.equips`)
+
+Coins second sink after theme packs. The catalogue is `COSMETICS` in `server.js
+(prices are server-authoritative — the page never sends a price); ownership is
+`user_cosmetics(user_id, code)` (migration/cosmetics.sql), wearing reuses the
+existing `users.equips` jsonb with six new single-value slots: `fr` frame,
+`bn` banner, `ef` profile effect, `ne` name effect, `ti` title, `em` emoji pack.
+The old award arrays `b`/`f`/`t` are untouched —**titles merge**, they are not
+a separate field, so equip/un-equip on `ti` has to filter the previous
+cosmetic title out of `t` and re-check the 2-title cap (`EQUIP_CAPS.t`).
+
+- Endpoints: `GET /api/cosmetics` (catalog + owned + worn + balance),
+  `POST /api/cosmetics/buy {code}`, `POST /api/cosmetics/equip {slot, code}`
+  (`code:null` = take it off). Buy is verified-only, daily-spend and
+  buys/hour capped from the ledger, and claims the row first so a second tab
+  hits the PK and gets `already:true` instead of a double charge; the spend
+  is `spend_coins('cosmetic_buy')` and rolls the row back on insufficient
+  funds. Equip validates slot-kind match + ownership (403 otherwise).
+- Renderer: `public/cudic-cosmetics.js` (`CudicCosmetics.paint({avatar,card,
+  name…}, cosmetics)`) is the single implementation used by profile.html
+  (live preview) and creator.html (public page) — never draw a frame inline
+  somewhere else, or the two will drift. Effects honour
+  `prefers-reduced-motion`. Emoji packs extend the chat emoji map client-side
+  for the signed-in user only.
+- Profile equip UI: `#sec-cosmetics` card, hidden for signed-out visitors.
+
 ### Notifications (inbox, `notifications` table)
 
 `public/notifications` + `/notifications` page + sidebar bell already existed; the
@@ -1030,6 +1079,13 @@ grid-led, Geist everywhere. Read it before building any public surface. Headline
   `embed.html`) — it re-opens the auth-token leak; see §8 Runtimes bullet.
 15. **Never log or commit keys.** Keys live in `localStorage` and `.env` only.
 16. **Copyright**: `README.md` forbids distribution. Don't push code to new remotes.
+17. **Ctrl+S must stay bound via `initUserKeybindings`** (`studio/src/main.ts`)
+  → `glox.saveProject`. The built-in `workbench.action.files.save` is not wired
+  up (no files-service override), so an unbound Ctrl+S is a silent no-op — and
+  its extension-host save path surfaced "Null extension description" on the
+  deployed build (Discord report, Nov 2026). Don't remove that entry; new Cudic
+  command keybindings go in the same `initUserKeybindings` array. Desktop VS Code
+  swallows Ctrl+Shift+P, which is why the palette chord is `ctrl+shift+alt+p`.
 
 ---
 

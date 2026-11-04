@@ -137,9 +137,14 @@ await Promise.all([
   ),
   // Desktop VS Code (incl. Simple Browser) swallows Ctrl+Shift+P, so our own
   // palette gets an unbound-by-default chord that passes through to the page.
+  // Ctrl+S: without this the built-in workbench.action.files.save runs — it
+  // isn't wired up here, so the keystroke vanishes and users think saving
+  // is broken ("Null extension description" surfaced through its old
+  // extension-host save path). Route the keys to the Cudic save command.
   initUserKeybindings(
     JSON.stringify([
-      { key: 'ctrl+shift+alt+p', command: 'workbench.action.showCommands' }
+      { key: 'ctrl+shift+alt+p', command: 'workbench.action.showCommands' },
+      { key: 'ctrl+s', command: 'glox.saveProject' },
     ])
   )
 ]);

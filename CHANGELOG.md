@@ -8,6 +8,45 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Fixed: Ctrl+S in the Studio now actually saves the project**
+
+- A Discord member reported saving failing with "Null extension description" (Oct 29, still broken after the Nov 2 updates). Root cause on the current build: `Ctrl+S` was **not bound to anything Cudic** — the built-in `workbench.action.files.save` runs instead, and since the studio never wires up the files service that verb is a silent no-op (and on the older deployed bundle its extension-host save path surfaced the "Null extension description" toast). The palette command `Cudic: Save project` (Ctrl+Shift+P → save) always worked, which is why saved projects kept succeeding once users found the menu.
+- Fix: `initUserKeybindings` in `studio/src/main.ts` now also binds `ctrl+s` → `glox.saveProject`, so the keystroke runs the real Cudic save instead of the dead built-in. Verified end-to-end in headless Chrome: typing in the editor and pressing Ctrl+S fires `POST /api/games` (200) + `PUT /api/games/:id` (200) and shows the `Cudic: Saved "..."` toast.
+- Checks: 211/211 tests pass; docs Studio tables now note `Ctrl+S` for Save project.
+
+**Share clips — a "Clip" button on every game page**
+
+- **Record ~8 seconds of any canvas game** straight from the game page: no screen-recorder, no editing. The clip is 30fps, capped at 1280px on the long edge, and lands in the browser as WebM (MP4 where the browser can encode it) with the game's title, its creator, the Cudic address, a score chip and a lime progress bar drawn on top.
+- **The recorder lives inside the player frame** (`public/cudic-clip.js`, injected into the game document by `run.html`). The player iframe is sandboxed without `allow-same-origin` — deliberately, so games can't reach the account token — which means the game page can't touch the canvas. The frame records its own canvas onto a composite buffer, then posts the finished Blob back over the existing postMessage bridge, so no game needs to change a line.
+- **Score overlay comes from the real leaderboard:** the page remembers the last value a game submitted through `CudicScores` (dispatched as a `cudic-score` event) and asks for it in the clip header; games that never submit scores simply get no chip.
+- **Honest fallbacks:** no `MediaRecorder` → the Clip button never appears (the frame acks capability first via `cudic-clip-ready`); a DOM-only game with no `<canvas>` → an explicit "nothing to record" line instead of a silent no-op; a frame that never answers → a 14-second backstop message. Nothing is uploaded, the blob URL is revoked on the next clip, and the panel asks sharers to credit the creator.
+- Checks: 211/211 tests pass, including a page-sweep entry for `/cudic-clip.js` and `ShareClip` regression pins (recorder stays in the frame, sandbox stays closed, object URLs released).
+
+**Cosmetics shop — coins that buy a look (`/shop`)**
+
+- **Six cosmetic slots, no gameplay effect:** frames around the avatar (7), profile banners (6), profile-wide effects (5), name effects (5), titles (6) and chat emoji packs (4). Everything is bought with existing coins and nothing touches gameplay or costs real money — this is what quest, streak and jam coins now have to spend on once theme packs are owned.
+- **Server-authoritative catalogue:** `COSMETICS` in `server.js` holds every price and label (`GET /api/cosmetics` serves it), so the page can't be tricked into a cheaper buy. Ownership is `user_cosmetics` (`migration/cosmetics.sql`), and worn items reuse the existing `users.equips` jsonb with six new single-value slots (`fr/tn/ef/ne/em`, plus `ti` which merges with earned award titles into the same two-title cap).
+- **Buying is bounded like theme packs:** verified accounts only, daily-spend and buys-per-hour limits read from the coin ledger, the ownership row is claimed before `spend_coins('cosmetic_buy')` (a second tab gets `already:true` — never a double charge) and is rolled back if funds fall short.
+- **One renderer, two pages:** new `public/cudic-cosmetics.js` draws frames, banners, effects, name styles and titles; profile.html uses it for the live preview in the new `#sec-cosmetics` equip card, and creator.html uses the same `CudicCosmetics.paint()` for what visitors see — no drift between the preview and the public page.
+- **Nav + routes:** Shop in the rail (bag icon), `/shop` served from `server.js` and rewritten on Vercel, docs gained a **Shop — cosmetics** section and the Coins page now names both sinks.
+- Checks: 207/207 tests pass (`/shop` and `/shop.html` in the page-sweep test); server render route and Vercel rewrite verified.
+
+**Site-wide popups (`cudic-modals.js`): external-link gate + media lightbox**
+
+- **External-link gate:** on all 31 content pages, clicking a link to another origin opens a "You're leaving Cudic" check — it names the destination host, explains that outside Cudic the moderation team doesn't check what's there ("at your own risk"), and offers "Visit" / "Stay on Cudic" plus a per-host "don't warn me this session" checkbox (sessionStorage). Ctrl/Shift- and middle-clicks and downloads bypass the gate, as do links inside the site.
+- **Media lightbox:** same-origin links to image/video files (and standalone images ≥220px that aren't inside links) open the file inside an overlay instead of navigating — video gets a controls player, pictures get a zoom with an error line if the file is gone.
+Foreign-origin image/video links go through the gate instead of in-page loading, and third-party embeds are never auto-mounted.
+- **Video-element clicks open the modal too:** clicking an inline `<video>` (not inside a link) pauses it and opens the lightbox instead of the native surface play/pause — one consistent click target per page. The parents-page player reflects this: native controls came off, the frame is a click-to-open preview wrapped in a keyboard-reachable link, and playback happens in the modal player.
+- **Motion now follows brand.html:** steps() easing only — overlay fades in over 0.24s steps(5) and out over 0.16s steps(4); the card rises 16px in steps(7); a 4px lime **progress swoosh** draws under the header on every open (0.5s steps(7)); a one-shot lime **ring bloom** steps around the card (0.8s steps(5)); body lines rise 14px in staggered steps(5) at 60/120/180ms; the header kicker carries the brand's blinking lime caret; buttons fill-flip with a `→` that steps 4px on hover and never lift or glow; ✕ steps up 2px on hover. Everything stops under `prefers-reduced-motion`.
+- **Build:** one shared script `public/cudic-modals.js` (delegated capture-phase listener, idempotent), injected before `</body>` on every user-facing page — game runners (`/run`, `/play`), the Studio (`editor.html`), auth/setup pages, the game iframe (`embed.html`) and legacy/verify files are intentionally left out. Escape, ✕ and outside-click all close; focus returns to the trigger.
+- Checks: script + tag verified served on `/view` and `/faq`; 203/203 tests pass.
+
+**YouTube Short embedded on the parents/teachers page**
+
+- **Video section added to `/parents`:** a new "See it in 30 seconds" section between "What it is" and "For teachers" — the 0:30 brand Short (Scratch import → Studio → saves/multiplayer/publish → live link) in a framed 9:16 player, next to a scene-by-scene breakdown with timestamp captions and Studio/play CTAs.
+- **Asset:** `public/parents-short.mp4` (12 MB) — a real mp4 file; the section was deliberately not placed on the homepage.
+- **Dev-server mime fix:** `server.js` static map gained `.mp4 → video/mp4` and `.webm → video/webm` (previously `application/octet-stream`); production (Vercel) already served video correctly.
+
 **Fix: template servers showed "no channels" (silent select error)**
 
 - **Root cause:** `migration/pins-reactions-slowmode.sql` had never been applied to the current Supabase project, so `lobbies.slow_seconds` didn't exist. Every channels query errored on the unknown column — and the `/api/servers/:id/channels` GET discarded the error (`const { data }`), rendering `{channels: []}`. A freshly created Gaming-template server had all four channels in the DB but displayed none.
