@@ -161,6 +161,7 @@
       +sbItem('/notifications','notifs','bell','Notifications')
       +sbItem('/servers','servers','server','Servers')
       +sbItem('/games','games','games','Games')
+      +sbItem('/race','race','coin','Race')
       +sbItem('/forums','forums','forum','Forums')
       +sbItem('/quests','quests','coin','Quests')
       +sbItem('/shop','shop','bag','Shop')

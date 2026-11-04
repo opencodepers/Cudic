@@ -572,7 +572,32 @@
 // filtering isn't limited to the 50 rows we happened to load.
     var galQuery = '', galTag = '', galLiked = {}, galOffset = 0;
     function galUrl() { return apiBase + '/api/games?sort=' + encodeURIComponent(sortMode) + (galQuery ? '&q=' + encodeURIComponent(galQuery) : '') + (galTag ? '&tag=' + encodeURIComponent(galTag) : '') + (galOffset ? '&offset=' + galOffset : ''); }
-    async function loadGames() { try { galOffset = 0; var res = await fetch(galUrl()); var data = await res.json(); var rows = data.games || []; findClear.style.display = (galQuery || galTag) ? '' : 'none'; if (rows.length) showGrid(rows, false); else if (galQuery || galTag) showEmpty('Nothing matches', galQuery ? 'No games match "' + escapeHtml(galQuery) + '"' + (galTag ? ' in ' + escapeHtml(galTag) : '') + '. Try a different word or clear the filter.' : 'No games tagged ' + escapeHtml(galTag) + ' yet.'); else showEmpty('No games yet', 'Games you publish from Studio appear here.'); document.getElementById('loadMoreBtn').style.display = rows.length === 50 ? '' : 'none'; tabBrowse.textContent = 'Browse (' + rows.length + ')'; var heroArt = (data.games || []).find(function(g){ return g.thumbnail || g.has_thumb; }); var heroEl = document.getElementById('galHero'); if (heroArt && heroEl) { heroEl.style.backgroundImage = 'linear-gradient(rgba(10,10,12,0.72), rgba(10,10,12,0.55)), url("' + (heroArt.has_thumb ? apiBase + '/api/games/' + encodeURIComponent(heroArt.id) + '/thumbnail' : heroArt.thumbnail) + '")'; heroEl.classList.add('has-art'); } else if (heroEl) { heroEl.style.backgroundImage = ''; heroEl.classList.remove('has-art'); } } catch (e) { showEmpty('No games yet', 'Games you publish from Studio appear here.'); } }
+    function paintGallery(data) { var rows = data.games || []; findClear.style.display = (galQuery || galTag) ? '' : 'none'; if (rows.length) showGrid(rows, false); else if (galQuery || galTag) showEmpty('Nothing matches', galQuery ? 'No games match "' + escapeHtml(galQuery) + '"' + (galTag ? ' in ' + escapeHtml(galTag) : '') + '. Try a different word or clear the filter.' : 'No games tagged ' + escapeHtml(galTag) + ' yet.'); else showEmpty('No games yet', 'Games you publish from Studio appear here.'); document.getElementById('loadMoreBtn').style.display = rows.length === 50 ? '' : 'none'; tabBrowse.textContent = 'Browse (' + rows.length + ')'; var heroArt = (data.games || []).find(function(g){ return g.thumbnail || g.has_thumb; }); var heroEl = document.getElementById('galHero'); if (heroArt && heroEl) { heroEl.style.backgroundImage = 'linear-gradient(rgba(10,10,12,0.72), rgba(10,10,12,0.55)), url("' + (heroArt.has_thumb ? apiBase + '/api/games/' + encodeURIComponent(heroArt.id) + '/thumbnail' : heroArt.thumbnail) + '")'; heroEl.classList.add('has-art'); } else if (heroEl) { heroEl.style.backgroundImage = ''; heroEl.classList.remove('has-art'); } }
+    // Browser-side stale-while-revalidate: /games repaints instantly from the
+    // last 10-min localStorage snapshot for this exact sort/tag/search/page
+    // combination, then fetches fresh data silently and swaps in only if it
+    // changed. Saves a full server roundtrip of perception on every revisit;
+    // like hearts and live counts still refresh during the revalidate.
+    var GAL_LOCAL_MS = 600000;
+    async function loadGames() {
+      galOffset = 0;
+      var url = galUrl();
+      var hit = null;
+      try {
+        var raw = localStorage.getItem('cudic-gal-v1');
+        var cache = raw ? JSON.parse(raw) : null;
+        if (cache && cache.u === url && cache.d && Date.now() - cache.at < GAL_LOCAL_MS) hit = cache;
+      } catch (e) { hit = null; }
+      if (hit) paintGallery(hit.d);
+      try {
+        var res = await fetch(url);
+        var data = await res.json();
+        if (data && data.games && (!hit || JSON.stringify(data) !== JSON.stringify(hit.d))) paintGallery(data);
+        try { localStorage.setItem('cudic-gal-v1', JSON.stringify({ u: url, at: Date.now(), d: data })); } catch (e) {}
+      } catch (e) {
+        if (!hit) showEmpty('No games yet', 'Games you publish from Studio appear here.');
+      }
+    }
     // Deep links: /games?tag=puzzle (from a game page) and ?q= come back to the
     // same filtered view, so a shared filter survives a reload.
     (function initFind() {

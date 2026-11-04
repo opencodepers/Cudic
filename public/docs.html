@@ -61,6 +61,7 @@
                         <div class="card"><span class="mono">THE RAIL</span><h3>One nav everywhere</h3><p>Most pages share a rail on the left — Chat, Servers, Games, Themes and your account at the bottom. The rail follows whatever theme pack you've bought; these docs use their own list on the left instead.</p></div>
                         <div class="card"><span class="mono">CHAT</span><h3>Servers &amp; DMs</h3><p>Public servers with channels, servers you make yourself, and private direct messages. Your servers live in the rail so switching is one click.</p></div>
                         <div class="card"><span class="mono">GAMES</span><h3>The gallery</h3><p>Browse, search, play, comment, like and remix. Every published game gets a permanent page with its card art and credits.</p></div>
+                        <div class="card"><span class="mono">RACE</span><h3>Creator race</h3><p>Every unique player who plays one of your games is a point, every week. Top three bank coins and titles at <a href="/race">/race</a>.</p></div>
                         <div class="card"><span class="mono">THEMES</span><h3>Theme packs</h3><p>Full site restyles: colours, fonts, rail icons, motion and a live background scene. Try any pack for free before spending coins.</p></div>
                     </div>
                     <div class="note"><p>Guests can play games and read chat. Progress isn't stored for a guest — the first time you play a game with saving, it offers a sign-in, and your bests attach to the account you pick.</p></div>
@@ -385,6 +386,22 @@ confetti({ particleCount: 120 })</pre>
                         <div class="card"><span class="mono">TOP 3</span><h3>Rewards</h3><p>The three most-voted games earn their makers coins and a Jam Winner badge, and stay pinned on the homepage until the next jam.</p></div>
                     </div>
                     <div class="note"><p>Moderators can set the weekly theme manually on purpose (e.g. for a seasonal jam); otherwise it rotates on its own.</p></div>
+                </section>
+
+                <section id="race">
+                    <h2>Creator race</h2>
+                    <p>The weekly creator race runs at <a href="/race">/race</a>. It measures the thing jams don't: whether people keep playing what you ship. Every unique player who starts one of your published games during the week — signed in or not — is one point for you. Nothing to enter: publishing a game puts you in the race.</p>
+                    <ol class="steps">
+                        <li><strong>Play scoring</strong> — one point per unique player per game per week. Replays from the same person don't stack, and the play counter still dedupes per browser per hour.</li>
+                        <li><strong>Watch the week end</strong> — the countdown on <a href="/race">/race</a> runs to Monday, the same clock the jam and the weekly digest email use. Scores reset at the rollover.</li>
+                        <li><strong>Collect</strong> — winners are paid automatically when the week settles: #1 banks 500 coins, #2 — 300, #3 — 150. #1 also gets the Race Champion title, #2/#3 the Race Podium badge, and everyone gets a notification + a line in the weekly digest.</li>
+                    </ol>
+                    <div class="cards">
+                        <div class="card"><span class="mono">1 POINT</span><h3>Per unique player</h3><p>Unique players only — the same viewer replaying the same game inside one week counts once, so sharing the link is the real scoring move.</p></div>
+                        <div class="card"><span class="mono">MON</span><h3>Weekly clock</h3><p>Monday 00:00 UTC reset, prizes bank through the coins ledger (reason <code>race:&lt;week&gt;</code>), titles and badges land as normal awards.</p></div>
+                        <div class="card"><span class="mono">DIGEST</span><h3>Your stats, mailed</h3><p>The Monday digest email now also tells you how your games did last week — race points, new hearts, remixes — plus the race winners.</p></div>
+                    </div>
+                    <div class="note"><p>Privacy note: race dedupe uses a salted hash of the viewer's IP — no account or IP is stored, and one point per household per week is the accepted bias.</p></div>
                 </section>
 
                 <section id="awards">

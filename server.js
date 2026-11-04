@@ -181,6 +181,8 @@ const AWARDS = {
   worldbuilder: { kind: 'title', label: 'Worldbuilder', icon: 'social/crown', how: 'Publish five games' },
   renowned:     { kind: 'title', label: 'Renowned', icon: 'social/trophy', how: 'One of your games reaches 100 plays' },
   jam_champion: { kind: 'badge', label: 'Jam Champion', icon: 'social/crown', how: 'Win a weekly game jam' },
+  race_top3:    { kind: 'badge', label: 'Race Podium', icon: 'social/trophy', how: 'Podium (top 3) in the weekly creator race' },
+  race_winner:  { kind: 'title', label: 'Race Champion', icon: 'social/crown', how: 'Win the weekly creator race' },
 };
 // Equip caps per kind — b badges / f flairs / t titles.
 const EQUIP_CAPS = { b: 5, f: 10, t: 2 };
@@ -331,6 +333,17 @@ async function autoGrant(user, profile) {
 }
 
 // A game just went live: feed line, first-publish badge, milestone title.
+// Gallery list cache: GET /api/games hits Supabase 3+ times per call (the
+// rows page, a 200-row published-games tag scan, like counts). Those three
+// results are identical for every viewer, so they're memoized 30s per
+// sort|q|tag|offset key; the viewer's own like markers stay per-request.
+// Every write that can change what the gallery shows (create/update/delete/
+// fork/feature/mod-unpublish/revision-restore) calls gamesListCacheClear()
+// so published or edited games surface instantly instead of after the TTL.
+const GAMES_LIST_TTL = 30000;
+const gamesListCache = new Map(); // key -> { at, rows, counts, tags }
+function gamesListCacheClear() { gamesListCache.clear(); }
+
 async function onPublished(userId, gid, title) {
   await logActivity(userId, 'game', 'Published ' + (title || 'a game'));
   await awardUser(userId, 'first_game');
@@ -1035,6 +1048,7 @@ async function handleRequest(req, res) {
     const next = !g.featured;
     const { data, error } = await supabase.from('games').update({ featured: next, featured_until: next ? new Date(Date.now() + 7 * 864e5).toISOString() : null }).eq('id', gid).select('featured').single();
     if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not update.' })); return; }
+    gamesListCacheClear(); // featured ordering just changed
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ featured: data.featured }));
     return;
@@ -1103,6 +1117,37 @@ async function handleRequest(req, res) {
     catch (e) { console.error('weekly: could not persist mod set:', e.message); res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not save.' })); return; }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true, week_start: state.week, theme: state.theme }));
+    return;
+  }
+
+  // ── API: weekly creator race (standings; settles finished weeks lazily) ─
+  // Same Monday-00:00-UTC weeks as the jam and the digest. No auth to view;
+  // an optional Bearer token adds the viewer's own ranking in the payload.
+  if (url.pathname === '/api/race' && req.method === 'GET') {
+    cors(res);
+    raceSettle().catch(() => {}); // finished weeks get settled on any view
+    const week = digestWeekStart();
+    const endsAt = new Date(week + 'T00:00:00.000Z');
+    endsAt.setUTCDate(endsAt.getUTCDate() + 7);
+    let meId = null;
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.replace('Bearer ', '');
+    if (token) {
+      try { const auth = await supabase.auth.getUser(token); if (auth.data && auth.data.user) meId = auth.data.user.id; } catch (e) {}
+    }
+    const [r, last] = await Promise.all([
+      raceTop(week, 20, meId),
+      supabase.from('race_weeks').select('week, top').lt('week', week).order('week', { ascending: false }).limit(1),
+    ]);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      week,
+      ends_at: endsAt.toISOString(),
+      top: r ? r.top : [],
+      me: r ? r.me : null,
+      total_creators: r ? r.total : 0,
+      last_winners: ((last.data && last.data[0]) || {}).top || [],
+    }));
     return;
   }
 
@@ -1479,6 +1524,7 @@ async function handleRequest(req, res) {
       if (!rev || rev.owner_id !== user.id) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
       if (restore) {
         await supabase.from('games').update({ files: rev.files, updated_at: new Date().toISOString() }).eq('id', gid);
+        gamesListCacheClear(); // updated_at shifts the gallery ordering
         res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true })); return;
       }
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -3912,6 +3958,7 @@ function sanitizeTags(raw) {
     // fail loudly, never report success for a no-op.
     async function unpublishBy(table, col, val) {
       const { data } = await supabase.from(table).update({ published: false }).eq(col, val).select('id');
+      if (table === 'games' && (data || []).length) gamesListCacheClear();
       return (data || []).length;
     }
     if (action === 'unpublish') {
@@ -3993,60 +4040,79 @@ function sanitizeTags(raw) {
   // a search that matches nothing is better than an endless list.
   if (url.pathname === '/api/games' && req.method === 'GET') {
     cors(res);
-    let query = supabase
-      .from('games')
-      .select('id, title, description, credits, thumbnail, tags, play_count, owner_id, forked_from, forked_from_title, created_at, updated_at, users!owner_id(display_name, user_id, avatar_url)')
-      .eq('published', true);
     const q = String(url.searchParams.get('q') || '').trim().slice(0, 60);
-    if (q) {
-      const like = '%' + q.replace(/[%_\\,()]/g, '') + '%';
-      query = query.or(`title.ilike.${like},description.ilike.${like}`);
-    }
     const tag = String(url.searchParams.get('tag') || '').trim().toLowerCase().slice(0, 24);
-    if (tag) query = query.contains('tags', [tag]);
     const sort = String(url.searchParams.get('sort') || 'new');
     const trending = sort === 'trending';
-    if (sort === 'plays') query = query.order('play_count', { ascending: false }).order('updated_at', { ascending: false });
-    else if (trending) query = query.order('play_count', { ascending: false });
-    else if (sort === 'old') query = query.order('created_at', { ascending: true });
-    else if (sort === 'az') query = query.order('title', { ascending: true });
-    else query = query.order('featured', { ascending: false }).order('updated_at', { ascending: false });
     // Pagination: offset is the only paging knob (size stays 50).
     const offset = Math.max(0, parseInt(String(url.searchParams.get('offset') || '0'), 10) || 0);
-    const { data, error } = await query.range(offset, offset + 49);
-    const rows = data || [];
+    // Gallery cache: the rows page, its like counts and the tag vocabulary
+    // are identical for every viewer, so they're memoized for 30s keyed by
+    // sort|q|tag|offset (every gallery-affecting write calls
+    // gamesListCacheClear()). Without the cache each gallery hit did a rows
+    // query, a 200-row tag scan and a like-count query against Supabase;
+    // only the viewer's own like markers stay per-request.
+    let error = null, counts = {}, tags = [];
+    let rows = [];
+    const ckey = `${sort}|${q}|${tag}|${offset}`;
+    let cached = gamesListCache.get(ckey);
+    if (!cached || Date.now() - cached.at > GAMES_LIST_TTL) cached = null;
+    if (cached) {
+      rows = cached.rows; counts = cached.counts; tags = cached.tags;
+    } else {
+      let query = supabase
+        .from('games')
+        .select('id, title, description, credits, thumbnail, tags, play_count, owner_id, forked_from, forked_from_title, created_at, updated_at, users!owner_id(display_name, user_id, avatar_url)')
+        .eq('published', true);
+      if (q) {
+        const like = '%' + q.replace(/[%_\\,()]/g, '') + '%';
+        query = query.or(`title.ilike.${like},description.ilike.${like}`);
+      }
+      if (tag) query = query.contains('tags', [tag]);
+      if (sort === 'plays') query = query.order('play_count', { ascending: false }).order('updated_at', { ascending: false });
+      else if (trending) query = query.order('play_count', { ascending: false });
+      else if (sort === 'old') query = query.order('created_at', { ascending: true });
+      else if (sort === 'az') query = query.order('title', { ascending: true });
+      else query = query.order('featured', { ascending: false }).order('updated_at', { ascending: false });
+      const { data, error: listErr } = await query.range(offset, offset + 49);
+      rows = data || [];
+      error = listErr;
+      const ids = rows.map((g) => g.id);
+      // Tag vocabulary + like counts: two small queries scoped to the rows
+      // we just returned (never the whole table), run in parallel.
+      const [tagsRes, likesRes] = await Promise.all([
+        supabase.from('games').select('tags').eq('published', true).limit(200),
+        ids.length === 0 ? Promise.resolve({ data: [] }) : supabase.from('game_likes').select('game_id').in('game_id', ids),
+      ]);
+      for (const l of likesRes.data || []) counts[l.game_id] = (counts[l.game_id] || 0) + 1;
+      tags = [...new Set((tagsRes.data || []).flatMap((g) => g.tags || []))].sort();
+      // Bound memory: entries stay ~50KB (50 rows, thumbnails stripped) no
+      // matter how big the gallery gets, but keys are user-driven (searches),
+      // so cap the Map — evict everything rather than track LRU.
+      if (gamesListCache.size > 100) gamesListCache.clear();
+      gamesListCache.set(ckey, { at: Date.now(), rows, counts, tags });
+    }
     // Trending = plays against age: total plays weighted down by how many
     // hours the game has existed, so a fresh game with a few plays can outrank
     // an old one coasting on history. (age + 2) keeps brand-new games from
-    // dividing by zero and gives a few hours of grace.
+    // dividing by zero and gives a few hours of grace. Deterministic given
+    // the rows, so recomputing per request costs nothing.
     if (trending) {
       const nowMs = Date.now();
       const score = (g) => (g.play_count || 0) / Math.pow((nowMs - new Date(g.created_at).getTime()) / 3600000 + 2, 1.5);
       rows.sort((a, b) => score(b) - score(a));
     }
-    const ids = rows.map((g) => g.id);
-    const counts = {};
-    const liked = new Set();
-    // Tag vocabulary, like counts and your own likes: three small queries
-    // scoped to the rows we just returned (never the whole table).
-    const [tagsRes, likesRes, viewer] = await Promise.all([
-      supabase.from('games').select('tags').eq('published', true).limit(200),
-      ids.length === 0 ? Promise.resolve({ data: [] }) : supabase.from('game_likes').select('game_id').in('game_id', ids),
-      (async () => {
-        const authHeader = req.headers.authorization || '';
-        const token = authHeader.replace('Bearer ', '');
-        if (!token) return null;
-        const { data: { user } } = await supabase.auth.getUser(token);
-        return user;
-      })()
-    ]);
-    for (const l of likesRes.data || []) counts[l.game_id] = (counts[l.game_id] || 0) + 1;
-    if (viewer && ids.length > 0) {
-      const { data: mine } = await supabase.from('game_likes').select('game_id').eq('user_id', viewer.id).in('game_id', ids);
-      for (const l of mine || []) liked.add(l.game_id);
-    }
-    const tags = [...new Set((tagsRes.data || []).flatMap((g) => g.tags || []))].sort();
     if (error) console.error('games list error:', error.message);
+    const ids = rows.map((g) => g.id);
+    const liked = new Set();
+    const token = (req.headers.authorization || '').replace('Bearer ', '');
+    if (token && ids.length > 0) {
+      const { data: { user } } = await supabase.auth.getUser(token);
+      if (user) {
+        const { data: mine } = await supabase.from('game_likes').select('game_id').eq('user_id', user.id).in('game_id', ids);
+        for (const l of mine || []) liked.add(l.game_id);
+      }
+    }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     // Thumbnails are ~40KB data URLs each; a 50-game page would be megabytes.
     // Ship a flag instead and let the browser fetch image bytes from
@@ -4877,6 +4943,17 @@ function sanitizeTags(raw) {
     const key = 'play:' + clientIp(req) + ':' + gid;
     if (!rateLimit(key, 1, 3600000)) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true })); return; }
     const { data: bumped } = await supabase.rpc('bump_play_count', { p_game: gid });
+    // Weekly creator race: one point per unique player per game per week.
+    // The insert PK (week, game_id, viewer) de-dupes; viewer is a salted IP
+    // hash — no personal data, one point per household is the accepted
+    // anti-bot bias. Owner-less games are skipped. Never awaited: a play
+    // must not wait on the race ledger.
+    if (g.owner_id) {
+      try {
+        const viewer = crypto.createHash('sha256').update('race|' + clientIp(req)).digest('hex').slice(0, 32);
+        supabase.from('race_plays').insert({ week: digestWeekStart(), game_id: gid, creator_id: g.owner_id, viewer }).then(() => {}, () => {});
+      } catch (e) {}
+    }
     if (bumped >= 100 && g.owner_id) {
       // Fire-and-forget: the play response must not wait on awards.
       awardUser(g.owner_id, 'viral').catch(() => {});
@@ -4914,6 +4991,7 @@ function sanitizeTags(raw) {
       tags: sanitizeTags(body.tags),
     }).select().single();
     if (error) console.error('games insert error:', error.message);
+    gamesListCacheClear();
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ game: data, error: error ? 'Could not create the game.' : undefined }));
     return;
@@ -4956,6 +5034,7 @@ function sanitizeTags(raw) {
       fork_chain: chain
     }).select().single();
     if (insErr || !nu) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: insErr?.message || 'Fork failed' })); return; }
+    gamesListCacheClear();
     // Copy storage objects old prefix -> new prefix (recursive), rewrite manifest.
     const bucket = supabase.storage.from('game-assets');
     async function walk(prefix, out) {
@@ -5535,6 +5614,7 @@ function sanitizeTags(raw) {
     const { data, error } = await supabase.from('games').update(updates).eq('id', id).eq('owner_id', user.id).select().single();
     if (error) console.error('games update error:', error.message);
     else if (wasPub === false && data) onPublished(user.id, id, data.title).catch(() => {});
+    gamesListCacheClear(); // title/tags/publish flips change the gallery
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ game: data, error: error ? 'Could not save the game.' : undefined }));
     return;
@@ -5566,6 +5646,7 @@ function sanitizeTags(raw) {
       if (paths.length) await bucket.remove(paths);
     } catch {}
     await supabase.from('games').delete().eq('id', id).eq('owner_id', user.id);
+    gamesListCacheClear();
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true }));
     return;
@@ -5683,6 +5764,11 @@ function sanitizeTags(raw) {
   // Share cards (/g/<slug>) bounce here; without this the player 404s.
   if (url.pathname === '/view') {
     url.pathname = '/view.html';
+  }
+
+  // ── Redirect /race to /race.html ──────────────────────────────
+  if (url.pathname === '/race') {
+    url.pathname = '/race.html';
   }
 
   // ── Redirect /games to /games.html ────────────────────────────
@@ -6574,6 +6660,57 @@ setInterval(() => {
   sendLobbyListToAll();
 }, 5000);
 
+// ── Weekly creator race ──────────────────────────────────────────
+// One point per unique player per published game per week (Monday 00:00
+// UTC — the same boundary the jam and this digest use). Viewers are
+// salted IP hashes. Settlement is lazy + idempotent: the race_weeks row
+// (its primary key IS the week) is written FIRST, then coins/badges — a
+// repeated settle can never double-pay.
+const RACE_PRIZES = { 1: 500, 2: 300, 3: 150 };
+async function raceTop(week, limit, meId) {
+  let data;
+  try { ({ data } = await supabase.from('race_plays').select('creator_id, game_id, viewer').eq('week', week).limit(20000)); } catch (e) { return null; }
+  const counts = new Map();
+  for (const r of data || []) counts.set(r.creator_id, (counts.get(r.creator_id) || 0) + 1);
+  const ids = [...counts.keys()];
+  if (!ids.length) return { top: [], me: null, total: 0 };
+  const { data: users } = await supabase.from('users').select('id, display_name, user_id').in('id', ids);
+  const byId = new Map((users || []).map(u => [u.id, u]));
+  const scored = ids.map(id => ({ id, points: counts.get(id), u: byId.get(id) }))
+    .sort((a, b) => b.points - a.points || String(a.id).localeCompare(String(b.id)));
+  const top = scored.slice(0, limit || 20).map((x, i) => ({ place: i + 1, uid: x.id, name: (x.u && x.u.display_name) || 'Unknown', num: (x.u && x.u.user_id) || null, points: x.points }));
+  const mine = meId ? scored.findIndex(x => x.id === meId) : -1;
+  return { top, me: mine === -1 ? null : { place: mine + 1, points: scored[mine].points }, total: scored.length };
+}
+async function raceSettleWeek(week) {
+  try {
+    const r = await raceTop(week, 3);
+    const top = r ? r.top : [];
+    const ins = await supabase.from('race_weeks').insert({ week, top });
+    if (ins.error) return; // already settled, or no table (migration pending)
+    for (const t of top) {
+      const coins = RACE_PRIZES[t.place];
+      if (coins) {
+        try { await supabase.rpc('grant_coins', { p_user: t.uid, p_delta: coins, p_reason: 'race:' + week, p_ref: null }); }
+        catch (e) { console.error('race payout:', e && e.message); }
+      }
+      await awardUser(t.uid, t.place === 1 ? 'race_winner' : 'race_top3').catch(() => {});
+      notify(t.uid, 'race', 'Creator race: #' + t.place + ' last week' + (coins ? ' — +' + coins + ' coins' : ''),
+        'The creator race settled: you finished #' + t.place + ' with ' + t.points + ' point' + (t.points === 1 ? '' : 's') + '.', 'race', week);
+    }
+  } catch (e) { console.error('race settle:', e && e.message); }
+}
+async function raceSettle() {
+  const now = digestWeekStart();
+  let rows = null;
+  try { ({ data: rows } = await supabase.from('race_plays').select('week').limit(1000)); } catch (e) {}
+  const weeks = [];
+  for (const r of rows || []) if (r.week < now && weeks.indexOf(r.week) === -1) weeks.push(r.week);
+  for (const w of weeks) await raceSettleWeek(w);
+}
+setInterval(() => { raceSettle(); }, 3600000); // hourly settle sweep
+setTimeout(raceSettle, 40 * 1000); // first sweep 40s after start
+
 // ── Weekly digest email (Monday, verified users) ─────────────
 // One email a week: this week's build theme, last week's jam winners, and
 // up to 3 newest games from creators the reader follows (the follow-shelf
@@ -6630,6 +6767,10 @@ async function sendDigestMail(email, subject, html) {
 async function weeklyDigest() {
   const week = digestWeekStart();
   const prevWeek = digestWeekStart(new Date(Date.now() - 7 * 86400000));
+  try { await raceSettle(); } catch (e) {} // make sure race prizes are banked before the mail reads them
+  // Creator race winners (settled top-3 with points) — read-only here.
+  let raceWinners = [];
+  try { const { data: rw } = await supabase.from('race_weeks').select('top').eq('week', prevWeek).limit(1); raceWinners = ((rw && rw[0]) || {}).top || []; } catch (e) {}
   let state = null;
   try { state = JSON.parse(fs.readFileSync(DIGEST_FILE, 'utf8')); } catch {}
   if (state && state.week === week) return; // this week already went out
@@ -6662,6 +6803,29 @@ async function weeklyDigest() {
       if (error) break;
       const batch = (data && data.users) || [];
       if (!batch.length) break;
+      // Batch-level stats for the personal paragraph: race points (unique
+      // players last week), hearts received, remixes received. One query
+      // each per page batch, joined in JS — no per-user queries.
+      const batchIds = batch.map(u => (u && u.id)).filter(Boolean);
+      const statPlays = new Map(), statLikes = new Map(), statForks = new Map();
+      try {
+        const { data: rp } = await supabase.from('race_plays').select('creator_id').in('creator_id', batchIds).eq('week', prevWeek).limit(20000);
+        for (const r of rp || []) statPlays.set(r.creator_id, (statPlays.get(r.creator_id) || 0) + 1);
+      } catch (e) {}
+      try {
+        const { data: gl } = await supabase.from('game_likes').select('games!inner(owner_id)')
+          .in('games.owner_id', batchIds).gte('created_at', prevWeek + 'T00:00:00.000Z').lt('created_at', week + 'T00:00:00.000Z').limit(5000);
+        for (const r of gl || []) if (r.games && r.games.owner_id) statLikes.set(r.games.owner_id, (statLikes.get(r.games.owner_id) || 0) + 1);
+      } catch (e) {}
+      try {
+        const { data: bg } = await supabase.from('games').select('id, owner_id').in('owner_id', batchIds).limit(3000);
+        const parentOwner = new Map((bg || []).map(g => [g.id, g.owner_id]));
+        if (parentOwner.size) {
+          const { data: fr } = await supabase.from('games').select('forked_from').in('forked_from', [...parentOwner.keys()])
+            .gte('created_at', prevWeek + 'T00:00:00.000Z').lt('created_at', week + 'T00:00:00.000Z').limit(5000);
+          for (const f of fr || []) { const owner = parentOwner.get(f.forked_from); if (owner) statForks.set(owner, (statForks.get(owner) || 0) + 1); }
+        }
+      } catch (e) {}
       for (const u of batch) {
         if (!u || !u.email || userUnconfirmed(u)) continue;
         // Three newest published games from creators this reader follows.
@@ -6683,10 +6847,18 @@ async function weeklyDigest() {
           rows.push('<p style="font-size:13px;color:#5C5878;margin:0 0 6px">Last week\'s jam winners</p>');
           winners.forEach((w, i) => rows.push('<p style="font-size:14px;margin:0 0 4px">#' + (i + 1) + ' ' + String(w.title).replace(/[<>&]/g, '') + ' by ' + String(w.owner).replace(/[<>&]/g, '') + ' (' + w.votes + ')</p>'));
         }
+        if (raceWinners.length) {
+          rows.push('<p style="font-size:13px;color:#5C5878;margin:10px 0 6px">Creator race prize winners</p>');
+          raceWinners.forEach(w => rows.push('<p style="font-size:14px;margin:0 0 4px">' + (w.place === 1 ? '🥇 ' : w.place === 2 ? '🥈 ' : '🥉 ') + String(w.name || 'someone').replace(/[<>&]/g, '') + ' — ' + (w.points == null ? 0 : w.points) + ' point' + (w.points === 1 ? '' : 's') + '</p>'));
+        }
         if (picks.length) {
           rows.push('<p style="font-size:13px;color:#5C5878;margin:10px 0 6px">New from creators you follow</p>');
           picks.forEach(g => rows.push('<p style="font-size:14px;margin:0 0 4px">' + String(g.title || 'A new game').replace(/[<>&]/g, '') + (' by ' + ((g.users && g.users.display_name) || 'someone')) + '</p>'));
         }
+        // Personal paragraph: last week's plays (race points), hearts,
+        // remixes — the pull that brings the creator back in to build.
+        const pp = statPlays.get(u.id) || 0, pl2 = statLikes.get(u.id) || 0, pf = statForks.get(u.id) || 0;
+        if (pp || pl2 || pf) rows.unshift('<p style="font-size:15px;margin:0 0 12px">Last week your games got <b>' + pp + '</b> race point' + (pp === 1 ? '' : 's') + ', <b>' + pl2 + '</b> new heart' + (pl2 === 1 ? '' : 's') + (pf ? ' and <b>' + pf + '</b> remix' + (pf === 1 ? '' : 'es') : '') + '.</p>');
         if (!rows.length) rows.push('<p style="font-size:14px;margin:0">A quiet week — maybe yours to change. The Cudic Studio is one click away.</p>');
         const html =
           '<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:28px 24px;background:#FFFFFF;color:#2E2A4B;border-radius:16px;border:1px solid #C9D5F0">' +
@@ -6695,7 +6867,7 @@ async function weeklyDigest() {
           rows.join('') +
           '<p style="font-size:12px;color:#9C97B8;margin-top:18px">You get this because you verified your email at Cudic — one a week, that\'s all.</p>' +
           '</div>';
-        const err = await sendDigestMail(u.email, 'Cudic weekly: ' + (theme ? theme : 'new week') + (winners.length ? ' + jam winners' : ''), html);
+        const err = await sendDigestMail(u.email, 'Cudic weekly: ' + (theme ? theme : 'new week') + (winners.length ? ' + jam winners' : '') + (raceWinners.length ? ' + race winners' : ''), html);
         if (err) { skipped++; } else { sent++; }
         await new Promise(r => setTimeout(r, 250)); // gentle on the transports
       }

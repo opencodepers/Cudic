@@ -158,7 +158,8 @@ render.yaml               # Render service (PORT 10000)
 ### Pages & routes
 Vercel rewrites (`vercel.json`) map extensionless paths → `.html`:
 `/` → index (landing), `/login` → login.html, `/profile`, `/chat`, `/games`,
-`/themes`, `/editor`, `/servers`, `/server/:id` (server space), `/lobbies`, `/docs`,
+`/race` → race.html (creator race leaderboard), `/themes`, `/editor`, `/servers`,
+`/server/:id` (server space), `/lobbies`, `/docs`,
 `/faq`, `/teachers` → `/parents` (classroom landing), `/cookbook/` guides,
 `/studio` → `studio/index.html`.
 `server.js` mirrors all of these for local dev.
@@ -237,6 +238,11 @@ GET  /api/badges                   ← public award catalog + equip caps
 GET  /api/feed/games               ← follow feed SHELF: newest published games by
                                     who this viewer follows (distinct from /api/feed)
 GET  /api/jam                      ← PUBLIC jam standings for this week
+GET  /api/race                     ← PUBLIC creator-race standings (GET is
+                                  authless; optional Bearer adds `me` {place,
+                                  points}): `{week, ends_at, top20, me,
+                                  total_creators, last_winners}`; any view
+                                  lazily settles finished weeks (raceSettle)
 GET|POST|DELETE /api/jam/vote      ← vote state / vote / unvote; one vote per
                                     account per week — a second vote MOVES it
                                     (prior row is deleted first); votes live
@@ -327,6 +333,25 @@ Content: current jam theme (from weekly.json), last week's winner tally
 newest published games from creators the reader follows. Recipients:
 confirmed auth accounts only (`userUnconfirmed` filter), 8×100 page cap,
 250 ms between sends. Tests: `WeeklyDigestEmail` in test_regressions.py.
+
+### Weekly creator race (`/race`, `race_plays` + `race_weeks`)
+Habit loop: one point per **unique player** per published game per week
+(Monday 00:00 UTC — same clock as the jam and digest; reuse
+`digestWeekStart`, do not reinvent a week boundary). The play endpoint
+inserts a `race_plays` row per counted play, viewer = sha256 of the IP,
+salted with the literal `race|`; the (week, game_id, viewer) PK makes the
+dedupe — points are unique players, never play events, and nothing
+personal is stored. Leaderboard: `raceTop(week)` aggregates in JS, joins
+names via users. Settlement (`raceSettle`, hourly timer + lazy on any
+/api/race view + before the digest mail): insert the `race_weeks` row
+FIRST (its PK is the double-pay lock), THEN `grant_coins` (reason
+`race:<week>`) + `awardUser` (race_winner / race_top3) + `notify`. Weeks
+with no plays still get an empty row so a finished week never re-settles.
+Page: `public/race.html` (+ `/race` redirect), rail link in sidebar.js
+(coin icon). Migration: `migration/race.sql` — the server degrades to an
+empty race when the tables are missing. Digest: weeklyDigest now adds a
+per-creator personal stat line using race_plays + game_likes + forked
+games for the batch, and lists the settled race winners.
 
 ### In-game achievements (CudicAch shim)
 Same sandbox shape as CudicScores/CudicSave: the game frame calls
@@ -1086,6 +1111,19 @@ grid-led, Geist everywhere. Read it before building any public surface. Headline
   deployed build (Discord report, Nov 2026). Don't remove that entry; new Cudic
   command keybindings go in the same `initUserKeybindings` array. Desktop VS Code
   swallows Ctrl+Shift+P, which is why the palette chord is `ctrl+shift+alt+p`.
+18. **Gallery list is cached server-side** (`gamesListCache` in `server.js`,
+  30s TTL, keyed `sort|q|tag|offset`, capped at 100 keys) **and browser-side**
+  (stale-while-revalidate in `public/games.html`, `cudic-gal-v1` in
+  `localStorage`, 10 min — the page paints the snapshot then revalidates). If
+  you add ANY new write that can change what GET /api/games shows, call
+  `gamesListCacheClear()` after it succeeds or the gallery serves stale rows
+  for up to 30s. Viewer likes are never cached.
+19. **The creator race settles lazily and pays through `race_weeks`**
+  (week text PK + top jsonb). Order is strict: insert the week row FIRST,
+  then grant coins/badges — the insert error is the double-pay guard.
+  Scoring writes only live in the POST /play path (`race_plays`),
+  best-effort, never awaited. Reuse `digestWeekStart()` for the week
+  boundary; a second week-calcuation helper would drift from the jam.
 
 ---
 

@@ -8,6 +8,19 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Creator race + a personal weekly digest**
+
+- Two habit-formers, sharing one stats pipe. The **creator race** (`/race`, also in the rail) scores every creator on the thing jams don't measure: whether people keep playing what you ship. One point per *unique* player per published game per week — Monday 00:00 UTC, the same clock as the jam and the digest. The page shows the live top 20, medal podium, a countdown to the reset, last week's winners, and your own position when signed in.
+- Week rollover pays out **automatically** (lazy, idempotent per `race_weeks` row so it can never double-pay): #1 — 500 coins + the **Race Champion** title, #2 — 300 coins + **Race Podium** badge, #3 — 150 coins + **Race Podium**. Winners also get an inbox notification.
+- The **Monday digest email** now leads with the creator's own numbers — "your games got N race points, M new hearts, K remixes last week" — followed by the race winners and the existing theme/jam/follows sections. That's the pull-back notification that works without the site open.
+- Scoring ledger: new `race_plays` table (play endpoint inserts one row per counted play, deduped per week/game/salted-IP-hash; settlement in `race_weeks`). **Requires `migration/race.sql` in Supabase before deploying.** Anti-gaming: replays dedupe, plays stay rate-limited per IP+game per hour, no personal data stored.
+- Checks: 216/216 tests pass (5 new: /api/race shape, /race page + pretty route).
+**Faster gallery: cached /api/games list — on the server and in the browser**
+
+- Each gallery hit was doing three sequential Supabase roundtrips (the rows page, a 200-row published-games tag scan for the chips, and like counts for the visible cards) before it could answer. Those three results are identical for every viewer, so the list now serves from an in-memory cache (`server.js`): 30s TTL keyed by `sort|q|tag|offset`. Measured on the dev server: 0.56s cold → 0.006s warm with a byte-identical payload. Entries stay bounded (max 100 keys, ~50 rows each, thumbnails already stripped), so a gallery of hundreds of games costs a few MB of server memory at the absolute worst — pages stay 50 games however big it grows.
+- The page also paints from the browser: `/games` repaints instantly from a `localStorage` snapshot of the last view for the exact same sort/tag/search page (kept 10 minutes), then fetches fresh data behind it and swaps in only if something changed — like hearts and live player counts always refresh. First-ever visit still pays the full load.
+- Fresh content is never held back: every gallery-affecting write (create, update/publish, delete, fork, feature-toggle, moderator unpublish, revision restore) calls `gamesListCacheClear()` immediately, so the TTL is only a safety net for changes the server doesn't witness (e.g. direct DB edits). The signed-in viewer's own like hearts are still computed per request — never cached server-side.
+- Checks: 211/211 tests pass.
 **Fixed: Ctrl+S in the Studio now actually saves the project**
 
 - A Discord member reported saving failing with "Null extension description" (Oct 29, still broken after the Nov 2 updates). Root cause on the current build: `Ctrl+S` was **not bound to anything Cudic** — the built-in `workbench.action.files.save` runs instead, and since the studio never wires up the files service that verb is a silent no-op (and on the older deployed bundle its extension-host save path surfaced the "Null extension description" toast). The palette command `Cudic: Save project` (Ctrl+Shift+P → save) always worked, which is why saved projects kept succeeding once users found the menu.
