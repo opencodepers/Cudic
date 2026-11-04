@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cosmetics — Cudic</title>
+<meta name="description" content="Spend Cudic coins on profile frames, banners, effects, name styles, titles and emoji packs.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Cudic">
+<meta property="og:title" content="Cosmetics — Cudic">
+<meta property="og:description" content="Spend Cudic coins on profile frames, banners, effects, name styles, titles and emoji packs.">
+<meta property="og:url" content="https://cudic.vercel.app/shop">
+<meta property="og:image" content="https://cudic.vercel.app/og.png?v=2">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://cudic.vercel.app/shop">
+<link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
+<link rel="stylesheet" href="/sidebar.css?v=25">
+<style>
+:root{--bg:#0d0e10;--panel:#14161b;--panel-raised:#1a1e26;--line:#262a33;--ink:#f7f5ec;--mute:#9a9a94;--signal:#b8f23a;--blue:#3f7cff;--radius:6px;--font-head:"Geist",system-ui,sans-serif;--font-body:"Geist",system-ui,sans-serif;--font-mono:"Geist Mono",ui-monospace,monospace}
+:root[data-theme="light"]{--bg:#f7f5ec;--panel:#fffdf6;--panel-raised:#fff;--line:#d6d2c2;--ink:#0d0e10;--mute:#6b6a63}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--font-body);min-height:100vh;display:flex}
+.shop{flex:1;min-width:0;padding:26px 26px 80px;max-width:1180px;margin:0 auto;width:100%}
+
+/* ── header ───────────────────────────────────────────────── */
+.hero{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:14px;padding:26px 24px;margin-bottom:18px;
+  background:radial-gradient(700px 260px at 82% -10%,rgba(63,124,255,.22),transparent 62%),radial-gradient(520px 220px at 8% 120%,rgba(184,242,58,.14),transparent 60%),linear-gradient(160deg,#101218,#0b0c11)}
+:root[data-theme="light"] .hero{background:radial-gradient(700px 260px at 82% -10%,rgba(63,124,255,.12),transparent 62%),radial-gradient(520px 220px at 8% 120%,rgba(184,242,58,.2),transparent 60%),linear-gradient(160deg,#fffdf6,#f2efdf)}
+.hero h1{font-family:var(--font-head);font-weight:600;font-size:clamp(1.4rem,3vw,2rem);letter-spacing:-.03em;line-height:1.05}
+.hero p{color:var(--mute);font-size:.92rem;max-width:52ch;margin-top:8px}
+.balance{margin-top:16px;display:inline-flex;align-items:center;gap:8px;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-family:var(--font-head);font-size:.9rem}
+.balance b{font-weight:700;color:var(--signal)}
+.coin{width:15px;height:15px;border-radius:50%;background:linear-gradient(140deg,#f7d272,#c99b25);box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.25);display:inline-block;flex-shrink:0}
+
+/* ── look preview ─────────────────────────────────────────── */
+.look{border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:20px;background:var(--panel)}
+.lookhead{height:92px;background:linear-gradient(160deg,#151821,#0e1015)}
+.lookbody{display:flex;align-items:flex-end;gap:14px;padding:0 20px 16px;margin-top:-26px}
+.lookava{width:72px;height:72px;border-radius:50%;background:var(--panel-raised);display:grid;place-items:center;font-family:var(--font-head);font-weight:600;font-size:1.5rem;color:var(--signal);border:1px solid var(--line);overflow:hidden;flex-shrink:0}
+.lookava img{width:100%;height:100%;object-fit:cover}
+.lookname{font-family:var(--font-head);font-weight:600;font-size:1.05rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lookmeta{font-size:.78rem;color:var(--mute);margin-top:2px}
+.looksave{font-size:.78rem;color:var(--mute);padding:0 20px 14px;min-height:20px}
+.looksave.ok{color:var(--signal)}
+.looksave.err{color:#ff8c7a}
+
+/* ── tabs ─────────────────────────────────────────────────── */
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tab{border:1px solid var(--line);background:var(--panel);color:var(--mute);border-radius:999px;padding:7px 14px;font:500 .82rem var(--font-head);cursor:pointer;transition:color .15s,border-color .15s,background .15s}
+.tab:hover{color:var(--ink);border-color:var(--signal)}
+.tab[aria-selected="true"]{background:var(--signal);color:#0d0e10;border-color:transparent}
+
+/* ── grid ─────────────────────────────────────────────────── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:14px}
+.item{border:1px solid var(--line);border-radius:12px;background:var(--panel);display:flex;flex-direction:column;overflow:hidden;transition:border-color .15s,transform .15s}
+.item:hover{border-color:#3a4150;transform:translateY(-1px)}
+.item.owned{border-color:rgba(184,242,58,.35)}
+.item.worn{border-color:var(--signal);box-shadow:0 0 0 1px rgba(184,242,58,.25)}
+.pv{height:104px;display:grid;place-items:center;background:linear-gradient(160deg,#12141b,#0c0d12);overflow:hidden;position:relative}
+:root[data-theme="light"] .pv{background:linear-gradient(160deg,#f6f3e6,#eeeada)}
+.pv .sample{width:56px;height:56px;border-radius:50%;background:var(--panel-raised);display:grid;place-items:center;font-family:var(--font-head);font-weight:600;color:var(--mute)}
+.pv .bnswatch{width:86%;height:72px;border-radius:8px;border:1px solid rgba(255,255,255,.08)}
+.pv .efbox{width:86%;height:72px;border-radius:8px;background:var(--panel-raised);border:1px solid rgba(255,255,255,.08);display:grid;place-items:center;font-size:.7rem;color:var(--mute);letter-spacing:.14em}
+.pv .namesample{font-family:var(--font-head);font-weight:600;font-size:1.45rem;color:var(--ink)}
+.pv .emojis{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;padding:0 10px;font-size:1.15rem;line-height:1}
+.info{padding:12px 14px 0;flex:1}
+.kind{font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.title{font-family:var(--font-head);font-weight:600;font-size:.95rem;margin-top:3px}
+.blurb{font-size:.78rem;color:var(--mute);margin-top:4px;line-height:1.4}
+.acts{display:flex;align-items:center;gap:8px;padding:12px 14px 14px}
+.price{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-head);font-weight:600;font-size:.84rem;margin-right:auto}
+.price.free{color:var(--signal)}
+.btn{border:1px solid var(--line);background:var(--panel-raised);color:var(--ink);border-radius:8px;padding:7px 13px;font:500 .8rem var(--font-head);cursor:pointer;transition:background .15s,border-color .15s}
+.btn:hover{border-color:var(--signal)}
+.btn.primary{background:var(--signal);color:#0d0e10;border-color:transparent}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.off{background:transparent;color:var(--mute)}
+.btn:disabled{opacity:.55;cursor:default}
+.empty{color:var(--mute);font-size:.9rem;padding:20px 4px}
+.note{color:var(--mute);font-size:.78rem;margin-top:22px;line-height:1.6}
+.note a{color:var(--signal)}
+@media (max-width:640px){.shop{padding:16px 14px 80px}.grid{grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:10px}.pv{height:86px}.lookbody{align-items:center}}
+</style>
+</head>
+<body data-page="shop">
+<nav class="sidebar" id="sidebar" aria-label="Main"></nav>
+<main class="shop">
+  <section class="hero">
+    <h1>Wear your progress.</h1>
+    <p>Frames, banners, effects, name styles, titles and emoji packs. Bought with coins you earn from quests, chat and jams — no cash, no loot boxes, no pay-to-win.</p>
+    <span class="balance"><span class="coin" aria-hidden="true"></span><b id="balanceNum">—</b>&nbsp;coins</span>
+  </section>
+
+  <section class="look" id="lookCard" style="display:none" aria-label="Your current look">
+    <div class="lookhead" id="lookBanner"></div>
+    <div class="lookbody">
+      <div class="lookava" id="lookAvatar">?</div>
+      <div style="padding-bottom:2px">
+        <div class="lookname"><span id="lookName">you</span><span id="lookTitle"></span></div>
+        <div class="lookmeta" id="lookMeta">Nothing equipped yet.</div>
+      </div>
+    </div>
+    <div class="looksave" id="lookMsg" role="status"></div>
+  </section>
+
+  <div class="tabs" role="tablist" id="tabs">
+    <button class="tab" role="tab" data-k="" aria-selected="true">Everything</button>
+    <button class="tab" role="tab" data-k="frame" aria-selected="false">Frames</button>
+    <button class="tab" role="tab" data-k="banner" aria-selected="false">Banners</button>
+    <button class="tab" role="tab" data-k="effect" aria-selected="false">Effects</button>
+    <button class="tab" role="tab" data-k="name" aria-selected="false">Name</button>
+    <button class="tab" role="tab" data-k="title" aria-selected="false">Titles</button>
+    <button class="tab" role="tab" data-k="emoji" aria-selected="false">Emoji</button>
+  </div>
+
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" style="display:none">Sign in to buy and wear cosmetics.</div>
+
+  <p class="note">Coins come from <a href="/quests">quests</a>, the daily check-in, chatting, and weekly game jams. Cosmetics are cosmetic only — nothing here changes how games play or what you can publish.</p>
+</main>
+
+<script src="/config.js"></script>
+<script src="/auth.js"></script>
+<script src="/sidebar.js?v=25"></script>
+<script src="/cudic-cosmetics.js?v=1"></script>
+<script>
+(function(){
+  var SLOT_OF = { frame:'fr', banner:'bn', effect:'ef', name:'ne', title:'ti', emoji:'em' };
+  var KIND_LABEL = { frame:'Frame', banner:'Banner', effect:'Profile effect', name:'Name style', title:'Title', emoji:'Emoji pack' };
+  var state = { catalog:[], owned:{}, worn:{}, balance:0, filter:'', busy:false };
+
+  function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':s; return d.innerHTML; }
+  function apiHost(){ return (typeof WS_URL!=='undefined'&&WS_URL)?WS_URL.replace(/^wss?:\/\//,'https://'):''; }
+  function token(){ try { if(window.getAuthToken) return window.getAuthToken().then(function(a){return a||null;}); var raw=localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token'); var s=raw?JSON.parse(raw):null; return Promise.resolve(s&&s.access_token||null); } catch(e){ return Promise.resolve(null); } }
+  function api(method, path, body){
+    return token().then(function(t){
+      return fetch(apiHost()+path,{method:method,headers:Object.assign({'Authorization':'Bearer '+(t||'')}, body?{'Content-Type':'application/json'}:{}),body:body?JSON.stringify(body):undefined})
+        .then(function(r){ return r.json().catch(function(){return {};}).then(function(d){ return {ok:r.ok, d:d}; }); });
+    });
+  }
+  function msg(text, ok){
+    var el=document.getElementById('lookMsg');
+    el.textContent=text||'';
+    el.className='looksave'+(text?(ok?' ok':' err'):'');
+  }
+
+  // Which code is worn in a given slot (titles live in the `t` array).
+  function wornCode(slot){
+    if (slot==='ti') {
+      var t = state.worn.t || [];
+      for (var i=0;i<t.length;i++) if (state.catalog.some(function(c){return c.code===t[i];})) return t[i];
+      return null;
+    }
+    return state.worn[slot] || null;
+  }
+
+  function preview(c){
+    if (c.slot==='fr') return '<div class="sample cx-fr cx-fr--'+c.code+'">Aa</div>';
+    if (c.slot==='bn') return '<div class="bnswatch cx-bn cx-bn--'+c.code+'"></div>';
+    if (c.slot==='ef') return '<div class="efbox cx-ef cx-ef--'+c.code+'">EFFECT</div>';
+    if (c.slot==='ne') return '<div class="namesample cx-ne--'+c.code+'">Aa</div>';
+    if (c.slot==='ti') return '<span class="cx-title cx-title--'+c.code+'">'+esc(c.label)+'</span>';
+    var set = (window.CudicCosmetics && CudicCosmetics.packs[c.code]) || {};
+    var glyphs = Object.keys(set).slice(0,10).map(function(k){ return set[k]; }).join('');
+    return '<div class="emojis">'+glyphs+'</div>';
+  }
+
+  function card(c){
+    var owned = !!state.owned[c.code];
+    var worn = wornCode(c.slot) === c.code;
+    var canAfford = state.balance >= c.price;
+    var cls = 'item'+(owned?' owned':'')+(worn?' worn':'');
+    var act;
+    if (worn) act = '<button class="btn off" data-act="unequip" data-code="'+c.code+'" data-slot="'+c.slot+'">Take off</button>';
+    else if (owned) act = '<button class="btn primary" data-act="equip" data-code="'+c.code+'" data-slot="'+c.slot+'">Wear</button>';
+    else act = '<button class="btn primary" data-act="buy" data-code="'+c.code+'"'+(canAfford?'':' disabled title="Not enough coins yet"')+'>'+(canAfford?'Buy':'Need more')+'</button>';
+    return '<article class="'+cls+'" data-kind="'+c.kind+'">'
+      + '<div class="pv">'+preview(c)+'</div>'
+      + '<div class="info"><div class="kind">'+esc(KIND_LABEL[c.kind]||c.kind)+'</div>'
+      + '<div class="title">'+esc(c.label)+'</div><div class="blurb">'+esc(c.blurb||'')+'</div></div>'
+      + '<div class="acts"><span class="price'+(owned?' free':'')+'">'+(owned?'<span style="color:var(--signal)">Owned</span>':'<span class="coin" aria-hidden="true"></span>'+c.price)+'</span>'+act+'</div>'
+      + '</article>';
+  }
+
+  function render(){
+    var grid=document.getElementById('grid');
+    var list = state.catalog.filter(function(c){ return !state.filter || c.kind===state.filter; });
+    grid.innerHTML = list.length ? list.map(card).join('') : '<div class="empty">Nothing in this shelf yet.</div>';
+    document.getElementById('balanceNum').textContent = state.balance;
+    paintLook();
+  }
+
+  function paintLook(){
+    var card=document.getElementById('lookCard');
+    var av=document.getElementById('lookAvatar'), nm=document.getElementById('lookName'),
+        bn=document.getElementById('lookBanner'), ti=document.getElementById('lookTitle');
+    if(!window.CudicCosmetics) return;
+    var c = {};
+    if (state.worn.fr) c.frame = { code: state.worn.fr };
+    if (state.worn.bn) c.banner = { code: state.worn.bn };
+    if (state.worn.ef) c.effect = { code: state.worn.ef };
+    if (state.worn.ne) c.name = { code: state.worn.ne };
+    var tc = wornCode('ti');
+    if (tc) {
+      var item = state.catalog.find(function(x){ return x.code===tc; });
+      c.title = { code: tc, label: item ? item.label : 'Title' };
+    }
+    bn.className = 'lookhead';
+    CudicCosmetics.paint({ avatar: av, name: nm, banner: bn, titleHost: ti }, c);
+    var worn = ['fr','bn','ef','ne'].filter(function(s){ return !!state.worn[s]; }).length + (tc?1:0);
+    document.getElementById('lookMeta').textContent = worn ? worn + ' cosmetic' + (worn===1?'':'s') + ' worn' : 'Nothing equipped yet.';
+    card.style.display = '';
+  }
+
+  function load(){
+    return api('GET','/api/cosmetics').then(function(r){
+      if (!r.ok || !r.d.cosmetics && !r.d.catalog) {
+        if (r.d && r.d.error) msg(r.d.error, false);
+        document.getElementById('grid').style.display='none';
+        document.getElementById('empty').style.display='block';
+        return;
+      }
+      var d=r.d;
+      state.catalog = (d.catalog||[]).map(function(c){
+        var kind = c.slot==='fr'?'frame':c.slot==='bn'?'banner':c.slot==='ef'?'effect':c.slot==='ne'?'name':c.slot==='ti'?'title':'emoji';
+        return { code:c.code, label:c.label, price:c.price, blurb:c.blurb, slot:c.slot, kind:kind };
+      });
+      state.owned = {}; (d.owned||[]).forEach(function(c){ state.owned[c]=true; });
+      state.worn = d.worn || {};
+      state.balance = d.balance || 0;
+      // Chat reads this cache to unlock emoji packs without an extra call.
+      try {
+        var packs = state.catalog.filter(function(c){ return c.slot==='em' && state.owned[c.code]; }).map(function(c){ return c.code; });
+        localStorage.setItem('cudic_emoji_packs', JSON.stringify(packs));
+      } catch(e){}
+      render();
+    });
+  }
+
+  document.getElementById('grid').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-act]');
+    if (!b || state.busy) return;
+    var code=b.dataset.code, act=b.dataset.act;
+    state.busy=true; b.disabled=true;
+    msg('');
+
+    if (act==='buy') {
+      api('POST','/api/cosmetics/buy',{code:code}).then(function(r){
+        state.busy=false;
+        if (!r.ok) { msg(r.d.error || 'Buy failed.', false); render(); return; }
+        state.owned[code]=true;
+        if (typeof r.d.balance==='number') state.balance=r.d.balance;
+        msg('Bought — wear it from the card or your profile.', true);
+        return load();
+      });
+      return;
+    }
+
+    // The card already carries the server slot code (fr/bn/ef/ne/ti/em).
+    var s = b.dataset.slot || '';
+    api('POST','/api/cosmetics/equip',{slot:s, code: act==='unequip' ? null : code}).then(function(r){
+      state.busy=false;
+      if (!r.ok) { msg(r.d.error || 'Could not save.', false); render(); return; }
+      state.worn = r.d.worn || state.worn;
+      msg(act==='unequip' ? 'Taken off.' : 'Worn — it shows on your profile and creator page.', true);
+      render();
+      try { localStorage.setItem('cudic_cosmetics_dirty','1'); } catch(e){}
+    });
+  });
+
+  document.getElementById('tabs').addEventListener('click', function(e){
+    var t=e.target.closest('.tab'); if(!t) return;
+    Array.prototype.forEach.call(this.children, function(b){ b.setAttribute('aria-selected', b===t?'true':'false'); });
+    state.filter = t.dataset.k;
+    render();
+  });
+
+  // Reflect the signed-in user at the top of the preview card.
+  api('GET','/api/profile').then(function(r){
+    var p = r.d && r.d.profile;
+    if (!p) return;
+    var av=document.getElementById('lookAvatar');
+    if (p.avatar_url) av.innerHTML='<img src="'+esc(p.avatar_url)+'" alt="">';
+    else av.textContent=(p.display_name||'?').substring(0,2).toUpperCase();
+    document.getElementById('lookName').textContent = p.display_name || 'you';
+  });
+
+  try { if (window.CudicCosmetics) CudicCosmetics.injectCss(); } catch(e){}
+  load();
+})();
+</script>
+</body>
+</html>

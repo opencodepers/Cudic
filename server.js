@@ -186,6 +186,89 @@ const AWARDS = {
 const EQUIP_CAPS = { b: 5, f: 10, t: 2 };
 const EQ_KIND = { b: 'badge', f: 'flair', t: 'title' };
 
+// ── Cosmetics shop ────────────────────────────────────────────────
+// Bought with coins, owned in user_cosmetics, worn from users.equips.
+// Single-value slots: fr frame · bn banner · ef profile effect ·
+// ne name effect · ti title · em emoji pack. Titles share the `t` array
+// with earned award titles (ownership is the union of user_badges and
+// user_cosmetics), so both equips paths have to merge, never overwrite.
+// Prices live here only — the client reads them from /api/cosmetics.
+const COSMETIC_SLOTS = { fr: 'frame', bn: 'banner', ef: 'effect', ne: 'name', ti: 'title', em: 'emoji' };
+const COSMETIC_SINGLE = { fr: 1, bn: 1, ef: 1, ne: 1, em: 1 };
+const COSMETICS = [
+  { code: 'frame_ring',      slot: 'fr', label: 'Leaf Ring',    price: 80,  blurb: 'A clean lime ring around your avatar.' },
+  { code: 'frame_ice',       slot: 'fr', label: 'Ice Ring',     price: 140, blurb: 'Cold blue edge, subtle inner glow.' },
+  { code: 'frame_ember',     slot: 'fr', label: 'Ember Ring',   price: 140, blurb: 'Warm orange rim for night owls.' },
+  { code: 'frame_void',      slot: 'fr', label: 'Void Ring',    price: 220, blurb: 'Deep violet with a bright edge.' },
+  { code: 'frame_dash',      slot: 'fr', label: 'Circuit',      price: 260, blurb: 'Dashed ring that rotates on hover.' },
+  { code: 'frame_holo',      slot: 'fr', label: 'Holo',         price: 380, blurb: 'Full colour wheel, always spinning.' },
+  { code: 'frame_gold',      slot: 'fr', label: 'Champion',     price: 600, blurb: 'Jam-winner gold with a slow shine.' },
+
+  { code: 'banner_grid',     slot: 'bn', label: 'Blueprint',    price: 90,  blurb: 'Faint graph paper behind your header.' },
+  { code: 'banner_terminal', slot: 'bn', label: 'Terminal',     price: 150, blurb: 'Green-on-black scanline wash.' },
+  { code: 'banner_aurora',   slot: 'bn', label: 'Aurora',       price: 180, blurb: 'Slow teal and violet northern light.' },
+  { code: 'banner_sunset',   slot: 'bn', label: 'Sunset',       price: 180, blurb: 'Dusk gradient, ember at the edge.' },
+  { code: 'banner_stars',    slot: 'bn', label: 'Starfield',    price: 240, blurb: 'A quiet field of drifting stars.' },
+  { code: 'banner_prism',    slot: 'bn', label: 'Prism',        price: 320, blurb: 'Hard light refracted across the header.' },
+
+  { code: 'effect_scan',     slot: 'ef', label: 'Scanlines',    price: 120, blurb: 'CRT lines drifting down your card.' },
+  { code: 'effect_bubble',   slot: 'ef', label: 'Bubbles',      price: 160, blurb: 'Slow rising bubbles.' },
+  { code: 'effect_spark',    slot: 'ef', label: 'Sparks',       price: 180, blurb: 'Occasional twinkles in the corners.' },
+  { code: 'effect_orb',      slot: 'ef', label: 'Orbit',        price: 240, blurb: 'A ring of dots circling your card.' },
+  { code: 'effect_drift',    slot: 'ef', label: 'Drift',        price: 260, blurb: 'Embers floating up the page.' },
+
+  { code: 'name_mono',       slot: 'ne', label: 'Mono',         price: 60,  blurb: 'Monospace name — toolmaker energy.' },
+  { code: 'name_glow',       slot: 'ne', label: 'Glow',         price: 120, blurb: 'Soft luminous name.' },
+  { code: 'name_type',       slot: 'ne', label: 'Typing',       price: 180, blurb: 'A blinking caret after your name.' },
+  { code: 'name_gradient',   slot: 'ne', label: 'Gradient',     price: 200, blurb: 'Lime-to-sky sweep across the letters.' },
+  { code: 'name_glitch',     slot: 'ne', label: 'Glitch',       price: 300, blurb: 'RGB split that twitches now and then.' },
+
+  { code: 'title_maker',     slot: 'ti', label: 'Maker',        price: 100, blurb: 'For people who ship things.' },
+  { code: 'title_tinkerer',  slot: 'ti', label: 'Tinkerer',     price: 140, blurb: 'Always mid-edit.' },
+  { code: 'title_speedrunner', slot: 'ti', label: 'Speedrunner', price: 200, blurb: 'Wear it on your leaderboard games.' },
+  { code: 'title_gamejammer', slot: 'ti', label: 'Game Jammer', price: 200, blurb: 'Every week, a new build.' },
+  { code: 'title_architect', slot: 'ti', label: 'Architect',    price: 300, blurb: 'Systems, engines, worlds.' },
+  { code: 'title_legend',    slot: 'ti', label: 'Legend',       price: 900, blurb: 'The long-save cosmetic.' },
+
+  { code: 'pack_classic',    slot: 'em', label: 'Classic Mix',  price: 100, blurb: 'Ten extra chat emojis — the house set.' },
+  { code: 'pack_cozy',       slot: 'em', label: 'Cozy',         price: 140, blurb: 'Tea, blankets, and warm light.' },
+  { code: 'pack_spooky',     slot: 'em', label: 'Spooky',       price: 160, blurb: 'Bats, bones, and bad ideas.' },
+  { code: 'pack_space',      slot: 'em', label: 'Space',        price: 180, blurb: 'Rockets, comets, and quiet void.' },
+];
+const COSMETIC_BY_CODE = (() => { const m = new Map(); for (const c of COSMETICS) m.set(c.code, c); return m; })();
+
+// Equipped codes → human labels for any page that has to draw them.
+function resolveCosmetics(equips) {
+  const eq = equips && typeof equips === 'object' ? equips : {};
+  const out = { frame: null, banner: null, effect: null, name: null, title: null, emoji: null };
+  for (const slot of Object.keys(COSMETIC_SLOTS)) {
+    const kind = COSMETIC_SLOTS[slot];
+    const picked = slot === 'ti'
+      ? (Array.isArray(eq.t) ? eq.t.find(c => COSMETIC_BY_CODE.has(c)) : null)
+      : (typeof eq[slot] === 'string' ? eq[slot] : null);
+    if (!picked) continue;
+    const item = COSMETIC_BY_CODE.get(picked);
+    if (item) out[kind] = { code: item.code, label: item.label };
+    else if (slot === 'ti' && AWARDS[picked]) out.title = { code: picked, label: AWARDS[picked].label };
+  }
+  return out;
+}
+
+// Every code a user is allowed to equip, across awards and purchases.
+async function ownedEquipCodes(userId) {
+  const { data: badges } = await supabase.from('user_badges').select('code').eq('user_id', userId);
+  // A missing user_cosmetics table (migration not run yet) must not lock
+  // anyone out of their earned awards — treat it as "no purchases".
+  let bought = [];
+  try {
+    const { data } = await supabase.from('user_cosmetics').select('code').eq('user_id', userId);
+    bought = data || [];
+  } catch (e) {}
+  const set = new Set((badges || []).map(r => r.code));
+  for (const r of bought) set.add(r.code);
+  return set;
+}
+
 // Award a code once. A repeat insert fails on the (user_id, code) key —
 // that's "already earned", not an error.
 async function awardUser(userId, code) {
@@ -268,6 +351,8 @@ const MIME = {
   '.jpg': 'image/jpeg',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
 };
 
 function cors(res) {
@@ -819,6 +904,9 @@ async function handleRequest(req, res) {
         const a = AWARDS[code];
         if (a) data.awards[code] = { label: a.label, kind: a.kind, icon: a.icon };
       });
+      // Shop cosmetics: resolved to labels so the page never has to know
+      // prices or slot rules. Everything worn is public by design.
+      data.cosmetics = resolveCosmetics(data.equips);
       // The viewer shows Follow/Following only when they're signed in.
       const vtoken = (req.headers.authorization || '').replace('Bearer ', '');
       if (vtoken) {
@@ -1477,9 +1565,15 @@ async function handleRequest(req, res) {
         // code must exist, match its slot, and be owned. Fails closed.
         if (parsed.equips !== undefined) {
           const in_ = parsed.equips && typeof parsed.equips === 'object' ? parsed.equips : {};
-          const ownedCodes = await supabase.from('user_badges').select('code').eq('user_id', user.id);
-          const owned = new Set((ownedCodes.data || []).map(r => r.code));
+          const owned = await ownedEquipCodes(user.id);
+          // Start from what is already worn so the cosmetics slots (fr/bn/ef/
+          // ne/em), which this endpoint doesn't touch, survive an award toggle.
+          const { data: prev } = await supabase.from('users').select('equips').eq('id', user.id).single();
+          const before = (prev && prev.equips && typeof prev.equips === 'object') ? prev.equips : {};
           const eq = { b: [], f: [], t: [] };
+          for (const k of ['fr', 'bn', 'ef', 'ne', 'em']) {
+            eq[k] = typeof before[k] === 'string' ? before[k] : null;
+          }
           let bad = null;
           for (const slot of ['b', 'f', 't']) {
             const list = Array.isArray(in_[slot]) ? in_[slot] : [];
@@ -1487,7 +1581,12 @@ async function handleRequest(req, res) {
             for (const raw of list) {
               const code = String(raw || '').trim();
               const a = AWARDS[code];
-              if (!a || EQ_KIND[slot] !== a.kind) { bad = 'Unknown ' + EQ_KIND[slot] + ' code.'; break; }
+              const bought = COSMETIC_BY_CODE.get(code);
+              // Titles can be earned (AWARDS) or bought (shop) — both live in
+              // the `t` array, so accept either as long as the slot matches.
+              const kindOk = a ? EQ_KIND[slot] === a.kind
+                : !!(slot === 't' && bought && bought.slot === 'ti');
+              if (!kindOk) { bad = 'Unknown ' + EQ_KIND[slot] + ' code.'; break; }
               if (!owned.has(code)) { bad = 'Not yours to equip.'; break; }
               if (seen.has(code)) continue;
               seen.add(code);
@@ -3013,6 +3112,147 @@ function sanitizeTags(raw) {
     const { data: rows } = await supabase.from('coin_ledger').select('delta, reason, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(20);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ balance: await coinBalance(user.id), coinsMax, receipts: rows || [] }));
+    return;
+  }
+
+  // ── API: cosmetics shop (browse · buy · equip) ────────────────
+  // Catalogue prices are server-side only; the browser just draws what it
+  // is handed. Ownership lives in user_cosmetics, what is worn lives in
+  // users.equips (single-value slots fr/bn/ef/ne/em, titles in `t`).
+  async function ownedCosmeticSet(uid) {
+    try {
+      const { data } = await supabase.from('user_cosmetics').select('code').eq('user_id', uid);
+      return new Set((data || []).map(r => r.code));
+    } catch (e) { return new Set(); }
+  }
+  async function equipsOf(uid) {
+    const { data } = await supabase.from('users').select('equips').eq('id', uid).single();
+    const raw = (data && data.equips && typeof data.equips === 'object') ? data.equips : {};
+    return {
+      b: Array.isArray(raw.b) ? raw.b : [],
+      f: Array.isArray(raw.f) ? raw.f : [],
+      t: Array.isArray(raw.t) ? raw.t : [],
+      fr: typeof raw.fr === 'string' ? raw.fr : null,
+      bn: typeof raw.bn === 'string' ? raw.bn : null,
+      ef: typeof raw.ef === 'string' ? raw.ef : null,
+      ne: typeof raw.ne === 'string' ? raw.ne : null,
+      em: typeof raw.em === 'string' ? raw.em : null,
+    };
+  }
+  if (url.pathname === '/api/cosmetics' && req.method === 'GET') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    const [owned, worn, balance] = await Promise.all([
+      ownedCosmeticSet(user.id),
+      equipsOf(user.id),
+      coinBalance(user.id),
+    ]);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      catalog: COSMETICS,
+      slots: COSMETIC_SLOTS,
+      single: Object.keys(COSMETIC_SINGLE),
+      owned: [...owned],
+      worn,
+      balance,
+    }));
+    return;
+  }
+
+  if (url.pathname === '/api/cosmetics/buy' && req.method === 'POST') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    if (!(await needVerified(user, res))) return;
+    const body = await readBody(req).catch(() => ({}));
+    const item = COSMETIC_BY_CODE.get(String(body.code || '').trim());
+    if (!item) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unknown cosmetic.' })); return; }
+    const already = await ownedCosmeticSet(user.id);
+    if (already.has(item.code)) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, already: true, balance: await coinBalance(user.id) }));
+      return;
+    }
+    // Same anti-farm shape as theme-pack buying: bound daily spend and
+    // purchase velocity from the ledger rather than a new counter.
+    const spentToday = await coinFlow(user.id, 'out', dayStartIso());
+    if (spentToday + item.price > COIN_LIMITS.dailySpend) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Daily spending cap reached — try tomorrow.' }));
+      return;
+    }
+    const { count: recentBuys } = await supabase.from('coin_ledger').select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id).eq('reason', 'cosmetic_buy').gte('created_at', hourAgoIso());
+    if ((recentBuys || 0) >= COIN_LIMITS.buysPerHour) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Too many purchases — slow down.' }));
+      return;
+    }
+    // Claim first: a second tab hits the primary key and gets "already"
+    // instead of being charged twice.
+    const { error: ownErr } = await supabase.from('user_cosmetics').insert({ user_id: user.id, code: item.code });
+    if (ownErr) {
+      const dup = String(ownErr.message || '').includes('duplicate key');
+      const missing = String(ownErr.message || '').includes('does not exist') || String(ownErr.code || '') === '42P01';
+      res.writeHead(dup ? 200 : 500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(dup
+        ? { ok: true, already: true, balance: await coinBalance(user.id) }
+        : { error: missing ? 'Shop is not set up yet (cosmetics migration missing).' : 'Buy failed.' }));
+      return;
+    }
+    const { data: balance, error: spendErr } = await supabase.rpc('spend_coins', { p_user: user.id, p_delta: item.price, p_reason: 'cosmetic_buy', p_ref: null });
+    if (spendErr) {
+      await supabase.from('user_cosmetics').delete().eq('user_id', user.id).eq('code', item.code);
+      const short = String(spendErr.message || '').includes('insufficient funds');
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(short
+        ? { error: 'Not enough coins.', need: Math.max(0, item.price - (await coinBalance(user.id))) }
+        : { error: 'Buy failed.' }));
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, balance, code: item.code }));
+    return;
+  }
+
+  if (url.pathname === '/api/cosmetics/equip' && req.method === 'POST') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    const body = await readBody(req).catch(() => ({}));
+    const slot = String(body.slot || '');
+    if (!COSMETIC_SLOTS[slot]) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unknown slot.' })); return; }
+    const raw = body.code == null ? '' : String(body.code).trim();
+    const owned = await ownedEquipCodes(user.id);
+    const eq = await equipsOf(user.id);
+
+    if (!raw) {
+      // Take it off.
+      if (slot === 'ti') {
+        const worn = resolveCosmetics(eq);
+        if (worn.title) eq.t = eq.t.filter(c => c !== worn.title.code);
+      } else eq[slot] = null;
+    } else {
+      const item = COSMETIC_BY_CODE.get(raw);
+      const isAwardTitle = slot === 'ti' && AWARDS[raw] && AWARDS[raw].kind === 'title';
+      const kindOk = item ? item.slot === slot : isAwardTitle;
+      if (!kindOk) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'That does not fit this slot.' })); return; }
+      if (!owned.has(raw)) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not yours to equip.' })); return; }
+      if (slot === 'ti') {
+        // Titles are a capped list — replace whatever cosmetic title sits
+        // there, awards picked on the profile page stay put.
+        const prev = resolveCosmetics(eq);
+        if (prev.title && prev.title.code !== raw) eq.t = eq.t.filter(c => c !== prev.title.code);
+        if (!eq.t.includes(raw)) eq.t.push(raw);
+        if (eq.t.length > EQUIP_CAPS.t) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'You can equip ' + EQUIP_CAPS.t + ' titles at once.' }));
+          return;
+        }
+      } else eq[slot] = raw;
+    }
+    const { error: eqErr } = await supabase.from('users').update({ equips: eq }).eq('id', user.id);
+    if (eqErr) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not save.' })); return; }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, worn: eq, cosmetics: resolveCosmetics(eq) }));
     return;
   }
 
@@ -5478,6 +5718,11 @@ function sanitizeTags(raw) {
   // ── Redirect /quests to /quests.html ──────────────────────────
   if (url.pathname === '/quests') {
     url.pathname = '/quests.html';
+  }
+
+  // ── Redirect /shop to /shop.html (cosmetics) ────────────────
+  if (url.pathname === '/shop') {
+    url.pathname = '/shop.html';
   }
 
   // ── Redirect /docs to /docs.html ──────────────────────────────

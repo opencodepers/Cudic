@@ -70,6 +70,15 @@ ul{margin:8px 0 0;padding-left:18px;color:var(--mute)}li{margin:6px 0}
 .tick span{margin:0 30px;font-weight:500}
 .tick svg{width:16px;height:16px;vertical-align:-2px;margin-right:10px;color:var(--lime)}
 .steps3{display:grid;grid-template-columns:repeat(3,1fr)}
+.vid-cell{display:flex;align-items:center;justify-content:center}
+.vid-frame{flex:none;width:min(340px,100%);border:1px solid var(--line);background:#0d0e10;padding:0}
+.vid-frame video{display:block;width:100%;height:auto;aspect-ratio:9/16;object-fit:contain;background:#0d0e10}
+.vid-note{display:flex;flex-direction:column;gap:14px}
+.vid-note .cell{padding:0;border:0!important}
+.scsteps{display:flex;flex-direction:column;gap:10px}
+.scsteps div{display:flex;gap:14px;align-items:baseline}
+.scsteps .mono{min-width:52px;color:var(--lime)}
+.scsteps p{margin:0;color:var(--mute);font-size:15px}
 .steps3 .cell{display:flex;flex-direction:column;gap:10px}
 .steps3 .num{font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;color:var(--blue);border:1px solid var(--blue);padding:3px 7px;align-self:flex-start}
 .quote{display:flex;gap:20px;padding:28px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
@@ -149,6 +158,35 @@ html.js .hero .stage{animation:rise .8s steps(8) both}
   </div>
  </section>
 
+ <section class="sec" id="watch">
+  <div class="sh"><h2>See it in 30 seconds</h2><span class="mono">watch the tour</span></div>
+  <div class="grid g2">
+   <div class="cell vid-cell">
+    <figure class="vid-frame" style="margin:0">
+     <a href="/parents-short.mp4" aria-label="Play the 30-second Cudic video" style="display:block;text-decoration:none;background:transparent">
+      <video preload="metadata" playsinline style="cursor:pointer" title="Click to play">
+      <source src="/parents-short.mp4" type="video/mp4">
+      Your browser can't play this video. Everything it shows is on this page anyway: the Studio, Scratch import and one-click publishing.
+     </video>
+     </a>
+    </figure>
+   </div>
+   <div class="cell vid-note">
+    <div class="cell"><b>What you're watching</b><p>Four scenes from the site, no actors: this is the Studio doing things a class does with it.</p></div>
+    <div class="scsteps">
+     <div><span class="mono">00:00</span><p>A Scratch project gets dropped in — <strong style="color:var(--ink)">.sb3 import</strong>, the move from blocks to real code.</p></div>
+     <div><span class="mono">00:05</span><p>The Studio: file tree, typed JavaScript, hot reload, and a live preview running it.</p></div>
+     <div><span class="mono">00:15</span><p>What every project has built in: <strong style="color:var(--ink)">cloud saves</strong> as you type, <strong style="color:var(--ink)">32-player multiplayer</strong>, one-click publish.</p></div>
+     <div><span class="mono">00:24</span><p>The result: a published game at cudic.vercel.app — free, no installs.</p></div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;margin-top:6px">
+     <a class="btn b1" href="/studio">Try the Studio</a>
+     <a class="btn b3" href="/games">Play a game first</a>
+    </div>
+   </div>
+  </div>
+ </section>
+
  <section class="sec" id="teachers">
   <div class="sh"><h2>For teachers</h2><span class="mono">pick it up in one lesson</span></div>
   <div class="grid g3">
@@ -209,5 +247,5 @@ rv.forEach(function(e){e.classList.add('rv')});
 if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(x){if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target)}})},{threshold:.05});rv.forEach(function(e){io.observe(e)})}else rv.forEach(function(e){e.classList.add('in')});
 </script>
 <script src="/theme-toggle.js?v=2"></script>
-</body>
+<script src="/cudic-modals.js?v=3"></script></body>
 </html>

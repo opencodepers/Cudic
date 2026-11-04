@@ -157,6 +157,7 @@
         <a href="#sec-stats">Analytics</a>
         <a href="#sec-liked">Liked games</a>
         <a href="#sec-collections">Collections</a>
+        <a href="#sec-cosmetics">Cosmetics</a>
         <a href="#sec-appearance">Appearance</a>
         <a href="#sec-creatorpage">Public profile</a>
         <div class="toc-label" style="margin-top:12px">Site</div>
@@ -204,6 +205,12 @@
         <div class="aw-group"><div class="toc-label">Badges <span class="aw-cap" id="capB"></span></div><div class="aw-grid" id="awBadges"></div></div>
         <button class="btn btn-primary" id="saveEquips">Save awards</button>
         <div class="status-msg" id="awardsMsg"></div>
+      </div>
+      <div class="profile-card" id="sec-cosmetics">
+        <h2>Cosmetics</h2>
+        <p class="sub">Frames, banners, effects, name styles, titles and emoji packs — bought with coins in the <a href="/shop">shop</a>. What you pick here shows on your public profile page, and emoji packs add new ones to the chat picker.</p>
+        <div id="cosRows"><p class="sub">Loading…</p></div>
+        <div class="status-msg" id="cosMsg"></div>
       </div>
       <div class="profile-card" id="sec-streak">
         <h2>Login streak</h2>
@@ -331,12 +338,14 @@
         <a href="/" class="btn btn-secondary" style="padding:6px 12px;font-size:0.78rem">Open landing →</a>
       </div>
       </div>
-      <aside class="profside"><div class="preview-card" aria-label="Public profile preview">
+      <aside class="profside"><div class="preview-card" id="previewCard" aria-label="Public profile preview">
+        <div class="pv-banner" id="publicBanner" style="height:52px;margin:-20px -20px 16px;border-radius:var(--radius-lg) var(--radius-lg) 0 0" aria-hidden="true"></div>
         <div class="toc-label">Public profile</div>
         <div class="pv-head">
           <div class="avatar-lg" id="avatarLg">?</div>
           <div>
             <div id="publicName">—</div>
+            <div id="publicCosTitle" class="aw-preview" style="margin-top:4px"></div>
             <div class="meta">cudic id <b id="publicId">—</b> · joined <b id="publicSince">—</b></div>
           </div>
         </div>
@@ -355,6 +364,7 @@
   <script src="/config.js"></script>
   <script src="/auth.js"></script>
   <script src="/sidebar.js?v=25"></script>
+  <script src="/cudic-cosmetics.js?v=1"></script>
   <script src="/theme-toggle.js?v=2"></script>
   <script>
   (async function(){
@@ -455,6 +465,7 @@
           });
         })(d.achievements || []);
         initAwards(d);
+        initCosmetics();
         loadLiked();
         loadCollections();
         /* Pack + liked count */
@@ -623,6 +634,103 @@
         })
         .catch(function () { btn.disabled = false; msg(m, 'Could not save.', false); });
     });
+
+    /* Cosmetics: bought in /shop, worn from here. Every look lives in
+     * cudic-cosmetics.js so this preview matches the public profile exactly. */
+    var COS = {
+      cat: [], owned: {}, worn: {},
+      kinds: [['fr', 'Frame', 'frame'], ['bn', 'Banner', 'banner'], ['ef', 'Profile effect', 'effect'],
+              ['ne', 'Name style', 'name'], ['ti', 'Title', 'title'], ['em', 'Emoji pack', 'emoji']]
+    };
+    function cosWorn(slot) {
+      if (slot === 'ti') {
+        var t = COS.worn.t || [];
+        for (var i = 0; i < t.length; i++) {
+          if (COS.cat.some(function (c) { return c.code === t[i]; })) return t[i];
+        }
+        return null;
+      }
+      return COS.worn[slot] || null;
+    }
+    function cosPaint() {
+      if (!window.CudicCosmetics) return;
+      var c = {};
+      if (COS.worn.fr) c.frame = { code: COS.worn.fr };
+      if (COS.worn.bn) c.banner = { code: COS.worn.bn };
+      if (COS.worn.ef) c.effect = { code: COS.worn.ef };
+      if (COS.worn.ne) c.name = { code: COS.worn.ne };
+      var tc = cosWorn('ti');
+      if (tc) {
+        var item = COS.cat.filter(function (x) { return x.code === tc; })[0];
+        c.title = { code: tc, label: item ? item.label : 'Title' };
+      }
+      CudicCosmetics.paint({
+        avatar: document.getElementById('avatarLg'),
+        name: document.getElementById('publicName'),
+        banner: document.getElementById('publicBanner'),
+        titleHost: document.getElementById('publicCosTitle'),
+        card: document.getElementById('previewCard')
+      }, c);
+    }
+    function cosRows() {
+      var box = document.getElementById('cosRows');
+      if (!box) return;
+      var html = COS.kinds.map(function (k) {
+        var slot = k[0], label = k[1], kind = k[2];
+        var mine = COS.cat.filter(function (c) { return c.slot === slot && COS.owned[c.code]; });
+        var worn = cosWorn(slot);
+        if (!mine.length) {
+          return '<div class="pref-row"><div><div class="label">' + label + '</div>' +
+            '<div class="desc">Nothing owned yet — <a href="/shop">browse the shop</a>.</div></div></div>';
+        }
+        var opts = ['<option value="">None</option>'].concat(mine.map(function (c) {
+          return '<option value="' + c.code + '"' + (c.code === worn ? ' selected' : '') + '>' + esc(c.label) + '</option>';
+        })).join('');
+        return '<div class="pref-row"><div><div class="label">' + label + '</div>' +
+          '<div class="desc">' + mine.length + ' owned</div></div>' +
+          '<select data-cos-slot="' + slot + '" style="padding:6px 10px;font-size:0.82rem">' + opts + '</select></div>';
+      }).join('');
+      box.innerHTML = html || '<p class="sub">Nothing owned yet.</p>';
+      box.querySelectorAll('[data-cos-slot]').forEach(function (sel) {
+        sel.addEventListener('change', function () {
+          var m = document.getElementById('cosMsg');
+          sel.disabled = true;
+          fetch(apiHost() + '/api/cosmetics/equip', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ slot: sel.dataset.cosSlot, code: sel.value || null })
+          }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+            .then(function (res) {
+              sel.disabled = false;
+              if (!res.ok) { msg(m, res.d.error || 'Could not save.', false); return; }
+              COS.worn = res.d.worn || COS.worn;
+              cosPaint(); cosRows();
+              msg(m, sel.value ? 'Worn.' : 'Taken off.', true);
+            })
+            .catch(function () { sel.disabled = false; msg(m, 'Could not save.', false); });
+        });
+      });
+    }
+    function initCosmetics() {
+      fetch(apiHost() + '/api/cosmetics', { headers: { 'Authorization': 'Bearer ' + t } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          var card = document.getElementById('sec-cosmetics');
+          if (!d || !d.catalog) { if (card) card.style.display = 'none'; return; }
+          COS.cat = d.catalog || [];
+          COS.owned = {};
+          (d.owned || []).forEach(function (c) { COS.owned[c] = true; });
+          COS.worn = d.worn || {};
+          cosRows(); cosPaint();
+          // Chat unlocks emoji packs from this cache instead of polling.
+          try {
+            var packs = COS.cat.filter(function (c) { return c.slot === 'em' && COS.owned[c.code]; })
+              .map(function (c) { return c.code; });
+            localStorage.setItem('cudic_emoji_packs', JSON.stringify(packs));
+          } catch (e) {}
+        })
+        .catch(function () { var card = document.getElementById('sec-cosmetics'); if (card) card.style.display = 'none'; });
+    }
 
     /* Collections: my lists, made on game pages. Titles/type-ins are user
      * authored — element content only, never raw interpolation (XSS). */
@@ -1208,4 +1316,4 @@
     });
   })();
   </script>
-</body></html>
+<script src="/cudic-modals.js?v=3"></script></body></html>

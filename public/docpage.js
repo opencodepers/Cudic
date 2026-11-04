@@ -7,7 +7,8 @@
         python:'studio/terminal.svg', npm:'studio/code.svg', scratch:'game/cube.svg',
         publish:'files/share.svg', remix:'studio/remix.svg', saves:'studio/cloud.svg',
         chat:'social/chat.svg', multi:'game/gamepad.svg', themes:'studio/theme.svg',
-        coins:'game/coin.svg', reports:'status/warning.svg', ai:'studio/sparkle.svg',
+        shop:'social/cart.svg', coins:'game/coin.svg', reports:'status/warning.svg', ai:'studio/sparkle.svg',
+        clip:'media/film.svg',
         account:'status/user.svg', faq:'status/help.svg', limits:'status/battery.svg',
         credits:'social/star.svg',
         // privacy

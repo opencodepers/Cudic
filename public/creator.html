@@ -47,11 +47,13 @@ footer{padding:24px;text-align:center;color:var(--mute);font-size:.78rem;border-
 <body>
 <main class="wrap">
   <a class="back" href="/games">&larr; Gallery</a>
-  <div class="card">
+  <div class="card" id="creatorCard">
+    <div id="creatorBanner" style="height:76px;margin:-28px -28px 20px;border-radius:var(--radius) var(--radius) 0 0" aria-hidden="true"></div>
     <div class="head">
       <div class="avatar" id="avatar">?</div>
       <div>
         <h1 id="name">Loading…</h1>
+        <div id="creatorCosTitle" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
         <div class="idline" id="idline"></div>
       </div>
     </div>
@@ -84,6 +86,7 @@ footer{padding:24px;text-align:center;color:var(--mute);font-size:.78rem;border-
   </div>
 </main>
 <footer>Made with Cudic · <a href="/">cudic.vercel.app</a> · <a href="/privacy">privacy</a> · <a href="/terms">terms</a></footer>
+<script src="/cudic-cosmetics.js?v=1"></script>
 <script src="/theme-toggle.js?v=2"></script>
 <script>
 (function(){
@@ -140,6 +143,17 @@ footer{padding:24px;text-align:center;color:var(--mute);font-size:.78rem;border-
       });
       var both = chips.concat(cells);
       if (both.length) { awEl.innerHTML = both.join(''); awEl.style.display = ''; }
+      /* Worn shop cosmetics: frame, banner, page effect, name style, title.
+         The payload is already resolved to labels by /api/user. */
+      if (window.CudicCosmetics) {
+        CudicCosmetics.paint({
+          avatar: av,
+          name: document.getElementById('name'),
+          banner: document.getElementById('creatorBanner'),
+          titleHost: document.getElementById('creatorCosTitle'),
+          card: document.getElementById('creatorCard')
+        }, p.cosmetics || {});
+      }
       viewerFollows = !!p.viewer_follows;
       followersN = p.followers || 0;
       paintFollow();
@@ -303,5 +317,5 @@ footer{padding:24px;text-align:center;color:var(--mute);font-size:.78rem;border-
   });
 })();
 </script>
-</body>
+<script src="/cudic-modals.js?v=3"></script></body>
 </html>

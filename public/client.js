@@ -1060,10 +1060,27 @@ var EMOJI_MAP = {
   ':ok:':'👌',':100:':'💯',':sparkles:':'✨',':zap:':'⚡',':sun:':'☀️',
   ':moon:':'🌙',':cloud:':'☁️',':rain:':'🌧️',':snow:':'❄️',':music:':'🎵'
 };
-var EMOJI_LIST = Object.keys(EMOJI_MAP).map(function (k) { return EMOJI_MAP[k]; });
+// Shop emoji packs: every pack's glyphs render for everyone (so a sent
+// :cozy_cat: reads the same in every client), but the picker only lists the
+// packs you own — that's what buying one buys.
+var EMOJI_RENDER = {};
+(function () {
+  for (var k in EMOJI_MAP) if (Object.prototype.hasOwnProperty.call(EMOJI_MAP, k)) EMOJI_RENDER[k] = EMOJI_MAP[k];
+  var packsAll = (window.CudicCosmetics && CudicCosmetics.packs) || {};
+  for (var p in packsAll) {
+    if (!Object.prototype.hasOwnProperty.call(packsAll, p)) continue;
+    for (var code in packsAll[p]) if (Object.prototype.hasOwnProperty.call(packsAll[p], code)) EMOJI_RENDER[code] = packsAll[p][code];
+  }
+})();
+var EMOJI_OWNED_PACKS = [];
+try { EMOJI_OWNED_PACKS = JSON.parse(localStorage.getItem('cudic_emoji_packs') || '[]'); } catch (e) {}
+var EMOJI_LIST = Object.keys(EMOJI_MAP).map(function (k) { return EMOJI_MAP[k]; })
+  .concat(Object.keys((window.CudicCosmetics ? CudicCosmetics.emojiMap(EMOJI_OWNED_PACKS) : {})).map(function (k) {
+    return CudicCosmetics.emojiMap(EMOJI_OWNED_PACKS)[k];
+  }));
 
 function inlineFmt(s) {
-  s = s.replace(/:[a-z0-9_+-]+:/gi, function (m) { return EMOJI_MAP[m.toLowerCase()] || m; });
+  s = s.replace(/:[a-z0-9_+-]+:/gi, function (m) { return EMOJI_RENDER[m.toLowerCase()] || m; });
   s = escapeHtml(s);
   s = s.replace(/==([^=\n]+)==/g, '<mark>$1</mark>');
   s = s.replace(/`([^`\n]+)`/g, '<code>$1</code>');

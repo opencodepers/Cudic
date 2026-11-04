@@ -70,6 +70,15 @@
     .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
     .share-row { display: flex; gap: 8px; margin-bottom: 12px; }
     .share-row input { flex: 1; min-width: 0; margin-bottom: 0; }
+    /* Share clip: a recorded ~8s of this game. The player card gets a lime
+       tally border while it runs, so it's obvious the page is capturing. */
+    .player-card.recording::after { content: ''; position: absolute; inset: 0; border: 2px solid var(--lime, #b8f23a); animation: clippulse 1s steps(2) infinite; pointer-events: none; }
+    @keyframes clippulse { 0%,100% { opacity: 1 } 50% { opacity: 0.25 } }
+    .clip-panel { margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-raised); padding: 12px; }
+    .clip-panel video { width: 100%; max-height: 340px; display: block; border-radius: 6px; background: #000; }
+    .clip-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .clip-row .hint { font-size: 0.76rem; color: var(--text-tertiary); flex: 1; min-width: 180px; }
+    .clip-row .hint b { color: var(--text-primary); font-weight: 600; }
   </style><link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
 </head>
 <body data-page="games">
@@ -80,6 +89,7 @@
       <div class="author"><div class="author-avatar" id="authorAvatar">?</div><span id="authorName"></span><button class="btn btn-secondary" id="followAuthorBtn" style="display:none;padding:5px 12px;font-size:0.72rem" title="Follow this creator — their new games land on your homepage shelf">Follow</button></div>
       <div class="spacer"></div>
       <button class="btn btn-secondary" id="scrollBtn" title="Allow the game page to scroll (for website-style games)">Scroll: off</button>
+      <button class="btn btn-secondary" id="clipBtn" style="display:none" title="Record ~8 seconds of this game as a video you can post to YouTube, TikTok or Discord">Clip</button>
       <button class="btn btn-secondary" id="fsBtn">Fullscreen</button>
       <a class="btn btn-primary" id="studioBtn" href="#" style="display:none">Open in Studio</a>
       <button class="btn btn-secondary" id="forkBtn" style="display:none">Fork</button>
@@ -103,6 +113,14 @@
     <div class="game-grid">
       <div class="player-col">
         <div class="player-card" id="playerCard"><div class="player-overlay" id="overlay"><span id="overlayText">Loading…</span></div></div>
+        <div class="clip-panel" id="clipPanel" style="display:none">
+          <video id="clipVideo" controls playsinline muted loop></video>
+          <div class="clip-row">
+            <span class="hint" id="clipHint">Recorded in your browser — nothing was uploaded. Post it to YouTube Shorts, TikTok or Discord; <b>credit the creator</b> when you share it.</span>
+            <a class="btn btn-primary" id="clipDownload" download="clip.webm">Download</a>
+            <button class="btn btn-secondary" id="clipClose">Close</button>
+          </div>
+        </div>
         <div id="liveStrip" style="display:none"></div>
       </div>
       <div id="playerErr" style="display:none;margin-top:10px;padding:10px 14px;border:1px solid var(--line);border-radius:8px;font-size:0.8rem;color:#ff7b7b;background:var(--panel-raised)"></div>
@@ -1055,6 +1073,79 @@ setInterval(function () {
           try { localStorage.setItem(scrollKey, scrollOn ? '1' : '0'); } catch (e) {}
           applyScroll(scrollOn);
         });
+        // ── Share clip ───────────────────────────────────────────────────
+        // An ~8s recording of the game, made inside the player frame
+        // (public/cudic-clip.js) and handed back as a Blob. The page never
+        // touches the game document — the sandbox has no allow-same-origin —
+        // and nothing is uploaded anywhere: the file is a plain download.
+        var clipBtn = document.getElementById('clipBtn');
+        var clipPanel = document.getElementById('clipPanel');
+        var clipVideo = document.getElementById('clipVideo');
+        var clipLink = document.getElementById('clipDownload');
+        var clipHint = document.getElementById('clipHint');
+        var clipUrl = null, clipBusy = false, clipTick = null, clipScore = null;
+        // Games report scores through CudicScores.submit(); remember the last
+        // one so the clip overlay can show it (see the score branch below).
+        window.addEventListener('cudic-score', function (ev) {
+          var s = ev && ev.detail && ev.detail.score;
+          if (typeof s === 'number' && isFinite(s)) clipScore = s;
+        });
+        function clipReset() {
+          clipBusy = false;
+          card.classList.remove('recording');
+          if (clipTick) { clearInterval(clipTick); clipTick = null; }
+          clipBtn.textContent = 'Clip';
+          clipBtn.disabled = false;
+        }
+        function clipFail(msg) {
+          clipReset();
+          playerFail(msg);
+        }
+        clipBtn.addEventListener('click', function () {
+          if (clipBusy) return;
+          clipPanel.style.display = 'none';
+          document.getElementById('playerErr').style.display = 'none';
+          clipBusy = true;
+          clipBtn.disabled = true;
+          card.classList.add('recording');
+          var left = 8;
+          clipBtn.textContent = 'Recording ' + left + 's…';
+          clipTick = setInterval(function () {
+            left = Math.max(0, left - 1);
+            clipBtn.textContent = left ? 'Recording ' + left + 's…' : 'Finishing…';
+          }, 1000);
+          try {
+            f.contentWindow.postMessage({
+              type: 'cudic-clip-start',
+              seconds: 8,
+              title: (document.getElementById('gameTitle').textContent || '').trim(),
+              by: (document.getElementById('authorName').textContent || '').trim(),
+              score: clipScore,
+            }, '*');
+          } catch (err) { clipFail('Could not reach the game to record it.'); return; }
+          // The frame answers within a few seconds (or refuses outright); this
+          // is only the backstop for a frame that never replies.
+          setTimeout(function () { if (clipBusy) clipFail('The clip did not start — this game may not have a canvas to record.'); }, 14000);
+        });
+        document.getElementById('clipClose').addEventListener('click', function () {
+          clipPanel.style.display = 'none';
+          try { clipVideo.pause(); } catch (e) {}
+        });
+        function clipReady(blob, ext) {
+          clipReset();
+          if (!blob || !blob.size) { clipFail('The recording came back empty — try again.'); return; }
+          if (clipUrl) { try { URL.revokeObjectURL(clipUrl); } catch (e) {} }
+          clipUrl = URL.createObjectURL(blob);
+          var name = (location.pathname.split('/').pop() || 'game').replace(/[^a-z0-9-]/gi, '').toLowerCase() || 'game';
+          clipVideo.src = clipUrl;
+          clipLink.href = clipUrl;
+          clipLink.download = name + '-clip.' + (ext || 'webm');
+          var mb = blob.size / (1024 * 1024);
+          clipHint.innerHTML = 'Recorded in your browser — nothing was uploaded (' + mb.toFixed(1) + ' MB). Post it to YouTube Shorts, TikTok or Discord; <b>credit the creator</b> when you share it.';
+          clipPanel.style.display = '';
+          clipPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          try { clipVideo.play(); } catch (e) {}
+        }
         var playerStarted = false;
         function playerFail(msg) {
           var el = document.getElementById('playerErr');
@@ -1195,8 +1286,28 @@ setInterval(function () {
           var d = e.data || {};
           if (!d || (d.type !== 'cudic-save-get' && d.type !== 'cudic-save-set' && d.type !== 'cudic-save-del'
             && d.type !== 'cudic-score-submit' && d.type !== 'cudic-scores-top'
-            && d.type !== 'cudic-ach-unlock')) return;
+            && d.type !== 'cudic-ach-unlock'
+            && d.type !== 'cudic-clip-ready' && d.type !== 'cudic-clip-done' && d.type !== 'cudic-clip-error')) return;
           try { if (!f || e.source !== f.contentWindow) return; } catch (err) { return; }
+          if (d.type === 'cudic-clip-ready') {
+            // The player frame tells us whether it can record at all (no
+            // MediaRecorder, or an old player build): only then show Clip.
+            if (d.can) clipBtn.style.display = '';
+            return;
+          }
+          if (d.type === 'cudic-clip-done') {
+            clipReady(d.blob, d.ext);
+            return;
+          }
+          if (d.type === 'cudic-clip-error') {
+            var why = d.error === 'no-canvas'
+              ? 'This game draws its page without a canvas, so there is nothing to record.'
+              : d.error === 'unsupported'
+                ? 'This browser cannot record a clip — try Chrome, Edge or a newer Firefox.'
+                : 'The recording failed — try again.';
+            clipFail(why);
+            return;
+          }
           if (d.type === 'cudic-ach-unlock') {
             // In-game achievements: same mediated shape as score submits.
             // The sandboxed game only ever sends a short code string; this
@@ -1271,6 +1382,8 @@ setInterval(function () {
                   return;
                 }
                 try { f.contentWindow.postMessage({ type: 'cudic-scores-ack', req: d.req, ok: true, best: j.best, kept: j.kept }, '*'); } catch (err) {}
+                // A score worth showing in a share clip — clipBtn reads this.
+                try { window.dispatchEvent(new CustomEvent('cudic-score', { detail: { score: Number(d.score) } })); } catch (err) {}
               })
               .catch(function () {
                 try { f.contentWindow.postMessage({ type: 'cudic-scores-ack', req: d.req, ok: false, error: 'network' }, '*'); } catch (err) {}
@@ -1423,4 +1536,4 @@ setInterval(function () {
       .catch(function(){ document.getElementById('overlayText').textContent = 'Could not load game'; });
   })();
   </script>
-</body></html>
+<script src="/cudic-modals.js?v=3"></script></body></html>

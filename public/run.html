@@ -236,7 +236,12 @@ window.addEventListener('message', async (e) => {
   // shim NOTE: the fallback is installed with Object.defineProperty — a dotted
   // window.localStorage = {…} is an assignment onto a getter-only Window property
   // that silently fails in non-strict script, so game code still crashes.
-  const fwd = '<script>["log","warn","error"].forEach(function(k){var o=console[k];console[k]=function(){var t=Array.prototype.map.call(arguments,String).join(" ");parent.postMessage({type:"console",level:k==="log"?"info":k,text:t},"*");o.apply(console,arguments)}});window.addEventListener("error",function(e){parent.postMessage({type:"console",level:"error",text:e.message},"*")})<\/script>' + lsShim + binTag + projTag + mapTag;
+  // Share clips: cudic-clip.js lives in the game document (it has to — the
+  // frame is sandboxed without allow-same-origin, so only code in here can
+  // reach the game canvas). It answers the page's cudic-clip-start and posts
+  // the finished Blob back.
+  const clipTag = '<script src="/cudic-clip.js?v=1"><\/script>';
+  const fwd = clipTag + '<script>["log","warn","error"].forEach(function(k){var o=console[k];console[k]=function(){var t=Array.prototype.map.call(arguments,String).join(" ");parent.postMessage({type:"console",level:k==="log"?"info":k,text:t},"*");o.apply(console,arguments)}});window.addEventListener("error",function(e){parent.postMessage({type:"console",level:"error",text:e.message},"*")})<\/script>' + lsShim + binTag + projTag + mapTag;
   parent.postMessage({ type: 'console', level: 'info', text: 'Running' }, '*');
   // ponytail: doctype must stay first or the frame renders in quirks mode
   const doc = (/^\s*<!doctype html>/i.test(index))
