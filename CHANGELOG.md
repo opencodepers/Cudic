@@ -8,6 +8,12 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+
+**Shop and race get the standard tab shell**
+
+- `/shop` and `/race` now use the same chrome every tab has: rail on the left, the floating page panel, a plain topbar (page name + utility), and normal content scrolling inside the panel. `/shop` gets the coin balance pill in the topbar and one hairline item grid with flat mono buttons and mono per-item labels (the brand-kit look); `/race` keeps its week strip, podium, board, winners and rules cards inside the shell and gets a rail entry highlight via `data-page="race"`. No invented heroes, no promo fluff on either.
+- JS logic untouched on both pages (buy/equip flows and the race loader are byte-identical); visual layout only. New AGENTS.md §4 rule pins the standard page shell so bespoke page scaffolds don't creep back in. Checks: 216/216 tests pass (run #72).
+
 **Creator race + a personal weekly digest**
 
 - Two habit-formers, sharing one stats pipe. The **creator race** (`/race`, also in the rail) scores every creator on the thing jams don't measure: whether people keep playing what you ship. One point per *unique* player per published game per week — Monday 00:00 UTC, the same clock as the jam and the digest. The page shows the live top 20, medal podium, a countdown to the reset, last week's winners, and your own position when signed in.

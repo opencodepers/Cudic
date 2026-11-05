@@ -108,6 +108,16 @@ npm run build        # vite build (lib IIFE) → ../public/islands/  (~5s, 657KB
 
 ## 4. Layout
 
+**STANDARD PAGE SHELL — every main tab (`/shop`, `/race`, `/faq`, `/friends`, …) must use it.**
+Body carries `data-page="<page>"` and renders `<div class="<page>-layout page-panel">
+→ .topbar (h1 = page name + right-side utility link or pill) → .<page>-scroll
+(overflow-y:auto) → content`. The sidebar rail comes free from sidebar.js/css.
+NEVER build bespoke page scaffolds: no separate full-page body layouts, no
+invented heroes/marquees/float columns, no missing rail, no page-side body
+scroll. Style INSIDE the shell freely (flat/brand-kit looks are fine — see
+shop.html + race.html), but the shell chrome is not optional and not
+customizable per page.
+
 ```
 server.js                 # ~4000 lines: HTTP + API + WS + AI proxy + email
 public/                   # the classic app (served at Vercel output root)

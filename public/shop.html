@@ -15,112 +15,124 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="canonical" href="https://cudic.vercel.app/shop">
 <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/sidebar.css?v=25">
+<link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
 <style>
-:root{--bg:#0d0e10;--panel:#14161b;--panel-raised:#1a1e26;--line:#262a33;--ink:#f7f5ec;--mute:#9a9a94;--signal:#b8f23a;--blue:#3f7cff;--radius:6px;--font-head:"Geist",system-ui,sans-serif;--font-body:"Geist",system-ui,sans-serif;--font-mono:"Geist Mono",ui-monospace,monospace}
-:root[data-theme="light"]{--bg:#f7f5ec;--panel:#fffdf6;--panel-raised:#fff;--line:#d6d2c2;--ink:#0d0e10;--mute:#6b6a63}
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--font-body);min-height:100vh;display:flex}
-.shop{flex:1;min-width:0;padding:26px 26px 80px;max-width:1180px;margin:0 auto;width:100%}
+.shop-layout{display:flex;flex-direction:column}
+.shop-scroll{flex:1;min-height:0;overflow-y:auto}
+.shop-inner{max-width:1150px;margin:0 auto;width:100%;padding:26px 30px 90px}
+.mono{font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;color:var(--text-secondary);letter-spacing:.02em}
 
-/* ── header ───────────────────────────────────────────────── */
-.hero{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:14px;padding:26px 24px;margin-bottom:18px;
-  background:radial-gradient(700px 260px at 82% -10%,rgba(63,124,255,.22),transparent 62%),radial-gradient(520px 220px at 8% 120%,rgba(184,242,58,.14),transparent 60%),linear-gradient(160deg,#101218,#0b0c11)}
-:root[data-theme="light"] .hero{background:radial-gradient(700px 260px at 82% -10%,rgba(63,124,255,.12),transparent 62%),radial-gradient(520px 220px at 8% 120%,rgba(184,242,58,.2),transparent 60%),linear-gradient(160deg,#fffdf6,#f2efdf)}
-.hero h1{font-family:var(--font-head);font-weight:600;font-size:clamp(1.4rem,3vw,2rem);letter-spacing:-.03em;line-height:1.05}
-.hero p{color:var(--mute);font-size:.92rem;max-width:52ch;margin-top:8px}
-.balance{margin-top:16px;display:inline-flex;align-items:center;gap:8px;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-family:var(--font-head);font-size:.9rem}
-.balance b{font-weight:700;color:var(--signal)}
-.coin{width:15px;height:15px;border-radius:50%;background:linear-gradient(140deg,#f7d272,#c99b25);box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.25);display:inline-block;flex-shrink:0}
+/* balance pill in the topbar */
+.balance{display:inline-flex;align-items:center;gap:9px;border:1px solid var(--line);background:var(--panel-raised);border-radius:999px;padding:8px 16px;font-family:"Geist Mono",ui-monospace,monospace;font-size:12px}
+.balance b{font-weight:600;color:var(--signal)}
+.coin{width:14px;height:14px;border-radius:50%;background:linear-gradient(140deg,#f7d272,#c99b25);box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.25);display:inline-block;flex-shrink:0}
 
-/* ── look preview ─────────────────────────────────────────── */
-.look{border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:20px;background:var(--panel)}
-.lookhead{height:92px;background:linear-gradient(160deg,#151821,#0e1015)}
-.lookbody{display:flex;align-items:flex-end;gap:14px;padding:0 20px 16px;margin-top:-26px}
-.lookava{width:72px;height:72px;border-radius:50%;background:var(--panel-raised);display:grid;place-items:center;font-family:var(--font-head);font-weight:600;font-size:1.5rem;color:var(--signal);border:1px solid var(--line);overflow:hidden;flex-shrink:0}
+/* tabs: flat mono toolbar row */
+.tabs{display:flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:18px}
+.tab{flex:0 0 auto;border:0;border-right:1px solid var(--line);background:transparent;color:var(--text-secondary);padding:12px 18px;font-family:"Geist Mono",ui-monospace,monospace;font-weight:500;font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:background .12s steps(2),color .12s steps(2)}
+.tab:last-child{border-right:0}
+.tab:hover{background:var(--panel-raised);color:var(--text-primary)}
+.tab[aria-selected="true"]{background:var(--signal);color:#0d0e10}
+
+/* your look: slim hairline strip */
+.look{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:10px;background:var(--panel-raised);display:flex;align-items:center;gap:13px;padding:10px 14px;margin-bottom:22px;min-height:104px}
+.lookhead{position:absolute;inset:0;background:var(--panel);transition:none}
+.look > *:not(.lookhead){position:relative;z-index:1}
+.lookhead.cx-bn::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(4,6,10,.55),rgba(4,6,10,.12) 55%,rgba(4,6,10,0))}
+.lookname,.lookmeta{text-shadow:0 1px 3px rgba(0,0,0,.45)}
+.lookava{width:52px;height:52px;border-radius:50%;border:1px solid var(--line);background:var(--panel);display:grid;place-items:center;font-weight:600;font-size:1.15rem;color:var(--signal);overflow:hidden;flex-shrink:0}
 .lookava img{width:100%;height:100%;object-fit:cover}
-.lookname{font-family:var(--font-head);font-weight:600;font-size:1.05rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.lookmeta{font-size:.78rem;color:var(--mute);margin-top:2px}
-.looksave{font-size:.78rem;color:var(--mute);padding:0 20px 14px;min-height:20px}
+.lookname{font-family:var(--font-head);font-weight:600;font-size:1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lookmeta{font-family:"Geist Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.03em;color:var(--text-secondary);margin-top:3px}
+.looksave{font-family:"Geist Mono",ui-monospace,monospace;font-size:11px;color:var(--text-secondary);margin-left:auto;text-align:right;min-height:18px}
 .looksave.ok{color:var(--signal)}
-.looksave.err{color:#ff8c7a}
+.looksave.err{color:var(--danger,#ff8c7a)}
 
-/* ── tabs ─────────────────────────────────────────────────── */
-.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
-.tab{border:1px solid var(--line);background:var(--panel);color:var(--mute);border-radius:999px;padding:7px 14px;font:500 .82rem var(--font-head);cursor:pointer;transition:color .15s,border-color .15s,background .15s}
-.tab:hover{color:var(--ink);border-color:var(--signal)}
-.tab[aria-selected="true"]{background:var(--signal);color:#0d0e10;border-color:transparent}
-
-/* ── grid ─────────────────────────────────────────────────── */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:14px}
-.item{border:1px solid var(--line);border-radius:12px;background:var(--panel);display:flex;flex-direction:column;overflow:hidden;transition:border-color .15s,transform .15s}
-.item:hover{border-color:#3a4150;transform:translateY(-1px)}
-.item.owned{border-color:rgba(184,242,58,.35)}
-.item.worn{border-color:var(--signal);box-shadow:0 0 0 1px rgba(184,242,58,.25)}
-.pv{height:104px;display:grid;place-items:center;background:linear-gradient(160deg,#12141b,#0c0d12);overflow:hidden;position:relative}
-:root[data-theme="light"] .pv{background:linear-gradient(160deg,#f6f3e6,#eeeada)}
-.pv .sample{width:56px;height:56px;border-radius:50%;background:var(--panel-raised);display:grid;place-items:center;font-family:var(--font-head);font-weight:600;color:var(--mute)}
-.pv .bnswatch{width:86%;height:72px;border-radius:8px;border:1px solid rgba(255,255,255,.08)}
-.pv .efbox{width:86%;height:72px;border-radius:8px;background:var(--panel-raised);border:1px solid rgba(255,255,255,.08);display:grid;place-items:center;font-size:.7rem;color:var(--mute);letter-spacing:.14em}
-.pv .namesample{font-family:var(--font-head);font-weight:600;font-size:1.45rem;color:var(--ink)}
-.pv .emojis{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;padding:0 10px;font-size:1.15rem;line-height:1}
-.info{padding:12px 14px 0;flex:1}
-.kind{font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
-.title{font-family:var(--font-head);font-weight:600;font-size:.95rem;margin-top:3px}
-.blurb{font-size:.78rem;color:var(--mute);margin-top:4px;line-height:1.4}
-.acts{display:flex;align-items:center;gap:8px;padding:12px 14px 14px}
-.price{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-head);font-weight:600;font-size:.84rem;margin-right:auto}
+/* hairline grid: square flat cells */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.item{border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:transparent;display:flex;flex-direction:column;transition:background .12s steps(2)}
+.item:hover{background:var(--panel-raised)}
+.item.owned{box-shadow:inset 0 2px 0 var(--line)}
+.item.worn{box-shadow:inset 0 2px 0 var(--signal)}
+.pv{height:112px;display:grid;place-items:center;background:var(--panel);border-bottom:1px solid var(--line);position:relative;overflow:hidden}
+.pv:after{content:"";position:absolute;inset:0;background:linear-gradient(var(--line) 1px,transparent 1px) 0 0/20px 20px,linear-gradient(90deg,var(--line) 1px,transparent 1px) 0 0/20px 20px;opacity:40%;pointer-events:none}
+.pv .sample{width:56px;height:56px;background:var(--panel-raised);border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-weight:600;color:var(--text-secondary)}
+.pv .bnswatch{width:86%;height:66px;border:1px solid var(--line)}
+.pv .efbox{width:86%;height:66px;background:var(--panel-raised);border:1px solid var(--line);display:grid;place-items:center;font-family:"Geist Mono",ui-monospace,monospace;font-size:.66rem;color:var(--text-secondary);letter-spacing:.18em}
+.pv .namesample{font-weight:600;font-size:1.4rem;color:var(--text-primary)}
+.pv .emojis{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;padding:0 10px;font-size:1.1rem;line-height:1}
+.info{padding:13px 15px 2px;flex:1}
+.kind{font-family:"Geist Mono",ui-monospace,monospace;font-size:10px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--text-secondary)}
+.title{font-family:var(--font-head);font-weight:600;font-size:.98rem;margin-top:5px;color:var(--text-primary)}
+.blurb{font-size:.78rem;color:var(--text-secondary);margin-top:4px;line-height:1.45}
+.acts{display:flex;align-items:center;gap:8px;padding:11px 15px 14px}
+.price{display:inline-flex;align-items:center;gap:6px;font-family:"Geist Mono",ui-monospace,monospace;font-weight:600;font-size:12px;margin-right:auto;color:var(--text-primary)}
 .price.free{color:var(--signal)}
-.btn{border:1px solid var(--line);background:var(--panel-raised);color:var(--ink);border-radius:8px;padding:7px 13px;font:500 .8rem var(--font-head);cursor:pointer;transition:background .15s,border-color .15s}
-.btn:hover{border-color:var(--signal)}
-.btn.primary{background:var(--signal);color:#0d0e10;border-color:transparent}
-.btn.primary:hover{filter:brightness(1.06)}
-.btn.off{background:transparent;color:var(--mute)}
-.btn:disabled{opacity:.55;cursor:default}
-.empty{color:var(--mute);font-size:.9rem;padding:20px 4px}
-.note{color:var(--mute);font-size:.78rem;margin-top:22px;line-height:1.6}
+
+/* flat mono buttons */
+.shop-scroll .btn{display:inline-flex;align-items:center;justify-content:center;font-family:"Geist Mono",ui-monospace,monospace;font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:9px 14px;border-radius:8px;border:1px solid var(--ink,#f7f5ec);background:transparent;color:var(--text-primary);cursor:pointer;transition:background .12s steps(2),color .12s steps(2),border-color .12s steps(2)}
+.shop-scroll .btn:hover{background:var(--text-primary);color:var(--panel)}
+.shop-scroll .btn.primary{background:var(--signal);color:#0d0e10;border-color:var(--signal)}
+.shop-scroll .btn.primary:hover{background:var(--text-primary);border-color:var(--text-primary);color:var(--panel)}
+.shop-scroll .btn.off{border-color:var(--line);color:var(--text-secondary)}
+.shop-scroll .btn.off:hover{background:var(--panel-raised);color:var(--text-primary)}
+.shop-scroll .btn:disabled{opacity:45%;cursor:default;background:transparent;color:var(--text-secondary);border-color:var(--line)}
+
+@keyframes hop{50%{transform:translateY(-7px)}}
+.item:hover .sample{animation:hop .6s steps(2) infinite}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
+
+.empty{font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;color:var(--text-secondary);padding:22px 4px}
+.note{padding:20px 2px 0;color:var(--text-secondary);font-size:.82rem;line-height:1.6}
 .note a{color:var(--signal)}
-@media (max-width:640px){.shop{padding:16px 14px 80px}.grid{grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:10px}.pv{height:86px}.lookbody{align-items:center}}
+@media (max-width:700px){
+  .shop-inner{padding:18px 14px 80px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(158px,1fr))}
+  .pv{height:92px}
+  .look{flex-wrap:wrap}
+  .looksave{margin-left:0;text-align:left;flex-basis:100%}
+}
 </style>
 </head>
 <body data-page="shop">
-<nav class="sidebar" id="sidebar" aria-label="Main"></nav>
-<main class="shop">
-  <section class="hero">
-    <h1>Wear your progress.</h1>
-    <p>Frames, banners, effects, name styles, titles and emoji packs. Bought with coins you earn from quests, chat and jams — no cash, no loot boxes, no pay-to-win.</p>
+<div class="shop-layout page-panel">
+  <div class="topbar">
+    <h1>Shop</h1>
     <span class="balance"><span class="coin" aria-hidden="true"></span><b id="balanceNum">—</b>&nbsp;coins</span>
-  </section>
-
-  <section class="look" id="lookCard" style="display:none" aria-label="Your current look">
-    <div class="lookhead" id="lookBanner"></div>
-    <div class="lookbody">
-      <div class="lookava" id="lookAvatar">?</div>
-      <div style="padding-bottom:2px">
-        <div class="lookname"><span id="lookName">you</span><span id="lookTitle"></span></div>
-        <div class="lookmeta" id="lookMeta">Nothing equipped yet.</div>
-      </div>
-    </div>
-    <div class="looksave" id="lookMsg" role="status"></div>
-  </section>
-
-  <div class="tabs" role="tablist" id="tabs">
-    <button class="tab" role="tab" data-k="" aria-selected="true">Everything</button>
-    <button class="tab" role="tab" data-k="frame" aria-selected="false">Frames</button>
-    <button class="tab" role="tab" data-k="banner" aria-selected="false">Banners</button>
-    <button class="tab" role="tab" data-k="effect" aria-selected="false">Effects</button>
-    <button class="tab" role="tab" data-k="name" aria-selected="false">Name</button>
-    <button class="tab" role="tab" data-k="title" aria-selected="false">Titles</button>
-    <button class="tab" role="tab" data-k="emoji" aria-selected="false">Emoji</button>
   </div>
+  <div class="shop-scroll">
+    <div class="shop-inner">
 
-  <div class="grid" id="grid"></div>
-  <div class="empty" id="empty" style="display:none">Sign in to buy and wear cosmetics.</div>
+      <section class="look" id="lookCard" style="display:none" aria-label="Your current look">
+        <div class="lookhead" id="lookBanner"></div>
+        <div class="lookava" id="lookAvatar">?</div>
+        <div>
+          <div class="lookname"><span id="lookName">you</span><span id="lookTitle"></span></div>
+          <div class="lookmeta" id="lookMeta">Nothing equipped yet.</div>
+        </div>
+        <div class="looksave" id="lookMsg" role="status"></div>
+      </section>
 
-  <p class="note">Coins come from <a href="/quests">quests</a>, the daily check-in, chatting, and weekly game jams. Cosmetics are cosmetic only — nothing here changes how games play or what you can publish.</p>
-</main>
+      <div class="tabs" role="tablist" id="tabs">
+        <button class="tab" role="tab" data-k="" aria-selected="true">Everything</button>
+        <button class="tab" role="tab" data-k="frame" aria-selected="false">Frames</button>
+        <button class="tab" role="tab" data-k="banner" aria-selected="false">Banners</button>
+        <button class="tab" role="tab" data-k="effect" aria-selected="false">Effects</button>
+        <button class="tab" role="tab" data-k="name" aria-selected="false">Name</button>
+        <button class="tab" role="tab" data-k="title" aria-selected="false">Titles</button>
+        <button class="tab" role="tab" data-k="emoji" aria-selected="false">Emoji</button>
+      </div>
+
+      <div class="grid" id="grid"></div>
+      <div class="empty" id="empty" style="display:none">Sign in to buy and wear cosmetics.</div>
+
+      <p class="note">Coins come from <a href="/quests">quests</a>, the daily check-in, chatting, and weekly game jams. Cosmetics are cosmetic only — nothing here changes how games play or what you can publish.</p>
+
+    </div>
+  </div>
+</div>
 
 <script src="/config.js"></script>
 <script src="/auth.js"></script>
