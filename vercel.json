@@ -13,6 +13,7 @@
     { "source": "/themes", "destination": "/themes.html" },
     { "source": "/quests", "destination": "/quests.html" },
     { "source": "/shop", "destination": "/shop.html" },
+    { "source": "/race", "destination": "/race.html" },
     { "source": "/creator", "destination": "/creator.html" },
     { "source": "/friends", "destination": "/friends.html" },
     { "source": "/notifications", "destination": "/notifications.html" },
