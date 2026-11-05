@@ -9,6 +9,12 @@ fixed. Commits are referenced by short hash.
 ## Unreleased
 
 
+**Race loads on Vercel; the weekly digest stops re-sending + bounce storm**
+
+- `/race` now imports `config.js` and derives its API base from `WS_URL`: pages served as static files (Vercel) call `/api/race` on the Render host, while localhost still uses same-origin. Before this the deployed page hit `/api/race` on Vercel (which has no API) and printed "Could not load the race just now".
+- The weekly digest's "already sent this week" marker now also lives in Supabase (one sentinel `email_codes` row), because Render's free tier wakes a fresh container with an empty disk — every wake re-sent the whole week's mail, and every fake address bounced a delivery failure back to the sender. Current week is seeded so the deployed build skips it.
+- The digest never mails test/harness addresses (example.*/examp1e.dev/freebuff.dev, test/probe/buffy local parts), the 8 stray probe accounts were deleted from Supabase, and `vercel.json` gained the missing `/race` rewrite. Checks: 216/216 tests pass (run #79).
+
 **Shop and race get the standard tab shell**
 
 - `/shop` and `/race` now use the same chrome every tab has: rail on the left, the floating page panel, a plain topbar (page name + utility), and normal content scrolling inside the panel. `/shop` gets the coin balance pill in the topbar and one hairline item grid with flat mono buttons and mono per-item labels (the brand-kit look); `/race` keeps its week strip, podium, board, winners and rules cards inside the shell and gets a rail entry highlight via `data-page="race"`. No invented heroes, no promo fluff on either.

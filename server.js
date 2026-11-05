@@ -6720,6 +6720,32 @@ setTimeout(raceSettle, 40 * 1000); // first sweep 40s after start
 // The "already sent this week" marker is digest.json (same file trick as
 // weekly.json), so a redeploy re-runs the job but cannot re-send the week.
 const DIGEST_FILE = path.join(__dirname, 'digest.json');
+// Render's free tier wakes a fresh container with an empty disk, so
+// digest.json alone lets every wake mail the whole week again (each
+// bounce lands back in the sender's inbox). Mirror the marker into
+// Supabase and prefer that copy; the file stays as a local fast path.
+const DIGEST_STATE_EMAIL = 'digest-state@cudic.invalid';
+async function readDigestState() {
+  try {
+    const { data } = await supabase.from('email_codes').select('code_hash').eq('email', DIGEST_STATE_EMAIL).limit(1);
+    if (data && data[0] && data[0].code_hash) return JSON.parse(data[0].code_hash);
+  } catch (e) { console.warn('digest: could not read state:', (e && e.message) || e); }
+  return null;
+}
+async function writeDigestState(st) {
+  try {
+    await supabase.from('email_codes').upsert({ email: DIGEST_STATE_EMAIL, code_hash: JSON.stringify(st), expires_at: '2099-01-01T00:00:00.000Z' });
+  } catch (e) { console.warn('digest: could not persist state:', (e && e.message) || e); }
+}
+// Test/harness addresses never receive mail — they bounce straight back
+// into the sender's inbox. Never hand them to a transport.
+function digestMailOk(email) {
+  const e = String(email || '').toLowerCase();
+  if (e.indexOf('@') < 1) return false;
+  const local = e.split('@')[0];
+  if (/^(test|probe|buffy|buffytest|dupcheck)/.test(local)) return false;
+  return !/@(.*\.)?(example\.(com|dev|org|net)|example|examp1e\.dev|test|invalid|localhost|freebuff\.dev)$/.test(e);
+}
 function digestWeekStart(d) {
   // Monday 00:00 UTC of the week containing d — same rule as weekStartISO.
   const t = d ? new Date(d) : new Date();
@@ -6773,6 +6799,7 @@ async function weeklyDigest() {
   try { const { data: rw } = await supabase.from('race_weeks').select('top').eq('week', prevWeek).limit(1); raceWinners = ((rw && rw[0]) || {}).top || []; } catch (e) {}
   let state = null;
   try { state = JSON.parse(fs.readFileSync(DIGEST_FILE, 'utf8')); } catch {}
+  if (!state || state.week !== week) state = await readDigestState();
   if (state && state.week === week) return; // this week already went out
   if (!mailTransportReady()) return; // wait until mail exists; retry next tick
   // This week's theme lives in weekly.json; may still be last week's file
@@ -6827,7 +6854,7 @@ async function weeklyDigest() {
         }
       } catch (e) {}
       for (const u of batch) {
-        if (!u || !u.email || userUnconfirmed(u)) continue;
+        if (!u || !u.email || userUnconfirmed(u) || !digestMailOk(u.email)) continue;
         // Three newest published games from creators this reader follows.
         let picks = [];
         try {
@@ -6874,8 +6901,10 @@ async function weeklyDigest() {
       if (batch.length < 100) break;
     }
   } catch (e) { console.error('digest run:', (e && e.message) || e); }
-  try { fs.writeFileSync(DIGEST_FILE, JSON.stringify({ week, sent_at: new Date().toISOString(), sent, skipped }, null, 2)); }
+  const stamp = { week, sent_at: new Date().toISOString(), sent, skipped };
+  try { fs.writeFileSync(DIGEST_FILE, JSON.stringify(stamp, null, 2)); }
   catch (e) { console.warn('digest: could not persist state:', e.message); }
+  await writeDigestState(stamp);
   console.log('digest: week', week, '— sent', sent, 'skipped', skipped);
 }
 setInterval(weeklyDigest, 30 * 60 * 1000); // half-hourly check, sends once per week
