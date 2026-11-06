@@ -127,20 +127,30 @@ async function token() {
   die('your session expired and could not refresh. Run `cudic login` again.');
 }
 
-/** Fetch a Cudic API path with the account token; refreshes once on 401. */
+function hasCreds() {
+  const cfg = readConfig();
+  return !!(process.env.CUDIC_TOKEN || cfg.access_token || cfg.refresh_token);
+}
+
+/**
+ * Fetch a Cudic API path; refreshes once on 401. `auth: false` is for public
+ * reads (gallery, forums, docs) so a fresh install can browse without a login.
+ */
 async function api(pathname, opts = {}) {
   const body = opts.body === undefined ? undefined : JSON.stringify(opts.body);
   const send = async (t) => fetch(apiBase() + pathname, {
     method: opts.method || 'GET',
     headers: {
-      Authorization: 'Bearer ' + t,
+      ...(t ? { Authorization: 'Bearer ' + t } : {}),
       ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
     },
     ...(body === undefined ? {} : { body }),
   });
-  let t = await token();
+  let t = null;
+  if (opts.auth === false) { if (hasCreds()) t = await token().catch(() => null); }
+  else t = await token();
   let res = await send(t);
-  if (res.status === 401 && !process.env.CUDIC_TOKEN) {
+  if (res.status === 401 && t && !process.env.CUDIC_TOKEN) {
     const fresh = await refresh(readConfig());
     if (fresh) { t = fresh; res = await send(fresh); }
   }
@@ -193,6 +203,8 @@ function collect(dir) {
         continue;
       }
       if (!ent.isFile()) continue;
+      // The credit note `get` drops in a download is for the human, not the game.
+      if (ent.name === 'CUDIC.md') continue;
       const ext = path.extname(ent.name).toLowerCase();
       if (!TEXT_EXT.has(ext)) { skipped.push(childRel); continue; }
       const buf = fs.readFileSync(childAbs);
@@ -390,6 +402,255 @@ async function cmdOpen(pos, flags) {
   console.log(webBase() + (flags.studio ? '/studio?id=' : '/g/') + id);
 }
 
+// ── browsing, downloads, forums, shop, docs, snapshots ──────────────────
+function slugify(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'game';
+}
+function qs(params) {
+  const u = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v != null && v !== '' && v !== true) u.set(k, String(v));
+  const s = u.toString();
+  return s ? '?' + s : '';
+}
+
+async function cmdGames(pos, flags) {
+  const d = await api('/api/games' + qs({ q: flags.q || flags.search, tag: flags.tag, sort: flags.sort }), { auth: false });
+  const games = (d && d.games) || [];
+  if (flags.json) { console.log(JSON.stringify(games, null, 2)); return; }
+  if (!games.length) { console.log('No games matched.'); return; }
+  for (const g of games) {
+    const by = (g.users && (g.users.display_name || g.users.user_name)) || 'unknown';
+    const tags = g.tags && g.tags.length ? '  [' + g.tags.join(',') + ']' : '';
+    console.log(g.id + '  ' + String(g.title || 'Untitled').slice(0, 30).padEnd(30) + '  by ' + by + tags);
+  }
+  console.log('\n`cudic get <id>` downloads a game\'s source.');
+}
+
+async function cmdGet(pos, flags) {
+  const id = pos[0];
+  if (!id) die('usage: cudic get <game id> [--out dir]');
+  const d = await api('/api/games/' + encodeURIComponent(id), { auth: hasCreds() });
+  const game = d && d.game;
+  if (!game) die('game not found (drafts are only visible to their owner).');
+  const out = path.resolve(typeof flags.out === 'string' ? flags.out : slugify(game.title));
+  if (fs.existsSync(out) && fs.readdirSync(out).length > 0 && !flags.force) {
+    die(out + ' already has files. Pass --out <dir> or --force.');
+  }
+  fs.mkdirSync(out, { recursive: true });
+
+  let files = game.files;
+  if (typeof files === 'string') { try { files = JSON.parse(files); } catch { files = null; } }
+  let written = 0;
+  for (const [rel, text] of Object.entries(files || {})) {
+    if (typeof text !== 'string' || !rel || rel.includes('..')) continue;
+    const dest = path.join(out, rel);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, text);
+    written++;
+  }
+
+  // Binary assets live in public object storage; `assets` maps path → object key.
+  const { url } = await supa();
+  let assets = 0, missed = 0;
+  for (const [rel, key] of Object.entries(game.assets || {})) {
+    const obj = String(key).replace(/^game-assets\//, '');
+    const src = url + '/storage/v1/object/public/game-assets/' + obj.split('/').map(encodeURIComponent).join('/');
+    try {
+      const r = await fetch(src);
+      if (!r.ok) { missed++; continue; }
+      const dest = path.join(out, rel);
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.writeFileSync(dest, Buffer.from(await r.arrayBuffer()));
+      assets++;
+    } catch { missed++; }
+  }
+
+  const author = (game.users && (game.users.display_name || game.users.user_name)) || 'unknown';
+  fs.writeFileSync(path.join(out, 'CUDIC.md'), [
+    '# ' + (game.title || 'Untitled'),
+    '',
+    (game.description || '').trim(),
+    '',
+    '- By: ' + author,
+    '- Source: ' + webBase() + (game.published ? '/g/' : '/studio?id=') + game.id,
+    '- Downloaded: ' + new Date().toISOString().slice(0, 10),
+    '',
+    'This is a copy taken with `cudic get`. Pushing it creates a new project',
+    'under your account; the site\'s Remix button is what records the credit',
+    'link back to the original.',
+    '',
+  ].join('\n'));
+
+  console.log('Downloaded "' + game.title + '" into ' + path.relative(process.cwd(), out) +
+    ' (' + written + ' file' + (written === 1 ? '' : 's') +
+    (assets ? ', ' + assets + ' asset' + (assets === 1 ? '' : 's') : '') +
+    (missed ? ', ' + missed + ' missing' : '') + ').');
+  console.log(game.published
+    ? 'Play: ' + webBase() + '/g/' + game.id
+    : 'Draft (yours): ' + webBase() + '/studio?id=' + game.id);
+}
+
+async function cmdForums(pos, flags) {
+  const d = await api('/api/forums/threads' + qs({
+    q: flags.q || flags.search, sort: flags.sort, category: flags.category,
+  }), { auth: false });
+  const threads = (d && d.threads) || [];
+  if (flags.json) { console.log(JSON.stringify(threads, null, 2)); return; }
+  if (!threads.length) { console.log('No threads matched.'); return; }
+  for (const t of threads) {
+    const by = (t.users && t.users.display_name) || 'unknown';
+    console.log(t.id + '  [' + (t.category || '?') + '] ' + String(t.title || '').slice(0, 42).padEnd(42) +
+      '  ' + (t.comment_count || 0) + ' replies  by ' + by + (t.pinned ? '  pinned' : ''));
+  }
+  console.log('\n`cudic thread <id>` reads one with its replies.');
+}
+
+async function cmdThread(pos, flags) {
+  const id = pos[0];
+  if (!id) die('usage: cudic thread <id>');
+  const d = await api('/api/forums/threads/' + encodeURIComponent(id), { auth: false });
+  const t = d && d.thread;
+  if (!t) die('thread not found.');
+  if (flags.json) { console.log(JSON.stringify(d, null, 2)); return; }
+  const by = (t.users && t.users.display_name) || 'someone';
+  console.log('[' + (t.category || '?') + '] ' + t.title);
+  console.log('by ' + by + ' · ' + String(t.created_at || '').slice(0, 10) +
+    (t.game ? ' · game: ' + t.game.title : ''));
+  console.log('');
+  console.log(t.body || '(no body)');
+  const comments = d.comments || [];
+  if (comments.length) {
+    console.log('\n' + comments.length + ' repl' + (comments.length === 1 ? 'y' : 'ies') + ':');
+    for (const c of comments) {
+      console.log('  ' + (c.display_name || 'someone') + ' · ' + String(c.created_at || '').slice(0, 10) +
+        (c.label ? ' [' + c.label + ']' : ''));
+      console.log('    ' + String(c.text || '').replace(/\n/g, '\n    '));
+    }
+  }
+  console.log('\n' + webBase() + '/forums/' + t.id);
+}
+
+async function cmdShop(pos, flags) {
+  const sub = (pos[0] || 'list').toLowerCase();
+  if (sub === 'list' || sub === 'catalog' || sub === 'show') {
+    const d = await api('/api/cosmetics');
+    if (flags.json) { console.log(JSON.stringify(d, null, 2)); return; }
+    const owned = new Set(d.owned || []);
+    console.log('Balance: ' + d.balance + ' coins\n');
+    const bySlot = {};
+    for (const item of d.catalog || []) (bySlot[item.slot] = bySlot[item.slot] || []).push(item);
+    for (const [key, label] of Object.entries(d.slots || {})) {
+      const items = bySlot[key] || [];
+      if (!items.length) continue;
+      console.log(label + ' (' + key + ')');
+      for (const it of items) {
+        console.log('  ' + String(it.code).padEnd(16) + String(it.name || '').slice(0, 24).padEnd(26) +
+          (it.price ? it.price + ' coins' : 'free').padEnd(10) + (owned.has(it.code) ? 'owned' : ''));
+      }
+    }
+    console.log('\n`cudic shop buy <code>` buys, `cudic shop equip <slot> <code>` wears it.');
+    return;
+  }
+  if (sub === 'buy') {
+    const code = pos[1];
+    if (!code) die('usage: cudic shop buy <code>');
+    const d = await api('/api/cosmetics/buy', { method: 'POST', body: { code } });
+    console.log(d.already ? 'You already own ' + code + '.' : 'Bought ' + code + '.');
+    if (d.balance != null) console.log('Balance: ' + d.balance + ' coins');
+    return;
+  }
+  if (sub === 'equip') {
+    const slot = pos[1];
+    if (!slot) die('usage: cudic shop equip <slot> <code>   (or --off to clear it)');
+    const code = flags.off ? null : pos[2];
+    if (code == null && !flags.off) die('give a code, or --off to take it off.');
+    await api('/api/cosmetics/equip', { method: 'POST', body: { slot, code } });
+    console.log(code ? 'Equipped ' + code + ' in ' + slot + '.' : 'Cleared the ' + slot + ' slot.');
+    return;
+  }
+  die('unknown shop command "' + sub + '". Try `cudic shop`, `shop buy <code>`, `shop equip <slot> <code> --off`.');
+}
+
+function htmlToText(fragment) {
+  return fragment
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<h2[^>]*>/gi, '\n## ').replace(/<\/h2>/gi, '\n')
+    .replace(/<h3[^>]*>/gi, '\n### ').replace(/<\/h3>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '- ').replace(/<\/li>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|ul|ol|div|section)>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
+    .replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+async function cmdDocs(pos, flags) {
+  const res = await fetch(webBase() + '/docs');
+  if (!res.ok) die('could not fetch the docs (' + res.status + '). Set CUDIC_WEB.');
+  const html = await res.text();
+  const secs = [...html.matchAll(/<section id="([^"]+)">([\s\S]*?)<\/section>/g)]
+    .map((m) => ({ id: m[1], text: htmlToText(m[2]) }));
+  if (!secs.length) die('the docs page had no sections (did it change shape?).');
+
+  const want = String(pos[0] || '').toLowerCase();
+  const q = String(flags.search || flags.q || '').toLowerCase();
+  let picked = secs;
+  if (want) {
+    picked = secs.filter((s) => s.id === want);
+    if (!picked.length) picked = secs.filter((s) => s.id.includes(want));
+    if (!picked.length) die('no docs section "' + want + '". Sections: ' + secs.map((s) => s.id).join(', '));
+  } else if (q) {
+    picked = secs
+      .map((s) => ({ id: s.id, text: s.text.split('\n').filter((l) => l.toLowerCase().includes(q)).join('\n').trim() }))
+      .filter((s) => s.text);
+    if (!picked.length) die('nothing in the docs matches "' + q + '".');
+  } else {
+    console.log('Sections: ' + secs.map((s) => s.id).join(', ') + '\n');
+    picked = secs.slice(0, 1);
+  }
+  if (flags.json) { console.log(JSON.stringify(picked, null, 2)); return; }
+  for (const s of picked) console.log(s.text + '\n');
+}
+
+async function cmdRevisions(pos, flags) {
+  const dir = path.resolve(pos[0] || '.');
+  const id = flags.id || projectId(dir);
+  if (!id) die('no project id. Push the folder first, or pass --id <game id>.');
+  const d = await api('/api/games/' + encodeURIComponent(id) + '/revisions');
+  const revs = (d && d.revisions) || [];
+  if (flags.json) { console.log(JSON.stringify(revs, null, 2)); return; }
+  if (!revs.length) { console.log('No snapshots yet. `cudic snapshot` saves one.'); return; }
+  for (const r of revs) {
+    console.log(r.id + '  ' + String(r.created_at || '').slice(0, 16).replace('T', ' ') + '  ' + (r.label || ''));
+  }
+  console.log('\n`cudic restore <revision id>` puts one back into the project.');
+}
+
+async function cmdSnapshot(pos, flags) {
+  const dir = path.resolve(pos[0] || '.');
+  const id = flags.id || projectId(dir);
+  if (!id) die('no project id. Push the folder first, or pass --id <game id>.');
+  const { files } = collect(dir);
+  if (Object.keys(files).length === 0) die('no text files to snapshot in ' + dir);
+  const body = { files };
+  if (typeof flags.label === 'string') body.label = flags.label;
+  const d = await api('/api/games/' + encodeURIComponent(id) + '/revisions', { method: 'POST', body });
+  const rev = d && d.revision;
+  if (!rev) die('snapshot failed.');
+  console.log('Snapshot saved: ' + (rev.label || rev.id) + ' (' + Object.keys(files).length + ' files).');
+}
+
+async function cmdRestore(pos, flags) {
+  const revId = pos[0];
+  if (!revId) die('usage: cudic restore <revision id> [--id game id]');
+  const id = flags.id || projectId(path.resolve('.'));
+  if (!id) die('need the project: pass --id <game id> or run inside a pushed folder.');
+  await api('/api/games/' + encodeURIComponent(id) + '/revisions/' + encodeURIComponent(revId) + '/restore', { method: 'POST' });
+  console.log('Restored ' + revId.slice(0, 8) + ' into the project. `cudic get ' + id + ' --out .` pulls it down.');
+}
+
 const HELP = `Cudic CLI — make and publish Cudic projects from a terminal.
 
 Usage
@@ -402,6 +663,23 @@ Usage
   cudic push [dir] [--title T] [--description D] [--tags a,b]   create or update the project
   cudic publish [dir] [--tags a,b] [--description D]      publish (needs a pushed project)
   cudic open [id|dir] [--studio]                          print the play (or Studio) link
+  cudic revisions [dir] [--json]                          list snapshots of a project
+  cudic snapshot [dir] [--label text]                     snapshot the folder's files
+  cudic restore <revision id> [--id game]                 restore a snapshot
+
+Browsing and downloads (no login needed for public things)
+  cudic games [--q text] [--tag t] [--sort new|trending|plays|old|az] [--json]
+                                                          browse the gallery
+  cudic get <game id> [--out dir]                         download a game's source + assets
+  cudic forums [--q text] [--sort active|new] [--category help|showcase|bug] [--json]
+                                                          read the forums
+  cudic thread <id> [--json]                              one thread with its replies
+  cudic docs [section] [--search text] [--json]           the docs as plain text
+
+Shop (account)
+  cudic shop [list] [--json]                              catalog, prices, balance, what you own
+  cudic shop buy <code>                                   buy a cosmetic
+  cudic shop equip <slot> <code> | --off                  wear it (slots: fr bn ef ne ti em)
 
 Environment
   CUDIC_TOKEN                account token, skips stored credentials
@@ -431,6 +709,20 @@ async function main() {
     case 'publish': return cmdPublish(pos, flags);
     case 'open':
     case 'url': return cmdOpen(pos, flags);
+    case 'games':
+    case 'browse': return cmdGames(pos, flags);
+    case 'get':
+    case 'download': return cmdGet(pos, flags);
+    case 'forums': return cmdForums(pos, flags);
+    case 'thread': return cmdThread(pos, flags);
+    case 'shop':
+    case 'cosmetics': return cmdShop(pos, flags);
+    case 'docs':
+    case 'doc': return cmdDocs(pos, flags);
+    case 'revisions':
+    case 'history': return cmdRevisions(pos, flags);
+    case 'snapshot': return cmdSnapshot(pos, flags);
+    case 'restore': return cmdRestore(pos, flags);
     default: die('unknown command "' + cmd + '". Try `cudic help`.');
   }
 }

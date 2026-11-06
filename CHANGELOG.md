@@ -9,6 +9,10 @@ fixed. Commits are referenced by short hash.
 ## Unreleased
 
 
+**Cudic CLI grows browsing, downloads, forums, shop, docs and snapshots**
+
+- Beyond create/push/publish, the CLI now reads the rest of Cudic from a terminal: `games` (gallery search/sort/tag), `get <id>` (downloads a game's text files, pulls its binary assets from public storage and writes a `CUDIC.md` naming the author and source), `forums` + `thread <id>`, `docs [section|--search]` (the help pages rendered as plain text), and `shop` / `shop buy <code>` / `shop equip <slot> <code>|--off` with balance and owned markers. Studio parity: `snapshot`, `revisions` and `restore` drive the same `project_revisions` endpoints Studio's Save-snapshot uses. Gallery, forums, threads and docs work signed out (`--json` available on all of them); shop and snapshots need the account. No server changes — these are the existing public endpoints. Checks: 221+ tests pass.
+
 **Cudic CLI: build and publish projects from a terminal**
 
 - `cli/cudic.mjs` is a dependency-free (Node 18+) client for the project API, so agents and terminals can work without a browser: `login` (email+password → refreshable token in `~/.cudic/config.json`, or `CUDIC_TOKEN` for one-shot runs), `whoami`, `list`, `new` (starter index.html/style.css/game.js), `push` (create or update from a folder), `publish` (with `--tags`), `open`. Project ids live in `.cudic.json` inside the folder, so later pushes don't repeat them. It reuses `POST /api/games` and `PUT /api/games/:id` exactly as Studio does — no new server surface, so verification gates, tags and publish hooks all behave the same. Docs: new "Building from a terminal" section in `public/docs.html` plus `cli/README.md`. Checks: 216/216 tests pass.

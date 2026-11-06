@@ -280,6 +280,17 @@ with a note since asset upload needs the Studio storage path. A pushed folder
 keeps its id in `.cudic.json`, so `push`/`publish`/`open` need no id. `CUDIC_API`
 / `CUDIC_WEB` / `CUDIC_HOME` point it at another deployment.
 
+Read paths use the public endpoints with `auth: false` (works signed out):
+`games` → `GET /api/games`, `get <id>` → `GET /api/games/:id` (+ asset
+objects from `game-assets` public storage; a `CUDIC.md` credit note is written
+next to the source, and no `.cudic.json` so pushing makes a fresh project
+rather than clobbering someone else's), `forums`/`thread` →
+`/api/forums/threads`, `docs` scrapes `${CUDIC_WEB}/docs` into text, `shop`
+reuses `/api/cosmetics` + `/buy` + `/equip`, and `snapshot`/`revisions`/`restore`
+drive the owner-only `project_revisions` routes (snapshot sends the folder's
+files map, same shape Studio stages). Never add a bespoke server endpoint for
+the CLI: extend the client.
+
 ### Auth pattern
 Every gated route: pull `Authorization: Bearer <supabase jwt>` →
 `supabase.auth.getUser(token)` → 401 `{"error":"Sign in to ..."}` if bad.

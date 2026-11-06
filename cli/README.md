@@ -28,6 +28,27 @@ Every command prints plain lines (no spinners, no colour) and exits non-zero
 with a `cudic: <reason>` line on failure, so it slots into a shell tool loop.
 `list --json` and `whoami --json` give machine-readable output.
 
+## Reading Cudic from a terminal
+
+```bash
+node cli/cudic.mjs games --q puzzle --sort trending   # gallery (no login)
+node cli/cudic.mjs get <game id> --out ./that-game    # source + assets + CUDIC.md
+node cli/cudic.mjs forums --category showcase         # forum threads (no login)
+node cli/cudic.mjs thread <thread id>                 # one thread with its replies
+node cli/cudic.mjs docs cli                           # docs as plain text
+node cli/cudic.mjs docs --search thumbnail            # search every section
+node cli/cudic.mjs shop                               # catalog, prices, balance, owned
+node cli/cudic.mjs shop buy sparkle_ring
+node cli/cudic.mjs shop equip fr sparkle_ring         # slots: fr bn ef ne ti em
+node cli/cudic.mjs shop equip ti --off                # clear a slot
+```
+
+Studio's snapshots too: `snapshot [dir] --label`, `revisions [dir]`, `restore <rev id>`.
+
+`get` writes text files to disk, pulls binary assets from public storage and
+leaves a `CUDIC.md` naming the author and source. Pushing that folder creates a
+new project — the site's Remix button is what records the credit link.
+
 ## What it talks to
 
 The public API the Studio uses: `POST /api/games` (create), `PUT /api/games/:id`
@@ -37,8 +58,10 @@ using the public anon key from the deployment's `/config.js`.
 
 ## Limits (v1)
 
-- Text files only (html, css, js, json, svg, md, …). Binary assets and
-  thumbnails still need Studio — the CLI skips them and says which.
+- Pushing is text-files only (html, css, js, json, svg, md, …). Binary assets
+  and thumbnails still need Studio — `push` skips them and says which. `get`
+  does download existing assets.
+- `get` only sees published games, plus your own drafts.
 - The account needs a verified email; unverified accounts are blocked from
   creating or publishing by the same server rule as the editors.
 - No delete command (use Studio or the API directly with the owner token).
