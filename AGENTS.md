@@ -1207,11 +1207,65 @@ grid-led, Geist everywhere. Read it before building any public surface. Headline
 Every line below has already bitten this repo at least once. Read it before
 starting and again before saying "done".
 
-### A new page
-- **Three edits, every time**: the file in `public/`, a rewrite in `vercel.json`,
-  and a redirect in `server.js` (the block around `/notifications`).
-  Local-only and Vercel-only pages both fail loudly: `/ops` worked on Render and
-  404'd on the site until the rewrite landed.
+### A new page — the wiring checklist
+A page is not "a file". Every line below is a different file, edited in a
+different place, and skipping one yields a page nobody can reach. `/ops` shipped
+with the file and the Render redirect but no Vercel rewrite, and 404'd on the
+site while working perfectly in local testing.
+
+1. **`public/<name>.html`** — the file itself.
+2. **`vercel.json` → `rewrites`** —
+   `{ "source": "/<name>", "destination": "/<name>.html" }`. The site is static
+   output; without this the clean URL falls through to `404.html`.
+3. **`server.js` → the redirect block** (~line 6120, next to
+   `if (url.pathname === '/notifications')`) — without it Render 404s while
+   Vercel works, so `npm start` and every local probe lie about it.
+4. **An entry point** — an `sbItem('/<name>',…)` row in `public/sidebar.js` for a
+   main tab, or a real `href="/<name>"` from a page that already exists. Be able
+   to name the link. "They can type the URL" is not shipping; a page with no
+   inbound link is dead code that still passes its own tests.
+5. **`public/docs.html`** — a `<section id="…">` for a main tab; `docpage.js`
+   builds the in-page nav from those sections. No section means no docs, and a
+   feature nobody can read about is a feature nobody uses.
+6. **Asset versions** — bump `sidebar.css?v=`, `sidebar.js?v=`, `client.js?v=`
+   on *every* page when those shared files change (a new shared script starts
+   at `?v=1`).
+
+Pages that are iframe targets or fragments (`/embed`, `/view`, `/editor`,
+`/play`, `/run`) still need 2 and 3 — only the rail row and docs section are
+optional, because something else links to them from script.
+
+Known route-less files — no rewrite and no redirect is only correct for these:
+`404`, `index`, `index-legacy`, `login-legacy`, `landing-backup`, `brand`,
+`font-pick`, `hello`, `play`, `run`, and `google<hex>.html`. A new file that is
+not on that list and has no rewrite is a 404 waiting to be reported.
+
+**Symptoms of a half-wired page** — all four have happened here:
+
+| Missing | What you see instead of an error |
+|---|---|
+| file only | 404 everywhere; usually caught |
+| rewrite only | works on `cudic.vercel.app`, 404 on Render and locally — "it works!" |
+| redirect only | works locally and on Render, 404 on the site |
+| rail/docs only | a menu item that 404s, or a page with no way in |
+
+**Audit before saying done — do not eyeball it:**
+
+```bash
+for f in public/*.html; do p=$(basename "$f" .html); v=no; s=no; r=no
+  grep -q "\"/$p\"" vercel.json && v=yes
+  grep -q "'/$p'" server.js && s=yes
+  grep -q "'/$p'" public/sidebar.js && r=yes
+  printf '%-22s vercel:%s server:%s rail:%s\n' "$p" "$v" "$s" "$r"
+ done
+```
+
+Every new page must print `vercel:yes server:yes`; a main tab must also print
+`rail:yes`. If it does not, the page is not finished no matter how good it looks
+at `localhost:3000/<name>.html`.
+
+Then the page itself still has to look and behave like the others:
+
 - **Shell**: a main tab gets `data-page="<page>"` + `.page-panel` + the rail from
   `sidebar.js/css` (§4). Login/marketing/legacy pages are the exception, not the
   template. Never invent a bespoke hero or a page-side body scroll.
@@ -1223,10 +1277,6 @@ starting and again before saying "done".
 - **Script order**: `config.js` → `auth.js` → `sidebar.js` → page script. Derive
   the API host from `WS_URL` like `notifications.html`'s `apiHost()`; a hardcoded
   host breaks local dev and previews.
-- **Versions are global**: bump `sidebar.css?v=`, `sidebar.js?v=`, `client.js?v=`
-  on every page when those files change; new shared scripts start at `?v=1`.
-- **Rail + docs**: a main tab also needs its `sbItem(...)` row in `sidebar.js`
-  and a `<section id="…">` in `public/docs.html` (docpage.js builds nav from sections).
 - **Vercel's edge caches HTML even though the header says no-cache.** Verify a
   deploy with `?cb=$RANDOM` *and* `gh api repos/…/deployments`; a plain URL once
   served a HIT from before the deploy and looked like nothing had shipped.
@@ -1249,6 +1299,13 @@ starting and again before saying "done".
 - Rate-limit new writes with `rateLimit('<feature>:<user|ip>', n, windowMs)`.
 - **Never add an endpoint for the CLI or MCP** — extend `cli/cudic.mjs` /
   `cli/cudic-mcp.mjs` against the existing API (§5).
+- **Name the caller.** A new endpoint needs a named consumer (a page script, the
+  CLI, an MCP tool); a new page needs a named inbound link (checklist step 4).
+  Code with no caller is untested by definition — nobody has ever hit it.
+- **Docs and CHANGELOG are part of the feature**, not follow-up work: bullets in
+  `public/docs.html` and an entry in `CHANGELOG.md`. Tests string-match source,
+  docs and install lines, so half-written docs fail the suite later, on someone
+  else's change.
 - New client asset must live in `public/` and be served by both hosts; a push
   handler only works from root scope (`/sw.js`).
 - New env var → Render dashboard + `.env.example`, and absent config turns the
