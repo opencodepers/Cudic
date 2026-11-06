@@ -9,6 +9,10 @@ fixed. Commits are referenced by short hash.
 ## Unreleased
 
 
+**Google tag on every page**
+
+- The Google tag (`GTM-PSGJNQWB`) is now in the `<head>` of all 40 HTML pages under `public/` and in the server-rendered `/g/:id` page, so page views and events report to the container without a per-page wrapper. Legacy/backup pages carry it too; the Google verification file is untouched (it has no `<head>`). Checks: 216/216 tests pass.
+
 **Race loads on Vercel; the weekly digest stops re-sending + bounce storm**
 
 - `/race` now imports `config.js` and derives its API base from `WS_URL`: pages served as static files (Vercel) call `/api/race` on the Render host, while localhost still uses same-origin. Before this the deployed page hit `/api/race` on Vercel (which has no API) and printed "Could not load the race just now".

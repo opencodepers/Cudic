@@ -5901,6 +5901,8 @@ function sanitizeTags(raw) {
     const img = g.thumbnail ? base + '/g/' + gid + '/thumb' : base + '/og.png?v=2';
     const page = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
       + '<meta name="viewport" content="width=device-width,initial-scale=1">'
+      + '<script async src="https://www.googletagmanager.com/gtm.js?id=GTM-PSGJNQWB"><\/script>'
+      + '<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag("js",new Date());<\/script>'
       + '<title>' + escHtml(titleShort) + ' — play on Cudic</title>'
       + '<meta name="description" content="' + attr(desc) + '">'
       + '<link rel="canonical" href="' + attr(base + '/g/' + gid) + '">'
