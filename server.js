@@ -4342,6 +4342,51 @@ function sanitizeTags(raw) {
   }
 
   // ── API: my games (Studio "Your Projects" tab) ───────────────────
+  // ── API: cross-entity search (games, forum threads, creators) ──────
+  // Ranked by Postgres full-text search (migration/search.sql). Missing
+  // functions degrade to a title ilike instead of failing the request.
+  if (url.pathname === '/api/search' && req.method === 'GET') {
+    cors(res);
+    const q = String(url.searchParams.get('q') || '').trim().slice(0, 80);
+    const type = String(url.searchParams.get('type') || 'all').toLowerCase();
+    const limit = Math.min(25, Math.max(1, parseInt(String(url.searchParams.get('limit') || '10'), 10) || 10));
+    if (q.length < 2) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Search needs at least 2 characters.' }));
+      return;
+    }
+    const out = { q, games: [], threads: [], people: [] };
+    const want = (t) => type === 'all' || type === t || type === t + 's';
+    if (want('game')) {
+      const { data, error } = await supabase.rpc('search_games', { q, lim: limit });
+      if (!error && data) out.games = data;
+      else {
+        const { data: rows } = await supabase.from('games')
+          .select('id, title, description, tags, play_count, owner_id')
+          .eq('published', true).ilike('title', '%' + q + '%').limit(limit);
+        out.games = (rows || []).map((g) => ({ ...g, score: 0 }));
+      }
+    }
+    if (want('thread')) {
+      const { data, error } = await supabase.rpc('search_threads', { q, lim: limit });
+      if (!error && data) out.threads = data;
+      else {
+        const { data: rows } = await supabase.from('forum_threads')
+          .select('id, title, category, comment_count, created_at')
+          .ilike('title', '%' + q + '%').limit(limit);
+        out.threads = (rows || []).map((t) => ({ ...t, score: 0 }));
+      }
+    }
+    if (want('person') || (type === 'all' && q.length >= 2)) {
+      const { data } = await supabase.from('users')
+        .select('id, display_name, avatar_url').ilike('display_name', '%' + q + '%').limit(limit);
+      out.people = data || [];
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=30' });
+    res.end(JSON.stringify(out));
+    return;
+  }
+
   if (url.pathname === '/api/games/mine' && req.method === 'GET') {
     cors(res);
     const user = await userOf(req);

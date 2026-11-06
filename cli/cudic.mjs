@@ -950,6 +950,33 @@ async function cmdDiff(pos, flags) {
     ' removed. `cudic diff --json` for detail.');
 }
 
+async function cmdSearch(pos, flags) {
+  const q = pos.join(' ').trim() || (typeof flags.q === 'string' ? flags.q : '');
+  if (!q) die('usage: cudic search <text> [--type all|games|threads|people] [--json]');
+  const type = typeof flags.type === 'string' ? flags.type : 'all';
+  const limit = typeof flags.limit === 'string' ? flags.limit : '10';
+  const d = await api('/api/search?q=' + encodeURIComponent(q) + '&type=' + encodeURIComponent(type) +
+    '&limit=' + encodeURIComponent(limit), { auth: false });
+  if (flags.json) { console.log(JSON.stringify(d, null, 2)); return; }
+  const games = d.games || [], threads = d.threads || [], people = d.people || [];
+  if (!games.length && !threads.length && !people.length) { console.log('Nothing found for "' + q + '".'); return; }
+  if (games.length) {
+    console.log('Games');
+    for (const g of games) {
+      console.log('  ' + g.id + '  ' + String(g.title || '').slice(0, 34).padEnd(34) + '  ' + (g.play_count || 0) + ' plays');
+    }
+  }
+  if (threads.length) {
+    console.log('Forum');
+    for (const t of threads) console.log('  ' + t.id + '  [' + (t.category || '?') + '] ' + String(t.title || '').slice(0, 40));
+  }
+  if (people.length) {
+    console.log('Creators');
+    for (const p of people) console.log('  ' + p.id + '  ' + (p.display_name || '(no name)'));
+  }
+  console.log('\n`cudic get <id>` downloads a game, `cudic thread <id>` reads a thread.');
+}
+
 const HELP = `Cudic CLI — make and publish Cudic projects from a terminal.
 
 Usage
@@ -970,6 +997,7 @@ Usage
   cudic log [dir]                                         alias for revisions
 
 Browsing and downloads (no login needed for public things)
+  cudic search <text> [--type all|games|threads|people] [--json]   ranked search everywhere
   cudic games [--q text] [--tag t] [--sort new|trending|plays|old|az] [--json]
                                                           browse the gallery
   cudic get <game id> [--out dir]                         download a game's source + assets
@@ -1035,6 +1063,8 @@ async function main() {
     case 'browse': return cmdGames(pos, flags);
     case 'get':
     case 'download': return cmdGet(pos, flags);
+    case 'search':
+    case 'find': return cmdSearch(pos, flags);
     case 'forums': return cmdForums(pos, flags);
     case 'thread': return cmdThread(pos, flags);
     case 'shop':

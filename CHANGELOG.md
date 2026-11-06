@@ -9,6 +9,12 @@ fixed. Commits are referenced by short hash.
 ## Unreleased
 
 
+**Ranked full-text search across games, threads and creators**
+
+- `migration/search.sql` adds `search_tsv` to `games` and `forum_threads`, maintained by triggers (title/description/tags and title/body), GIN indexes, a backfill, and ranked SQL functions `search_games(q, lim)` / `search_threads(q, lim)` returning a `score`. This replaces `ilike('%q%')`, which could not use an index and ranked nothing.
+- `GET /api/search?q=&type=all|games|threads|people&limit=` returns the three lists in one call (games ranked by relevance then plays; creators by name), degrades to a title `ilike` if the migration is missing, and caches for 30s. CLI: `cudic search "<text>" [--type …] [--json]`.
+- Checks: full suite green; e2e asserts a freshly published game is findable through ranked search.
+
 **Deep, content-addressed project history with diffs**
 
 - Snapshots no longer store a full copy of every file. Each distinct file body is stored once in `revision_blobs` (migration/revision_blobs.sql) and the revision row keeps a `manifest` of path → hash, so a one-line edit costs a few bytes instead of a whole project copy. The retention cap moved from 20 snapshots to 100 because history is cheap now. Legacy rows keep `files` and hydrate exactly as before; if the blob table is missing the server falls back to plain copies.
