@@ -1284,3 +1284,10 @@ crash, oversized body bounded, server stays alive); Studio build ✓ 56.64s.
 **Blocked / needs the user**: manual two-window collab test (chat display,
 same-file co-edit, guest aliases); real end-to-end AI inference call (sign in,
 add key, hit Test). AdSense resubmission needs custom domain + 2–3 weeks.
+
+## Releasing the CLI
+
+`cli/` is its own npm package (`cudic`, bins `cudic` + `cudic-mcp`, zero
+dependencies). The root package is `private: true` — never publish from the
+repo root. Release: bump `cli/package.json` version, `npm publish ./cli`, then
+smoke it with `npm i -g --prefix /tmp/x ./cli/cudic-<ver>.tgz && cudic --help`.

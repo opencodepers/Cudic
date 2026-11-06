@@ -1,0 +1,33 @@
+{
+  "name": "cudic",
+  "version": "1.0.0",
+  "description": "Cudic CLI — make, push and publish Cudic projects from a terminal, plus an MCP server so agents can do the same.",
+  "type": "module",
+  "bin": {
+    "cudic": "cudic.mjs",
+    "cudic-mcp": "cudic-mcp.mjs"
+  },
+  "files": [
+    "cudic.mjs",
+    "cudic-mcp.mjs",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/opencodepers/Cudic.git",
+    "directory": "cli"
+  },
+  "homepage": "https://cudic.vercel.app/docs.html#cli",
+  "keywords": [
+    "cudic",
+    "games",
+    "game-dev",
+    "cli",
+    "mcp",
+    "studio"
+  ]
+}

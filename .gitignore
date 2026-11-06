@@ -31,3 +31,4 @@ tests.results.md
 
 # Agent scratch space (debug hops, throwaway checks) — never commit
 /freebuff/
+cli/*.tgz

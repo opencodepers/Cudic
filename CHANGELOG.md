@@ -9,6 +9,12 @@ fixed. Commits are referenced by short hash.
 ## Unreleased
 
 
+**The CLI is installable with npm**
+
+- `cli/` is now its own publishable package (`cudic`) with `bin` entries for `cudic` and `cudic-mcp`, `engines: node >=18`, MIT licence, keywords and a README written for the npm page. It still has zero runtime dependencies, so `npm i -g cudic` is the whole install and `npx cudic games` works without one.
+- The root package is marked `private: true` so the server can never be published to the registry by accident — only `cli/` ships.
+- Docs gained an install paragraph (npm, npx, `npm i -g ./cli` from a clone); verified by packing the tarball, installing it globally into a temp prefix and running both bins.
+
 **Ops console**
 
 - `/ops` (moderators only) is a single-page health view: uptime, memory (rss + heap), database latency and reachability, live WebSocket clients, in-memory rate-limit buckets, and counts for users, games/published, forum threads, project snapshots, API keys, push devices and inbox rows. It self-refreshes every 15s, and has Copy report for pasting into an incident thread.

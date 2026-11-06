@@ -2,6 +2,7 @@
   "name": "cudic",
   "version": "1.0.0",
   "description": "Real-time chat lobbies",
+  "private": true,
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

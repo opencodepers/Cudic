@@ -1,104 +1,62 @@
-# Cudic CLI
+# cudic
 
-Make, save and publish Cudic projects from any terminal — including AI agents
-that never open cudic.vercel.app. Node 18+, no install, no dependencies.
+The Cudic CLI and MCP server. Make, push and publish Cudic projects from a
+terminal — or let an agent do it.
 
-```bash
-# one-time sign in (stored in ~/.cudic/config.json, mode 600, auto-refresh)
-node cli/cudic.mjs login --email you@example.com
-
-node cli/cudic.mjs new my-game          # index.html + style.css + game.js
-node cli/cudic.mjs push my-game         # create/update the project
-node cli/cudic.mjs publish my-game --tags puzzle,arcade
-node cli/cudic.mjs open                 # play link
+```sh
+npm i -g cudic        # or: npx cudic games
 ```
 
-Or wire it as `cudic` with `npm link` / `npx cudic`.
+Node 18+. No dependencies, nothing to audit.
 
-## For agents
+## Use
 
-Pass a token per run instead of storing anything:
-
-```bash
-CUDIC_TOKEN=<supabase access token> CUDIC_API=https://glox-o7rr.onrender.com \
-  node cli/cudic.mjs push ./game --title "Night Run"
+```sh
+cudic login --email you@example.com   # once, keeps a refreshable token in ~/.cudic
+cudic new my-game                    # scaffold index.html / style.css / game.js
+cudic push my-game                   # save (creates on first push)
+cudic publish my-game --tags puzzle  # put it in the gallery
+cudic open                           # play link; --studio for the editor
 ```
 
-Every command prints plain lines (no spinners, no colour) and exits non-zero
-with a `cudic: <reason>` line on failure, so it slots into a shell tool loop.
-`list --json` and `whoami --json` give machine-readable output.
+Read-only commands work signed out: `cudic games`, `cudic get <id>`,
+`cudic search "<text>"`, `cudic forums`, `cudic thread <id>`, `cudic docs`.
 
-## Reading Cudic from a terminal
+Everything is also reachable over the same HTTP API the website uses:
+`cudic helper` prints the endpoint list, `cudic --help` the commands.
 
-```bash
-node cli/cudic.mjs games --q puzzle --sort trending   # gallery (no login)
-node cli/cudic.mjs get <game id> --out ./that-game    # source + assets + CUDIC.md
-node cli/cudic.mjs forums --category showcase         # forum threads (no login)
-node cli/cudic.mjs thread <thread id>                 # one thread with its replies
-node cli/cudic.mjs docs cli                           # docs as plain text
-node cli/cudic.mjs docs --search thumbnail            # search every section
-node cli/cudic.mjs shop                               # catalog, prices, balance, owned
-node cli/cudic.mjs shop buy sparkle_ring
-node cli/cudic.mjs shop equip fr sparkle_ring         # slots: fr bn ef ne ti em
-node cli/cudic.mjs shop equip ti --off                # clear a slot
+## Agents
+
+Two ways in, both without a browser:
+
+```sh
+# durable, scoped key (create one at cudic.vercel.app/keys or `cudic key create`)
+export CUDIC_API_KEY=cudic_...
+cudic list
+
+# or run the MCP server over stdio
+npx cudic-mcp
 ```
 
-Studio's snapshots too: `snapshot [dir] --label`, `revisions [dir]`, `restore <rev id>`.
+MCP client config:
 
-`get` writes text files to disk, pulls binary assets from public storage and
-leaves a `CUDIC.md` naming the author and source. Pushing that folder creates a
-new project — the site's Remix button is what records the credit link.
-
-## Editing what already exists
-
-```bash
-node cli/cudic.mjs pull            # server copy -> disk (backs up local files first)
-node cli/cudic.mjs ls              # files + sizes (--id <game> for the server copy)
-node cli/cudic.mjs cat game.js     # print one file (--id <game> reads it from the server)
-node cli/cudic.mjs push            # send edits back up
-node cli/cudic.mjs unpublish
-node cli/cudic.mjs rm --yes        # plain `rm` only prints what it would delete
+```json
+{ "mcpServers": { "cudic": {
+    "command": "npx",
+    "args": ["-y", "cudic-mcp"],
+    "env": { "CUDIC_API_KEY": "cudic_..." } } } }
 ```
 
-## Profile
+## Configuration
 
-```bash
-node cli/cudic.mjs profile
-node cli/cudic.mjs profile set --name "Nova" --bio "makes weird little games" --interests art,music
-node cli/cudic.mjs profile set --avatar-clear
-```
+| Variable | Meaning |
+| --- | --- |
+| `CUDIC_API_KEY` | `cudic_...` scoped key — best for agents |
+| `CUDIC_TOKEN` | one-shot Supabase access token instead of `login` |
+| `CUDIC_API` | API host (default `https://glox-o7rr.onrender.com`) |
+| `CUDIC_WEB` | website host (default `https://cudic.vercel.app`) |
+| `CUDIC_HOME` | config/backup dir (default `~/.cudic`) |
 
-Avatars must already be in the account's Cudic avatar storage — the site's
-uploader is still the way to add a new image.
+## Licence
 
-## Backups and undo
-
-Every `push`, `pull` and `recover` copies the version it is about to overwrite
-into `.cudic-backups/<timestamp>/` inside the project folder (newest 10 kept,
-never pushed to the server).
-
-```bash
-node cli/cudic.mjs backups          # what is saved, when, how many files
-node cli/cudic.mjs recover latest   # put the newest back on disk
-node cli/cudic.mjs recover <timestamp> --dir ./game
-```
-
-Server-side snapshots are separate and shared with Studio: `snapshot`,
-`revisions`, `restore`.
-
-## What it talks to
-
-The public API the Studio uses: `POST /api/games` (create), `PUT /api/games/:id`
-(files, title, tags, `published`), `GET /api/games/mine`. Auth is
-`Authorization: Bearer <supabase jwt>`; the CLI refreshes it through Supabase
-using the public anon key from the deployment's `/config.js`.
-
-## Limits (v1)
-
-- Pushing is text-files only (html, css, js, json, svg, md, …). Binary assets
-  and thumbnails still need Studio — `push` skips them and says which. `get`
-  does download existing assets.
-- `get` only sees published games, plus your own drafts.
-- The account needs a verified email; unverified accounts are blocked from
-  creating or publishing by the same server rule as the editors.
-- No delete command (use Studio or the API directly with the owner token).
+MIT. Docs: <https://cudic.vercel.app/docs.html#cli>
