@@ -268,6 +268,7 @@ confetti({ particleCount: 120 })</pre>
                         <li>The <strong>heart</strong> on a card or a game page saves it to your account. Liked games collect on your profile.</li>
                         <li>Tags are set when you publish (the publish modal in the editor, or the prompt when Studio publishes) and can be changed later — the gallery's tag chips and the "More like this" shelf both read them.</li>
                         <li><strong>Ranked search:</strong> names, descriptions and tags are indexed with Postgres full-text search, so results are relevance-ordered (then by plays) instead of arbitrary. One endpoint covers everything — <code>/api/search?q=</code> returns games, forum threads and creators together, with <code>type=games|threads|people</code> to narrow it, and <code>cudic search "&lt;text&gt;"</code> gives the same list in a terminal.</li>
+                        <li><strong>Notifications that reach you:</strong> the bell already had an inbox; it now also sends real browser push. Hit <em>Enable push</em> on the notifications page once and comments, replies, friend requests and awards show up on your desktop or phone with the tab closed. Subscriptions are per-browser, dead ones are pruned automatically, and the signing keypair lives in the database — no setup. There is also a small public feed at <code>/api/activity</code> with what creators recently shipped.</li>
                     </ul>
                 </section>
 

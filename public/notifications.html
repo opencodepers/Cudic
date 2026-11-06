@@ -44,7 +44,10 @@ a.ref:hover{text-decoration:underline}
 <div class="page-panel"><div class="n-layout"><main class="n-content">
   <div class="top">
     <h1>Notifications</h1>
-    <button class="btn" id="readAllBtn">Mark all read</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="pushBtn">Enable push</button>
+      <button class="btn" id="readAllBtn">Mark all read</button>
+    </div>
   </div>
   <div class="card" id="list"></div>
 </main></div></div>
@@ -86,6 +89,43 @@ a.ref:hover{text-decoration:underline}
         .then(function(){ load(); });
     });
   });
+  // Web push: register the service worker (also renders background pushes),
+  // subscribe this browser, and remember the subscription server-side.
+  function b64(s){
+    var pad='='.repeat((4-s.length%4)%4);
+    var raw=atob((s+pad).replace(/-/g,'+').replace(/_/g,'/'));
+    var out=new Uint8Array(raw.length);
+    for(var i=0;i<raw.length;i++) out[i]=raw.charCodeAt(i);
+    return out;
+  }
+  var pushBtn=document.getElementById('pushBtn');
+  if(pushBtn){
+    if(!('serviceWorker' in navigator)||!('PushManager' in window)){ pushBtn.style.display='none'; }
+    else pushBtn.addEventListener('click', function(){
+      token().then(function(t){
+        if(!t){ window.location.href='/login'; return; }
+        fetch(apiHost()+'/api/push/config').then(function(r){ return r.json(); }).then(function(c){
+          if(!c.enabled){ pushBtn.textContent='Push unavailable'; return; }
+          return navigator.serviceWorker.register('/sw.js')
+            .then(function(){ return Notification.requestPermission(); })
+            .then(function(perm){
+              if(perm!=='granted'){ pushBtn.textContent='Push blocked'; return; }
+              return navigator.serviceWorker.ready;
+            })
+            .then(function(reg){
+              if(!reg) return;
+              return reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:b64(c.key) })
+                .then(function(sub){
+                  return fetch(apiHost()+'/api/push/subscribe',{ method:'POST',
+                    headers:{ 'Authorization':'Bearer '+t, 'Content-Type':'application/json' },
+                    body:JSON.stringify({ subscription:sub }) });
+                })
+                .then(function(){ pushBtn.textContent='Push on'; pushBtn.disabled=true; });
+            });
+        }).catch(function(){ pushBtn.textContent='Push failed'; });
+      });
+    });
+  }
   load();
 })();
 </script>

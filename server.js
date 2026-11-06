@@ -305,11 +305,64 @@ async function notify(userId, kind, title, body, refType, refId) {
         .eq('user_id', userId).eq('kind', kind).eq('ref_id', refId).gte('created_at', since);
       if (count) return;
     }
-    await supabase.from('notifications').insert({
+    const { error } = await supabase.from('notifications').insert({
       user_id: userId, kind, title: String(title).slice(0, 120), body: String(body || '').slice(0, 240),
       ref_type: refType || null, ref_id: refId || null
     });
+    // Best-effort and unawaited: a slow push service must not stall the
+    // request that caused the notification.
+    if (!error) sendPush(userId, title, body).catch(() => {});
   } catch {}
+}
+
+// ── Web push ─────────────────────────────────────────────────────
+// The VAPID pair is generated once and stored in `push_config`, so pushes
+// work on Render with no env setup and keep working across restarts — a
+// fresh keypair would invalidate every existing subscription.
+let webpushLib;
+let vapidCache = null;
+function webpush() {
+  if (webpushLib === undefined) {
+    try { webpushLib = require('web-push'); } catch (e) { webpushLib = null; }
+  }
+  return webpushLib;
+}
+async function vapidKeys() {
+  if (vapidCache) return vapidCache;
+  const lib = webpush();
+  if (!lib) return null;
+  try {
+    const { data } = await supabase.from('push_config').select('public_key, private_key').eq('id', 1).maybeSingle();
+    if (data && data.public_key && data.private_key) return (vapidCache = data);
+    const keys = lib.generateVAPIDKeys();
+    const { error } = await supabase.from('push_config').insert({ id: 1, public_key: keys.publicKey, private_key: keys.privateKey });
+    if (error) return null;
+    return (vapidCache = { public_key: keys.publicKey, private_key: keys.privateKey });
+  } catch (e) { return null; }
+}
+// Fan a notification out to every browser this user registered. Dead
+// endpoints (404/410 from the push service) are pruned on the spot.
+async function sendPush(userId, title, body) {
+  const lib = webpush();
+  const keys = await vapidKeys();
+  if (!lib || !keys) return 0;
+  let sent = 0;
+  try {
+    lib.setVapidDetails('mailto:team@cudic.vercel.app', keys.public_key, keys.private_key);
+    const { data: subs } = await supabase.from('push_subscriptions').select('id, endpoint, p256dh, auth').eq('user_id', userId);
+    for (const s of subs || []) {
+      try {
+        await lib.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify({
+          title: String(title || 'Cudic').slice(0, 120), body: String(body || '').slice(0, 240), url: '/notifications'
+        }));
+        sent++;
+      } catch (e) {
+        const code = e && (e.statusCode || e.status);
+        if (code === 404 || code === 410) await supabase.from('push_subscriptions').delete().eq('id', s.id);
+      }
+    }
+  } catch (e) { /* push is best-effort; the inbox row already exists */ }
+  return sent;
 }
 
 // Free claim, on own-profile reads only: flairs and longevity badges
@@ -1430,6 +1483,91 @@ async function handleRequest(req, res) {
   }
 
   // ── API: notifications ──────────────────────────────────────────
+  // ── API: web push (config / subscribe / unsubscribe / test) ─────
+  if (url.pathname === '/api/push/config' && req.method === 'GET') {
+    cors(res);
+    const keys = await vapidKeys();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ enabled: !!keys, key: keys ? keys.public_key : '' }));
+    return;
+  }
+  if (url.pathname === '/api/push/subscribe' && req.method === 'POST') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    const body = await readBody(req).catch(() => ({}));
+    const sub = body && typeof body.subscription === 'object' && body.subscription ? body.subscription : {};
+    const endpoint = String(sub.endpoint || '').slice(0, 900);
+    const p256dh = String((sub.keys && sub.keys.p256dh) || '').slice(0, 200);
+    const auth = String((sub.keys && sub.keys.auth) || '').slice(0, 200);
+    if (!/^https:\/\//.test(endpoint) || !p256dh || !auth) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'A push subscription needs an https endpoint and both keys.' }));
+      return;
+    }
+    const now = new Date().toISOString();
+    const { error } = await supabase.from('push_subscriptions').upsert({
+      user_id: user.id, endpoint, p256dh, auth,
+      ua: String(req.headers['user-agent'] || '').slice(0, 200), last_seen: now
+    }, { onConflict: 'endpoint' });
+    if (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Could not save that subscription.' }));
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+  if (url.pathname === '/api/push/unsubscribe' && req.method === 'POST') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    const body = await readBody(req).catch(() => ({}));
+    const endpoint = String((body && body.endpoint) || '').slice(0, 900);
+    if (endpoint) await supabase.from('push_subscriptions').delete().eq('user_id', user.id).eq('endpoint', endpoint);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+  if (url.pathname === '/api/push/test' && req.method === 'POST') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    if (!rateLimit('pushtest:' + user.id, 3, 3600000)) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Three test pushes an hour is plenty.' }));
+      return;
+    }
+    const sent = await sendPush(user.id, 'Cudic push test', 'If you can read this, notifications reach this device.');
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, devices: sent }));
+    return;
+  }
+
+  // ── API: activity stream ────────────────────────────────────────
+  // Public: it only ever contains lines like "Published <title>" that the
+  // creator already chose to make public.
+  if (url.pathname === '/api/activity' && req.method === 'GET') {
+    cors(res);
+    const limit = Math.min(50, Math.max(1, parseInt(String(url.searchParams.get('limit') || '20'), 10) || 20));
+    const { data: rows } = await supabase.from('activity')
+      .select('id, user_id, kind, text, created_at')
+      .order('created_at', { ascending: false }).limit(limit);
+    const list = rows || [];
+    const ids = [...new Set(list.map(r => r.user_id).filter(Boolean))];
+    let people = {};
+    if (ids.length) {
+      const { data: users } = await supabase.from('users').select('id, display_name, avatar_url').in('id', ids);
+      for (const u of users || []) people[u.id] = { display_name: u.display_name, avatar_url: u.avatar_url };
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=15' });
+    res.end(JSON.stringify({
+      activity: list.map(r => ({
+        id: r.id, kind: r.kind, text: r.text, created_at: r.created_at,
+        user: people[r.user_id] || null
+      }))
+    }));
+    return;
+  }
+
   if (url.pathname === '/api/notifications' && req.method === 'GET') {
     cors(res);
     const user = await requireUser(req, res); if (!user) return;

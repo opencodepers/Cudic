@@ -9,6 +9,14 @@ fixed. Commits are referenced by short hash.
 ## Unreleased
 
 
+**Web push notifications and a public activity stream**
+
+- Real Web Push on top of the existing inbox: every `notify()` now also fans out to the user's browsers via a VAPID-signed message, so comments, replies, friend requests and awards arrive as notifications even with the tab closed. `migration/push.sql` adds `push_subscriptions` (pruned automatically when a push service answers 404/410) and a single-row `push_config` holding the VAPID keypair — generated once in the database, so pushes work on Render with no new env vars and subscriptions survive restarts.
+- `public/sw.js` is a deliberately cache-free service worker: it renders pushes and focuses (or opens) `/notifications` on click.
+- Routes: `GET /api/push/config` (public key, `enabled`), `POST /api/push/subscribe`, `POST /api/push/unsubscribe`, `POST /api/push/test` (3/hour). The Notifications page gains an “Enable push” button.
+- `GET /api/activity?limit=` exposes the existing `activity` feed publicly (kind, text, time, creator name) — only lines creators already made public.
+- Checks: full suite green; the service worker, migration and both endpoint families are pinned by tests.
+
 **Ranked full-text search across games, threads and creators**
 
 - `migration/search.sql` adds `search_tsv` to `games` and `forum_threads`, maintained by triggers (title/description/tags and title/body), GIN indexes, a backfill, and ranked SQL functions `search_games(q, lim)` / `search_threads(q, lim)` returning a `score`. This replaces `ilike('%q%')`, which could not use an index and ranked nothing.
