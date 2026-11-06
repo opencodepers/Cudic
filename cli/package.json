@@ -1,10 +1,11 @@
 {
   "name": "cudic-cli",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Cudic CLI — make, push and publish Cudic projects from a terminal, plus an MCP server so agents can do the same.",
   "type": "module",
   "bin": {
     "cudic": "cudic.mjs",
+    "cudic-cli": "cudic.mjs",
     "cudic-mcp": "cudic-mcp.mjs"
   },
   "files": [

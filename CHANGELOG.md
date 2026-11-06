@@ -13,6 +13,7 @@ fixed. Commits are referenced by short hash.
 
 - `cli/` is now its own publishable package with `bin` entries for `cudic` and `cudic-mcp`, `engines: node >=18`, MIT licence, keywords and a README written for the npm page. It still has zero runtime dependencies, so one global install is the whole setup.
 - The package ships as **`cudic-cli`**: npm rejects the bare name `cudic` with *“Package name too similar to existing package cuid”*. The commands are unchanged (`cudic`, `cudic-mcp`), so `npm i -g cudic-cli` and `npx cudic-cli games` are what users type.
+- v1.0.1 also registers a `cudic-cli` bin. With only `cudic` and `cudic-mcp`, `npx cudic-cli` failed with *“could not determine executable to run”* — npx can only infer a bin when one matches the package name. Installed users still get the short `cudic` command.
 - The root package is marked `private: true` so the server can never be published to the registry by accident — only `cli/` ships.
 - Docs gained an install paragraph (npm, npx, `npm i -g ./cli` from a clone); verified by packing the tarball, installing it globally into a temp prefix and running both bins.
 
