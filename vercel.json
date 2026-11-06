@@ -17,6 +17,7 @@
     { "source": "/creator", "destination": "/creator.html" },
     { "source": "/friends", "destination": "/friends.html" },
     { "source": "/notifications", "destination": "/notifications.html" },
+    { "source": "/ops", "destination": "/ops.html" },
     { "source": "/collections", "destination": "/collections.html" },
     { "source": "/docs", "destination": "/docs.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
