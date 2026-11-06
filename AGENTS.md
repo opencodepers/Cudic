@@ -1291,3 +1291,13 @@ add key, hit Test). AdSense resubmission needs custom domain + 2–3 weeks.
 dependencies). The root package is `private: true` — never publish from the
 repo root. Release: bump `cli/package.json` version, `npm publish ./cli`, then
 smoke it with `npm i -g --prefix /tmp/x ./cli/cudic-<ver>.tgz && cudic --help`.
+
+Publishing is gated by npm, not by this repo: since August 2026 every package
+requires 2FA or a granular access token with **Bypass 2FA** enabled (npm docs,
+"Requiring 2FA for package publishing"). Without either, `npm publish` fails
+`E403` even on a brand-new unscoped package. Interactive route: enable TOTP or
+a security key, then `npm publish ./cli --otp=<code>`. Non-interactive route:
+create a granular token (write, package `cudic`, bypass 2FA on) and publish
+with `NODE_AUTH_TOKEN=... npm publish ./cli` — note npm is deprecating
+direct publishing with bypass-2FA tokens in January 2027, staged publishing
+(`npm stage publish` + browser approval) is the successor.
