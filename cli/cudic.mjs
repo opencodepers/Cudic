@@ -921,6 +921,35 @@ async function cmdKey(pos, flags) {
   die('unknown key command "' + sub + '". Try `cudic key`, `cudic key create <label>`, `cudic key revoke <id>`.');
 }
 
+async function cmdDiff(pos, flags) {
+  const dir = path.resolve(pos[0] || '.');
+  const id = flags.id || projectId(dir);
+  if (!id) die('no project id. Run inside a pushed folder or pass --id <game id>.');
+  let revId = pos[1] || flags.rev;
+  if (!revId) {
+    const d = await api('/api/games/' + encodeURIComponent(id) + '/revisions');
+    const list = (d && d.revisions) || [];
+    if (!list.length) die('no snapshots yet — `cudic snapshot` saves one first.');
+    revId = list[0].id;
+  }
+  const against = pos[2] || flags.against || 'current';
+  // Support a local folder as `against` too, since that is what people compare.
+  const d = await api('/api/games/' + encodeURIComponent(id) + '/revisions/' + encodeURIComponent(revId) +
+    '/diff?against=' + encodeURIComponent(against));
+  if (flags.json) { console.log(JSON.stringify(d, null, 2)); return; }
+  const files = (d && d.files) || [];
+  if (!files.length) { console.log('No changes between ' + against + ' and ' + revId.slice(0, 8) + '.'); return; }
+  for (const f of files) {
+    const mark = f.status === 'added' ? '+' : f.status === 'removed' ? '-' : '~';
+    const size = f.status === 'added' ? f.after_bytes + 'B'
+      : f.status === 'removed' ? f.before_bytes + 'B'
+      : f.before_bytes + 'B → ' + f.after_bytes + 'B';
+    console.log(mark + ' ' + f.path + '  ' + size);
+  }
+  console.log('\n' + d.counts.added + ' added, ' + d.counts.changed + ' changed, ' + d.counts.removed +
+    ' removed. `cudic diff --json` for detail.');
+}
+
 const HELP = `Cudic CLI — make and publish Cudic projects from a terminal.
 
 Usage
@@ -937,6 +966,8 @@ Usage
   cudic revisions [dir] [--json]                          list snapshots of a project
   cudic snapshot [dir] [--label text]                     snapshot the folder's files
   cudic restore <revision id> [--id game]                 restore a snapshot
+  cudic diff [dir] [rev] [--against current|prev|<rev>]   what changed since a snapshot
+  cudic log [dir]                                         alias for revisions
 
 Browsing and downloads (no login needed for public things)
   cudic games [--q text] [--tag t] [--sort new|trending|plays|old|az] [--json]
@@ -1014,6 +1045,8 @@ async function main() {
     case 'history': return cmdRevisions(pos, flags);
     case 'snapshot': return cmdSnapshot(pos, flags);
     case 'restore': return cmdRestore(pos, flags);
+    case 'diff': return cmdDiff(pos, flags);
+    case 'log': return cmdRevisions(pos, flags);
     case 'pull': return cmdPull(pos, flags);
     case 'ls':
     case 'files': return cmdLs(pos, flags);

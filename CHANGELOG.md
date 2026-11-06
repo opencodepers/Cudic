@@ -9,6 +9,13 @@ fixed. Commits are referenced by short hash.
 ## Unreleased
 
 
+**Deep, content-addressed project history with diffs**
+
+- Snapshots no longer store a full copy of every file. Each distinct file body is stored once in `revision_blobs` (migration/revision_blobs.sql) and the revision row keeps a `manifest` of path → hash, so a one-line edit costs a few bytes instead of a whole project copy. The retention cap moved from 20 snapshots to 100 because history is cheap now. Legacy rows keep `files` and hydrate exactly as before; if the blob table is missing the server falls back to plain copies.
+- New `GET /api/games/:id/revisions/:revId/diff?against=current|prev|<revId>` returns added/removed/changed files with sizes (`?file=<path>` returns both bodies), and `restore` now rehydrates a manifest snapshot back into `games.files`.
+- CLI: `cudic diff [dir] [rev] [--against …]` and `cudic log` (alias for `revisions`). Docs updated.
+- Checks: full suite green; e2e asserts the snapshot row carries a manifest (no whole-copy `files`) and that `diff` names the edited file.
+
 **Scoped API keys and a Cudic MCP server**
 
 - `api_keys` (migration/api_keys.sql) holds sha256-hashed keys with labels, scopes (`projects:read`, `projects:write`, `profile:read`), last-used and revocation; 12 active per account; keys can never mint keys. `GET/POST /api/keys` and `DELETE /api/keys/:id` manage them from a browser session only, and the new `userOf(req)` resolver accepts either a Supabase JWT or a `cudic_…` key so `/api/games` (create/save/delete/mine/read) and `/api/profile` work for both — browser sessions keep full access, keys are checked against their scopes (403 names the missing one).

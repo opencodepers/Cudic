@@ -459,7 +459,15 @@ plain full replacement of `games.files`. The POST accepts an owner-supplied
 staged `files` map (strings only, path ≤300 chars, ≤500 files, 4MB readBody
 cap) and falls back to the saved project row when absent/invalid. Staging
 logic in `studio/src/revisions.ts` (mirrored test:
-`.freebuff/dbgtest/stage-test.js` — keep in step if you edit it).
+`.freebuff/dbgtest/stage-test.js` — keep in step if you edit it). Snapshots are
+content-addressed: `revision_blobs` holds each unique file body once (PK
+`(game_id, hash)`), the revision row stores `manifest` path → hash, and legacy
+rows keep `files`. Read/restore must go through `revisionFilesOf(row)` — reading
+`rev.files` directly returns empty for manifest rows. The cap is 100 snapshots;
+a failed blob upsert falls back to a plain `files` copy so a missing migration
+never breaks saving. Diff is owner-only
+`GET /api/games/:id/revisions/:revId/diff?against=current|prev|<id>`, with
+`?file=<path>` returning both bodies.
 
 ### Cloud game saves (progress follows the account)
 Table `game_saves` (pk(user_id, game_id), `data` jsonb, RLS locked).

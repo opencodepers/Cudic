@@ -1458,6 +1458,23 @@ async function handleRequest(req, res) {
   // GET  /api/games/:id/revisions — list (id, label, created_at)
   // GET  /api/games/:id/revisions/:revId — full snapshot
   // POST /api/games/:id/revisions/:revId/restore — restore files
+  // Snapshots are content-addressed now: `manifest` maps path → blob hash and
+  // each unique file body lives once in revision_blobs. Legacy rows still
+  // carry `files`, so both shapes hydrate to the same map for clients.
+  async function revisionFilesOf(row) {
+    if (!row) return {};
+    if (!row.manifest) return row.files || {};
+    const hashes = [...new Set(Object.values(row.manifest))];
+    if (!hashes.length) return {};
+    const { data: rows } = await supabase.from('revision_blobs')
+      .select('hash, content').eq('game_id', row.game_id).in('hash', hashes);
+    const byHash = new Map((rows || []).map((b) => [b.hash, b.content]));
+    const out = {};
+    for (const [path, h] of Object.entries(row.manifest)) {
+      if (byHash.has(h)) out[path] = byHash.get(h);
+    }
+    return out;
+  }
   const revList = url.pathname.match(/^\/api\/games\/([^/]+)\/revisions$/);
   const revOne = url.pathname.match(/^\/api\/games\/([^/]+)\/revisions\/([^/]+)(?:\/restore)?$/);
   if (revList && req.method === 'POST') {
@@ -1486,15 +1503,41 @@ async function handleRequest(req, res) {
       if (ok) files = staged;
     }
     if (Object.keys(files).length > 500) { res.writeHead(413, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Project too large to snapshot.' })); return; }
-    const { data: cap } = await supabase.from('project_revisions').select('id').eq('game_id', gid).order('created_at', { ascending: false }).limit(1);
-    const { data: countRow } = await supabase.from('project_revisions').select('id', { count: 'exact', head: true }).eq('game_id', gid);
-    const total = countRow && countRow.count || 0;
-    if (total >= 20) {
-      // keep the newest 20: delete the oldest row first
-      const { data: oldest } = await supabase.from('project_revisions').select('id').eq('game_id', gid).order('created_at', { ascending: true }).limit(1);
-      if (oldest && oldest[0]) await supabase.from('project_revisions').delete().eq('id', oldest[0].id);
+    // Store each distinct file body once and keep path → hash on the revision,
+    // so a one-line edit costs one small blob instead of a whole project copy.
+    const manifest = {};
+    const fresh = new Map();
+    for (const [path, text] of Object.entries(files || {})) {
+      const hash = crypto.createHash('sha256').update(String(text)).digest('hex').slice(0, 32);
+      manifest[path] = hash;
+      if (!fresh.has(hash)) fresh.set(hash, text);
     }
-    const { data, error } = await supabase.from('project_revisions').insert({ game_id: gid, owner_id: user.id, label: label || 'Snapshot ' + new Date().toLocaleString(), files }).select('id, label, created_at').single();
+    let addressed = false;
+    if (fresh.size) {
+      const up = await supabase.from('revision_blobs').upsert(
+        [...fresh].map(([hash, content]) => ({ game_id: gid, hash, content })),
+        { onConflict: 'game_id,hash', ignoreDuplicates: true }
+      );
+      addressed = !up.error; // no blob table yet -> fall back to a plain copy
+    }
+    const { data: countRow } = await supabase.from('project_revisions').select('id', { count: 'exact', head: true }).eq('game_id', gid);
+    const total = (countRow && countRow.count) || 0;
+    const REVISION_CAP = 100; // deep history is cheap now that blobs dedupe
+    if (total >= REVISION_CAP) {
+      const excess = total - REVISION_CAP + 1;
+      const { data: oldestRows } = await supabase.from('project_revisions').select('id')
+        .eq('game_id', gid).order('created_at', { ascending: true }).limit(excess);
+      for (const row of oldestRows || []) await supabase.from('project_revisions').delete().eq('id', row.id);
+    }
+    const { data, error } = await supabase.from('project_revisions').insert({
+      game_id: gid,
+      owner_id: user.id,
+      label: label || 'Snapshot ' + new Date().toLocaleString(),
+      // `files` is NOT NULL in the original schema: manifest rows carry an empty
+      // map there and the real content in revision_blobs + `manifest`.
+      files: addressed ? {} : files,
+      manifest: addressed ? manifest : null,
+    }).select('id, label, created_at').single();
     if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not snapshot.' })); return; }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ revision: data }));
@@ -1511,6 +1554,70 @@ async function handleRequest(req, res) {
     res.end(JSON.stringify({ revisions: rows || [] }));
     return;
   }
+  // GET /api/games/:id/revisions/:revId/diff?against=current|prev|<revId>
+  // File-level summary for the owner; ?file=<path> returns both bodies so a
+  // client can render a real diff without downloading every snapshot.
+  const revDiffMatch = /^\/api\/games\/([^/]+)\/revisions\/([^/]+)\/diff$/.exec(url.pathname);
+  if (revDiffMatch && req.method === 'GET') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    const gid = revDiffMatch[1], revId = revDiffMatch[2];
+    const { data: g } = await supabase.from('games').select('owner_id, files').eq('id', gid).single();
+    if (!g || g.owner_id !== user.id) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+    const { data: target } = await supabase.from('project_revisions').select('*').eq('id', revId).single();
+    if (!target || target.owner_id !== user.id) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+    const against = String(url.searchParams.get('against') || 'current');
+    let baseFiles = null;
+    if (against === 'current') {
+      baseFiles = g.files || {};
+    } else {
+      let baseRow = null;
+      if (against === 'prev') {
+        const { data: rows } = await supabase.from('project_revisions').select('*')
+          .eq('game_id', gid).lt('created_at', target.created_at)
+          .order('created_at', { ascending: false }).limit(1);
+        baseRow = rows && rows[0];
+      } else {
+        const { data: row } = await supabase.from('project_revisions').select('*')
+          .eq('id', against).eq('game_id', gid).single();
+        baseRow = row;
+      }
+      if (!baseRow) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Nothing to compare against.' })); return; }
+      baseFiles = await revisionFilesOf(baseRow);
+    }
+    const nextFiles = await revisionFilesOf(target);
+    const file = url.searchParams.get('file');
+    if (file) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ path: file, before: baseFiles[file] == null ? null : baseFiles[file], after: nextFiles[file] == null ? null : nextFiles[file] }));
+      return;
+    }
+    const paths = [...new Set([...Object.keys(baseFiles || {}), ...Object.keys(nextFiles || {})])].sort();
+    const changes = [];
+    for (const p of paths) {
+      const a = baseFiles[p], b = nextFiles[p];
+      if (a === b) continue;
+      changes.push({
+        path: p,
+        status: a == null ? 'added' : b == null ? 'removed' : 'changed',
+        before_bytes: a == null ? 0 : Buffer.byteLength(a),
+        after_bytes: b == null ? 0 : Buffer.byteLength(b),
+      });
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      from: against,
+      to: revId,
+      files: changes,
+      counts: {
+        added: changes.filter((c) => c.status === 'added').length,
+        removed: changes.filter((c) => c.status === 'removed').length,
+        changed: changes.filter((c) => c.status === 'changed').length,
+      },
+    }));
+    return;
+  }
+
   if (revOne) {
     const gid = revOne[1], revId = revOne[2];
     const restore = /\/restore$/.test(url.pathname);
@@ -1520,12 +1627,14 @@ async function handleRequest(req, res) {
       const { data: rev } = await supabase.from('project_revisions').select('*').eq('id', revId).single();
       if (!rev || rev.owner_id !== user.id) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
       if (restore) {
-        await supabase.from('games').update({ files: rev.files, updated_at: new Date().toISOString() }).eq('id', gid);
+        const restored = await revisionFilesOf(rev);
+        await supabase.from('games').update({ files: restored, updated_at: new Date().toISOString() }).eq('id', gid);
         gamesListCacheClear(); // updated_at shifts the gallery ordering
         res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true })); return;
       }
+      const full = await revisionFilesOf(rev);
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ revision: rev }));
+      res.end(JSON.stringify({ revision: { ...rev, files: full } }));
       return;
     }
     if (req.method === 'DELETE') {
