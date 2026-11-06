@@ -1287,8 +1287,9 @@ add key, hit Test). AdSense resubmission needs custom domain + 2–3 weeks.
 
 ## Releasing the CLI
 
-`cli/` is its own npm package (`cudic`, bins `cudic` + `cudic-mcp`, zero
-dependencies). The root package is `private: true` — never publish from the
+`cli/` is its own npm package (`cudic-cli`, bins `cudic` + `cudic-mcp`, zero
+dependencies). The package name is not `cudic`: npm rejects that as "too similar
+to existing package cuid" (403), so renaming it back will fail. The root package is `private: true` — never publish from the
 repo root. Release: bump `cli/package.json` version, `npm publish ./cli`, then
 smoke it with `npm i -g --prefix /tmp/x ./cli/cudic-<ver>.tgz && cudic --help`.
 
@@ -1301,3 +1302,8 @@ create a granular token (write, package `cudic`, bypass 2FA on) and publish
 with `NODE_AUTH_TOKEN=... npm publish ./cli` — note npm is deprecating
 direct publishing with bypass-2FA tokens in January 2027, staged publishing
 (`npm stage publish` + browser approval) is the successor.
+
+The publish token lives in `.env` as `NPM_TOKEN` (gitignored — never commit it).
+Publish with
+`NODE_AUTH_TOKEN=$(grep '^NPM_TOKEN=' .env | cut -d= -f2-) npm publish ./cli`,
+and revoke/rotate it at npmjs.com/settings/<user>/tokens if it ever leaks.

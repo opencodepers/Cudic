@@ -1,5 +1,5 @@
 {
-  "name": "cudic",
+  "name": "cudic-cli",
   "version": "1.0.0",
   "description": "Cudic CLI — make, push and publish Cudic projects from a terminal, plus an MCP server so agents can do the same.",
   "type": "module",
