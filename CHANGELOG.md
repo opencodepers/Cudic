@@ -9,6 +9,10 @@ fixed. Commits are referenced by short hash.
 ## Unreleased
 
 
+**Cudic CLI: build and publish projects from a terminal**
+
+- `cli/cudic.mjs` is a dependency-free (Node 18+) client for the project API, so agents and terminals can work without a browser: `login` (email+password → refreshable token in `~/.cudic/config.json`, or `CUDIC_TOKEN` for one-shot runs), `whoami`, `list`, `new` (starter index.html/style.css/game.js), `push` (create or update from a folder), `publish` (with `--tags`), `open`. Project ids live in `.cudic.json` inside the folder, so later pushes don't repeat them. It reuses `POST /api/games` and `PUT /api/games/:id` exactly as Studio does — no new server surface, so verification gates, tags and publish hooks all behave the same. Docs: new "Building from a terminal" section in `public/docs.html` plus `cli/README.md`. Checks: 216/216 tests pass.
+
 **Google tag on every page**
 
 - The Google tag (`GTM-PSGJNQWB`) is now in the `<head>` of all 40 HTML pages under `public/` and in the server-rendered `/g/:id` page, so page views and events report to the container without a per-page wrapper. Legacy/backup pages carry it too; the Google verification file is untouched (it has no `<head>`). Checks: 216/216 tests pass.

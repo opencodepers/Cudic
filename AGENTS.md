@@ -120,6 +120,7 @@ customizable per page.
 
 ```
 server.js                 # ~4000 lines: HTTP + API + WS + AI proxy + email
+cli/cudic.mjs             # terminal + agent client: login/whoami/list/new/push/publish/open
 public/                   # the classic app (served at Vercel output root)
   index.html              # marketing landing (dark, animated, GSAP)
   login.html              # auth split screen (sign in / create / guest)
@@ -264,6 +265,20 @@ GET  /api/mod/*                    ← mod-only: users search, user-awards, gran
 ```
 WebSocket: `new WebSocketServer({ server })` — lobby presence, typing, broadcast,
 lobby list fanout. Homepage listens as a watcher.
+
+### Cudic CLI (`cli/cudic.mjs`)
+Terminal + agent client for the project API (Node 18+, no deps, `bin` entry in
+`package.json`). No new server surface — it calls `GET /api/games/mine`,
+`POST /api/games` and `PUT /api/games/:id` exactly like Studio, so the
+verified-email gate, `sanitizeTags`, publish hooks and `onPublished` behave
+identically. Auth is a normal Supabase JWT: `CUDIC_TOKEN` for one-shot runs,
+otherwise `login` (email+password grant) stores access+refresh tokens in
+`~/.cudic/config.json` (mode 600) and refreshes on 401. Supabase url + anon key
+are read from the deployment's `/config.js` — never baked into the CLI. Files
+travel as text in `games.files` (html/css/js/json/svg/md); binaries are skipped
+with a note since asset upload needs the Studio storage path. A pushed folder
+keeps its id in `.cudic.json`, so `push`/`publish`/`open` need no id. `CUDIC_API`
+/ `CUDIC_WEB` / `CUDIC_HOME` point it at another deployment.
 
 ### Auth pattern
 Every gated route: pull `Authorization: Bearer <supabase jwt>` →

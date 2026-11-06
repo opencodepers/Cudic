@@ -223,6 +223,17 @@ confetti({ particleCount: 120 })</pre>
                     </ul>
                 </section>
 
+                <section id="cli">
+                    <h2>Building from a terminal (CLI)</h2>
+                    <p>Everything Studio does with projects — create, save files, publish — runs through the same HTTP API, so a terminal or an AI agent can make Cudic projects without a browser. <code>cli/cudic.mjs</code> wraps that API; it needs Node 18+ and nothing installed.</p>
+                    <ul>
+                        <li><code>cudic login --email you@example.com</code> signs in once and keeps a refreshable token in <code>~/.cudic/config.json</code>. Agents that should not store credentials can set <code>CUDIC_TOKEN=&lt;supabase access token&gt;</code> for a single run instead.</li>
+                        <li><code>cudic new my-game</code> scaffolds <code>index.html</code>, <code>style.css</code> and <code>game.js</code>. <code>cudic push my-game</code> saves the folder as a project (creating it the first time, updating it after), and <code>cudic publish my-game --tags puzzle</code> puts it in the gallery.</li>
+                        <li>The project id is written to <code>.cudic.json</code> in the folder, so later pushes and publishes don't need it. <code>cudic list</code> shows your projects; <code>cudic open</code> prints the play link (or the Studio link with <code>--studio</code>).</li>
+                        <li>Files travel as text (html, css, js, json, svg, md). Binary assets and thumbnails still go through Studio, and the account needs a verified email like every other publishing path.</li>
+                    </ul>
+                </section>
+
                 <section id="publish">
                     <h2>Publishing &amp; the gallery</h2>
                     <ul>
