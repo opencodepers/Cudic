@@ -1,7 +1,8 @@
 # AGENTS.md — Cudic
 
 Everything an agent needs to work in this repo without rediscovering it.
-Read this before touching code. Section 12 (Gotchas) is the one that saves you.
+Read this before touching code. Section 12 (Gotchas) and §12b (what goes wrong
+when shipping a page or feature) are the ones that save you.
 
 ---
 
@@ -1201,6 +1202,107 @@ grid-led, Geist everywhere. Read it before building any public surface. Headline
 
 ---
 
+## 12b. Shipping a page or a feature — the failure list
+
+Every line below has already bitten this repo at least once. Read it before
+starting and again before saying "done".
+
+### A new page
+- **Three edits, every time**: the file in `public/`, a rewrite in `vercel.json`,
+  and a redirect in `server.js` (the block around `/notifications`).
+  Local-only and Vercel-only pages both fail loudly: `/ops` worked on Render and
+  404'd on the site until the rewrite landed.
+- **Shell**: a main tab gets `data-page="<page>"` + `.page-panel` + the rail from
+  `sidebar.js/css` (§4). Login/marketing/legacy pages are the exception, not the
+  template. Never invent a bespoke hero or a page-side body scroll.
+- **Never name a directory after a route** under `public/` — `/themes` shadows the
+  `/themes` rewrite (that's why packs live in `public/packs/`).
+- **Head**: Google tag `GTM-PSGJNQWB` (every page except the Google verification
+  file), the inline `glox_theme` bootstrap *before* CSS (no theme flash), and the
+  cursor sheet.
+- **Script order**: `config.js` → `auth.js` → `sidebar.js` → page script. Derive
+  the API host from `WS_URL` like `notifications.html`'s `apiHost()`; a hardcoded
+  host breaks local dev and previews.
+- **Versions are global**: bump `sidebar.css?v=`, `sidebar.js?v=`, `client.js?v=`
+  on every page when those files change; new shared scripts start at `?v=1`.
+- **Rail + docs**: a main tab also needs its `sbItem(...)` row in `sidebar.js`
+  and a `<section id="…">` in `public/docs.html` (docpage.js builds nav from sections).
+- **Vercel's edge caches HTML even though the header says no-cache.** Verify a
+  deploy with `?cb=$RANDOM` *and* `gh api repos/…/deployments`; a plain URL once
+  served a HIT from before the deploy and looked like nothing had shipped.
+
+### A new endpoint or feature
+- Routes are one `if` chain in `server.js`: specific paths must sit **above**
+  generic ones (`/api/games/mine`, `/api/games/:id/related` precede the `:id`
+  match), or they are unreachable code.
+- `cors(res)` first, then auth; errors are still `{ "error": "…" }` with a status.
+- **`userOf(req)` + `hasScope(user, '…')`** for anything an API key may reach;
+  `requireUser` for session-only routes (`/api/keys`). A new account-touching
+  route without a scope check silently re-opens what keys were meant to fence.
+- Writes also need `needVerified()` and the seat check where the page has one.
+- **A missing migration must degrade, not 500.** Wrap the new table/RPC and fall
+  back (search → title `ilike`, revisions → plain `files`, push → inbox only).
+  Server and DB deploy separately, so the gap is real.
+- Fire-and-forget side effects (`notify`, `sendPush`, `awardUser`, race points,
+  `logActivity`) never sit in the awaited response path.
+- Any write that changes what the gallery shows → `gamesListCacheClear()` (§12.18).
+- Rate-limit new writes with `rateLimit('<feature>:<user|ip>', n, windowMs)`.
+- **Never add an endpoint for the CLI or MCP** — extend `cli/cudic.mjs` /
+  `cli/cudic-mcp.mjs` against the existing API (§5).
+- New client asset must live in `public/` and be served by both hosts; a push
+  handler only works from root scope (`/sw.js`).
+- New env var → Render dashboard + `.env.example`, and absent config turns the
+  feature off cleanly (`/api/push/config` → `{enabled:false}`).
+- Restart `server.js`; rebuild studio/islands when their sources change.
+
+### Database
+- **Check the column before writing `null`.** `project_revisions.files` is NOT
+  NULL, so manifest snapshots store `{}` there and the content in
+  `revision_blobs`; wrong guesses fail at runtime, not in review.
+- PostgREST is a separate process: after DDL run `notify pgrst, 'reload schema'`
+  or new columns/tables 404 until the cache expires.
+- A missing table arrives as a PostgREST error (PGRST205), not a SQL error —
+  that's precisely why new features try/catch and fall back.
+- `onConflict` upserts need a full unique constraint; PostgREST cannot use a
+  partial index.
+- Generated columns require immutable expressions — `array_to_string(tags,' ')`
+  is not, so search uses a trigger (`migration/search.sql`).
+- Don't name an output column `rank` (it shadows `rank()`); `score` is the alias.
+- Embedded joins need the exact FK constraint name
+  (`users!creator_comments_author_id_fkey`); a renamed constraint becomes a
+  silent null, not an error.
+- Private tables: `enable row level security` with **no policies** (service key
+  only). RLS off means the anon key can read it.
+- DDL is idempotent (`if not exists`, `create or replace`) with a backfill for
+  existing rows, and goes through the management API (`SUPABASE_ACCESS_TOKEN`).
+  Never re-apply a migration you aren't sure about — check the table first.
+- Migrations live in `migration/*.sql` (newer) and
+  `supabase/migrations/YYYYMMDDHHMMSS_*.sql` (older); follow the newer convention.
+
+### Verifying, packaging, deploying
+- `node --check server.js` (and the CLI) before running anything.
+- `python tests/run_tests.py` after the change. **`tests/` is gitignored**: a test
+  edit is local proof, never a shipped change. Pins string-match source and docs,
+  so renaming a route/table/installer line breaks them.
+- `.freebuff/cli_e2e.js` drives the real CLI against a temp account on :3101;
+  `.freebuff/` is gitignored too.
+- Windows quirks: log under `.freebuff/`, not `/tmp` (bash `/tmp` ≠ `C:\tmp`);
+  file tools want absolute `C:/…` paths with forward slashes.
+- Never end a check with `| tail` without `set -o pipefail` — a green tail over a
+  failed exit code is how "it works" becomes a lie.
+- npm: the CLI ships from `cli/` only (root is `private: true`), every publish
+  needs a version bump, a name that isn't "too similar" to an existing package
+  (`cudic` → `cudic-cli`), and a bin matching the package name or `npx <pkg>`
+  cannot resolve it. Publishing needs 2FA or a bypass-2FA token, and such a
+  token cannot be scoped to a package that does not exist yet — that failure is
+  a **404**, not a 403.
+- **Deploy targets differ**: Render builds `master`; Vercel production builds
+  `main`. Push both (`git push origin master main`) or the site keeps serving the
+  previous build while the API is current. Confirm with `gh api …/deployments`
+  (`environment: Production`) plus a cache-busted fetch.
+
+---
+
 ## 13. Deployment
 
 | | |
@@ -1213,7 +1315,10 @@ grid-led, Geist everywhere. Read it before building any public surface. Headline
 Render env vars are set in the dashboard, not files:
 `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`, `PORT`.
 
-Pushing to `master` deploys both. Verify locally first.
+Render builds `master`. **Vercel production builds `main`** — pushes to
+`master` alone only create Preview deployments, so the site silently keeps the
+old build while Render is current. Push both branches, verify locally first, and
+confirm the production deploy before claiming a page is live.
 
 ---
 
