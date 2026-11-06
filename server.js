@@ -816,12 +816,9 @@ async function handleRequest(req, res) {
   // ── API: get profile (user_id + display_name) ──────────────────
   if (url.pathname === '/api/profile' && req.method === 'GET') {
     cors(res);
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(401); res.end(); return; }
-
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !user) { res.writeHead(401); res.end(); return; }
+    const user = await userOf(req);
+    if (!user) { res.writeHead(401); res.end(); return; }
+    if (!hasScope(user, 'profile:read')) { scopeDenied(res, 'profile:read'); return; }
 
     const { data: profile, error: profErr } = await supabase
       .from('users')
@@ -2250,6 +2247,107 @@ async function handleRequest(req, res) {
     if (error || !user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Sign in required.' })); return null; }
     return user;
   }
+
+  // ── Account auth for browser sessions AND API keys ──────────────────
+  // Browsers send a Supabase JWT. Agents (CLI, MCP, scripts) send a scoped
+  // `cudic_...` key instead; it is hashed at rest in api_keys and resolved to
+  // the owning account here, so every route that calls userOf() works for
+  // both without a second code path.
+  async function userOf(req) {
+    const bearer = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+    const headerKey = String(req.headers['x-api-key'] || '').trim();
+    const key = headerKey || (bearer.startsWith('cudic_') ? bearer : '');
+    if (key) return await userFromApiKey(key);
+    if (!bearer || bearer.split('.').length !== 3) return null;
+    const { data: { user }, error } = await supabase.auth.getUser(bearer);
+    return error ? null : (user || null);
+  }
+  async function userFromApiKey(raw) {
+    const hash = crypto.createHash('sha256').update(String(raw)).digest('hex');
+    const { data, error } = await supabase.from('api_keys')
+      .select('id, user_id, scopes, revoked_at').eq('key_hash', hash).maybeSingle();
+    if (error || !data || data.revoked_at) return null;
+    // Usage telemetry must never fail the request.
+    supabase.from('api_keys').update({ last_used_at: new Date().toISOString() }).eq('id', data.id)
+      .then(() => {}, () => {});
+    const { data: got } = await supabase.auth.admin.getUserById(data.user_id);
+    const keyUser = got && got.user;
+    if (!keyUser) return null;
+    keyUser._scopes = Array.isArray(data.scopes) ? data.scopes : [];
+    keyUser._viaKey = data.id;
+    return keyUser;
+  }
+  // Browser sessions keep full access; a key only gets what it was granted.
+  function hasScope(user, scope) {
+    if (!user || !user._viaKey) return true;
+    const s = user._scopes || [];
+    return s.includes('*') || s.includes(scope);
+  }
+  function scopeDenied(res, scope) {
+    res.writeHead(403, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'This API key is missing the "' + scope + '" scope.' }));
+  }
+
+  // ── API keys: list / create / revoke (browser session only) ─────────
+  // A key is shown once and stored as sha256. Keys can never mint keys.
+  if (url.pathname === '/api/keys' && req.method === 'GET') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    const { data } = await supabase.from('api_keys')
+      .select('id, label, scopes, created_at, last_used_at, revoked_at')
+      .eq('user_id', user.id).order('created_at', { ascending: false });
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ keys: data || [] }));
+    return;
+  }
+  if (url.pathname === '/api/keys' && req.method === 'POST') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    if (!(await needVerified(user, res))) return;
+    const body = await readBody(req, 8 * 1024).catch(() => ({}));
+    const label = String(body.label || '').trim().slice(0, 40) || 'agent key';
+    const allowed = ['projects:read', 'projects:write', 'profile:read'];
+    const asked = Array.isArray(body.scopes) ? body.scopes.map(String) : [];
+    const picked = [...new Set(asked.filter((s) => allowed.includes(s)))];
+    const scopes = picked.length ? picked : allowed.slice();
+    const { count } = await supabase.from('api_keys').select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id).is('revoked_at', null);
+    if ((count || 0) >= 12) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Too many active keys (12 max). Revoke one first.' }));
+      return;
+    }
+    const raw = 'cudic_' + crypto.randomBytes(24).toString('base64url');
+    const { data, error } = await supabase.from('api_keys').insert({
+      user_id: user.id,
+      label,
+      scopes,
+      key_hash: crypto.createHash('sha256').update(raw).digest('hex'),
+      key_preview: raw.slice(0, 12) + '…',
+    }).select('id, label, scopes, created_at').single();
+    if (error) {
+      const msg = String(error.message || '');
+      const missing = /does not exist|Could not find the table/i.test(msg)
+        || String(error.code || '') === '42P01' || String(error.code || '') === 'PGRST205';
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: missing ? 'API keys are not set up yet (run migration/api_keys.sql).' : 'Could not create the key.' }));
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ key: raw, ...data, note: 'Copy it now — it is not shown again.' }));
+    return;
+  }
+  const keyDel = /^\/api\/keys\/([^/]+)$/.exec(url.pathname);
+  if (keyDel && req.method === 'DELETE') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    await supabase.from('api_keys').update({ revoked_at: new Date().toISOString() })
+      .eq('id', keyDel[1]).eq('user_id', user.id);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
   function dmRoomName(a, b) { return 'dm:' + [a, b].sort().join('-'); }
   function chanRoomName(serverId, slug) { return 'chan:' + serverId + ':' + slug; }
   function chanSlug(s) { return String(s || '').toLowerCase().trim().replace(/[^a-z0-9-_]/g, '').substring(0, 30); }
@@ -4137,11 +4235,9 @@ function sanitizeTags(raw) {
   // ── API: my games (Studio "Your Projects" tab) ───────────────────
   if (url.pathname === '/api/games/mine' && req.method === 'GET') {
     cors(res);
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(401); res.end(); return; }
-    const { data: { user } } = await supabase.auth.getUser(token);
+    const user = await userOf(req);
     if (!user) { res.writeHead(401); res.end(); return; }
+    if (!hasScope(user, 'projects:read')) { scopeDenied(res, 'projects:read'); return; }
     const { data } = await supabase.from('games').select('id, title, description, thumbnail, published, forked_from, forked_from_title, created_at, updated_at').eq('owner_id', user.id).order('updated_at', { ascending: false });
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ games: (data || []).map(({ thumbnail, ...g }) => ({ ...g, has_thumb: !!thumbnail })) }));
@@ -4836,9 +4932,8 @@ function sanitizeTags(raw) {
     const { data, error } = await supabase.from('games').select('*, users!games_owner_id_fkey(id, display_name, user_id, avatar_url)').eq('id', id).single();
     if (!data) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
     // Like count + whether this viewer liked it (optional token).
-    const authH = req.headers.authorization || '';
-    const tok = authH.replace('Bearer ', '');
-    const { data: { user: viewer } } = tok ? await supabase.auth.getUser(tok) : { data: { user: null } };
+    const viewer = await userOf(req);
+    if (viewer && !hasScope(viewer, 'projects:read')) { scopeDenied(res, 'projects:read'); return; }
     // Drafts ship only to their owner. Anyone else gets the same Not found
     // whether or not the id exists — never confirm a draft's existence.
     if (!data.published && (!viewer || data.owner_id !== viewer.id)) {
@@ -4967,11 +5062,9 @@ function sanitizeTags(raw) {
   // ── API: create game ──────────────────────────────────────────
   if (url.pathname === '/api/games' && req.method === 'POST') {
     cors(res);
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+    const user = await userOf(req);
+    if (!user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+    if (!hasScope(user, 'projects:write')) { scopeDenied(res, 'projects:write'); return; }
     if (!(await needVerified(user, res))) return;
     const body = await readBody(req, 25 * 1024 * 1024); // projects can carry MB-scale file JSON, but bound it
     const { data, error } = await supabase.from('games').insert({
@@ -5577,11 +5670,9 @@ function sanitizeTags(raw) {
   // ── API: update game ──────────────────────────────────────────
   if (url.pathname.startsWith('/api/games/') && req.method === 'PUT') {
     cors(res);
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+    const user = await userOf(req);
+    if (!user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+    if (!hasScope(user, 'projects:write')) { scopeDenied(res, 'projects:write'); return; }
     if (!(await needVerified(user, res))) return;
     const id = url.pathname.split('/')[3];
     const body = await readBody(req, 25 * 1024 * 1024);
@@ -5623,11 +5714,9 @@ function sanitizeTags(raw) {
   // ── API: delete game ──────────────────────────────────────────
   if (url.pathname.startsWith('/api/games/') && req.method === 'DELETE') {
     cors(res);
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+    const user = await userOf(req);
+    if (!user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+    if (!hasScope(user, 'projects:write')) { scopeDenied(res, 'projects:write'); return; }
     if (!(await needVerified(user, res))) return;
     const id = url.pathname.split('/')[3];
     // Best-effort: purge the project's storage prefix so binaries don't orphan.

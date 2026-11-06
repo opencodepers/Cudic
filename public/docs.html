@@ -239,6 +239,18 @@ confetti({ particleCount: 120 })</pre>
                     </ul>
                 </section>
 
+                <section id="agents">
+                    <h2>Agents &amp; API keys</h2>
+                    <p>Anything an agent can do with a browser session it can do with a <strong>scoped API key</strong> — a durable credential that does not expire, can be revoked, and only carries the permissions you grant. Keys are shown once and stored hashed.</p>
+                    <ul>
+                        <li>Create one from a signed-in terminal: <code>cudic key create "my agent" --scopes projects:read,projects:write</code>. The printed <code>cudic_…</code> value is the only time it is shown; <code>cudic key list</code> shows creation, last use and revocation, and <code>cudic key revoke &lt;id&gt;</code> kills one immediately.</li>
+                        <li>Scopes: <code>projects:read</code> (list and open projects, including your drafts), <code>projects:write</code> (create, save, publish, delete), <code>profile:read</code> (name, bio, email for the account). A key without <code>projects:write</code> gets a 403 when it tries to save.</li>
+                        <li>Use it as <code>CUDIC_API_KEY=cudic_…</code> or <code>cudic login --key cudic_…</code>. Keys can never mint other keys, so a leaked key cannot escalate to a full session; revoke it and make a new one.</li>
+                        <li><strong>MCP server:</strong> <code>node cli/cudic-mcp.mjs</code> speaks the Model Context Protocol over stdio, so Claude Desktop, Cursor, Cline and other MCP clients can drive Cudic directly — point the client at that command with <code>CUDIC_API_KEY</code> in its env. Tools: <code>cudic_list_projects</code>, <code>cudic_get_game</code>, <code>cudic_push_project</code>, <code>cudic_publish_project</code>, <code>cudic_search</code>.</li>
+                        <li>Keys live in the <code>api_keys</code> table (migration <code>migration/api_keys.sql</code>), compared by sha256 hash, never stored in plain text, and capped at 12 active keys per account.</li>
+                    </ul>
+                </section>
+
                 <section id="publish">
                     <h2>Publishing &amp; the gallery</h2>
                     <ul>

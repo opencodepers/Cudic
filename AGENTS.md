@@ -302,6 +302,20 @@ project folder, newest 10, dot-prefixed so `collect()` never pushes it —
 server's rules (24-char name, 200-char bio, avatar must be in the avatars
 bucket). Avatar uploads stay browser-only.
 
+### API keys + MCP (`migration/api_keys.sql`, `cli/cudic-mcp.mjs`)
+Agents authorize with scoped `cudic_…` keys instead of a JWT. `userOf(req)`
+resolves either credential (Bearer JWT, `X-Api-Key`, or a Bearer `cudic_…` key),
+and `hasScope(user, scope)` restricts only key-backed users — browser sessions
+stay unrestricted. Keep the guard on every route that touches account data:
+`/api/games` POST/PUT/DELETE need `projects:write`; `/api/games/mine` and the
+single-game GET need `projects:read`; `/api/profile` needs `profile:read`.
+Keys are unique sha256 hashes, shown once, 12 active max, revoked by setting
+`revoked_at`, and can never create keys (`/api/keys` stays `requireUser`, JWT
+only). `last_used_at` updates are fire-and-forget and must never fail a
+request. The MCP server is stdio newline-delimited JSON-RPC (no Content-Length
+framing) and shells the same HTTP API — extend `TOOLS` + `callTool`, never add
+a server endpoint for it.
+
 ### Auth pattern
 Every gated route: pull `Authorization: Bearer <supabase jwt>` →
 `supabase.auth.getUser(token)` → 401 `{"error":"Sign in to ..."}` if bad.

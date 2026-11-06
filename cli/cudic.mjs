@@ -113,9 +113,18 @@ async function refresh(cfg) {
   return d.access_token;
 }
 
+function apiKeyCred() {
+  const env = process.env.CUDIC_API_KEY;
+  if (env) return env.trim();
+  const cfg = readConfig();
+  return cfg.api_key || null;
+}
+
 async function token() {
   const env = process.env.CUDIC_TOKEN;
   if (env) return env.trim();
+  const key = apiKeyCred();
+  if (key) return key;
   const cfg = readConfig();
   if (!cfg.access_token && !cfg.refresh_token) {
     die('not signed in. Run `cudic login --token <token>` or set CUDIC_TOKEN.');
@@ -129,7 +138,7 @@ async function token() {
 
 function hasCreds() {
   const cfg = readConfig();
-  return !!(process.env.CUDIC_TOKEN || cfg.access_token || cfg.refresh_token);
+  return !!(process.env.CUDIC_TOKEN || apiKeyCred() || cfg.access_token || cfg.refresh_token);
 }
 
 /**
@@ -165,6 +174,11 @@ async function api(pathname, opts = {}) {
 }
 
 async function whoami() {
+  if (apiKeyCred()) {
+    const p = await api('/api/profile');
+    const u = (p && p.profile) || {};
+    return (u.display_name || 'api key') + (p && p.email ? ' <' + p.email + '>' : '');
+  }
   const { url, anon } = await supa();
   const res = await fetch(url + '/auth/v1/user', {
     headers: { apikey: anon, Authorization: 'Bearer ' + (await token()) },
@@ -279,6 +293,17 @@ async function cmdLogin(pos, flags) {
   const patch = {};
   if (typeof flags.api === 'string') patch.api = flags.api;
   if (typeof flags.web === 'string') patch.web = flags.web;
+
+  // API keys are the durable credential for agents: no password, no expiry.
+  if (typeof flags.key === 'string') {
+    const key = flags.key.trim();
+    if (!key.startsWith('cudic_')) die('that is not a Cudic API key (keys start with cudic_).');
+    const res = await fetch(apiBase() + '/api/profile', { headers: { Authorization: 'Bearer ' + key } });
+    if (!res.ok) die('that key was rejected (' + res.status + ') — revoked, wrong host, or the API is down.');
+    writeConfig({ ...patch, api_key: key, access_token: null, refresh_token: null });
+    console.log('Signed in with an API key. Saved to ' + CONFIG + '.');
+    return;
+  }
 
   if (given) {
     const exp = jwtExp(given);
@@ -862,11 +887,46 @@ async function cmdRecover(pos, flags) {
   console.log('Recovered ' + pick.name + ' (' + restored + ' file' + (restored === 1 ? '' : 's') + ').');
 }
 
+async function cmdKey(pos, flags) {
+  const sub = (pos[0] || 'list').toLowerCase();
+  if (sub === 'list' || sub === 'ls') {
+    const d = await api('/api/keys');
+    const keys = (d && d.keys) || [];
+    if (flags.json) { console.log(JSON.stringify(keys, null, 2)); return; }
+    if (!keys.length) { console.log('No keys yet. `cudic key create "my agent"` makes one.'); return; }
+    for (const k of keys) {
+      console.log(k.id + '  ' + String(k.label).padEnd(18) + '  ' + (k.scopes || []).join(',') +
+        (k.revoked_at ? '  REVOKED' : '') + '  ' + (k.last_used_at ? 'used ' + String(k.last_used_at).slice(0, 10) : 'never used'));
+    }
+    return;
+  }
+  if (sub === 'create' || sub === 'new') {
+    const label = typeof pos[1] === 'string' ? pos[1]
+      : (typeof flags.label === 'string' ? flags.label : 'agent key');
+    const body = { label };
+    if (typeof flags.scopes === 'string') body.scopes = flags.scopes.split(',');
+    const d = await api('/api/keys', { method: 'POST', body });
+    if (!d || !d.key) die('could not create a key.');
+    console.log(d.key);
+    console.log('Copy it now — it is not shown again. Use it as CUDIC_API_KEY=... or `cudic login --key <key>`.');
+    return;
+  }
+  if (sub === 'revoke' || sub === 'rm') {
+    const id = pos[1];
+    if (!id) die('usage: cudic key revoke <key id>');
+    await api('/api/keys/' + encodeURIComponent(id), { method: 'DELETE' });
+    console.log('Revoked ' + id + '.');
+    return;
+  }
+  die('unknown key command "' + sub + '". Try `cudic key`, `cudic key create <label>`, `cudic key revoke <id>`.');
+}
+
 const HELP = `Cudic CLI — make and publish Cudic projects from a terminal.
 
 Usage
   cudic login --email you@example.com [--password <pw>]   sign in, store + refresh the token
   cudic login --token <supabase access token>             one-shot token (also CUDIC_TOKEN=)
+  cudic login --key <cudic_...>                           durable agent key (also CUDIC_API_KEY=)
   cudic logout                                            forget stored credentials
   cudic whoami [--json]                                   who the token belongs to
   cudic list [--json]                                     your projects (id, title, state)
@@ -902,6 +962,11 @@ Editing what already exists
 Your profile
   cudic profile [--json]                                  name, bio, avatar, follower counts, awards
   cudic profile set --name N --bio B --interests a,b --avatar <url>|--avatar-clear
+
+Agent keys (durable, scoped; browser session required to manage)
+  cudic key [list]                                        keys on the account
+  cudic key create "label" [--scopes projects:read,projects:write]   print a new key once
+  cudic key revoke <id>                                   revoke a key
 
 Local backups (.cudic-backups/, newest 10)
   cudic backups [dir] [--json]                            what push/pull/recover saved before overwriting
@@ -962,6 +1027,8 @@ async function main() {
     case 'backups':
     case 'backup': return cmdBackups(pos, flags);
     case 'recover': return cmdRecover(pos, flags);
+    case 'key':
+    case 'keys': return cmdKey(pos, flags);
     default: die('unknown command "' + cmd + '". Try `cudic help`.');
   }
 }

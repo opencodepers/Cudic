@@ -9,6 +9,13 @@ fixed. Commits are referenced by short hash.
 ## Unreleased
 
 
+**Scoped API keys and a Cudic MCP server**
+
+- `api_keys` (migration/api_keys.sql) holds sha256-hashed keys with labels, scopes (`projects:read`, `projects:write`, `profile:read`), last-used and revocation; 12 active per account; keys can never mint keys. `GET/POST /api/keys` and `DELETE /api/keys/:id` manage them from a browser session only, and the new `userOf(req)` resolver accepts either a Supabase JWT or a `cudic_…` key so `/api/games` (create/save/delete/mine/read) and `/api/profile` work for both — browser sessions keep full access, keys are checked against their scopes (403 names the missing one).
+- CLI: `cudic key create "label" [--scopes …]` prints the key once, `cudic key list` shows last use/revocation, `cudic key revoke <id>`; `cudic login --key cudic_…` and `CUDIC_API_KEY=` let agents run with no password and no hourly expiry.
+- `cli/cudic-mcp.mjs` is a dependency-free MCP server over stdio: `cudic_list_projects`, `cudic_get_game`, `cudic_push_project`, `cudic_publish_project`, `cudic_search`, wired to the same API key. Docs: new "Agents & API keys" section.
+- Checks: full suite green; end-to-end key create → push with only the key → read-only key refused a push → revoke → 401, plus an MCP initialize/tools handshake.
+
 **Cudic CLI: edit existing projects, read code, profile edits, local backups**
 
 - Round-trip editing: `pull` brings the saved project down (backing up your local files first), `ls` lists files with sizes, `cat <path>` prints one file's code, `push` sends the edits back. `unpublish` hides a project again and `rm --yes` deletes it — a bare `rm` prints what it would delete and exits 1.
