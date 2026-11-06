@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-PSGJNQWB"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+    </script>
+
+<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ops — Cudic</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
+<link rel="stylesheet" href="/sidebar.css?v=25">
+<style>
+:root{--radius:3px}
+body{display:flex;overflow:hidden;height:100%}
+.o-layout{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.o-content{flex:1;min-height:0;overflow-y:auto;padding:28px 32px}
+.top{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;gap:12px}
+h1{font-family:var(--font-head);font-weight:600;font-size:1.5rem;letter-spacing:-.02em}
+.lede{color:var(--mute);font-size:.85rem;margin:0 0 20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+.stat .k{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mute)}
+.stat .v{font-family:var(--font-mono,monospace);font-size:1.5rem;font-weight:600;margin-top:6px;font-variant-numeric:tabular-nums}
+.stat .s{font-size:.72rem;color:var(--mute);margin-top:4px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin-top:18px}
+.card h2{font-size:.85rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin:0 0 12px;font-weight:600}
+.btn{border:1px solid var(--line);background:var(--panel-raised);color:var(--ink);border-radius:var(--radius);padding:7px 14px;font-size:.8rem;font-weight:500;cursor:pointer;font-family:inherit}
+.btn:hover{border-color:var(--signal)}
+pre.report{font-family:var(--font-mono,monospace);font-size:.75rem;line-height:1.55;margin:0;white-space:pre-wrap;word-break:break-word;color:var(--mute);max-height:280px;overflow:auto}
+.msg{color:var(--mute);font-size:.9rem}
+</style>
+</head>
+<body data-page="ops">
+<div class="page-panel"><div class="o-layout"><main class="o-content">
+  <div class="top">
+    <h1>Ops</h1>
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="refreshBtn">Refresh</button>
+      <button class="btn" id="copyBtn">Copy report</button>
+    </div>
+  </div>
+  <p class="lede" id="lede">Live health for the API, database and push pipeline. Moderators only.</p>
+  <div class="grid" id="stats"></div>
+  <div class="card">
+    <h2>Raw status</h2>
+    <pre class="report" id="report">Loading…</pre>
+  </div>
+</main></div></div>
+<script src="/config.js"></script>
+<script src="/auth.js"></script>
+<script src="/sidebar.js?v=25"></script>
+<script src="/theme-toggle.js?v=2"></script>
+<script>
+(function(){
+  function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':s; return d.innerHTML; }
+  function apiHost(){ return (typeof WS_URL!=='undefined'&&WS_URL)?WS_URL.replace(/^wss?:\/\//,'https://'):''; }
+  function token(){ try { if(window.getAuthToken) return window.getAuthToken().then(function(a){return a||null;}); var s=JSON.parse(localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token')); return Promise.resolve(s&&s.access_token||null); } catch(e){ return Promise.resolve(null); } }
+  var stats=document.getElementById('stats'), report=document.getElementById('report'), lede=document.getElementById('lede');
+
+  function kb(n){ return n>=1024*1024 ? (n/1024/1024).toFixed(1)+' MB' : Math.round(n/1024)+' KB'; }
+  function dur(s){ s=Math.round(s||0); var d=Math.floor(s/86400), h=Math.floor(s%86400/3600), m=Math.floor(s%3600/60); return (d?d+'d ':'')+(d||h?h+'h ':'')+m+'m'; }
+  function card(k,v,s){ return '<div class="stat"><div class="k">'+esc(k)+'</div><div class="v">'+esc(v)+'</div>'+(s?'<div class="s">'+esc(s)+'</div>':'')+'</div>'; }
+
+  function draw(d){
+    var c=d.counts||{};
+    stats.innerHTML = [
+      card('Uptime', dur(d.uptime_s), 'since last deploy'),
+      card('Memory', kb((d.memory||{}).rss||0), 'rss · heap '+kb((d.memory||{}).heapUsed||0)),
+      card('DB latency', (d.db_ms==null?'—':d.db_ms+' ms'), d.db_ok?'reachable':'unreachable'),
+      card('Sockets', d.sockets||0, 'live websocket clients'),
+      card('Users', c.users||0, 'accounts'),
+      card('Games', c.games||0, (c.published||0)+' published'),
+      card('Threads', c.threads||0, 'forum'),
+      card('Snapshots', c.revisions||0, 'project history'),
+      card('API keys', c.api_keys||0, 'outside agents'),
+      card('Push devices', c.push_subscriptions||0, 'browsers subscribed'),
+      card('Inbox rows', c.notifications||0, 'all users'),
+      card('Rate buckets', d.rate_buckets||0, 'in-memory keys')
+    ].join('');
+    report.textContent = JSON.stringify(d, null, 2);
+    lede.textContent = 'Live health for the API, database and push pipeline · updated ' + new Date().toLocaleTimeString();
+  }
+
+  function load(){
+    token().then(function(t){
+      if(!t){ window.location.href='/login'; return; }
+      fetch(apiHost()+'/api/profile',{headers:{'Authorization':'Bearer '+t}})
+        .then(function(r){ return r.json(); })
+        .then(function(p){
+          if(!p || !p.is_moderator){ stats.innerHTML=''; report.textContent=''; lede.textContent='Ops is moderators only.'; return; }
+          return fetch(apiHost()+'/api/ops/status',{headers:{'Authorization':'Bearer '+t}})
+            .then(function(r){ return r.json().then(function(j){ return { ok:r.ok, body:j }; }); })
+            .then(function(res){
+              if(!res.ok){ report.textContent = res.body && res.body.error || 'Could not load status.'; return; }
+              draw(res.body);
+            });
+        })
+        .catch(function(){ report.textContent='Could not load status.'; });
+    });
+  }
+  document.getElementById('refreshBtn').addEventListener('click', load);
+  document.getElementById('copyBtn').addEventListener('click', function(){
+    var txt=report.textContent||'';
+    if(navigator.clipboard) navigator.clipboard.writeText(txt);
+  });
+  load();
+  setInterval(function(){ if(!document.hidden) load(); }, 15000);
+})();
+</script>
+<script src="/cudic-modals.js?v=3"></script></body>
+</html>

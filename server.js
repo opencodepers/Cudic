@@ -1483,6 +1483,59 @@ async function handleRequest(req, res) {
   }
 
   // ── API: notifications ──────────────────────────────────────────
+  // ── API: ops status (moderators only) ───────────────────────────
+  // One dashboard call, so the page never fires ten little requests. Counts
+  // are head requests (no rows cross the wire); anything missing (an
+  // un-run migration) reports 0 instead of failing the whole payload.
+  if (url.pathname === '/api/ops/status' && req.method === 'GET') {
+    cors(res);
+    const user = await userOf(req);
+    if (!user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Sign in first.' })); return; }
+    if (!(await isModerator(user.id))) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Ops is moderators only.' }));
+      return;
+    }
+    const count = async (table, build) => {
+      try {
+        let q = supabase.from(table).select('id', { count: 'exact', head: true });
+        if (build) q = build(q);
+        const { count: n, error } = await q;
+        return error ? 0 : (n || 0);
+      } catch (e) { return 0; }
+    };
+    const t0 = Date.now();
+    const { error: dbErr } = await supabase.from('users').select('id', { head: true, count: 'exact' }).limit(1);
+    const dbMs = Date.now() - t0;
+    const mem = process.memoryUsage();
+    const [users, games, published, threads, revisions, apiKeys, pushSubs, inbox] = await Promise.all([
+      count('users'),
+      count('games'),
+      count('games', (q) => q.eq('published', true)),
+      count('forum_threads'),
+      count('project_revisions'),
+      count('api_keys'),
+      count('push_subscriptions'),
+      count('notifications')
+    ]);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      ok: !dbErr,
+      uptime_s: Math.round(process.uptime()),
+      node: process.version,
+      memory: { rss: mem.rss, heapUsed: mem.heapUsed },
+      sockets: wss ? wss.clients.size : 0,
+      rate_buckets: rateBuckets.size,
+      db_ok: !dbErr,
+      db_ms: dbMs,
+      counts: {
+        users, games, published, threads, revisions,
+        api_keys: apiKeys, push_subscriptions: pushSubs, notifications: inbox
+      }
+    }));
+    return;
+  }
+
   // ── API: web push (config / subscribe / unsubscribe / test) ─────
   if (url.pathname === '/api/push/config' && req.method === 'GET') {
     cors(res);
@@ -6165,6 +6218,11 @@ function sanitizeTags(raw) {
   // ── Redirect /friends to /friends.html ─────────────────────────
   if (url.pathname === '/friends') {
     url.pathname = '/friends.html';
+  }
+
+  // ── Redirect /ops to /ops.html ────────────────────────────────
+  if (url.pathname === '/ops') {
+    url.pathname = '/ops.html';
   }
 
   // ── Redirect /notifications to /notifications.html ────────────

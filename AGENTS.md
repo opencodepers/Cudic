@@ -215,6 +215,7 @@ POST|DELETE /api/servers/:sid/bans/:uid   ← ban (drops membership; JOIN refuse
 GET|POST /api/servers           GET /api/servers/mine
 GET  /api/search?q=&type=        ← PUBLIC ranked games/threads/people search
 GET  /api/activity?limit=         ← PUBLIC recent activity feed
+GET  /api/ops/status              ← mod-only health counts (page: /ops)
 GET  /api/push/config             ← PUBLIC push key + enabled flag
 POST /api/push/subscribe|unsubscribe|test
 GET  /api/games                 GET|POST /api/games     GET /api/games/mine

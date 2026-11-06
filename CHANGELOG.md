@@ -9,6 +9,12 @@ fixed. Commits are referenced by short hash.
 ## Unreleased
 
 
+**Ops console**
+
+- `/ops` (moderators only) is a single-page health view: uptime, memory (rss + heap), database latency and reachability, live WebSocket clients, in-memory rate-limit buckets, and counts for users, games/published, forum threads, project snapshots, API keys, push devices and inbox rows. It self-refreshes every 15s, and has Copy report for pasting into an incident thread.
+- Backed by `GET /api/ops/status` (moderator-gated, counts are `head` requests so no rows cross the wire), so the same numbers are available to curl. Un-run migrations report 0 rather than breaking the payload.
+- Checks: full suite green; e2e unchanged and passing.
+
 **Web push notifications and a public activity stream**
 
 - Real Web Push on top of the existing inbox: every `notify()` now also fans out to the user's browsers via a VAPID-signed message, so comments, replies, friend requests and awards arrive as notifications even with the tab closed. `migration/push.sql` adds `push_subscriptions` (pruned automatically when a push service answers 404/410) and a single-row `push_config` holding the VAPID keypair — generated once in the database, so pushes work on Render with no new env vars and subscriptions survive restarts.
