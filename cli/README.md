@@ -49,6 +49,43 @@ Studio's snapshots too: `snapshot [dir] --label`, `revisions [dir]`, `restore <r
 leaves a `CUDIC.md` naming the author and source. Pushing that folder creates a
 new project — the site's Remix button is what records the credit link.
 
+## Editing what already exists
+
+```bash
+node cli/cudic.mjs pull            # server copy -> disk (backs up local files first)
+node cli/cudic.mjs ls              # files + sizes (--id <game> for the server copy)
+node cli/cudic.mjs cat game.js     # print one file (--id <game> reads it from the server)
+node cli/cudic.mjs push            # send edits back up
+node cli/cudic.mjs unpublish
+node cli/cudic.mjs rm --yes        # plain `rm` only prints what it would delete
+```
+
+## Profile
+
+```bash
+node cli/cudic.mjs profile
+node cli/cudic.mjs profile set --name "Nova" --bio "makes weird little games" --interests art,music
+node cli/cudic.mjs profile set --avatar-clear
+```
+
+Avatars must already be in the account's Cudic avatar storage — the site's
+uploader is still the way to add a new image.
+
+## Backups and undo
+
+Every `push`, `pull` and `recover` copies the version it is about to overwrite
+into `.cudic-backups/<timestamp>/` inside the project folder (newest 10 kept,
+never pushed to the server).
+
+```bash
+node cli/cudic.mjs backups          # what is saved, when, how many files
+node cli/cudic.mjs recover latest   # put the newest back on disk
+node cli/cudic.mjs recover <timestamp> --dir ./game
+```
+
+Server-side snapshots are separate and shared with Studio: `snapshot`,
+`revisions`, `restore`.
+
 ## What it talks to
 
 The public API the Studio uses: `POST /api/games` (create), `PUT /api/games/:id`

@@ -9,6 +9,13 @@ fixed. Commits are referenced by short hash.
 ## Unreleased
 
 
+**Cudic CLI: edit existing projects, read code, profile edits, local backups**
+
+- Round-trip editing: `pull` brings the saved project down (backing up your local files first), `ls` lists files with sizes, `cat <path>` prints one file's code, `push` sends the edits back. `unpublish` hides a project again and `rm --yes` deletes it — a bare `rm` prints what it would delete and exits 1.
+- Local undo: every `push`/`pull`/`recover` copies the version about to be overwritten into `.cudic-backups/<timestamp>/` (newest 10, never uploaded). `backups` lists them, `recover latest` puts one back. Separate from the server-side `snapshot`/`revisions`/`restore` that Studio also uses.
+- Profile edits from the terminal: `profile` prints name, bio, avatar, follower/following/friend counts and awards; `profile set --name/--bio/--interests/--avatar/--avatar-clear` writes through `PUT /api/profile` (same validation as the site, including the avatars-bucket-only avatar rule).
+- No server changes. Checks: e2e covers profile, ls/cat, pull, backups/recover, unpublish and rm; suite green.
+
 **Cudic CLI grows browsing, downloads, forums, shop, docs and snapshots**
 
 - Beyond create/push/publish, the CLI now reads the rest of Cudic from a terminal: `games` (gallery search/sort/tag), `get <id>` (downloads a game's text files, pulls its binary assets from public storage and writes a `CUDIC.md` naming the author and source), `forums` + `thread <id>`, `docs [section|--search]` (the help pages rendered as plain text), and `shop` / `shop buy <code>` / `shop equip <slot> <code>|--off` with balance and owned markers. Studio parity: `snapshot`, `revisions` and `restore` drive the same `project_revisions` endpoints Studio's Save-snapshot uses. Gallery, forums, threads and docs work signed out (`--json` available on all of them); shop and snapshots need the account. No server changes — these are the existing public endpoints. Checks: 221+ tests pass.

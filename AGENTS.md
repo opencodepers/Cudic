@@ -291,6 +291,17 @@ drive the owner-only `project_revisions` routes (snapshot sends the folder's
 files map, same shape Studio stages). Never add a bespoke server endpoint for
 the CLI: extend the client.
 
+Editing paths: `pull` = `GET /api/games/:id` written over the folder after a
+local backup; `ls`/`cat` read either the folder or `--id <game>`; `push` keeps
+one local backup of the previous server copy before it PUTs; `unpublish` is
+the `published:false` PUT and `rm` needs `--yes` (a bare `rm` prints the target
+and exits 1). Local undo lives in `.cudic-backups/<timestamp>/` inside the
+project folder, newest 10, dot-prefixed so `collect()` never pushes it —
+`backups`/`recover` only touch that folder. `profile set` writes
+`PUT /api/profile` (display_name/bio/interests/avatar_url) and inherits the
+server's rules (24-char name, 200-char bio, avatar must be in the avatars
+bucket). Avatar uploads stay browser-only.
+
 ### Auth pattern
 Every gated route: pull `Authorization: Bearer <supabase jwt>` →
 `supabase.auth.getUser(token)` → 401 `{"error":"Sign in to ..."}` if bad.

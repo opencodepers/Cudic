@@ -358,6 +358,20 @@ async function cmdPush(pos, flags) {
   const tags = typeof flags.tags === 'string' ? flags.tags : undefined;
   const body = { files, ...(title ? { title } : {}), ...(description !== undefined ? { description } : {}), ...(tags ? { tags } : {}) };
 
+  if (id) {
+    // Local recovery point: the copy that is about to be replaced.
+    try {
+      const cur = await api('/api/games/' + encodeURIComponent(id));
+      let prev = cur && cur.game && cur.game.files;
+      if (typeof prev === 'string') { try { prev = JSON.parse(prev); } catch { prev = null; } }
+      const keys = new Set([...Object.keys(prev || {}), ...Object.keys(files)]);
+      const changed = [...keys].some((k) => (prev || {})[k] !== files[k]);
+      if (prev && Object.keys(prev).length && changed) {
+        console.log('Backup: ' + path.relative(dir, saveBackup(dir, prev, 'before push')) + '  (cudic recover)')
+      }
+    } catch {}
+  }
+
   let game;
   if (id) {
     const d = await api('/api/games/' + encodeURIComponent(id), { method: 'PUT', body });
@@ -426,18 +440,43 @@ async function cmdGames(pos, flags) {
   console.log('\n`cudic get <id>` downloads a game\'s source.');
 }
 
-async function cmdGet(pos, flags) {
-  const id = pos[0];
-  if (!id) die('usage: cudic get <game id> [--out dir]');
-  const d = await api('/api/games/' + encodeURIComponent(id), { auth: hasCreds() });
-  const game = d && d.game;
-  if (!game) die('game not found (drafts are only visible to their owner).');
-  const out = path.resolve(typeof flags.out === 'string' ? flags.out : slugify(game.title));
-  if (fs.existsSync(out) && fs.readdirSync(out).length > 0 && !flags.force) {
-    die(out + ' already has files. Pass --out <dir> or --force.');
+// ── local backups (`.cudic-backups/` inside the project folder) ─────────
+function backupRoot(dir) { return path.join(dir, '.cudic-backups'); }
+function listBackups(dir) {
+  const root = backupRoot(dir);
+  let names = [];
+  try { names = fs.readdirSync(root); } catch { return []; }
+  return names
+    .filter((n) => { try { return fs.statSync(path.join(root, n)).isDirectory(); } catch { return false; } })
+    .sort()
+    .map((n) => {
+      let meta = {};
+      try { meta = JSON.parse(fs.readFileSync(path.join(root, n, 'backup.json'), 'utf8')); } catch {}
+      return { name: n, at: meta.at || '', files: typeof meta.files === 'number' ? meta.files : 0, why: meta.why || '' };
+    });
+}
+/** Keep the newest 10 copies of a file map on disk before it gets overwritten. */
+function saveBackup(dir, files, why) {
+  const root = backupRoot(dir);
+  const name = new Date().toISOString().replace(/[:.]/g, '-');
+  const dest = path.join(root, name);
+  for (const [rel, text] of Object.entries(files || {})) {
+    if (typeof text !== 'string' || !rel || rel.includes('..')) continue;
+    const file = path.join(dest, rel);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, text);
   }
-  fs.mkdirSync(out, { recursive: true });
+  fs.mkdirSync(dest, { recursive: true });
+  fs.writeFileSync(path.join(dest, 'backup.json'),
+    JSON.stringify({ at: new Date().toISOString(), why: why || '', files: Object.keys(files || {}).length }, null, 2) + '\n');
+  for (const old of listBackups(dir).slice(0, Math.max(0, listBackups(dir).length - 10))) {
+    fs.rmSync(path.join(root, old.name), { recursive: true, force: true });
+  }
+  return dest;
+}
 
+/** Write a game row's text files and storage assets into a folder. */
+async function writeProject(game, out) {
   let files = game.files;
   if (typeof files === 'string') { try { files = JSON.parse(files); } catch { files = null; } }
   let written = 0;
@@ -448,8 +487,6 @@ async function cmdGet(pos, flags) {
     fs.writeFileSync(dest, text);
     written++;
   }
-
-  // Binary assets live in public object storage; `assets` maps path → object key.
   const { url } = await supa();
   let assets = 0, missed = 0;
   for (const [rel, key] of Object.entries(game.assets || {})) {
@@ -464,6 +501,40 @@ async function cmdGet(pos, flags) {
       assets++;
     } catch { missed++; }
   }
+  return { written, assets, missed };
+}
+
+async function cmdPull(pos, flags) {
+  const dir = path.resolve(pos[0] || '.');
+  const id = flags.id || projectId(dir);
+  if (!id) die('no project id. Run inside a pushed folder or pass --id <game id>.');
+  const d = await api('/api/games/' + encodeURIComponent(id));
+  const game = d && d.game;
+  if (!game) die('project not found.');
+  if (flags.force !== true) {
+    const local = collect(dir).files;
+    if (Object.keys(local).length) {
+      console.log('Backup of your files: ' + path.relative(dir, saveBackup(dir, local, 'before pull')) + ' (cudic recover)');
+    }
+  }
+  const { written, assets, missed } = await writeProject(game, dir);
+  remember(dir, game.id, game.title);
+  console.log('Pulled "' + game.title + '" (' + written + ' files' +
+    (assets ? ', ' + assets + ' assets' : '') + (missed ? ', ' + missed + ' missing' : '') + ').');
+}
+
+async function cmdGet(pos, flags) {
+  const id = pos[0];
+  if (!id) die('usage: cudic get <game id> [--out dir]');
+  const d = await api('/api/games/' + encodeURIComponent(id), { auth: hasCreds() });
+  const game = d && d.game;
+  if (!game) die('game not found (drafts are only visible to their owner).');
+  const out = path.resolve(typeof flags.out === 'string' ? flags.out : slugify(game.title));
+  if (fs.existsSync(out) && fs.readdirSync(out).length > 0 && !flags.force) {
+    die(out + ' already has files. Pass --out <dir> or --force.');
+  }
+  fs.mkdirSync(out, { recursive: true });
+  const { written, assets, missed } = await writeProject(game, out);
 
   const author = (game.users && (game.users.display_name || game.users.user_name)) || 'unknown';
   fs.writeFileSync(path.join(out, 'CUDIC.md'), [
@@ -651,6 +722,146 @@ async function cmdRestore(pos, flags) {
   console.log('Restored ' + revId.slice(0, 8) + ' into the project. `cudic get ' + id + ' --out .` pulls it down.');
 }
 
+async function cmdLs(pos, flags) {
+  if (flags.id) {
+    const d = await api('/api/games/' + encodeURIComponent(flags.id));
+    const game = d && d.game;
+    if (!game) die('project not found.');
+    let files = game.files;
+    if (typeof files === 'string') { try { files = JSON.parse(files); } catch { files = null; } }
+    for (const [rel, text] of Object.entries(files || {})) console.log(String(rel).padEnd(38) + String(String(text).length) + ' bytes');
+    for (const [rel, key] of Object.entries(game.assets || {})) console.log(String(rel).padEnd(38) + 'asset  ' + key);
+    return;
+  }
+  const dir = path.resolve(pos[0] || '.');
+  const { files } = collect(dir);
+  const names = Object.keys(files).sort();
+  if (!names.length) die('no text files in ' + dir);
+  for (const n of names) console.log(n.padEnd(38) + files[n].length + ' bytes');
+}
+
+async function cmdCat(pos, flags) {
+  const rel = pos[0];
+  if (!rel) die('usage: cudic cat <path> [--id game id]');
+  if (flags.id) {
+    const d = await api('/api/games/' + encodeURIComponent(flags.id));
+    const game = d && d.game;
+    if (!game) die('project not found.');
+    let files = game.files;
+    if (typeof files === 'string') { try { files = JSON.parse(files); } catch {} }
+    const text = files && files[String(rel).replace(/^\.\//, '')];
+    if (typeof text !== 'string') die('no such file in that project: ' + rel + '  (cudic ls --id ...)');
+    process.stdout.write(text);
+    return;
+  }
+  const full = path.resolve(rel);
+  if (!fs.existsSync(full)) die('no such file: ' + rel);
+  process.stdout.write(fs.readFileSync(full, 'utf8'));
+}
+
+async function cmdProfile(pos, flags) {
+  const sub = (pos[0] || 'show').toLowerCase();
+  if (sub === 'show' || sub === 'me') {
+    const d = await api('/api/profile');
+    if (flags.json) { console.log(JSON.stringify(d, null, 2)); return; }
+    const p = (d && d.profile) || {};
+    console.log((p.display_name || '(no name)') + (d.email ? '  <' + d.email + '>' : ''));
+    if (p.bio) console.log(p.bio);
+    if (p.avatar_url) console.log('avatar: ' + p.avatar_url);
+    const stats = [];
+    if (typeof d.followers === 'number') stats.push(d.followers + ' followers');
+    if (typeof d.following === 'number') stats.push(d.following + ' following');
+    if (typeof d.friends === 'number') stats.push(d.friends + ' friends');
+    if (stats.length) console.log(stats.join(' · '));
+    const awards = (d.awards || []).map((a) => a.code);
+    if (awards.length) console.log('awards: ' + awards.join(', '));
+    if ((d.achievements || []).length) console.log('recent achievements: ' + d.achievements.length);
+    return;
+  }
+  if (sub === 'set' || sub === 'edit') {
+    const body = {};
+    if (typeof flags.name === 'string') body.display_name = flags.name;
+    if (typeof flags.bio === 'string') body.bio = flags.bio;
+    if (flags['avatar-clear']) body.avatar_url = '';
+    else if (typeof flags.avatar === 'string') body.avatar_url = flags.avatar;
+    if (typeof flags.interests === 'string') body.interests = flags.interests.split(',');
+    if (!Object.keys(body).length) {
+      die('nothing to change. Try --name, --bio, --avatar <bucket url>, --avatar-clear or --interests a,b.');
+    }
+    await api('/api/profile', { method: 'PUT', body });
+    console.log('Profile updated: ' + Object.keys(body).join(', ') + '.');
+    return;
+  }
+  die('unknown profile command "' + sub + '". Try `cudic profile` or `cudic profile set --bio "..."`.');
+}
+
+async function cmdUnpublish(pos, flags) {
+  const dir = path.resolve(pos[0] || '.');
+  const id = flags.id || projectId(dir);
+  if (!id) die('no project id. Push the folder first, or pass --id <game id>.');
+  const d = await api('/api/games/' + encodeURIComponent(id), { method: 'PUT', body: { published: false } });
+  const game = d && d.game;
+  if (!game) die('unpublish failed.');
+  console.log('Unpublished "' + game.title + '" — still yours, hidden from everyone else.');
+}
+
+async function cmdRm(pos, flags) {
+  const dir = path.resolve(pos[0] || '.');
+  const id = flags.id || projectId(dir);
+  if (!id) die('no project id. Pass --id <game id> or run inside a pushed folder.');
+  const d = await api('/api/games/' + encodeURIComponent(id));
+  const game = d && d.game;
+  if (!game) die('project not found.');
+  if (!flags.yes) {
+    console.log('Would delete "' + game.title + '" (' + game.id + ').');
+    console.log('Nothing was deleted. Re-run with --yes to remove it for good.');
+    process.exitCode = 1;
+    return;
+  }
+  await api('/api/games/' + encodeURIComponent(id), { method: 'DELETE' });
+  try { fs.unlinkSync(path.join(dir, LINK)); } catch {}
+  console.log('Deleted "' + game.title + '". Local files are untouched (cudic backups still has copies).');
+}
+
+async function cmdBackups(pos, flags) {
+  const dir = path.resolve(typeof flags.dir === 'string' ? flags.dir : (pos[0] || '.'));
+  const snaps = listBackups(dir);
+  if (flags.json) { console.log(JSON.stringify(snaps, null, 2)); return; }
+  if (!snaps.length) { console.log('No local backups yet — `push` and `pull` keep one before they overwrite files.'); return; }
+  for (const s of snaps) console.log(s.name + '  ' + String(s.files) + ' files  ' + s.at + (s.why ? '  ' + s.why : ''));
+  console.log('\n`cudic recover latest` puts the newest one back on disk.');
+}
+
+async function cmdRecover(pos, flags) {
+  const dir = path.resolve(typeof flags.dir === 'string' ? flags.dir : '.');
+  const snaps = listBackups(dir);
+  if (!snaps.length) die('no local backups in ' + dir);
+  const want = pos[0] || 'latest';
+  const pick = want === 'latest' ? snaps[snaps.length - 1] : snaps.filter((s) => s.name === want || s.name.startsWith(want)).pop();
+  if (!pick) die('no backup matching "' + want + '". `cudic backups` lists them.');
+  const src = path.join(backupRoot(dir), pick.name);
+
+  const current = collect(dir).files;
+  if (Object.keys(current).length) saveBackup(dir, current, 'before recover');
+
+  let restored = 0;
+  const walk = (abs, rel) => {
+    for (const ent of fs.readdirSync(abs, { withFileTypes: true })) {
+      if (ent.name === 'backup.json') continue;
+      const childAbs = path.join(abs, ent.name);
+      const childRel = rel ? rel + '/' + ent.name : ent.name;
+      if (ent.isDirectory()) { walk(childAbs, childRel); continue; }
+      if (!ent.isFile()) continue;
+      const dest = path.join(dir, childRel);
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.copyFileSync(childAbs, dest);
+      restored++;
+    }
+  };
+  walk(src, '');
+  console.log('Recovered ' + pick.name + ' (' + restored + ' file' + (restored === 1 ? '' : 's') + ').');
+}
+
 const HELP = `Cudic CLI — make and publish Cudic projects from a terminal.
 
 Usage
@@ -680,6 +891,21 @@ Shop (account)
   cudic shop [list] [--json]                              catalog, prices, balance, what you own
   cudic shop buy <code>                                   buy a cosmetic
   cudic shop equip <slot> <code> | --off                  wear it (slots: fr bn ef ne ti em)
+
+Editing what already exists
+  cudic pull [dir] [--id game]                            bring the server copy down (backs up first)
+  cudic ls [dir] / cudic ls --id <game>                   list project files with sizes
+  cudic cat <path> [--id game]                            print one file's code to stdout
+  cudic unpublish [dir]                                   hide a published project again
+  cudic rm [dir] --id <game> --yes                        delete a project (dry run without --yes)
+
+Your profile
+  cudic profile [--json]                                  name, bio, avatar, follower counts, awards
+  cudic profile set --name N --bio B --interests a,b --avatar <url>|--avatar-clear
+
+Local backups (.cudic-backups/, newest 10)
+  cudic backups [dir] [--json]                            what push/pull/recover saved before overwriting
+  cudic recover [backup|latest] [--dir folder]            put a local backup back on disk
 
 Environment
   CUDIC_TOKEN                account token, skips stored credentials
@@ -723,6 +949,19 @@ async function main() {
     case 'history': return cmdRevisions(pos, flags);
     case 'snapshot': return cmdSnapshot(pos, flags);
     case 'restore': return cmdRestore(pos, flags);
+    case 'pull': return cmdPull(pos, flags);
+    case 'ls':
+    case 'files': return cmdLs(pos, flags);
+    case 'cat':
+    case 'code': return cmdCat(pos, flags);
+    case 'profile':
+    case 'me': return cmdProfile(pos, flags);
+    case 'unpublish': return cmdUnpublish(pos, flags);
+    case 'rm':
+    case 'delete': return cmdRm(pos, flags);
+    case 'backups':
+    case 'backup': return cmdBackups(pos, flags);
+    case 'recover': return cmdRecover(pos, flags);
     default: die('unknown command "' + cmd + '". Try `cudic help`.');
   }
 }
