@@ -176,7 +176,9 @@ async function doSignUp(e){
     resendCode();
   }catch(err){document.getElementById('msgUp').textContent = err&&err.message ? err.message : 'Could not create account.';}
 }
-function signInWithGitHub(){ signInWithGitHub(); }
+// signInWithGitHub() lives in auth.js — do NOT redeclare it here. A local
+// `function signInWithGitHub(){ signInWithGitHub(); }` shadowed the real one
+// and recursed until the stack blew, so the button silently did nothing.
 function guestLogin(){ window.location.href='/'; }
 
 var lastEmail='', lastPw='', lastUid='';
