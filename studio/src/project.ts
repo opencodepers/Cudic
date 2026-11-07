@@ -15,8 +15,10 @@ import { sceneToFiles } from './npmutil';
 import { kenneyAssets, kenneyUrl, type KenneyAsset } from './kenney';
 import {
   candidateFolders,
+  closestFolder,
   importRepo,
   listConnectedRepos,
+  normalizeSubdir,
   parseRepoInput,
   resolveListing,
   type ConnectedRepo,
@@ -1142,6 +1144,10 @@ async function askSubfolder(r: RepoRef): Promise<string | null> {
   }
   const folders = candidateFolders(files);
   if (folders.length < 2) return folders.length === 1 ? folders[0] : '';
+  const countIn = (dir: string): number => {
+    const pre = dir === '' ? '' : dir + '/';
+    return files.filter((f) => f.path.startsWith(pre)).length;
+  };
   interface FolderPick {
     label: string;
     description?: string;
@@ -1150,27 +1156,45 @@ async function askSubfolder(r: RepoRef): Promise<string | null> {
   const qp = vscode.window.createQuickPick<FolderPick>();
   qp.title = 'Which folder?';
   qp.placeholder =
-    r.owner + '/' + r.repo + ' has ' + folders.length + ' folders with an index.html';
+    r.owner + '/' + r.repo + ' has ' + folders.length + ' folders with an index.html — pick one or type a path';
   qp.items = folders.map((f) => ({
     label: f === '' ? '(repo root)' : f,
-    description: f === '' ? 'index.html at the top level' : '',
+    description: f === '' ? 'index.html at the top level' : countIn(f) + ' file(s)',
     folder: f
   }));
   qp.show();
-  const chosen = await new Promise<FolderPick | null>((resolve) => {
+  // Typing is an answer too: the list filters, so a path that is not in the list
+  // (a folder without an index.html of its own, or one spelled from memory)
+  // used to leave nothing highlighted and Enter did nothing at all.
+  const answer = await new Promise<{ folder?: string; typed?: string } | null>((resolve) => {
     qp.onDidAccept(() => {
       // Enter on the highlighted row is a legal accept. `selectedItems` only
       // fills once a row has been clicked, so reading it alone made Enter look
       // exactly like Esc: the picker closed and the import silently vanished.
       const sel = qp.activeItems[0] ?? qp.selectedItems[0] ?? null;
+      const typed = qp.value.trim();
       qp.hide();
-      resolve(sel);
+      if (sel?.folder != null) resolve({ folder: sel.folder });
+      else resolve(typed === '' ? null : { typed });
     });
     qp.onDidHide(() => resolve(null));
   });
   qp.dispose();
-  if (chosen == null || chosen.folder == null) return null;
-  return chosen.folder;
+  if (answer == null) return null;
+  if (answer.folder != null) return answer.folder;
+  const typed = normalizeSubdir(answer.typed ?? '');
+  if (typed === '') return null;
+  if (files.some((f) => f.path.startsWith(typed + '/'))) return typed;
+  const near = closestFolder(typed, folders);
+  void vscode.window.showWarningMessage(
+    'No folder “' + typed + '” in ' + r.owner + '/' + r.repo +
+    (near != null
+      ? ' — did you mean ' + near + '?'
+      : folders.length > 0
+        ? ' — it has: ' + folders.slice(0, 4).join(', ')
+        : '')
+  );
+  return null;
 }
 
 async function runRepoImport(input: string, replace: boolean): Promise<void> {
@@ -1274,7 +1298,9 @@ async function chooseGitHubSource(): Promise<string | null> {
   qp.show();
   const chosen = await new Promise<RepoPick | null>((resolve) => {
     qp.onDidAccept(() => {
-      const sel = qp.selectedItems[0] ?? null;
+      // Same rule as the folder picker: a highlighted row is a selection even
+      // when no row was ever clicked.
+      const sel = qp.selectedItems[0] ?? qp.activeItems[0] ?? null;
       qp.hide();
       resolve(sel);
     });

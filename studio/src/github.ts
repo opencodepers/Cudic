@@ -278,6 +278,49 @@ export function candidateFolders(files: ListedFile[], cap = 200): string[] {
   return out.slice(0, cap);
 }
 
+/** A folder path as the user may have written it: slash-safe, no edges. */
+export function normalizeSubdir(raw: string): string {
+  return (raw ?? '')
+    .trim()
+    .replace(/["'`]/g, '')
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter((s) => s !== '' && s !== '.' && s !== '..')
+    .join('/');
+}
+
+function normFolder(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+/**
+ * The folder a mistyped path probably meant, or null.
+ *
+ * A game in this repo lives at `seed-games/snake`; copied by hand it becomes
+ * `seedgames/snake`, which matches nothing. The import then found zero files and
+ * said so in a way that blamed lockfiles, so the user had no idea the path was
+ * the problem. Comparing without punctuation or case turns that into
+ * "did you mean seed-games/snake?".
+ */
+export function closestFolder(subdir: string, folders: string[]): string | null {
+  const want = normFolder(subdir);
+  if (want === '') return null;
+  let best: string | null = null;
+  let bestScore = 9;
+  for (const d of folders) {
+    const n = normFolder(d);
+    if (n === '') continue;
+    // Same path ignoring case/punctuation beats a suffix match, which beats a
+    // loose containment — the first match wins so ordering never surprises.
+    const score = n === want ? 0 : n.endsWith(want) || want.endsWith(n) ? 1 : n.includes(want) || want.includes(n) ? 2 : 9;
+    if (score < bestScore) {
+      bestScore = score;
+      best = d;
+    }
+  }
+  return bestScore < 9 ? best : null;
+}
+
 /**
  * The listing behind both the folder picker and the import, so neither repeats
  * the public-then-connected decision. Public first: anonymous, CDN-fast, no
@@ -343,6 +386,8 @@ function rank(path: string): number {
 }
 
 interface Selection {
+  /** Files under the folder at all, before junk and budget filtering. */
+  seen: number;
   picked: ListedFile[];
   skippedJunk: number;
   skippedOversize: number;
@@ -403,7 +448,7 @@ export function selectFiles(files: ListedFile[], subdir: string): Selection {
     total += f.size;
     picked.push(f);
   }
-  return { picked, skippedJunk: junk, skippedOversize: oversize, skippedBudget: budget, skippedTooMany: tooMany };
+  return { seen: rel.length, picked, skippedJunk: junk, skippedOversize: oversize, skippedBudget: budget, skippedTooMany: tooMany };
 }
 
 /** Null/control bytes in the first 8k → binary. Mirrors project.ts' import sniff. */
@@ -456,10 +501,30 @@ export async function importRepo(
   const { listing, connected } = await resolveListing(r);
   // The folder picker decides after the link or the repo was already parsed, so
   // its answer has to win over a subfolder baked into a /tree/ link.
-  const subdir = subdirOverride ?? r.subdir;
+  const subdir = normalizeSubdir(subdirOverride ?? r.subdir);
+  // A folder that is not on this branch is not an empty folder. Saying "nothing
+  // to import (only lockfiles)" for `seedgames/snake` when the repo spells it
+  // `seed-games/snake` sends the user looking in entirely the wrong place.
+  if (subdir !== '' && !listing.files.some((f) => f.path.startsWith(subdir + '/'))) {
+    const folders = candidateFolders(listing.files);
+    const near = closestFolder(subdir, folders);
+    throw new Error(
+      'no folder ' + subdir + ' in ' + r.owner + '/' + r.repo + '@' + listing.ref +
+      (near != null
+        ? ' — did you mean ' + near + '?'
+        : folders.length > 0
+          ? ' — it has: ' + folders.slice(0, 6).join(', ') + (folders.length > 6 ? ', …' : '')
+          : '')
+    );
+  }
   const sel = selectFiles(listing.files, subdir);
   if (sel.picked.length === 0) {
-    throw new Error('nothing to import from that ' + (subdir === '' ? 'repo' : 'folder') + ' (only CI config or lockfiles)');
+    throw new Error(
+      'nothing to import from that ' + (subdir === '' ? 'repo' : 'folder') + ' — ' +
+      (sel.seen === 0
+        ? 'it holds no files'
+        : 'all ' + sel.seen + ' of its files are config, lockfiles, or over the size budget')
+    );
   }
   const files: Record<string, string | Uint8Array> = {};
   const failed: string[] = [];

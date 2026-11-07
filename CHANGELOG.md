@@ -19,6 +19,11 @@ fixed. Commits are referenced by short hash.
 - **Connect GitHub** no longer goes quiet for the accounts most likely to use it. Supabase will not link a GitHub identity that already exists, so a user who signed in with GitHub got an error with no token, no stored row and a card still reading "Not connected". That case now takes the sign-in-with-repo-scope path instead — same GitHub consent screen, nothing to link — and the card repaints to *Connected as …* the moment the token is saved rather than on the next reload.
 - The card also stops lying about three states: a guest is asked to sign in instead of being offered a Connect button that cannot work, a 401 reads as "your session expired" instead of "not connected", and a return from GitHub that arrives without a token says so rather than looking like the click did nothing.
 
+**Opening one game out of a repo**
+
+- The folder picker shows every folder with its own entry page and how many files it holds, and you can type a path as the answer. Typing a name that is not there no longer looks like Esc: the import says which folder it could not find and names the closest real one — `seedgames/snake` now gets "did you mean seed-games/snake?".
+- A folder the branch does not have is reported as a missing folder with the folders that do exist, instead of "only CI config or lockfiles". Enter on a highlighted row now accepts in the repo picker as well as the folder picker.
+
 **Private repos in Studio asked the wrong host**
 
 - Studio is served from the static site, where `/api/*` is a 404, but the connected-repo calls (repo picker, folder tree, file download) used relative paths and so asked the static host for them. The picker therefore failed every time and fell back to the paste box, which only knows public repos — the reason a connected repo could not be opened. They now go through the same `apiBase()` as every other call.
