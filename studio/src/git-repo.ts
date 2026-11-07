@@ -19,6 +19,7 @@ import {
   replaceWorkspace,
   type FileMap
 } from './project';
+import { liveToken } from './api-host';
 import {
   createRepo,
   originUrlOf,
@@ -151,7 +152,7 @@ async function restoreGit(files: Array<{ path: string; base64: string }>): Promi
 
 /** Write the local repository to the server, if there is an account to write to. */
 export async function saveRepo(): Promise<void> {
-  const tok = getToken();
+  const tok = await liveToken();
   const id = projectKey();
   if (tok == null || id === 'draft') return;
   const files = await gitFiles().catch(() => []);
@@ -180,7 +181,7 @@ function scheduleSave(): void {
 
 /** Pull the project's stored repository into this browser. */
 async function loadRepo(): Promise<boolean> {
-  const tok = getToken();
+  const tok = await liveToken();
   const id = projectKey();
   if (tok == null || id === 'draft') return false;
   const base = await apiBase();
@@ -369,7 +370,7 @@ function toBase64(bytes: Uint8Array): string {
 }
 
 async function authed(path: string, body: unknown): Promise<Response> {
-  const tok = getToken();
+  const tok = await liveToken();
   if (tok == null) throw new Error('Sign in first — GitHub writes need your session.');
   const base = await apiBase();
   try {
