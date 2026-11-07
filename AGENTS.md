@@ -1020,6 +1020,12 @@ so a user's own anon-key JWT cannot read it (`migration/github-connections.sql`)
 Sign-in and connection stay separate concepts: OAuth login proves identity,
 connecting grants repo scope, and the UI says so.
 
+The GitHub OAuth app must keep **Expire user access tokens** off. With it on,
+GitHub returns an 8-hour token plus a refresh token; only `provider_token` is
+stored today, so a connection made that way dies overnight. Turning expiry on
+later means sealing `provider_refresh_token` too and refreshing before a repo
+read — do both together, never just the checkbox.
+
 ### Weekly theme + community spotlight
 - `GET /api/weekly` (public): current week's build theme. State lives in
   `weekly.json` next to `server.js` — gitignored, regenerated if missing.
