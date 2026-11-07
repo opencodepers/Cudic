@@ -1270,7 +1270,7 @@ interface RepoPick {
   paste?: boolean;
 }
 
-const PASTE_LABEL = 'Paste a link instead…';
+const PASTE_LABEL = 'Paste a link instead… (any public repo)';
 
 // Connected GitHub turns the paste box into a picker of that account's repos.
 // Private repos only exist here, so this list is the feature, not a shortcut:
