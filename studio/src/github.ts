@@ -215,7 +215,6 @@ interface CudicError {
 
 async function cudicJson<T>(path: string): Promise<T> {
   const res = await fetch((await apiBase()) + path, {
-    credentials: 'include',
     cache: 'no-store',
     headers: headers(false),
   });
@@ -242,7 +241,6 @@ async function fetchConnectedFile(
 ): Promise<Uint8Array> {
   const q = new URLSearchParams({ owner, repo, ref, path });
   const res = await fetch((await apiBase()) + '/api/github/file?' + q.toString(), {
-    credentials: 'include',
     cache: 'no-store',
     headers: headers(false),
   });

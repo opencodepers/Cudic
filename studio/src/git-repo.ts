@@ -248,12 +248,22 @@ function toBase64(bytes: Uint8Array): string {
 async function authed(path: string, body: unknown): Promise<Response> {
   const tok = getToken();
   if (tok == null) throw new Error('Sign in first — GitHub writes need your session.');
-  return fetch((await apiBase()) + path, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
-    body: JSON.stringify(body),
-  });
+  const base = await apiBase();
+  try {
+    // No `credentials`: the API answers Access-Control-Allow-Origin: * and a
+    // browser refuses a credentialed request against that, which surfaced as a
+    // bare "Failed to fetch" while GitHub was never called. Auth is the header.
+    return await fetch(base + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    throw new Error(
+      'could not reach the Cudic API at ' + (base || 'this host') +
+      ' (' + ((e as Error).message || 'network error') + ')'
+    );
+  }
 }
 
 export interface PushResult {

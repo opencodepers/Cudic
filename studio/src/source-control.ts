@@ -177,7 +177,7 @@ async function load(): Promise<void> {
 async function doInit(): Promise<void> {
   if (busy) return;
   busy = true;
-  hint('Initialising repository…');
+  hint('Initialising local repository…');
   const initBtn = q<HTMLButtonElement>('scInitBtn');
   if (initBtn != null) {
     initBtn.disabled = true;
@@ -186,7 +186,7 @@ async function doInit(): Promise<void> {
   paint(view);
   try {
     view = await initRepo();
-    hint('Repository initialised on ' + (view.branch || 'main') + '. Commit to record the first version.');
+    hint('Local repository initialised on ' + (view.branch || 'main') + '. Commit to record the first version, then push it to GitHub.');
   } catch (e) {
     const msg = (e as Error).message || 'unknown error';
     hint('Could not initialise: ' + msg);
@@ -195,7 +195,7 @@ async function doInit(): Promise<void> {
   }
   if (initBtn != null) {
     initBtn.disabled = false;
-    initBtn.textContent = 'Initialise repository';
+    initBtn.textContent = 'Initialise local repository';
   }
   busy = false;
   paint(view);
@@ -441,9 +441,9 @@ function buildPanel(): boolean {
     // into a hidden element, which is why the button looked like it did nothing.
     '<div class="sc-hint" id="scHint"></div>' +
     '<div class="sc-init" id="scInitWrap">' +
-    '<p><strong style="color:var(--ink)">No repository for this project yet.</strong><br/>' +
-    'Initialise one to get real commits, history and branches — stored in this browser, keyed to the project, so a rename keeps it.</p>' +
-    '<button id="scInitBtn">Initialise repository</button>' +
+    '<p><strong style="color:var(--ink)">No local repository yet.</strong><br/>' +
+    'Initialising creates a Git repository inside this browser — real commits, history and branches, keyed to the project so a rename keeps it. It never touches GitHub; that is the last button.</p>' +
+    '<button id="scInitBtn">Initialise local repository</button>' +
     '<button id="scSetRemote">Set GitHub remote…</button>' +
     '<button id="scCreateRepo">Create GitHub repository…</button>' +
     '</div>' +
