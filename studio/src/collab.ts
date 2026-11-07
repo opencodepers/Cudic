@@ -12,6 +12,7 @@ import {
 } from '@codingame/monaco-vscode-api/vscode/vs/platform/actions/common/actions';
 import { collectTextFiles } from './project';
 import { getProjectId } from './project';
+import { mountTab, setTabActive as setActive } from './activity-bar';
 
 let doc: Y.Doc | null = null;
 let provider: WebrtcProvider | null = null;
@@ -234,47 +235,35 @@ function sendChat() {
 // Active state = left accent bar + faint tint (VS Code item style) — never a
 // filled background, that painted a big pale box over the icon.
 function setTabActive(on: boolean): void {
-  if (!tabIcon) return;
-  tabIcon.style.borderLeft = on ? '3px solid #b8f23a' : '3px solid transparent';
-  tabIcon.style.background = on ? 'rgba(184,242,58,.08)' : 'transparent';
-  tabIcon.style.color = on ? '#f7f5ec' : 'var(--vscode-activityBar-foreground,#a6abb2)';
+  setActive(tabIcon, on);
 }
 
+const COLLAB_SVG =
+  '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">' +
+  '<circle cx="9" cy="8" r="3.4"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/>' +
+  '<circle cx="17" cy="9" r="2.6"/><path d="M14.8 19.8c.3-2.9 2.3-4.6 4.9-4.6 1 0 2 .3 2.8.8"/></svg>';
+
 function buildTabIcon(): boolean {
-  if (tabIcon || !sr) return true;
+  if (tabIcon != null || !sr) return true;
   const act = sr.querySelector('.part.activitybar') as HTMLElement | null;
-  if (!act) return false;
-  tabIcon = document.createElement('button');
-  tabIcon.id = 'cudic-collab-tab';
-  tabIcon.title = 'Collab';
-  tabIcon.setAttribute('aria-label', 'Collab');
-  tabIcon.style.cssText =
-    'position:absolute;left:0;bottom:76px;width:48px;height:48px;display:flex;align-items:center;justify-content:center;' +
-    'border:3px solid transparent;outline:none;color:var(--vscode-activityBar-foreground,#a6abb2);cursor:pointer;z-index:60;';
-  tabIcon.innerHTML =
-    '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">' +
-    '<circle cx="9" cy="8" r="3.4"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/>' +
-    '<circle cx="17" cy="9" r="2.6"/><path d="M14.8 19.8c.3-2.9 2.3-4.6 4.9-4.6 1 0 2 .3 2.8.8"/></svg>';
-  tabIcon.addEventListener('click', () => {
-    if (panel) {
-      const show = panel.style.display === 'none';
-      panel.style.display = show ? 'flex' : 'none';
-      setTabActive(show);
-    } else {
-      connectRoom(defaultRoom());
+  if (act == null) return false;
+  // A real action item: the workbench spaces it with the built-in icons, so it
+  // cannot drift into the account/settings cluster the way a hardcoded offset did.
+  tabIcon = mountTab(sr, act, {
+    id: 'cudic-collab-tab',
+    title: 'Collab',
+    svg: COLLAB_SVG,
+    onClick: () => {
+      if (panel) {
+        const show = panel.style.display === 'none';
+        panel.style.display = show ? 'flex' : 'none';
+        setTabActive(show);
+      } else {
+        connectRoom(defaultRoom());
+      }
     }
   });
-  tabIcon.addEventListener('mouseenter', () => {
-    if (panel && panel.style.display !== 'none') return;
-    tabIcon!.style.background = 'rgba(184,242,58,.06)';
-  });
-  tabIcon.addEventListener('mouseleave', () => {
-    if (panel && panel.style.display !== 'none') return;
-    tabIcon!.style.background = 'transparent';
-  });
-  if (getComputedStyle(act).position === 'static') act.style.position = 'relative';
-  act.appendChild(tabIcon);
-  return true;
+  return tabIcon != null;
 }
 
 function buildSidebarPanel(code: string) {

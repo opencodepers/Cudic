@@ -30,6 +30,7 @@ import {
   type CommitInfo,
   type RepoView
 } from './git-repo';
+import { mountTab, setTabActive as setActive } from './activity-bar';
 
 let sr: ShadowRoot | null = null;
 let tabIcon: HTMLButtonElement | null = null;
@@ -506,37 +507,31 @@ function buildPanel(): boolean {
 }
 
 function setTabActive(on: boolean): void {
-  if (tabIcon == null) return;
-  tabIcon.style.borderLeft = on ? '3px solid #b8f23a' : '3px solid transparent';
-  tabIcon.style.background = on ? 'rgba(184,242,58,.08)' : 'transparent';
-  tabIcon.style.color = on ? '#f7f5ec' : 'var(--vscode-activityBar-foreground,#a6abb2)';
+  setActive(tabIcon, on);
 }
+
+const BRANCH_SVG =
+  '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">' +
+  '<circle cx="7" cy="5" r="2.4"/><circle cx="7" cy="19" r="2.4"/><circle cx="17" cy="9" r="2.4"/>' +
+  '<path d="M7 7.4v9.2"/><path d="M17 11.4c0 3.2-3.4 3.6-6.2 4.2"/></svg>';
 
 function buildTabIcon(): boolean {
   if (tabIcon != null || sr == null) return true;
   const act = sr.querySelector('.part.activitybar') as HTMLElement | null;
   if (act == null) return false;
-  tabIcon = document.createElement('button');
-  tabIcon.id = 'cudic-source-control-tab';
-  tabIcon.title = 'Source Control';
-  tabIcon.setAttribute('aria-label', 'Source Control');
-  tabIcon.style.cssText =
-    'position:absolute;left:0;bottom:128px;width:48px;height:48px;display:flex;align-items:center;justify-content:center;' +
-    'border:3px solid transparent;outline:none;color:var(--vscode-activityBar-foreground,#a6abb2);cursor:pointer;z-index:60;';
-  tabIcon.innerHTML =
-    '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">' +
-    '<circle cx="7" cy="5" r="2.4"/><circle cx="7" cy="19" r="2.4"/><circle cx="17" cy="9" r="2.4"/>' +
-    '<path d="M7 7.4v9.2"/><path d="M17 11.4c0 3.2-3.4 3.6-6.2 4.2"/></svg>';
-  tabIcon.addEventListener('click', () => {
-    if (panel != null && panel.style.display !== 'none') {
-      hidePanel();
-      return;
+  tabIcon = mountTab(sr, act, {
+    id: 'cudic-source-control-tab',
+    title: 'Source Control',
+    svg: BRANCH_SVG,
+    onClick: () => {
+      if (panel != null && panel.style.display !== 'none') {
+        hidePanel();
+        return;
+      }
+      void openPanel();
     }
-    void openPanel();
   });
-  if (getComputedStyle(act).position === 'static') act.style.position = 'relative';
-  act.appendChild(tabIcon);
-  return true;
+  return tabIcon != null;
 }
 
 function hidePanel(): void {

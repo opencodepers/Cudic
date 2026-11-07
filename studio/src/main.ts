@@ -315,38 +315,94 @@ try {
   // private mode etc. — non-fatal
 }
 
-// ---- Cudic icon in the title bar (highest bar) ------------------------------
-// Wait for title bar to mount, then prepend the cube + open-Preview click.
-async function mountTitleBarCudicIcon(): Promise<void> {
+// ---- Cudic actions in the title bar -----------------------------------------
+// Save, Preview and Exit were only reachable from the palette or the File menu,
+// and the review said it plainly: the first place anyone looks for them is the
+// top bar. They now sit there in the site's colours, next to the cube.
+function topAction(label: string, title: string, onClick: () => void, primary = false): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = label;
+  b.title = title;
+  b.setAttribute('aria-label', title);
+  const paint = (hover: boolean): void => {
+    b.style.background = primary
+      ? hover
+        ? '#f7f5ec'
+        : '#b8f23a'
+      : hover
+        ? 'rgba(184,242,58,.10)'
+        : 'transparent';
+    b.style.borderColor = primary ? (hover ? '#f7f5ec' : '#b8f23a') : hover ? '#b8f23a' : '#2b2f38';
+    b.style.color = primary ? '#0d0e10' : hover ? '#f7f5ec' : '#dbe4ff';
+  };
+  b.style.cssText =
+    'font:500 11px/1 "Geist Mono",ui-monospace,monospace;text-transform:uppercase;letter-spacing:.06em;' +
+    'padding:0 10px;height:24px;display:inline-flex;align-items:center;cursor:pointer;border-radius:0;' +
+    'border:1px solid #2b2f38;background:transparent;color:#dbe4ff;' +
+    'transition:background .12s steps(2),color .12s steps(2),border-color .12s steps(2);';
+  paint(primary);
+  b.onmouseenter = () => paint(true);
+  b.onmouseleave = () => paint(false);
+  b.onclick = onClick;
+  return b;
+}
+
+async function mountTitleBarActions(): Promise<void> {
   const deadline = Date.now() + 8000;
   while (Date.now() < deadline) {
     const titleBar = shadowRoot.querySelector(
       '[class*="titlebar"], [class*="title-bar"], .part.titlebar'
-    );
+    ) as HTMLElement | null;
     if (titleBar != null) {
-      const btn = document.createElement('button');
-      btn.id = 'glox-title-icon';
-      btn.title = 'Cudic: Open Preview';
-      btn.style.cssText =
+      // The cube: brand mark, and a shortcut into the preview.
+      const icon = document.createElement('button');
+      icon.id = 'glox-title-icon';
+      icon.title = 'Cudic: Open Preview';
+      icon.setAttribute('aria-label', 'Cudic: Open Preview');
+      icon.style.cssText =
         'display:flex;align-items:center;justify-content:center;width:28px;height:24px;' +
         'background:transparent;border:none;cursor:pointer;padding:0;margin-right:6px;flex:0 0 auto;';
       const img = document.createElement('img');
       img.src = new URL('./glox.svg', import.meta.url).toString();
       img.alt = 'Cudic';
       img.style.cssText = 'width:18px;height:18px;display:block;';
-      btn.append(img);
-      btn.onclick = () => {
+      icon.append(img);
+      icon.onclick = () => {
         void vscode.commands.executeCommand('glox.openPreview');
       };
-      // Prefer the left cluster (back/forward) so icon sits at the far left of the top bar.
       const left =
         titleBar.querySelector('[class*="navigation"]') ??
         titleBar.querySelector('[class*="left"]') ??
         titleBar;
-      left.prepend(btn);
+      left.prepend(icon);
+
+      const bar = document.createElement('div');
+      bar.id = 'cudic-top-actions';
+      bar.style.cssText =
+        'display:flex;align-items:center;gap:6px;margin-left:auto;padding:0 10px;flex:0 0 auto;';
+      bar.append(
+        topAction('Preview', 'Run this project in the preview tab', () => {
+          void vscode.commands.executeCommand('glox.openPreview');
+        }),
+        topAction(
+          'Save',
+          'Save this project to Cudic (Ctrl+S)',
+          () => {
+            void vscode.commands.executeCommand('glox.saveProject');
+          },
+          true
+        ),
+        topAction('Exit', 'Leave Studio and go back to your account', () => {
+          window.location.href = '/account';
+        })
+      );
+      const right =
+        titleBar.querySelector('[class*="titlebar-right"], [class*="title-actions"]') ?? titleBar;
+      right.append(bar);
       return;
     }
     await new Promise((r) => setTimeout(r, 200));
   }
 }
-void mountTitleBarCudicIcon();
+void mountTitleBarActions();
