@@ -1381,9 +1381,10 @@
         options: { scopes: 'repo', redirectTo: location.origin + '/profile' }
       });
       if (res && res.error) {
-        note(/manual link/i.test(res.error.message || '')
-          ? 'Linking is turned off in Supabase (Manual linking) — an admin has to enable it.'
-          : (res.error.message || 'GitHub could not be linked.'));
+        var m = res.error.message || '';
+        if (/manual link/i.test(m)) note('Linking is turned off in Supabase (Manual linking) — an admin has to enable it.');
+        else if (/provider is not enabled|unsupported provider|validation_failed/i.test(m)) note('GitHub is not enabled as a provider in Supabase yet, so there is nothing to link to.');
+        else note(m || 'GitHub could not be linked.');
       }
     }
     async function forget(){
