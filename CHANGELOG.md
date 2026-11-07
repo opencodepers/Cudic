@@ -8,6 +8,11 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Source Control**
+
+- **Source Control** in the activity bar (branch icon, above Collab) is the project's change list with a commit box. Files are compared against the newest commit — `U` new, `M` changed, `D` gone — and clicking one opens it. Committed history sits underneath, newest first.
+- A commit is a revision of the saved project: it stores the working files as they are right now, including edits never saved to the project row, and **Restore snapshot** can put any of them back. An unsaved project or a signed-out session gets a sentence naming which one is missing, never a button that quietly does nothing.
+
 **A New menu that opens**
 
 - **New** in the gallery did nothing, and neither did the gallery: the menu is a React island, and the page's own script grabbed its button before the island had rendered, so `newDropBtn.addEventListener` threw on `null` and took the rest of that script with it — the cards stayed on their skeletons and the sort control was never wired either. The handler is delegated from `document` and looks the elements up per click, so mount order cannot break the page again.

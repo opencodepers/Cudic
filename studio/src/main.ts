@@ -27,6 +27,7 @@ import {
 } from './project';
 import { registerRevisionCommands } from './revisions';
 import { registerCollabCommands } from './collab';
+import { registerSourceControl } from './source-control';
 import { registerCudicAi, setSupaToken } from './cudic-ai/extension';
 import { registerCudicMusic } from './cudic-music/extension';
 import * as monaco from 'monaco-editor';
@@ -260,6 +261,8 @@ try {
 registerProjectCommands();
 registerRevisionCommands();
 registerCollabCommands(shadowRoot);
+// Source Control: change list + commit box + history, in the sidebar.
+registerSourceControl(shadowRoot);
 
 // Template-first new projects: a fresh draft (no ?id, no ?template, no saved
 // work in this browser) gets one pick of a starter game. Escaping just keeps
