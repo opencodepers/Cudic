@@ -10,8 +10,9 @@ fixed. Commits are referenced by short hash.
 
 **Source Control**
 
-- **Source Control** in the activity bar (branch icon, above Collab) is the project's change list with a commit box. Files are compared against the newest commit — `U` new, `M` changed, `D` gone — and clicking one opens it. Committed history sits underneath, newest first.
-- A commit is a revision of the saved project: it stores the working files as they are right now, including edits never saved to the project row, and **Restore snapshot** can put any of them back. An unsaved project or a signed-out session gets a sentence naming which one is missing, never a button that quietly does nothing.
+- **Source Control** in the activity bar (branch icon, above Collab) is real Git, not a stand-in for it: `isomorphic-git` writes actual objects and refs, so commits have real SHA-1s and parents, history is the commit graph, branches are refs, and checking one out replaces the workspace files with that commit's tree.
+- Every project gets its own repository, found by project id (or the draft key) and never by title — renaming a project keeps its history. A GitHub import records `origin`, so the panel initialises the repository and points it at the repo it came from the first time it opens; a project with neither a repository nor a source gets an explicit **Initialise repository** button and **Set GitHub remote…**.
+- The panel reports a real status matrix (`U`/`M`/`D`), the current branch (click to switch or create), and `origin`. Pushing to GitHub is still unwired: the repository is real, the network write is the remaining piece.
 
 **A New menu that opens**
 

@@ -1,9 +1,11 @@
-// Source Control: the project's change list and commit history, in the
-// sidebar. A Cudic project is not a git repository, so "commit" means what the
-// revision API means — stage the working files as they are now and record them
-// as a labelled revision of the saved project, which Restore can put back.
-// The Changes list is a diff against the newest revision, the same comparison
-// the Save-snapshot checklist uses, so the two never disagree.
+// Source Control: a real Git repository for the open project.
+//
+// Commits here are actual Git commits — isomorphic-git writes loose objects and
+// refs into `.git` in IndexedDB, so every commit has a real SHA-1, history is
+// the real object graph, branches are real refs and checking one out really
+// moves the files in the workspace. Nothing in this panel is a stand-in for
+// version history, and the repository is found by project key, not by project
+// title, so renaming a project never loses it.
 //
 // Mounted the way Collab is (activity-bar tab + a panel over the sidebar):
 // this stack ships no WebviewViewPane, so a contributed view cannot render.
@@ -14,40 +16,29 @@ import {
   MenuId
 } from '@codingame/monaco-vscode-api/vscode/vs/platform/actions/common/actions';
 import { Parts, setPartVisibility } from '@codingame/monaco-vscode-workbench-service-override';
-import { apiBase, collectTextFiles, getProjectId, getToken, headers } from './project';
-
-interface Revision {
-  id: string;
-  label: string;
-  created_at: string;
-}
-
-interface Change {
-  path: string;
-  status: 'U' | 'M' | 'D';
-}
+import {
+  commitAll,
+  initRepo,
+  newBranch,
+  repoView,
+  setRemote,
+  switchBranch,
+  type CommitInfo,
+  type RepoView
+} from './git-repo';
 
 let sr: ShadowRoot | null = null;
 let tabIcon: HTMLButtonElement | null = null;
 let panel: HTMLElement | null = null;
-let inputEl: HTMLInputElement | null = null;
-let commitEl: HTMLButtonElement | null = null;
-let hintEl: HTMLElement | null = null;
-let changesEl: HTMLElement | null = null;
-let countEl: HTMLElement | null = null;
-let historyEl: HTMLElement | null = null;
+let view: RepoView | null = null;
+let busy = false;
 
 function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c));
 }
 
-function hint(text: string): void {
-  if (hintEl) hintEl.textContent = text;
-}
-
-function ago(iso: string): string {
-  const at = new Date(iso).getTime();
-  if (!isFinite(at)) return '';
+function ago(at: number): string {
+  if (!isFinite(at) || at <= 0) return '';
   const mins = Math.round((Date.now() - at) / 60000);
   if (mins < 1) return 'just now';
   if (mins < 60) return mins + 'm ago';
@@ -55,190 +46,228 @@ function ago(iso: string): string {
   if (hrs < 24) return hrs + 'h ago';
   const days = Math.round(hrs / 24);
   if (days < 30) return days + 'd ago';
-  return new Date(iso).toLocaleDateString();
+  return new Date(at).toLocaleDateString();
 }
 
-// ---- Reading the account's revisions ---------------------------------------
-// Both calls are owner-only and need a signed-in session; any failure means
-// "no history to compare against yet", which the panel says in words rather
-// than showing an empty screen with no explanation.
-
-async function listRevisions(id: string): Promise<Revision[] | null> {
-  const tok = getToken();
-  try {
-    const res = await fetch(
-      (await apiBase()) + '/api/games/' + encodeURIComponent(id) + '/revisions',
-      { headers: headers(!!tok) }
-    );
-    if (!res.ok) return null;
-    const d = (await res.json().catch(() => null)) as { revisions?: Revision[] } | null;
-    return Array.isArray(d?.revisions) ? d!.revisions! : null;
-  } catch {
-    return null;
-  }
+function q<T extends HTMLElement>(id: string): T | null {
+  return (panel?.querySelector('#' + id) as T | null) ?? null;
 }
 
-async function latestFiles(id: string, revId: string): Promise<Record<string, string> | null> {
-  const tok = getToken();
-  try {
-    const res = await fetch(
-      (await apiBase()) + '/api/games/' + encodeURIComponent(id) + '/revisions/' + encodeURIComponent(revId),
-      { headers: headers(!!tok) }
-    );
-    if (!res.ok) return null;
-    const d = (await res.json().catch(() => null)) as { revision?: { files?: Record<string, string> } } | null;
-    const files = d?.revision?.files;
-    return files && typeof files === 'object' && !Array.isArray(files) ? files : null;
-  } catch {
-    return null;
-  }
-}
-
-function diff(current: Record<string, string>, base: Record<string, string> | null): Change[] {
-  const out: Change[] = [];
-  for (const p of Object.keys(current).sort()) {
-    if (base == null || !(p in base)) out.push({ path: p, status: 'U' });
-    else if (base[p] !== current[p]) out.push({ path: p, status: 'M' });
-  }
-  if (base != null) {
-    for (const p of Object.keys(base).sort()) {
-      if (!(p in current)) out.push({ path: p, status: 'D' });
-    }
-  }
-  return out;
-}
-
-function openFile(path: string): void {
-  void vscode.commands.executeCommand('vscode.open', vscode.Uri.file('/workspace/' + path)).then(
-    undefined,
-    () => {
-      /* the file may have been deleted — nothing to open */
-    }
-  );
+function hint(text: string): void {
+  const el = q('scHint');
+  if (el) el.textContent = text;
 }
 
 // ---- Painting ---------------------------------------------------------------
 
-function paintChanges(changes: Change[]): void {
-  if (!changesEl) return;
-  if (countEl) countEl.textContent = changes.length === 0 ? '' : String(changes.length);
-  if (changes.length === 0) {
-    changesEl.innerHTML = '<div class="sc-empty">No changes — this matches your last commit.</div>';
-    return;
-  }
-  changesEl.innerHTML = changes
-    .map(
-      (c) =>
-        '<div class="sc-file" data-path="' + esc(c.path) + '" title="' + esc(c.path) + '">' +
-        '<span class="sc-badge ' + (c.status === 'U' ? 'u' : c.status === 'M' ? 'm' : 'd') + '">' + c.status + '</span>' +
-        '<span class="sc-path">' + esc(c.path) + '</span></div>'
-    )
-    .join('');
-  changesEl.querySelectorAll('.sc-file').forEach((row) => {
-    row.addEventListener('click', () => openFile((row as HTMLElement).dataset.path || ''));
-  });
+function remoteText(v: RepoView | null): string {
+  if (v == null) return '';
+  if (v.source != null) return 'github.com/' + v.source.owner + '/' + v.source.repo;
+  const origin = v.remotes.find((r) => r.remote === 'origin') ?? v.remotes[0];
+  return origin ? origin.url.replace(/^https?:\/\//, '').replace(/\.git$/, '') : '';
 }
 
-function paintHistory(revisions: Revision[] | null): void {
-  if (!historyEl) return;
-  if (revisions == null) {
-    historyEl.innerHTML = '<div class="sc-empty">Sign in to see your commit history.</div>';
+function paintHistory(commits: CommitInfo[]): void {
+  const el = q('scHistory');
+  if (el == null) return;
+  if (commits.length === 0) {
+    el.innerHTML = '<div class="sc-empty">No commits yet — the first commit starts the history.</div>';
     return;
   }
-  if (revisions.length === 0) {
-    historyEl.innerHTML = '<div class="sc-empty">No commits yet — the first one starts the history.</div>';
-    return;
-  }
-  historyEl.innerHTML = revisions
+  el.innerHTML = commits
     .map(
-      (r, i) =>
-        '<div class="sc-rev" title="' + esc(r.label) + '">' +
+      (c, i) =>
+        '<div class="sc-rev" title="' + esc(c.oid) + '">' +
         '<span class="sc-dot' + (i === 0 ? ' head' : '') + '"></span>' +
-        '<div class="sc-rev-tx"><div class="sc-rev-label">' + esc(r.label) + '</div>' +
-        '<div class="sc-rev-meta">' + esc(ago(r.created_at)) + '</div></div></div>'
+        '<div class="sc-rev-tx"><div class="sc-rev-label">' + esc(c.message || '(no message)') + '</div>' +
+        '<div class="sc-rev-meta"><code>' + esc(c.short) + '</code> · ' + esc(ago(c.at)) + '</div></div></div>'
     )
     .join('');
 }
+
+function paint(v: RepoView | null): void {
+  if (panel == null) return;
+  const branchBtn = q<HTMLButtonElement>('scBranch');
+  const remoteEl = q('scRemote');
+  const initWrap = q<HTMLElement>('scInitWrap');
+  const mainWrap = q<HTMLElement>('scMain');
+  const changesEl = q('scChanges');
+  const countEl = q('scCount');
+  const commitBtn = q<HTMLButtonElement>('scCommit');
+
+  const exists = v?.exists === true;
+  if (branchBtn != null) branchBtn.textContent = exists ? '⎇ ' + (v?.branch || 'main') : '⎇ no repository';
+  if (remoteEl != null) remoteEl.textContent = remoteText(v);
+  if (initWrap != null) initWrap.style.display = exists ? 'none' : 'flex';
+  if (mainWrap != null) mainWrap.style.display = exists ? 'flex' : 'none';
+  if (!exists) {
+    paintHistory([]);
+    return;
+  }
+  const changes = v?.changes ?? [];
+  if (countEl != null) {
+    countEl.textContent = changes.length === 0 ? '' : String(changes.length);
+    countEl.style.display = changes.length === 0 ? 'none' : 'inline-block';
+  }
+  if (changesEl != null) {
+    changesEl.innerHTML =
+      changes.length === 0
+        ? '<div class="sc-empty">No changes — the working tree matches HEAD.</div>'
+        : changes
+            .map(
+              (c) =>
+                '<div class="sc-file" data-path="' + esc(c.path) + '" title="' + esc(c.path) + '">' +
+                '<span class="sc-badge ' + (c.status === 'U' ? 'u' : c.status === 'M' ? 'm' : 'd') + '">' + c.status + '</span>' +
+                '<span class="sc-path">' + esc(c.path) + '</span></div>'
+            )
+            .join('');
+    changesEl.querySelectorAll('.sc-file').forEach((row) => {
+      row.addEventListener('click', () => {
+        const path = (row as HTMLElement).dataset.path || '';
+        void vscode.commands
+          .executeCommand('vscode.open', vscode.Uri.file('/workspace/' + path))
+          .then(undefined, () => {});
+      });
+    });
+  }
+  if (commitBtn != null) commitBtn.disabled = busy || changes.length === 0;
+  paintHistory(v?.log ?? []);
+}
+
+// ---- Actions ----------------------------------------------------------------
 
 async function load(): Promise<void> {
-  if (!changesEl || !historyEl) return;
-  const id = getProjectId();
-  if (id == null) {
-    paintChanges([]);
-    paintHistory(null);
-    hint('Save the project first — a commit records a revision of a saved project.');
+  if (panel == null) return;
+  busy = true;
+  paint(view);
+  hint('Reading repository…');
+  try {
+    view = await repoView();
+  } catch (e) {
+    view = null;
+    hint('Could not open the repository: ' + ((e as Error).message || 'unknown error'));
+    busy = false;
+    paint(null);
     return;
   }
-  const revs = await listRevisions(id);
-  paintHistory(revs);
-  if (revs == null) {
-    hint('Could not read the history — sign in, or check your connection.');
-    return;
+  busy = false;
+  paint(view);
+  if (view.exists) {
+    hint(
+      view.changes.length === 0
+        ? 'Working tree clean on ' + (view.branch || 'main') + '.'
+        : '',
+    );
   }
-  const current = await collectTextFiles();
-  const base = revs.length > 0 ? await latestFiles(id, revs[0].id) : null;
-  paintChanges(diff(current, base));
-  hint(
-    getToken() == null
-      ? 'Sign in at /login to commit — history is stored on your account.'
-      : revs.length === 0
-        ? 'The first commit records every file in this project.'
-        : 'Changes are compared with your newest commit.'
-  );
 }
 
-async function commit(): Promise<void> {
-  const id = getProjectId();
-  if (id == null) {
-    hint('Save the project first — a commit records a revision of a saved project.');
+async function doInit(): Promise<void> {
+  busy = true;
+  hint('Initialising repository…');
+  paint(view);
+  try {
+    view = await initRepo();
+    hint('Repository initialised on ' + (view.branch || 'main') + '. Commit to record the first version.');
+  } catch (e) {
+    hint('Could not initialise: ' + ((e as Error).message || 'unknown error'));
+  }
+  busy = false;
+  paint(view);
+}
+
+async function doCommit(): Promise<void> {
+  const input = q<HTMLInputElement>('scMsg');
+  const commitBtn = q<HTMLButtonElement>('scCommit');
+  const typed = (input?.value || '').trim();
+  if (typed === '') {
+    hint('Write a message first — a commit without one is unreadable later.');
+    input?.focus();
     return;
   }
-  const tok = getToken();
-  if (tok == null) {
-    hint('Sign in at /login to commit — history is stored on your account.');
-    return;
-  }
-  const files = await collectTextFiles();
-  if (Object.keys(files).length === 0) {
-    hint('Nothing to commit — this project has no text files.');
-    return;
-  }
-  const typed = (inputEl?.value || '').trim().substring(0, 80);
-  if (commitEl) {
-    commitEl.disabled = true;
-    commitEl.textContent = 'Committing…';
+  busy = true;
+  if (commitBtn != null) {
+    commitBtn.disabled = true;
+    commitBtn.textContent = 'Committing…';
   }
   try {
-    const res = await fetch((await apiBase()) + '/api/games/' + encodeURIComponent(id) + '/revisions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
-      body: JSON.stringify({
-        label: typed === '' ? 'Commit ' + new Date().toLocaleString() : typed,
-        files
-      })
-    });
-    const d = (await res.json().catch(() => null)) as { revision?: Revision; error?: string } | null;
-    if (!res.ok || d?.revision == null) {
-      hint(d?.error || 'Commit failed (' + res.status + ').');
-      return;
-    }
-    if (inputEl) inputEl.value = '';
-    void vscode.window.showInformationMessage('Committed "' + d.revision.label + '".');
-    await load();
+    const info = await commitAll(typed);
+    if (input != null) input.value = '';
+    hint('Committed ' + info.short + '.');
+    view = await repoView();
   } catch (e) {
-    hint('Commit failed: ' + ((e as Error).message || 'network'));
+    hint('Commit failed: ' + ((e as Error).message || 'unknown error'));
   } finally {
-    if (commitEl) {
-      commitEl.disabled = false;
-      commitEl.textContent = 'Commit';
-    }
+    if (commitBtn != null) commitBtn.textContent = 'Commit';
+    busy = false;
   }
+  paint(view);
+}
+
+async function doSetRemote(): Promise<void> {
+  const link = await vscode.window.showInputBox({
+    prompt: 'GitHub repository for this project',
+    placeHolder: 'https://github.com/owner/repo  —  owner/repo',
+    value: remoteText(view)
+  });
+  if (link == null || link.trim() === '') return;
+  try {
+    const url = await setRemote(link);
+    hint('origin → ' + url.replace(/^https?:\/\//, ''));
+    view = await repoView();
+  } catch (e) {
+    hint((e as Error).message || 'Could not set the remote.');
+  }
+  paint(view);
+}
+
+async function doBranchMenu(): Promise<void> {
+  if (view == null || !view.exists) return;
+  const current = view.branch || 'main';
+  const NEW = '$(add) New branch…';
+  const items = [
+    ...view.branches.map((b) => ({
+      label: (b === current ? '$(check) ' : '') + b,
+      description: b === current ? 'current' : '',
+      branch: b
+    })),
+    { label: NEW, description: '', branch: '' }
+  ];
+  const pick = await vscode.window.showQuickPick(items, {
+    title: 'Switch branch',
+    placeHolder: 'Checking out a branch replaces the workspace files with that commit'
+  });
+  if (pick == null) return;
+  if (pick.branch === '') {
+    const name = await vscode.window.showInputBox({
+      prompt: 'New branch name',
+      placeHolder: 'e.g. powerups'
+    });
+    if (name == null || name.trim() === '') return;
+    try {
+      await newBranch(name);
+      view = await repoView();
+      hint('On new branch ' + name.trim() + '.');
+    } catch (e) {
+      hint('Could not create the branch: ' + ((e as Error).message || 'unknown error'));
+    }
+    paint(view);
+    return;
+  }
+  if (pick.branch === current) return;
+  try {
+    await switchBranch(pick.branch);
+    view = await repoView();
+    hint('Checked out ' + pick.branch + ' — workspace files now match that commit.');
+  } catch (e) {
+    hint('Checkout failed: ' + ((e as Error).message || 'unknown error'));
+  }
+  paint(view);
 }
 
 // ---- Mounting ---------------------------------------------------------------
 
 function buildPanel(): boolean {
-  if (!sr) return false;
+  if (sr == null) return false;
   if (panel != null) return true;
   const side = sr.querySelector('.part.sidebar') as HTMLElement | null;
   if (side == null) return false;
@@ -253,12 +282,12 @@ function buildPanel(): boolean {
     'font:400 13px/1.5 "Geist",system-ui,sans-serif;color:var(--ink);background:var(--panel);';
   panel.innerHTML =
     '<style>' +
-    '#cudic-source-control .sc-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}' +
+    '#cudic-source-control .sc-head{display:flex;align-items:center;gap:6px;padding:10px 12px;border-bottom:1px solid var(--line)}' +
     '#cudic-source-control .sc-sec{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);' +
     'font-family:' + MONO + ';font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--mute)}' +
     '#cudic-source-control .sc-count{font-family:' + MONO + ';font-size:10px;color:#0d0e10;background:var(--lime);padding:0 6px;' +
     'line-height:16px;display:none}' +
-    '#cudic-source-control .sc-body{flex:1;overflow-y:auto}' +
+    '#cudic-source-control .sc-body{flex:1;overflow-y:auto;display:flex;flex-direction:column}' +
     '#cudic-source-control .sc-file{display:flex;align-items:center;gap:8px;padding:5px 12px;cursor:pointer}' +
     '#cudic-source-control .sc-file:hover{background:rgba(247,245,236,.05)}' +
     '#cudic-source-control .sc-badge{font-family:' + MONO + ';font-size:10px;font-weight:600;width:14px;text-align:center;flex:none}' +
@@ -273,8 +302,8 @@ function buildPanel(): boolean {
     '#cudic-source-control #scCommit{margin-top:8px;width:100%;padding:7px 10px;background:var(--lime);color:#0d0e10;border:1px solid var(--lime);' +
     'font-family:' + MONO + ';font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;cursor:pointer}' +
     '#cudic-source-control #scCommit:hover:not(:disabled){background:var(--ink);border-color:var(--ink)}' +
-    '#cudic-source-control #scCommit:disabled{opacity:.6;cursor:default}' +
-    '#cudic-source-control .sc-hint{padding:8px 12px;font-size:11px;color:var(--mute);border-bottom:1px solid var(--line)}' +
+    '#cudic-source-control #scCommit:disabled{opacity:.45;cursor:default}' +
+    '#cudic-source-control .sc-hint{padding:8px 12px;font-size:11px;color:var(--mute);border-bottom:1px solid var(--line);min-height:16px}' +
     '#cudic-source-control .sc-rev{display:flex;gap:8px;padding:7px 12px;position:relative}' +
     '#cudic-source-control .sc-rev:before{content:"";position:absolute;left:17px;top:0;bottom:0;width:1px;background:var(--line)}' +
     '#cudic-source-control .sc-dot{width:7px;height:7px;border-radius:50%;background:var(--panel);border:1px solid var(--mute);' +
@@ -283,41 +312,65 @@ function buildPanel(): boolean {
     '#cudic-source-control .sc-rev-tx{min-width:0}' +
     '#cudic-source-control .sc-rev-label{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
     '#cudic-source-control .sc-rev-meta{font-family:' + MONO + ';font-size:10px;color:var(--mute)}' +
+    '#cudic-source-control .sc-rev-meta code{color:var(--mute)}' +
+    '#cudic-source-control .sc-init{padding:14px 12px;display:none;flex-direction:column;gap:10px}' +
+    '#cudic-source-control .sc-init p{margin:0;font-size:12px;color:var(--mute);line-height:1.55}' +
+    '#cudic-source-control #scInitBtn,#cudic-source-control #scSetRemote{font-family:' + MONO + ';font-size:11px;' +
+    'text-transform:uppercase;letter-spacing:.06em;cursor:pointer;padding:6px 10px}' +
+    '#cudic-source-control #scInitBtn{background:var(--lime);color:#0d0e10;border:1px solid var(--lime)}' +
+    '#cudic-source-control #scInitBtn:hover{background:var(--ink);border-color:var(--ink)}' +
+    '#cudic-source-control #scSetRemote{background:transparent;color:var(--ink);border:1px solid var(--line)}' +
+    '#cudic-source-control #scSetRemote:hover{border-color:var(--ink)}' +
+    '#cudic-source-control #scBranch{background:transparent;border:1px solid var(--line);color:var(--ink);cursor:pointer;' +
+    'font-family:' + MONO + ';font-size:11px;padding:2px 8px;max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '#cudic-source-control #scBranch:hover{border-color:var(--ink)}' +
+    '#cudic-source-control .sc-icon{background:transparent;border:none;color:inherit;opacity:.7;cursor:pointer;font-size:14px}' +
     '</style>' +
     '<div class="sc-head">' +
-    '<b style="font-weight:500;letter-spacing:-.02em;font-size:14px;flex:1">Source Control</b>' +
-    '<button id="scRefresh" title="Refresh" style="background:transparent;border:none;color:inherit;opacity:.7;cursor:pointer;font-size:14px">⟳</button>' +
-    '<button id="scHide" title="Hide" style="background:transparent;border:none;color:inherit;opacity:.7;cursor:pointer;font-size:15px">×</button>' +
+    '<b style="font-weight:500;letter-spacing:-.02em;font-size:14px">Source Control</b>' +
+    '<span style="flex:1"></span>' +
+    '<button id="scBranch" title="Switch branch">⎇ —</button>' +
+    '<button id="scRefresh" class="sc-icon" title="Refresh">⟳</button>' +
+    '<button id="scHide" class="sc-icon" title="Hide" style="font-size:15px">×</button>' +
     '</div>' +
+    '<div class="sc-hint" id="scRemote" style="font-family:' + MONO + ';font-size:10px" title="origin"></div>' +
+    '<div class="sc-init" id="scInitWrap">' +
+    '<p><strong style="color:var(--ink)">No repository for this project yet.</strong><br/>' +
+    'Initialise one to get real commits, history and branches — stored in this browser, keyed to the project, so a rename keeps it.</p>' +
+    '<button id="scInitBtn">Initialise repository</button>' +
+    '<button id="scSetRemote">Set GitHub remote…</button>' +
+    '</div>' +
+    '<div id="scMain" style="display:none;flex-direction:column;flex:1;min-height:0">' +
     '<div class="sc-commit">' +
-    '<input id="scMsg" placeholder="Message (what changed)" maxlength="80"/>' +
-    '<button id="scCommit">Commit</button>' +
+    '<input id="scMsg" placeholder="Commit message" maxlength="120"/>' +
+    '<button id="scCommit" disabled>Commit</button>' +
     '</div>' +
     '<div class="sc-hint" id="scHint"></div>' +
     '<div class="sc-body">' +
-    '<div class="sc-sec">Changes <span class="sc-count" id="scCount"></span></div>' +
+    '<div class="sc-sec">Changes <span class="sc-count" id="scCount"></span><span style="flex:1"></span>' +
+    '<button id="scSetRemote2" class="sc-icon" title="Set GitHub remote" style="font-size:11px">remote</button></div>' +
     '<div id="scChanges"></div>' +
     '<div class="sc-sec" style="border-top:1px solid var(--line)">History</div>' +
     '<div id="scHistory"></div>' +
+    '</div>' +
     '</div>';
 
   side.appendChild(panel);
-  inputEl = panel.querySelector('#scMsg') as HTMLInputElement;
-  commitEl = panel.querySelector('#scCommit') as HTMLButtonElement;
-  hintEl = panel.querySelector('#scHint') as HTMLElement;
-  changesEl = panel.querySelector('#scChanges') as HTMLElement;
-  countEl = panel.querySelector('#scCount') as HTMLElement;
-  historyEl = panel.querySelector('#scHistory') as HTMLElement;
-
-  commitEl.addEventListener('click', () => void commit());
-  inputEl.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
+  (panel.querySelector('#scCommit') as HTMLButtonElement).addEventListener('click', () => void doCommit());
+  (panel.querySelector('#scMsg') as HTMLInputElement).addEventListener('keydown', (e) => {
+    if ((e as KeyboardEvent).key === 'Enter') {
       e.preventDefault();
-      void commit();
+      void doCommit();
     }
   });
+  (panel.querySelector('#scInitBtn') as HTMLButtonElement).addEventListener('click', () => void doInit());
   (panel.querySelector('#scRefresh') as HTMLButtonElement).addEventListener('click', () => void load());
   (panel.querySelector('#scHide') as HTMLButtonElement).addEventListener('click', hidePanel);
+  (panel.querySelector('#scBranch') as HTMLButtonElement).addEventListener('click', () => void doBranchMenu());
+  const setRemoteBtn = panel.querySelector('#scSetRemote');
+  if (setRemoteBtn) setRemoteBtn.addEventListener('click', () => void doSetRemote());
+  const setRemoteBtn2 = panel.querySelector('#scSetRemote2');
+  if (setRemoteBtn2) setRemoteBtn2.addEventListener('click', () => void doSetRemote());
   return true;
 }
 

@@ -339,6 +339,13 @@ export function setProjectTitle(title: string): void {
   projectTitle = title;
 }
 
+// Replace the whole workspace, e.g. when a Git branch is checked out. The
+// revision API works on the saved copy, so this is the only way a checkout can
+// move the files the user actually sees.
+export async function replaceWorkspace(files: FileMap): Promise<void> {
+  registerFiles(files);
+}
+
 export function applyProjectToProvider(
   p: RegisteredFileSystemProvider,
   boot: BootProject
@@ -1225,6 +1232,10 @@ async function runRepoImport(input: string, replace: boolean): Promise<void> {
     const existing = replace ? {} : await collectFiles();
     registerFiles({ ...existing, ...d.files });
     if (getProjectTitle() === 'Untitled Project') setProjectTitle(d.repo);
+    // Remember where this project came from: Source Control sets `origin` from
+    // it and initialises a real repository for the import. Dynamic import keeps
+    // git-repo out of project.ts' static graph (git-repo already imports this).
+    void import('./git-repo').then((m) => m.rememberSource({ owner: d.owner, repo: d.repo, ref: d.ref, subdir }));
     const first = d.files['index.html'] != null ? 'index.html' : Object.keys(d.files)[0];
     if (first != null) {
       void vscode.commands.executeCommand('vscode.open', monaco.Uri.file('/workspace/' + first));
