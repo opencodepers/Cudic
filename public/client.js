@@ -506,12 +506,13 @@ async function fetchPeer() {
   paintTicks();
 }
 function paintTicks() {
-  if (!peerReadAt) return;
-  const pr = Date.parse(peerReadAt);
-  if (!pr) return;
+  const pr = peerReadAt ? Date.parse(peerReadAt) : 0;
   messagesEl.querySelectorAll('.ticks[data-ts]').forEach(function (el) {
     const t = Date.parse(el.getAttribute('data-ts'));
-    if (t && t <= pr) { el.classList.add('seen'); }
+    const seen = !!(pr && t && t <= pr);
+    el.innerHTML = seen ? TICK_SVG_SEEN : TICK_SVG;
+    el.classList.toggle('seen', seen);
+    el.title = seen ? 'Read' : 'Sent';
   });
 }
 
@@ -814,7 +815,9 @@ document.getElementById('rulesOverlayAccept').addEventListener('click', async ()
 // ── Render functions ─────────────────────────────────────────────
 // Crisp double-tick and pin as inline SVG. The old check was a font glyph, so
 // it rendered differently in every font stack and looked blurry when small.
-var TICK_SVG = '<svg viewBox="0 0 20 12" aria-hidden="true" focusable="false"><path d="M1.4 6.4 5.2 10.2 12.1 1.7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 6.4 10.8 10.2 18.6 1.7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+// One check = sent. Two checks = the peer's read receipt has passed it.
+var TICK_SVG = '<svg viewBox="0 0 13 12" aria-hidden="true" focusable="false"><path d="M1.4 6.4 5.2 10.2 12.1 1.7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+var TICK_SVG_SEEN = '<svg viewBox="0 0 20 12" aria-hidden="true" focusable="false"><path d="M1.4 6.4 5.2 10.2 12.1 1.7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 6.4 10.8 10.2 18.6 1.7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 function pinIcon(active) {
   return '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M9.6 1.6 14.4 6.4 12.5 7.1 9.8 9.8 9.2 12.8 3.2 6.8 6.2 6.2 8.9 3.5z" fill="' + (active ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>';
 }
@@ -839,7 +842,7 @@ function addChatMessage(author, text, time, avatar, userId, ts, mid, cid, pinned
     + '<div class="msg-main"><span class="author" style="color:' + nameColor(author) + '">' + escapeHtml(author) + '</span>'
     + '<span class="time">' + time + '</span>'
     + '<div class="msg-text">' + renderMsgText(text) + '</div>'
-    + (mine ? '<span class="ticks" data-ts="' + escapeHtml(ts || '') + '">' + TICK_SVG + '</span>' : '')
+    + (mine ? '<span class="ticks" data-ts="' + escapeHtml(ts || '') + '" title="Sent">' + TICK_SVG + '</span>' : '')
     + '</div><div class="msg-actions"></div>';
   messagesEl.appendChild(div);
   if (!mine && mid) armFlag(div, mid, userId);  if (mid) { div.dataset.mid = mid; armActions(div, mid, userId); }
