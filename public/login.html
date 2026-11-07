@@ -138,6 +138,18 @@ function setTab(k){
   document.getElementById('msgIn').textContent=''; document.getElementById('msgUp').textContent='';
 }
 function showToast(s){var t=document.getElementById('t');t.textContent=s;t.classList.add('on');setTimeout(function(){t.classList.remove('on');},2200);}
+// Where to land after signing in. Profile → Connections sends guests here with
+// ?next=/profile%23sec-connections, so the card they came for is the card they
+// get. Only same-site paths are honoured: '//evil.com' and '/\\evil.com' are
+// absolute URLs to a browser, so both are rejected rather than followed.
+function afterLogin(){
+  var next='/chat';
+  try{
+    var n=new URLSearchParams(location.search).get('next');
+    if(n&&n.charAt(0)==='/'&&n.charAt(1)!=='/'&&n.charAt(1)!=='\\') next=n;
+  }catch(e){}
+  return next;
+}
 async function doSignIn(e){
   e.preventDefault();
   var email=document.getElementById('em').value.trim();
@@ -151,7 +163,7 @@ async function doSignIn(e){
        ('s'+Date.now().toString(36)+Math.random().toString(36).slice(2,10)));}catch(x){}
       await claimSeat();
     }
-    window.location.href='/chat';
+    window.location.href=afterLogin();
   }catch(err){document.getElementById('msgIn').textContent = err&&err.message ? err.message : 'Invalid login credentials.';}
 }
 async function doSignUp(e){
@@ -193,7 +205,7 @@ async function verifyCode(){
     try{
       var res=await fetch((typeof WS_URL!=='undefined'&&WS_URL?WS_URL.replace(/^wss?:\/\//,'https://'):'')+'/auth/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:lastEmail,code:c,userId:lastUid})});
       var d=null; try{d=await res.json();}catch(e){}
-      if(res.ok){try{await signInWithEmail(lastEmail,lastPw);}catch(e){};window.location.href='/chat';return;}
+      if(res.ok){try{await signInWithEmail(lastEmail,lastPw);}catch(e){};window.location.href=afterLogin();return;}
       if(attempt<2){await new Promise(r=>setTimeout(r,800));continue;}
       document.getElementById('codeSub').textContent = (d&&d.error)?d.error:'Invalid code — try again.';
     }catch(e){if(attempt>=2){document.getElementById('codeSub').textContent='Error verifying.';}}
@@ -207,7 +219,7 @@ async function sendReset(){
 window.addEventListener('load',function(){
   handleAuthCallback();
   // If already signed in, go to chat (avoids loop from stale deleted-account session)
-  getSession().then(function(s){if(s&&s.access_token){window.location.href='/chat';}}).catch(function(){});
+  getSession().then(function(s){if(s&&s.access_token){window.location.href=afterLogin();}}).catch(function(){});
 });
 </script>
 </body>
