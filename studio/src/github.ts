@@ -244,6 +244,51 @@ async function fetchConnectedFile(
   return new Uint8Array(await res.arrayBuffer());
 }
 
+/**
+ * Every folder that holds its own entry page, root included as ''.
+ *
+ * A monorepo is not one project: `selectFiles` picks the shallowest index.html
+ * when no subfolder is given, which silently imports one arbitrary demo out of
+ * five. This list is what the folder picker shows instead. Junk directories are
+ * skipped here too — a `node_modules/foo/index.html` is not a choice.
+ */
+export function candidateFolders(files: ListedFile[], cap = 200): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const f of files) {
+    const parts = f.path.split('/');
+    if (parts.some((p) => SKIP_DIRS.has(p))) continue;
+    if (!/^index\.html?$/i.test(parts[parts.length - 1])) continue;
+    const dir = parts.slice(0, -1).join('/');
+    if (seen.has(dir)) continue;
+    seen.add(dir);
+    out.push(dir);
+  }
+  const depth = (d: string): number => (d === '' ? 0 : d.split('/').length);
+  out.sort((a, b) => depth(a) - depth(b) || a.localeCompare(b));
+  return out.slice(0, cap);
+}
+
+/**
+ * The listing behind both the folder picker and the import, so neither repeats
+ * the public-then-connected decision. Public first: anonymous, CDN-fast, no
+ * authenticated request at all. Everything jsDelivr cannot serve — private, or
+ * over its 50MB cap — goes through the server with the connected account's token.
+ */
+export async function resolveListing(r: RepoRef): Promise<{ listing: RepoListing; connected: boolean }> {
+  try {
+    return { listing: await listRepo(r), connected: false };
+  } catch (publicErr) {
+    try {
+      return { listing: await listConnectedRepo(r), connected: true };
+    } catch (e) {
+      const msg = String((e as Error)?.message ?? '');
+      // Not signed in, or GitHub not connected: the public error is the honest one.
+      throw new Error(/sign in|connect github|reconnect/i.test(msg) ? String((publicErr as Error)?.message ?? msg) : msg);
+    }
+  }
+}
+
 export interface ConnectedRepo {
   full_name: string;
   owner: string;
@@ -394,30 +439,18 @@ async function mapLimit<T>(
 
 export async function importRepo(
   input: string,
-  progress?: (done: number, total: number) => void
+  progress?: (done: number, total: number) => void,
+  subdirOverride?: string
 ): Promise<RepoImport> {
   const r = parseRepoInput(input);
   if (r == null) throw new Error('that is not a GitHub repo link or owner/repo');
-  let listing: RepoListing;
-  let connected = false;
-  try {
-    // Public first: anonymous, CDN-fast, and no authenticated request at all.
-    listing = await listRepo(r);
-  } catch (publicErr) {
-    // Everything jsDelivr cannot serve — private, or over its 50MB cap — goes
-    // through the server with the connected account's token.
-    try {
-      listing = await listConnectedRepo(r);
-      connected = true;
-    } catch (e) {
-      const msg = String((e as Error)?.message ?? '');
-      // Not signed in, or GitHub not connected: the public error is the honest one.
-      throw new Error(/sign in|connect github|reconnect/i.test(msg) ? String((publicErr as Error)?.message ?? msg) : msg);
-    }
-  }
-  const sel = selectFiles(listing.files, r.subdir);
+  const { listing, connected } = await resolveListing(r);
+  // The folder picker decides after the link or the repo was already parsed, so
+  // its answer has to win over a subfolder baked into a /tree/ link.
+  const subdir = subdirOverride ?? r.subdir;
+  const sel = selectFiles(listing.files, subdir);
   if (sel.picked.length === 0) {
-    throw new Error('nothing to import from that ' + (r.subdir === '' ? 'repo' : 'folder') + ' (only CI config or lockfiles)');
+    throw new Error('nothing to import from that ' + (subdir === '' ? 'repo' : 'folder') + ' (only CI config or lockfiles)');
   }
   const files: Record<string, string | Uint8Array> = {};
   const failed: string[] = [];
@@ -426,7 +459,7 @@ export async function importRepo(
     6,
     async (f) => {
       try {
-        const full = (r.subdir === '' ? '' : r.subdir + '/') + f.path;
+        const full = (subdir === '' ? '' : subdir + '/') + f.path;
         const buf = connected
           ? await fetchConnectedFile(r.owner, r.repo, listing.ref, full)
           : await fetchFile(r.owner, r.repo, listing.ref, full);

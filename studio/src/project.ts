@@ -13,7 +13,15 @@ import {
 import JSZip from 'jszip';
 import { sceneToFiles } from './npmutil';
 import { kenneyAssets, kenneyUrl, type KenneyAsset } from './kenney';
-import { importRepo, listConnectedRepos, parseRepoInput, type ConnectedRepo } from './github';
+import {
+  candidateFolders,
+  importRepo,
+  listConnectedRepos,
+  parseRepoInput,
+  resolveListing,
+  type ConnectedRepo,
+  type RepoRef
+} from './github';
 
 const DEMO: Record<string, string> = {
   'index.html':
@@ -1156,6 +1164,51 @@ async function exportProject(): Promise<void> {
 // Public repo → workspace snapshot. No token: github.ts explains why the
 // listing comes from jsDelivr. `replace` is for the /studio?github= deep link,
 // where the demo shell would otherwise survive next to the repo's index.html.
+// A repo with five games in it is not one project. Ask which folder to open when
+// more than one holds an entry page; a /tree/ link that already names a subfolder
+// is an answer, so never ask again. '' is a real answer (the repo root), null is
+// the user pressing Esc, and a listing that fails is left to importRepo, which
+// words the error better than a picker could.
+async function askSubfolder(r: RepoRef): Promise<string | null> {
+  let files: Awaited<ReturnType<typeof resolveListing>>['listing']['files'] = [];
+  try {
+    files = await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: 'Reading ' + r.owner + '/' + r.repo + '…' },
+      async () => (await resolveListing(r)).listing.files
+    );
+  } catch {
+    return '';
+  }
+  const folders = candidateFolders(files);
+  if (folders.length < 2) return folders.length === 1 ? folders[0] : '';
+  interface FolderPick {
+    label: string;
+    description?: string;
+    folder?: string;
+  }
+  const qp = vscode.window.createQuickPick<FolderPick>();
+  qp.title = 'Which folder?';
+  qp.placeholder =
+    r.owner + '/' + r.repo + ' has ' + folders.length + ' folders with an index.html';
+  qp.items = folders.map((f) => ({
+    label: f === '' ? '(repo root)' : f,
+    description: f === '' ? 'index.html at the top level' : '',
+    folder: f
+  }));
+  qp.show();
+  const chosen = await new Promise<FolderPick | null>((resolve) => {
+    qp.onDidAccept(() => {
+      const sel = qp.selectedItems[0] ?? null;
+      qp.hide();
+      resolve(sel);
+    });
+    qp.onDidHide(() => resolve(null));
+  });
+  qp.dispose();
+  if (chosen == null || chosen.folder == null) return null;
+  return chosen.folder;
+}
+
 async function runRepoImport(input: string, replace: boolean): Promise<void> {
   if (provider == null) {
     vscode.window.showErrorMessage('GitHub import needs a ready workspace, reload Studio.');
@@ -1167,6 +1220,9 @@ async function runRepoImport(input: string, replace: boolean): Promise<void> {
     return;
   }
   try {
+    // Nothing picked, nothing imported: Esc must not fall through to a guess.
+    const subdir = ref.subdir === '' ? await askSubfolder(ref) : ref.subdir;
+    if (subdir == null) return;
     const d = await vscode.window.withProgress(
       { location: vscode.ProgressLocation.Notification, title: 'Opening ' + ref.owner + '/' + ref.repo + '…' },
       async (progress) => {
@@ -1175,7 +1231,7 @@ async function runRepoImport(input: string, replace: boolean): Promise<void> {
           const pct = Math.round((done / total) * 100);
           progress.report({ message: done + '/' + total + ' files', increment: pct - last });
           last = pct;
-        });
+        }, subdir);
       }
     );
     const existing = replace ? {} : await collectFiles();
