@@ -1178,6 +1178,188 @@ async function handleRequest(req, res) {
     return;
   }
 
+  // POST — anything with a body needs a method GitHub accepts, and ghApi is
+  // GET-only on purpose so a read path can never write by accident.
+  function ghSend(path, token, method, payload) {
+    return fetch('https://api.github.com' + path, {
+      method,
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'cudic',
+      },
+      body: payload === undefined ? undefined : JSON.stringify(payload),
+    });
+  }
+
+  // POST /api/github/repos — create a repository on the connected account.
+  // Studio's Source Control needs a remote before it can push; this is that
+  // step, on the user's own account, with the user's own token.
+  if (url.pathname === '/api/github/repos' && req.method === 'POST') {
+    const got = await ghGate(req, res, 'repo-create', 10); if (!got) return;
+    const body = await readBody(req, 16 * 1024).catch(() => ({}));
+    const name = String(body.name || '').trim();
+    if (!/^[A-Za-z0-9._-]{1,100}$/.test(name)) {
+      return ghFail(res, 400, 'bad_name', 'Repository names use letters, digits, dot, dash or underscore.');
+    }
+    let r;
+    try {
+      r = await ghSend('/user/repos', got.token, 'POST', {
+        name,
+        description: String(body.description || '').slice(0, 200),
+        private: body.private === true,
+        auto_init: false,
+      });
+    } catch (e) {
+      return ghFail(res, 502, 'github_unreachable', 'Could not reach GitHub. Try again.');
+    }
+    if (r.status === 401) return ghFail(res, 401, 'github_reconnect');
+    if (r.status === 403) return ghFail(res, 429, 'github_rate_limited');
+    if (r.status === 422) return ghFail(res, 409, 'repo_exists', 'A repository with that name already exists on your account.');
+    if (!r.ok) return ghFail(res, 502, 'github_error', 'GitHub answered ' + r.status + '.');
+    const j = await r.json().catch(() => null);
+    res.writeHead(201, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      repo: {
+        full_name: String((j && j.full_name) || ''),
+        owner: String((j && j.owner && j.owner.login) || ''),
+        name: String((j && j.name) || ''),
+        default_branch: String((j && j.default_branch) || 'main'),
+        html_url: String((j && j.html_url) || ''),
+        private: !!(j && j.private),
+      },
+    }));
+    return;
+  }
+
+  // POST /api/github/push — write the project's files as a real commit on a
+  // real branch: blobs, a tree, a commit with the branch tip as its parent, then
+  // the ref. Fast-forward only: if the branch moved since the client last read
+  // it, the push is refused instead of overwriting someone else's commit.
+  if (url.pathname === '/api/github/push' && req.method === 'POST') {
+    const got = await ghGate(req, res, 'push', 30); if (!got) return;
+    const body = await readBody(req, 24 * 1024 * 1024).catch(() => ({}));
+    const owner = String(body.owner || '').replace(/[^A-Za-z0-9._-]/g, '');
+    const repoName = String(body.repo || '').replace(/[^A-Za-z0-9._-]/g, '');
+    const branch = String(body.branch || 'main').replace(/[^A-Za-z0-9._/-]/g, '');
+    const message = String(body.message || '').trim().slice(0, 2000) || 'Push from Cudic';
+    if (!owner || !repoName) return ghFail(res, 400, 'bad_repo', 'Which repository should this push to?');
+    if (!branch || branch.includes('..') || branch.startsWith('/')) {
+      return ghFail(res, 400, 'bad_branch', 'That branch name is not usable.');
+    }
+    const entries = Array.isArray(body.files) ? body.files.slice(0, 500) : [];
+    const usable = entries.filter((e) => {
+      const p = String(e && e.path || '');
+      return GH_PATH.test(p) && !p.includes('..') && typeof e.base64 === 'string' && e.base64 !== '';
+    });
+    if (usable.length === 0) return ghFail(res, 400, 'empty', 'Nothing to push — the project has no files.');
+
+    const base = '/repos/' + owner + '/' + repoName;
+    const guard = (r, what) => {
+      if (r.status === 401) { ghFail(res, 401, 'github_reconnect'); return false; }
+      if (r.status === 403) { ghFail(res, 429, 'github_rate_limited'); return false; }
+      if (r.status === 404) { ghFail(res, 404, 'repo_missing', 'GitHub could not find ' + owner + '/' + repoName + '.'); return false; }
+      if (!r.ok) { ghFail(res, 502, 'github_error', 'GitHub answered ' + r.status + ' while ' + what + '.'); return false; }
+      return true;
+    };
+
+    let parentSha = null;
+    let parentTree = null;
+    let refRes;
+    try {
+      refRes = await ghApi(base + '/git/ref/heads/' + branch, got.token);
+    } catch (e) {
+      return ghFail(res, 502, 'github_unreachable', 'Could not reach GitHub. Try again.');
+    }
+    if (refRes.status === 200) {
+      const rj = await refRes.json().catch(() => null);
+      parentSha = String((rj && rj.object && rj.object.sha) || '') || null;
+    } else if (refRes.status !== 404) {
+      if (!guard(refRes, 'reading the branch')) return;
+    }
+    if (parentSha) {
+      const cRes = await ghApi(base + '/git/commits/' + parentSha, got.token).catch(() => null);
+      if (cRes && cRes.ok) {
+        const cj = await cRes.json().catch(() => null);
+        parentTree = String((cj && cj.tree && cj.tree.sha) || '') || null;
+      }
+    }
+
+    const treeEntries = [];
+    for (const e of usable) {
+      let bRes;
+      try {
+        bRes = await ghSend(base + '/git/blobs', got.token, 'POST', {
+          content: e.base64,
+          encoding: 'base64',
+        });
+      } catch (err) {
+        return ghFail(res, 502, 'github_unreachable', 'Could not reach GitHub. Try again.');
+      }
+      if (!guard(bRes, 'uploading ' + e.path)) return;
+      const bj = await bRes.json().catch(() => null);
+      const sha = String((bj && bj.sha) || '');
+      if (!sha) return ghFail(res, 502, 'github_error', 'GitHub returned no blob for ' + e.path + '.');
+      treeEntries.push({ path: String(e.path), mode: '100644', type: 'blob', sha });
+    }
+
+    // base_tree keeps files this project does not carry (an imported subfolder
+    // must never wipe the rest of the repository). Deleting on push is a
+    // separate decision, and not one this route makes silently.
+    const treePayload = { tree: treeEntries };
+    if (parentTree) treePayload.base_tree = parentTree;
+    let tRes;
+    try {
+      tRes = await ghSend(base + '/git/trees', got.token, 'POST', treePayload);
+    } catch (err) {
+      return ghFail(res, 502, 'github_unreachable', 'Could not reach GitHub. Try again.');
+    }
+    if (!guard(tRes, 'building the tree')) return;
+    const tj = await tRes.json().catch(() => null);
+    const treeSha = String((tj && tj.sha) || '');
+    if (!treeSha) return ghFail(res, 502, 'github_error', 'GitHub returned no tree.');
+
+    let commitRes;
+    try {
+      commitRes = await ghSend(base + '/git/commits', got.token, 'POST', {
+        message,
+        tree: treeSha,
+        parents: parentSha ? [parentSha] : [],
+      });
+    } catch (err) {
+      return ghFail(res, 502, 'github_unreachable', 'Could not reach GitHub. Try again.');
+    }
+    if (!guard(commitRes, 'creating the commit')) return;
+    const cj = await commitRes.json().catch(() => null);
+    const commitSha = String((cj && cj.sha) || '');
+    if (!commitSha) return ghFail(res, 502, 'github_error', 'GitHub returned no commit.');
+
+    let refWrite;
+    try {
+      refWrite = parentSha
+        ? await ghSend(base + '/git/refs/heads/' + branch, got.token, 'PATCH', { sha: commitSha, force: false })
+        : await ghSend(base + '/git/refs', got.token, 'POST', { ref: 'refs/heads/' + branch, sha: commitSha });
+    } catch (err) {
+      return ghFail(res, 502, 'github_unreachable', 'Could not reach GitHub. Try again.');
+    }
+    if (refWrite.status === 422) {
+      return ghFail(res, 409, 'remote_moved', 'The branch moved on GitHub since this project last read it — pull or fetch before pushing again.');
+    }
+    if (!guard(refWrite, 'updating the branch')) return;
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      commit: commitSha,
+      tree: treeSha,
+      parent: parentSha,
+      branch,
+      url: 'https://github.com/' + owner + '/' + repoName + '/commit/' + commitSha,
+      files: treeEntries.length,
+    }));
+    return;
+  }
+
   if (url.pathname === '/api/github/tree' && req.method === 'GET') {
     const got = await ghGate(req, res, 'tree', 300); if (!got) return;
     const owner = String(url.searchParams.get('owner') || '');

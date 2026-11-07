@@ -16,10 +16,14 @@ import {
   MenuId
 } from '@codingame/monaco-vscode-api/vscode/vs/platform/actions/common/actions';
 import { Parts, setPartVisibility } from '@codingame/monaco-vscode-workbench-service-override';
+import { getProjectTitle } from './project';
 import {
   commitAll,
+  createGitHubRepo,
   initRepo,
+  lastPush,
   newBranch,
+  pushToGitHub,
   repoView,
   setRemote,
   switchBranch,
@@ -97,7 +101,10 @@ function paint(v: RepoView | null): void {
 
   const exists = v?.exists === true;
   if (branchBtn != null) branchBtn.textContent = exists ? '⎇ ' + (v?.branch || 'main') : '⎇ no repository';
-  if (remoteEl != null) remoteEl.textContent = remoteText(v);
+  const pushed = exists ? lastPush() : null;
+  if (remoteEl != null) {
+    remoteEl.textContent = remoteText(v) + (pushed != null ? '  ·  pushed ' + pushed.sha.slice(0, 7) : '');
+  }
   if (initWrap != null) initWrap.style.display = exists ? 'none' : 'flex';
   if (mainWrap != null) mainWrap.style.display = exists ? 'flex' : 'none';
   if (!exists) {
@@ -131,6 +138,12 @@ function paint(v: RepoView | null): void {
     });
   }
   if (commitBtn != null) commitBtn.disabled = busy || changes.length === 0;
+  const pushBtn = q<HTMLButtonElement>('scPush');
+  const hasRemote = remoteText(v) !== '';
+  if (pushBtn != null) {
+    pushBtn.disabled = busy || !hasRemote;
+    pushBtn.title = hasRemote ? 'Write these files to ' + remoteText(v) : 'Set or create a GitHub remote first';
+  }
   paintHistory(v?.log ?? []);
 }
 
@@ -162,14 +175,27 @@ async function load(): Promise<void> {
 }
 
 async function doInit(): Promise<void> {
+  if (busy) return;
   busy = true;
   hint('Initialising repository…');
+  const initBtn = q<HTMLButtonElement>('scInitBtn');
+  if (initBtn != null) {
+    initBtn.disabled = true;
+    initBtn.textContent = 'Initialising…';
+  }
   paint(view);
   try {
     view = await initRepo();
     hint('Repository initialised on ' + (view.branch || 'main') + '. Commit to record the first version.');
   } catch (e) {
-    hint('Could not initialise: ' + ((e as Error).message || 'unknown error'));
+    const msg = (e as Error).message || 'unknown error';
+    hint('Could not initialise: ' + msg);
+    // The panel may be scrolled or narrow; a real error must never be silent.
+    void vscode.window.showErrorMessage('Source Control: could not initialise the repository — ' + msg);
+  }
+  if (initBtn != null) {
+    initBtn.disabled = false;
+    initBtn.textContent = 'Initialise repository';
   }
   busy = false;
   paint(view);
@@ -199,6 +225,76 @@ async function doCommit(): Promise<void> {
   } finally {
     if (commitBtn != null) commitBtn.textContent = 'Commit';
     busy = false;
+  }
+  paint(view);
+}
+
+async function doPush(): Promise<void> {
+  const pushBtn = q<HTMLButtonElement>('scPush');
+  const typed = (q<HTMLInputElement>('scMsg')?.value || '').trim();
+  busy = true;
+  if (pushBtn != null) {
+    pushBtn.disabled = true;
+    pushBtn.textContent = 'Pushing…';
+  }
+  hint('Writing to GitHub…');
+  try {
+    const r = await pushToGitHub(typed !== '' ? typed : view?.log[0]?.message || '');
+    const short = r.sha.slice(0, 7);
+    hint('Pushed ' + r.files + ' file(s) to ' + r.branch + ' as ' + short + '.');
+    void vscode.window
+      .showInformationMessage('Pushed ' + short + ' to ' + r.branch + '.', 'Open commit')
+      .then((pick) => {
+        if (pick === 'Open commit' && r.url !== '') window.open(r.url, '_blank');
+      });
+    view = await repoView();
+  } catch (e) {
+    const msg = (e as Error).message || 'unknown error';
+    hint('Push failed: ' + msg);
+    void vscode.window.showErrorMessage('Source Control: push failed — ' + msg);
+  }
+  if (pushBtn != null) pushBtn.textContent = 'Push to GitHub';
+  busy = false;
+  paint(view);
+}
+
+async function doCreateRepo(): Promise<void> {
+  const suggested =
+    getProjectTitle()
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || 'cudic-project';
+  const name = await vscode.window.showInputBox({
+    prompt: 'New GitHub repository on your account',
+    placeHolder: 'my-game',
+    value: suggested,
+    validateInput: (v) =>
+      /^[A-Za-z0-9._-]{1,100}$/.test(v.trim()) ? null : 'Letters, digits, dot, dash or underscore.'
+  });
+  if (name == null || name.trim() === '') return;
+  const vis = await vscode.window.showQuickPick(
+    [
+      { label: 'Private', description: 'Only you and people you add', private: true },
+      { label: 'Public', description: 'Anyone can see it', private: false }
+    ],
+    { title: 'Repository visibility' }
+  );
+  if (vis == null) return;
+  hint('Creating ' + name.trim() + '…');
+  try {
+    const created = await createGitHubRepo(name.trim(), vis.private);
+    hint('Created github.com/' + created.owner + '/' + created.repo + ' — push to fill it.');
+    void vscode.window
+      .showInformationMessage('Created ' + created.owner + '/' + created.repo + '.', 'Open on GitHub')
+      .then((pick) => {
+        if (pick === 'Open on GitHub') window.open(created.url, '_blank');
+      });
+    view = await repoView();
+  } catch (e) {
+    const msg = (e as Error).message || 'unknown error';
+    hint('Could not create the repository: ' + msg);
+    void vscode.window.showErrorMessage('Source Control: ' + msg);
   }
   paint(view);
 }
@@ -324,6 +420,13 @@ function buildPanel(): boolean {
     '#cudic-source-control #scBranch{background:transparent;border:1px solid var(--line);color:var(--ink);cursor:pointer;' +
     'font-family:' + MONO + ';font-size:11px;padding:2px 8px;max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
     '#cudic-source-control #scBranch:hover{border-color:var(--ink)}' +
+    '#cudic-source-control #scPush{margin-top:6px;width:100%;padding:7px 10px;background:transparent;color:var(--ink);' +
+    'border:1px solid var(--ink);font-family:' + MONO + ';font-size:11px;text-transform:uppercase;letter-spacing:.06em;cursor:pointer}' +
+    '#cudic-source-control #scPush:hover:not(:disabled){background:var(--ink);color:var(--bg)}' +
+    '#cudic-source-control #scPush:disabled{opacity:.4;cursor:default}' +
+    '#cudic-source-control #scCreateRepo{background:transparent;color:var(--ink);border:1px solid var(--line);' +
+    'font-family:' + MONO + ';font-size:11px;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;padding:6px 10px}' +
+    '#cudic-source-control #scCreateRepo:hover{border-color:var(--ink)}' +
     '#cudic-source-control .sc-icon{background:transparent;border:none;color:inherit;opacity:.7;cursor:pointer;font-size:14px}' +
     '</style>' +
     '<div class="sc-head">' +
@@ -334,18 +437,22 @@ function buildPanel(): boolean {
     '<button id="scHide" class="sc-icon" title="Hide" style="font-size:15px">×</button>' +
     '</div>' +
     '<div class="sc-hint" id="scRemote" style="font-family:' + MONO + ';font-size:10px" title="origin"></div>' +
+    // Outside #scMain on purpose: an initialise failure used to be reported
+    // into a hidden element, which is why the button looked like it did nothing.
+    '<div class="sc-hint" id="scHint"></div>' +
     '<div class="sc-init" id="scInitWrap">' +
     '<p><strong style="color:var(--ink)">No repository for this project yet.</strong><br/>' +
     'Initialise one to get real commits, history and branches — stored in this browser, keyed to the project, so a rename keeps it.</p>' +
     '<button id="scInitBtn">Initialise repository</button>' +
     '<button id="scSetRemote">Set GitHub remote…</button>' +
+    '<button id="scCreateRepo">Create GitHub repository…</button>' +
     '</div>' +
     '<div id="scMain" style="display:none;flex-direction:column;flex:1;min-height:0">' +
     '<div class="sc-commit">' +
     '<input id="scMsg" placeholder="Commit message" maxlength="120"/>' +
     '<button id="scCommit" disabled>Commit</button>' +
+    '<button id="scPush" disabled>Push to GitHub</button>' +
     '</div>' +
-    '<div class="sc-hint" id="scHint"></div>' +
     '<div class="sc-body">' +
     '<div class="sc-sec">Changes <span class="sc-count" id="scCount"></span><span style="flex:1"></span>' +
     '<button id="scSetRemote2" class="sc-icon" title="Set GitHub remote" style="font-size:11px">remote</button></div>' +
@@ -364,6 +471,8 @@ function buildPanel(): boolean {
     }
   });
   (panel.querySelector('#scInitBtn') as HTMLButtonElement).addEventListener('click', () => void doInit());
+  (panel.querySelector('#scPush') as HTMLButtonElement).addEventListener('click', () => void doPush());
+  (panel.querySelector('#scCreateRepo') as HTMLButtonElement).addEventListener('click', () => void doCreateRepo());
   (panel.querySelector('#scRefresh') as HTMLButtonElement).addEventListener('click', () => void load());
   (panel.querySelector('#scHide') as HTMLButtonElement).addEventListener('click', hidePanel);
   (panel.querySelector('#scBranch') as HTMLButtonElement).addEventListener('click', () => void doBranchMenu());

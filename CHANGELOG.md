@@ -12,7 +12,9 @@ fixed. Commits are referenced by short hash.
 
 - **Source Control** in the activity bar (branch icon, above Collab) is real Git, not a stand-in for it: `isomorphic-git` writes actual objects and refs, so commits have real SHA-1s and parents, history is the commit graph, branches are refs, and checking one out replaces the workspace files with that commit's tree.
 - Every project gets its own repository, found by project id (or the draft key) and never by title — renaming a project keeps its history. A GitHub import records `origin`, so the panel initialises the repository and points it at the repo it came from the first time it opens; a project with neither a repository nor a source gets an explicit **Initialise repository** button and **Set GitHub remote…**.
-- The panel reports a real status matrix (`U`/`M`/`D`), the current branch (click to switch or create), and `origin`. Pushing to GitHub is still unwired: the repository is real, the network write is the remaining piece.
+- The panel reports a real status matrix (`U`/`M`/`D`), the current branch (click to switch or create), and `origin`.
+- **Push to GitHub** is a real write: the server builds blobs, a tree, a commit whose parent is the branch tip, then moves the ref — fast-forward only, and `base_tree` means an imported subfolder never deletes the rest of the repository. **Create GitHub repository…** makes the remote on the connected account first, so a project with no repo can go from nothing to a pushed branch in two clicks.
+- **Initialise repository** no longer looks dead: the browser filesystem (`lightning-fs`) is a CommonJS class, so `import { FS }` was `undefined` and the constructor threw into a message that was rendered inside the hidden half of the panel. It is resolved from either export now, and any failure is shown in the panel and as a notification.
 
 **A New menu that opens**
 

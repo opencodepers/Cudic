@@ -6,10 +6,15 @@
 // GitHub repo it came from, the panel sets `origin` from that and initialises
 // the repository the first time it is opened; a project with no repo and no
 // source shows an explicit "Initialise repository" button instead of guessing.
-import { FS } from '@isomorphic-git/lightning-fs';
+// lightning-fs is CommonJS: the constructor is the default export (some
+// bundlers expose it as `FS`). Resolving it explicitly is what makes
+// "Initialise repository" actually run instead of throwing a constructor error.
+import * as lightning from '@isomorphic-git/lightning-fs';
 import {
+  apiBase,
   collectBinaryFiles,
   collectTextFiles,
+  getToken,
   projectKey,
   replaceWorkspace,
   type FileMap
@@ -42,7 +47,14 @@ export interface RepoView extends RepoSummary {
 
 let diskCache: any = null;
 function disk(): any {
-  if (diskCache == null) diskCache = new FS(FS_NAME);
+  if (diskCache == null) {
+    const mod = lightning as unknown as { default?: unknown; FS?: unknown };
+    const Ctor = (mod.default ?? mod.FS ?? lightning) as new (name: string) => unknown;
+    if (typeof Ctor !== 'function') {
+      throw new Error('the browser filesystem failed to load (lightning-fs)');
+    }
+    diskCache = new Ctor(FS_NAME);
+  }
   return diskCache;
 }
 
@@ -211,9 +223,130 @@ export async function newBranch(ref: string): Promise<void> {
   await replaceWorkspace(await repo.read());
 }
 
-/** The commit a message box would create, for the panel's "nothing staged" state. */
-export function emptyMessage(message: string): boolean {
-  return message.trim() === '';
+/** origin owner/repo, from the recorded import or from the repo's own remote. */
+export async function repoSource(): Promise<{ owner: string; repo: string } | null> {
+  const src = storedSource();
+  if (src != null) return { owner: src.owner, repo: src.repo };
+  const { repo } = await openRepo();
+  if (!(await repo.exists())) return null;
+  const summary = await repo.summary();
+  const origin = summary.remotes.find((r) => r.remote === 'origin');
+  if (origin == null) return null;
+  const m = /github\.com\/([^/]+)\/([^/]+?)(?:\.git)?$/i.exec(origin.url);
+  return m == null ? null : { owner: m[1], repo: m[2] };
+}
+
+function toBase64(bytes: Uint8Array): string {
+  let out = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    out += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(out);
+}
+
+async function authed(path: string, body: unknown): Promise<Response> {
+  const tok = getToken();
+  if (tok == null) throw new Error('Sign in first — GitHub writes need your session.');
+  return fetch((await apiBase()) + path, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+    body: JSON.stringify(body),
+  });
+}
+
+export interface PushResult {
+  sha: string;
+  branch: string;
+  url: string;
+  files: number;
+}
+
+export interface CreatedRepo {
+  owner: string;
+  repo: string;
+  url: string;
+  private: boolean;
+}
+
+/** Create the remote on the connected GitHub account, then point origin at it. */
+export async function createGitHubRepo(name: string, isPrivate: boolean): Promise<CreatedRepo> {
+  const res = await authed('/api/github/repos', { name, private: isPrivate });
+  const d = (await res.json().catch(() => null)) as
+    | { repo?: { owner?: string; name?: string; html_url?: string; private?: boolean }; text?: string; error?: string }
+    | null;
+  const owner = String(d?.repo?.owner || '');
+  const repo = String(d?.repo?.name || '');
+  if (!res.ok || owner === '' || repo === '') {
+    throw new Error(d?.text || d?.error || 'Could not create the repository (' + res.status + ').');
+  }
+  rememberSource({ owner, repo });
+  const { repo: local } = await openRepo();
+  if (!(await local.exists())) await local.init('main');
+  await local.addRemote('https://github.com/' + owner + '/' + repo + '.git');
+  return {
+    owner,
+    repo,
+    url: String(d?.repo?.html_url || 'https://github.com/' + owner + '/' + repo),
+    private: d?.repo?.private === true
+  };
+}
+
+/**
+ * Write the working files to GitHub as a real commit on the current branch.
+ * The server owns the token (the browser never sees it) and creates blobs, a
+ * tree, a commit whose parent is the branch tip, then moves the ref.
+ */
+export async function pushToGitHub(message: string): Promise<PushResult> {
+  const src = await repoSource();
+  if (src == null) throw new Error('No GitHub remote — create a repository or set one first.');
+  const { repo } = await openRepo();
+  if (!(await repo.exists())) throw new Error('Initialise the repository first.');
+  const summary = await repo.summary();
+  const files = await workspaceFiles();
+  const entries = Object.entries(files).map(([path, content]) => ({
+    path,
+    base64: toBase64(typeof content === 'string' ? new TextEncoder().encode(content) : content)
+  }));
+  const res = await authed('/api/github/push', {
+    owner: src.owner,
+    repo: src.repo,
+    branch: summary.branch || 'main',
+    message: message.trim() === '' ? 'Push from Cudic' : message.trim(),
+    files: entries
+  });
+  const d = (await res.json().catch(() => null)) as
+    | { commit?: string; branch?: string; url?: string; files?: number; text?: string; error?: string }
+    | null;
+  if (!res.ok || typeof d?.commit !== 'string') {
+    throw new Error(d?.text || d?.error || 'Push failed (' + res.status + ').');
+  }
+  try {
+    localStorage.setItem('cudic_git_pushed:' + projectKey(), JSON.stringify({
+      sha: d.commit, branch: d.branch, at: Date.now()
+    }));
+  } catch {
+    /* private mode — the push already happened */
+  }
+  return {
+    sha: d.commit,
+    branch: String(d.branch || summary.branch || 'main'),
+    url: String(d.url || ''),
+    files: Number(d.files) || entries.length
+  };
+}
+
+export function lastPush(): { sha: string; branch: string; at: number } | null {
+  try {
+    const raw = localStorage.getItem('cudic_git_pushed:' + projectKey());
+    if (raw == null) return null;
+    const j = JSON.parse(raw) as { sha?: string; branch?: string; at?: number };
+    if (typeof j.sha !== 'string') return null;
+    return { sha: j.sha, branch: String(j.branch || 'main'), at: Number(j.at) || 0 };
+  } catch {
+    return null;
+  }
 }
 
 export type { CommitInfo, RemoteInfo };
