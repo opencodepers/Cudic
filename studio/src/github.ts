@@ -19,6 +19,11 @@
 // Import is a snapshot: files land in the workspace and the next Save stores
 // them as an ordinary Cudic project. Nothing here writes to GitHub.
 
+// Studio is served from the static host, where /api/* is a 404. Connected-repo
+// calls therefore go through api-host.ts, the one module that knows where the
+// backend actually lives (and who is asking).
+import { apiBase, headers } from './api-host';
+
 export interface RepoRef {
   owner: string;
   repo: string;
@@ -209,10 +214,10 @@ interface CudicError {
 }
 
 async function cudicJson<T>(path: string): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch((await apiBase()) + path, {
     credentials: 'include',
     cache: 'no-store',
-    headers: { Accept: 'application/json' },
+    headers: headers(false),
   });
   const j = (await res.json().catch(() => null)) as (T & CudicError) | null;
   if (!res.ok) throw new Error((j && (j.text ?? j.error)) ?? 'Cudic answered ' + res.status);
@@ -236,7 +241,11 @@ async function fetchConnectedFile(
   path: string
 ): Promise<Uint8Array> {
   const q = new URLSearchParams({ owner, repo, ref, path });
-  const res = await fetch('/api/github/file?' + q.toString(), { credentials: 'include', cache: 'no-store' });
+  const res = await fetch((await apiBase()) + '/api/github/file?' + q.toString(), {
+    credentials: 'include',
+    cache: 'no-store',
+    headers: headers(false),
+  });
   if (!res.ok) {
     const j = (await res.json().catch(() => null)) as CudicError | null;
     throw new Error(path + ' (' + ((j && (j.text ?? j.error)) || res.status) + ')');

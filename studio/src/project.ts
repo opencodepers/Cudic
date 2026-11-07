@@ -50,36 +50,11 @@ let registered: monaco.IDisposable[] = [];
 // Paths currently held as raw bytes (imported/loaded binaries — never re-encoded).
 const binaryPaths = new Set<string>();
 
-export function getToken(): string | null {
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k != null && k.startsWith('sb-') && k.endsWith('-auth-token')) {
-        const s = JSON.parse(localStorage.getItem(k) ?? 'null');
-        if (s?.access_token != null) return s.access_token as string;
-      }
-    }
-  } catch {
-    // ignore
-  }
-  return null;
-}
-
-export async function apiBase(): Promise<string> {
-  try {
-    // Mirror config.js: local dev talks to the local backend (same host)
-    // so new endpoints work before they deploy.
-    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return '';
-    const t = await (await fetch('/config.js')).text();
-    // NOTE: match the wss:// URL anywhere — config.js computes WS_URL with
-    // a ternary, so `WS_URL = '...'` never literally appears in the file.
-    const m = t.match(/(wss?:\/\/[^'"]+)/);
-    if (m != null) return m[1].replace(/^wss?:\/\//, 'https://');
-  } catch {
-    // same-origin fallback
-  }
-  return '';
-}
+// The API host and auth headers live in api-host.ts so github.ts can use them
+// without importing this module — project.ts → github.ts is the only legal
+// direction of that edge (a cycle makes module evaluation order matter).
+import { apiBase, getToken, headers } from './api-host';
+export { apiBase, getToken, headers };
 
 // WebSocket endpoint for the in-game multiplayer relay (preview mediator).
 // Mirrors config.js: local dev always talks to the local server on :3000, even
@@ -88,20 +63,6 @@ export async function relayWsUrl(): Promise<string> {
   if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return 'ws://localhost:3000';
   const cfg = await getCfg();
   return cfg.api.replace(/^https/, 'wss');
-}
-
-export function headers(json: boolean): Record<string, string> {
-  const h: Record<string, string> = {};
-  if (json) h['Content-Type'] = 'application/json';
-  const t = getToken();
-  if (t != null) h['Authorization'] = 'Bearer ' + t;
-  try {
-    const seat = localStorage.getItem('cudic_seat');
-    if (seat != null) h['X-Seat'] = seat;
-  } catch {
-    // ignore
-  }
-  return h;
 }
 
 // Filled in by glox.ts (it owns the preview pane) — see note there.
