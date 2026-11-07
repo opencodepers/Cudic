@@ -87,6 +87,120 @@ function sourceUrl(src: RepoSource): string {
   return 'https://github.com/' + src.owner + '/' + src.repo + '.git';
 }
 
+// ---- The repository travels with the project ---------------------------
+// IndexedDB is per browser and per origin, so a repository made on one machine
+// is invisible on the next. The server holds one snapshot of the repository's
+// own files (objects, refs, HEAD) per project; a browser with no local copy
+// restores it before the panel reports "no repository", and every write below
+// schedules a save. Signed out, or an unsaved draft, stays local-only.
+const CLOUD = '/api/git/repo';
+const CLOUD_CAP = 6 * 1024 * 1024;
+// A .git path is plain segments: objects/ab/<sha>, refs/heads/main, HEAD.
+const GIT_PATH = /^[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*$/;
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let out = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    out += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(out);
+}
+
+function base64ToBytes(b64: string): Uint8Array {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+/** Every file under the project's .git, relative to it, as base64. */
+async function gitFiles(): Promise<Array<{ path: string; base64: string }>> {
+  const root = (await repoDir()) + '/.git';
+  const out: Array<{ path: string; base64: string }> = [];
+  let total = 0;
+  for (const rel of await walkFiles(disk(), root)) {
+    // The index is derived from the working tree and rebuilt on every commit;
+    // shipping it would double the snapshot for nothing the objects lack.
+    if (rel === 'index' || !GIT_PATH.test(rel)) continue;
+    const bytes = (await disk().promises.readFile(root + '/' + rel)) as Uint8Array;
+    total += bytes.length;
+    if (total > CLOUD_CAP) return out;
+    out.push({ path: rel, base64: bytesToBase64(bytes) });
+  }
+  return out;
+}
+
+async function restoreGit(files: Array<{ path: string; base64: string }>): Promise<void> {
+  const root = (await repoDir()) + '/.git';
+  for (const f of files) {
+    if (!GIT_PATH.test(f.path) || typeof f.base64 !== 'string' || f.base64 === '') continue;
+    const dest = root + '/' + f.path;
+    let cur = '';
+    for (const part of dest.slice(0, dest.lastIndexOf('/')).split('/').filter((p) => p !== '')) {
+      cur += '/' + part;
+      try {
+        await disk().promises.mkdir(cur);
+      } catch {
+        /* already there */
+      }
+    }
+    await disk().promises.writeFile(dest, base64ToBytes(f.base64));
+  }
+}
+
+/** Write the local repository to the server, if there is an account to write to. */
+export async function saveRepo(): Promise<void> {
+  const tok = getToken();
+  const id = projectKey();
+  if (tok == null || id === 'draft') return;
+  const files = await gitFiles().catch(() => []);
+  if (files.length === 0) return;
+  const base = await apiBase();
+  try {
+    await fetch(base + CLOUD, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+      body: JSON.stringify({ id, files })
+    });
+  } catch {
+    // The local repository still works; the next commit tries again.
+  }
+}
+
+let saveTimer: number | null = null;
+/** Coalesce bursts (init → sync → commit) into one upload. */
+function scheduleSave(): void {
+  if (saveTimer != null) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    void saveRepo();
+  }, 800);
+}
+
+/** Pull the project's stored repository into this browser. */
+async function loadRepo(): Promise<boolean> {
+  const tok = getToken();
+  const id = projectKey();
+  if (tok == null || id === 'draft') return false;
+  const base = await apiBase();
+  try {
+    const res = await fetch(base + CLOUD + '?id=' + encodeURIComponent(id), {
+      headers: { Authorization: 'Bearer ' + tok }
+    });
+    if (!res.ok) return false;
+    const d = (await res.json().catch(() => null)) as
+      | { files?: Array<{ path: string; base64: string }> }
+      | null;
+    if (d == null || !Array.isArray(d.files) || d.files.length === 0) return false;
+    await restoreGit(d.files);
+    const { repo } = await openRepo();
+    return await repo.exists();
+  } catch {
+    return false;
+  }
+}
+
 async function cloneTree(from: string, to: string): Promise<void> {
   for (const rel of await walkFiles(disk(), from)) {
     const dest = to + '/' + rel;
@@ -163,13 +277,16 @@ async function openRepo() {
 export async function repoView(): Promise<RepoView> {
   const { repo } = await openRepo();
   const source = storedSource();
-  if (!(await repo.exists())) {
+  // Restore first: a fresh browser has no IndexedDB copy, but the project does
+  // have a repository, and restoring it is exactly what "found" means here.
+  if (!(await repo.exists()) && !(await loadRepo())) {
     if (source == null) {
       return { exists: false, branch: null, changes: [], log: [], remotes: [], source: null, branches: [] };
     }
     await repo.init('main');
     await repo.sync(await workspaceFiles());
     await repo.addRemote(sourceUrl(source));
+    scheduleSave();
   }
   const summary = await repo.summary();
   return { ...summary, source, branches: await repo.branches() };
@@ -177,12 +294,13 @@ export async function repoView(): Promise<RepoView> {
 
 export async function initRepo(): Promise<RepoView> {
   const { repo } = await openRepo();
-  if (!(await repo.exists())) {
+  if (!(await repo.exists()) && !(await loadRepo())) {
     await repo.init('main');
     await repo.sync(await workspaceFiles());
     const source = storedSource();
     if (source != null) await repo.addRemote(sourceUrl(source));
   }
+  scheduleSave();
   const summary = await repo.summary();
   return { ...summary, source: storedSource(), branches: await repo.branches() };
 }
@@ -193,6 +311,8 @@ export async function commitAll(message: string): Promise<CommitInfo> {
   await repo.sync(await workspaceFiles());
   const info = await repo.commit(message, author());
   await repo.summary(); // keep the index consistent with the new HEAD
+  // The commit is the thing worth keeping: another device restores from here.
+  scheduleSave();
   return info;
 }
 
@@ -205,6 +325,7 @@ export async function setRemote(link: string): Promise<string> {
   await repo.addRemote(url);
   const m = /^https:\/\/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?$/.exec(url);
   if (m != null) rememberSource({ owner: m[1], repo: m[2] });
+  scheduleSave();
   return url;
 }
 
@@ -212,6 +333,7 @@ export async function switchBranch(ref: string): Promise<void> {
   const { repo } = await openRepo();
   await repo.checkout(ref);
   await replaceWorkspace(await repo.read());
+  scheduleSave();
 }
 
 export async function newBranch(ref: string): Promise<void> {
@@ -221,6 +343,7 @@ export async function newBranch(ref: string): Promise<void> {
   await repo.createBranch(name);
   await repo.checkout(name);
   await replaceWorkspace(await repo.read());
+  scheduleSave();
 }
 
 /** origin owner/repo, from the recorded import or from the repo's own remote. */

@@ -1364,6 +1364,112 @@ async function handleRequest(req, res) {
     return;
   }
 
+  // ── API: the project's Git repository, stored with the project ──
+  // The browser keeps a real repository in IndexedDB, which is per browser and
+  // per origin: a second device — or the same one after site data is cleared —
+  // opened with no history. Storing the repository's own files next to the
+  // project lets Source Control follow the account instead of the machine.
+  // One JSON snapshot per project under game-git/<id>.json in the bucket the
+  // assets already use keeps this additive: no schema change, no migration.
+  const GIT_SNAP_PATH = /^(?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+$/;
+  const GIT_SNAP_CAP = 8 * 1024 * 1024;
+
+  if (url.pathname === '/api/git/repo' && (req.method === 'POST' || req.method === 'GET')) {
+    cors(res);
+    const user = await userOf(req);
+    if (!user) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Sign in required.' }));
+      return;
+    }
+    const body = req.method === 'POST'
+      ? await readBody(req, 12 * 1024 * 1024).catch(() => null)
+      : null;
+    const id = String((req.method === 'POST' ? body && body.id : url.searchParams.get('id')) || '');
+    if (!/^[0-9a-fA-F-]{8,64}$/.test(id)) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unknown project.' }));
+      return;
+    }
+    // The repository names the project's files, so it is exactly as private as
+    // the project: owner only, never the published-games path.
+    const { data: row } = await supabase.from('games').select('owner_id').eq('id', id).maybeSingle();
+    if (!row) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Project not found.' }));
+      return;
+    }
+    if (row.owner_id !== user.id) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Only the project owner can store its repository.' }));
+      return;
+    }
+    const snapPath = 'game-git/' + id + '.json';
+    const bucket = supabase.storage.from('game-assets');
+
+    if (req.method === 'GET') {
+      let text = '';
+      try {
+        const { data: blob, error } = await bucket.download(snapPath);
+        if (error || !blob) throw error || new Error('empty');
+        text = await blob.text();
+      } catch {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'No stored repository for this project.' }));
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      res.end(text);
+      return;
+    }
+
+    const list = Array.isArray(body && body.files) ? body.files : [];
+    if (list.length === 0 || list.length > 6000) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'That repository snapshot looks wrong.' }));
+      return;
+    }
+    const files = [];
+    let bytes = 0;
+    for (const f of list) {
+      const path = typeof (f && f.path) === 'string' ? f.path : '';
+      const b64 = typeof (f && f.base64) === 'string' ? f.base64 : '';
+      if (!GIT_SNAP_PATH.test(path) || path === '.' || path.includes('..')) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'A path in that repository snapshot is not allowed.' }));
+        return;
+      }
+      bytes += b64.length;
+      if (bytes > GIT_SNAP_CAP) {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'This repository is too large to store with the project yet.' }));
+        return;
+      }
+      files.push({ path, base64: b64 });
+    }
+    if (!rateLimit('git-repo:' + user.id, 120, 60 * 60 * 1000)) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Too many repository saves just now. Try again in a few minutes.' }));
+      return;
+    }
+    const json = JSON.stringify({ version: 1, project: id, saved_at: new Date().toISOString(), files });
+    try {
+      const { error } = await bucket.upload(snapPath, new Blob([json], { type: 'application/json' }), {
+        upsert: true,
+        contentType: 'application/json',
+      });
+      if (error) throw error;
+    } catch (e) {
+      console.error('git snapshot upload failed:', e && e.message);
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Could not store the repository.' }));
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, files: files.length }));
+    return;
+  }
+
   if (url.pathname === '/api/github/tree' && req.method === 'GET') {
     const got = await ghGate(req, res, 'tree', 300); if (!got) return;
     const owner = String(url.searchParams.get('owner') || '');
