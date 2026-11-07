@@ -192,7 +192,9 @@
        then the clamp wraps the line — which split "hellos" into "hello" + "s".
        fit-content wraps at word boundaries and still hugs a short message. */
     .msg.mine .msg-text { background: var(--signal-tint); border-radius: 12px 4px 12px 12px; padding: 8px 12px; width: fit-content; max-width: 75%; }
-    .msg .ticks { font-size: 0.7rem; color: var(--text-tertiary); margin-left: 6px; }
+    .msg .ticks { display: inline-flex; align-items: center; color: var(--text-tertiary); line-height: 0; }
+    .msg.mine > .msg-main > .ticks { margin-top: 3px; }
+    .msg .ticks svg { width: 17px; height: 11px; display: block; }
     .msg .ticks.seen { color: var(--signal); }
     .msg .author { font-weight: 600; margin-right: 8px; color: var(--signal); font-family: var(--font-head); }
     .msg .time { color: var(--text-tertiary); font-size: 0.75rem; margin-left: 8px; font-weight: 400; }
@@ -284,7 +286,15 @@
     #pinnedShelf .ps-row b { color: var(--text-primary); }
     .msg.pinned .msg-text { outline: 1px solid var(--signal); border-radius: 6px; }
     .msg.pin-flash { background: var(--signal-tint, rgba(184,242,58,.12)); border-radius: 8px; transition: background 1s; }
-    .msg-actions { display: flex; gap: 2px; margin-top: 4px; flex-wrap: wrap; align-items: center; }
+    /* Actions (pin, react, flag) are hover/focus-only so a quiet conversation
+       stays quiet; they stay visible once a message is actually pinned, and on
+       touch screens where there is no hover at all. */
+    .msg-actions { display: flex; gap: 2px; margin-top: 4px; flex-wrap: wrap; align-items: center; opacity: 0; transition: opacity 0.15s; }
+    .msg:hover .msg-actions, .msg:focus-within .msg-actions, .msg.pinned .msg-actions { opacity: 1; }
+    @media (hover: none) { .msg-actions { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { .msg-actions { transition: none; } }
+    .msg-actions button { display: inline-flex; align-items: center; gap: 4px; }
+    .msg-actions svg { width: 14px; height: 14px; display: block; }
     .msg-react {
       background: none; border: 1px solid transparent; padding: 1px 6px; font-size: 0.78rem;
       font-family: inherit; cursor: pointer; border-radius: 999px; color: var(--text-tertiary);
@@ -421,5 +431,5 @@
   <script src="/auth.js"></script>
   <script src="/sidebar.js?v=25"></script>
   <script src="/cudic-cosmetics.js?v=1"></script>
-  <script src="/client.js?v=14"></script>
+  <script src="/client.js?v=15"></script>
 <script src="/cudic-modals.js?v=3"></script></body></html>

@@ -297,7 +297,7 @@ function onWs(e) {
         if (pinDiv) {
           pinDiv.classList.toggle('pinned', !!msg.pinned);
           var pinBtn = pinDiv.querySelector('.msg-pin');
-          if (pinBtn) pinBtn.textContent = msg.pinned ? 'Unpin' : 'Pin';
+          if (pinBtn) setPinLabel(pinBtn, !!msg.pinned);
         }
         loadPinned();
       }
@@ -495,7 +495,7 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-// ── Read receipts (DMs): peer's last_read_at paints ✓ → ✓✓ ─────────
+// ── Read receipts (DMs): peer's last_read_at turns the ticks lime ──
 async function fetchPeer() {
   peerReadAt = null;
   if (!current || current.kind !== 'dm') return;
@@ -511,7 +511,7 @@ function paintTicks() {
   if (!pr) return;
   messagesEl.querySelectorAll('.ticks[data-ts]').forEach(function (el) {
     const t = Date.parse(el.getAttribute('data-ts'));
-    if (t && t <= pr) { el.textContent = '✓✓'; el.classList.add('seen'); }
+    if (t && t <= pr) { el.classList.add('seen'); }
   });
 }
 
@@ -812,6 +812,19 @@ document.getElementById('rulesOverlayAccept').addEventListener('click', async ()
 });
 
 // ── Render functions ─────────────────────────────────────────────
+// Crisp double-tick and pin as inline SVG. The old check was a font glyph, so
+// it rendered differently in every font stack and looked blurry when small.
+var TICK_SVG = '<svg viewBox="0 0 20 12" aria-hidden="true" focusable="false"><path d="M1.4 6.4 5.2 10.2 12.1 1.7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 6.4 10.8 10.2 18.6 1.7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+function pinIcon(active) {
+  return '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M9.6 1.6 14.4 6.4 12.5 7.1 9.8 9.8 9.2 12.8 3.2 6.8 6.2 6.2 8.9 3.5z" fill="' + (active ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+}
+function setPinLabel(btn, active) {
+  btn.innerHTML = pinIcon(active) + '<span>' + (active ? 'Unpin' : 'Pin') + '</span>';
+  btn.title = active ? 'Unpin this message' : 'Pin this message';
+  btn.setAttribute('aria-label', btn.title);
+  btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+}
+
 function addChatMessage(author, text, time, avatar, userId, ts, mid, cid, pinned) {
   const div = document.createElement('div');
   const mine = !!(userId && ME && userId === ME);
@@ -825,12 +838,13 @@ function addChatMessage(author, text, time, avatar, userId, ts, mid, cid, pinned
   div.innerHTML = '<div class="msg-ava"><a href="#" onclick="window.showProfileModal && window.showProfileModal(event, \'' + (userId || '') + '\'); return false;" style="display:block;width:100%;height:100%;text-decoration:none;color:inherit">' + av + '</a></div>'
     + '<div class="msg-main"><span class="author" style="color:' + nameColor(author) + '">' + escapeHtml(author) + '</span>'
     + '<span class="time">' + time + '</span>'
-    + '<div class="msg-text">' + renderMsgText(text) + (mine ? ' <span class="ticks" data-ts="' + escapeHtml(ts || '') + '">✓</span>' : '') + '</div>' + '</div><div class="msg-actions"></div>';
+    + '<div class="msg-text">' + renderMsgText(text) + '</div>'
+    + (mine ? '<span class="ticks" data-ts="' + escapeHtml(ts || '') + '">' + TICK_SVG + '</span>' : '')
+    + '</div><div class="msg-actions"></div>';
   messagesEl.appendChild(div);
   if (!mine && mid) armFlag(div, mid, userId);  if (mid) { div.dataset.mid = mid; armActions(div, mid, userId); }
   if (mine) paintTicks();
   scrollToBottom();
-  shrinkWrapBubble(div);
 }
 
 // ── Message/user reporting (plan.md 2.1) ─────────────────────────
@@ -895,8 +909,7 @@ function addPinBtn(div, mid) {
   const pin = document.createElement('button');
   pin.type = 'button';
   pin.className = 'msg-react msg-pin';
-  pin.textContent = div.classList.contains('pinned') ? 'Unpin' : 'Pin';
-  pin.title = 'Pin or unpin this message';
+  setPinLabel(pin, div.classList.contains('pinned'));
   pin.dataset.mid = mid;
   row.appendChild(pin);
 }
@@ -948,7 +961,7 @@ function togglePin(mid) {
       if (div) {
         div.classList.toggle('pinned', !!(d && d.pinned));
         var pb = div.querySelector('.msg-pin');
-        if (pb) pb.textContent = d.pinned ? 'Unpin' : 'Pin';
+        if (pb) setPinLabel(pb, !!(d && d.pinned));
       }
       loadPinned();
     })
@@ -1172,23 +1185,11 @@ async function loadPretext() {
     return _pretext;
   } catch (e) { _pretext = null; return null; }
 }
-async function shrinkWrapBubble(div) {
-  try {
-    var pt = await loadPretext();
-    if (!pt) return;
-    var el = div.querySelector('.msg-text');
-    if (!el) return;
-    // raw text without the ticks
-    var raw = (el.textContent || '').replace(/\s*✓\s*$/, '').trim();
-    if (!raw) return;
-    var prepared = pt.prepare(raw, '15px Geist');
-    var container = div.parentElement || messagesEl;
-    var maxW = Math.max(120, (container.clientWidth || 400) * 0.75);
-    var stats = pt.measureLineStats(prepared, maxW);
-    var w = Math.ceil(stats.maxLineWidth) + 24; // padding
-    if (w > 0 && w < maxW) el.style.width = w + 'px';
-  } catch (e) {}
-}
+// Bubbles size themselves in CSS (width: fit-content; max-width: 75%). There used
+// to be a JS shrink-wrap helper here that measured the text with a hardcoded
+// '15px Geist' and wrote an inline px width onto the bubble. The guess overrode
+// the stylesheet: the bubble wrapped mid-word ("hellos" -> "hello" + "s") and
+// never re-flowed when the panel or window resized. Do not bring it back.
 // ── Older-message pagination ──────────────────────────────────────
 var loadOlderBtn = document.getElementById('loadOlderBtn');
 function showLoadOlder() { if (loadOlderBtn) loadOlderBtn.hidden = false; }
