@@ -159,6 +159,7 @@
       <nav class="pnav" aria-label="Profile sections"><div class="toc-label">Settings</div>
         <a href="#sec-profile">Public profile</a>
         <a href="#sec-security">Security</a>
+        <a href="#sec-connections">Connections</a>
         <a href="#sec-awards">Awards</a>
         <a href="#sec-streak">Login streak</a>
         <a href="#sec-ach">Achievements</a>
@@ -204,6 +205,12 @@
         <div style="margin-top:18px;border-top:1px solid var(--line);padding-top:16px">
           <button class="btn btn-danger" id="delAccountBtn">Delete my account</button>
         </div>
+      </div>
+      <div class="profile-card" id="sec-connections">
+        <h2>Connections</h2>
+        <p class="sub">Link GitHub so Cudic can read your repos, private ones included. Signing in with GitHub proves who you are; connecting is what grants repo access.</p>
+        <div id="ghBox"><p class="sub">Checking…</p></div>
+        <div class="status-msg" id="ghMsg"></div>
       </div>
       <div class="profile-card" id="sec-awards">
         <h2>Awards</h2>
@@ -406,7 +413,7 @@
     }
     if (!t && !isPublic) { document.getElementById('guestNotice').style.display = 'block'; return; }
     document.getElementById('profileBody').style.display = '';
-    if (isPublic) { try { document.getElementById('sec-security').style.display='none'; document.getElementById('sec-appearance').style.display='none'; } catch(e){} }
+    if (isPublic) { try { document.getElementById('sec-security').style.display='none'; document.getElementById('sec-connections').style.display='none'; document.getElementById('sec-appearance').style.display='none'; } catch(e){} }
 
     /* Load profile + session */
     (isPublic ? fetch(apiHost() + '/api/user?id=' + encodeURIComponent(urlId)) : fetch(apiHost() + '/api/profile', { headers: { 'Authorization': 'Bearer ' + (t || '') } }))
@@ -1322,6 +1329,102 @@
         })
         .catch(function(){ box.innerHTML = '<p class="sub">Could not load analytics.</p>'; });
     });
+  })();
+  </script>
+<script>
+  /* Connections: link GitHub for repo access. The OAuth token is captured the
+     moment Supabase hands it back, POSTed once, and never kept in this page. */
+  (async function(){
+    var box = document.getElementById('ghBox');
+    if (!box) return;
+    var KEY = 'sb-qgcydphkaujomxyzwcht-auth-token';
+    var msgEl = document.getElementById('ghMsg');
+    function apiHost(){ return (typeof WS_URL !== 'undefined' && WS_URL) ? WS_URL.replace(/^wss?:\/\//, 'https://') : ''; }
+    function esc(s){ var d = document.createElement('div'); d.textContent = (s == null ? '' : s); return d.innerHTML; }
+    function note(t, ok){ if (!msgEl) return; msgEl.textContent = t || ''; msgEl.className = 'status-msg ' + (ok ? 'ok' : 'err'); }
+    async function token(){
+      try { if (window.getAuthToken) { var a = await window.getAuthToken(); if (a) return a; } } catch (e) {}
+      try { var s = JSON.parse(localStorage.getItem(KEY)); return s && s.access_token; } catch (e) { return null; }
+    }
+    function paint(d){
+      if (!d || d.enabled === false) {
+        box.innerHTML = '<p class="sub">Not set up on this server yet — public repos still open fine in Studio.</p>';
+        return;
+      }
+      if (d.connected) {
+        box.innerHTML = '<p class="sub">Connected as <b>' + esc(d.login || 'your GitHub account') + '</b>'
+          + (d.scopes && d.scopes.length ? ' <span class="sub" style="display:inline">— ' + esc(d.scopes.join(', ')) + '</span>' : '') + '</p>'
+          + '<button class="btn btn-secondary" id="ghDisconnect">Disconnect GitHub</button>';
+        var off = document.getElementById('ghDisconnect');
+        if (off) off.addEventListener('click', forget);
+        return;
+      }
+      box.innerHTML = '<p class="sub">Not connected. GitHub will ask which repositories Cudic may read.</p>'
+        + '<button class="btn btn-primary" id="ghConnect">Connect GitHub</button>';
+      var on = document.getElementById('ghConnect');
+      if (on) on.addEventListener('click', connect);
+    }
+    async function load(){
+      var t = await token();
+      if (!t) { box.innerHTML = '<p class="sub">Sign in to connect GitHub.</p>'; return; }
+      try {
+        var r = await fetch(apiHost() + '/api/github/connection', { headers: { 'Authorization': 'Bearer ' + t } });
+        paint(await r.json());
+      } catch (e) { box.innerHTML = '<p class="sub">Could not check the connection.</p>'; }
+    }
+    async function connect(){
+      note('');
+      var db = await getSupabase();
+      if (!db) { note('Supabase not configured'); return; }
+      var res = await db.auth.linkIdentity({
+        provider: 'github',
+        options: { scopes: 'repo', redirectTo: location.origin + '/profile' }
+      });
+      if (res && res.error) {
+        note(/manual link/i.test(res.error.message || '')
+          ? 'Linking is turned off in Supabase (Manual linking) — an admin has to enable it.'
+          : (res.error.message || 'GitHub could not be linked.'));
+      }
+    }
+    async function forget(){
+      var t = await token();
+      if (!t) return;
+      try { await fetch(apiHost() + '/api/github/connection', { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + t } }); } catch (e) {}
+      note('GitHub disconnected.', true);
+      load();
+    }
+    // Fresh back from GitHub: Supabase parks the provider token on the session.
+    // Capture it right away (a token refresh drops provider_token) and send it
+    // once; the browser never shows it and never keeps a second copy.
+    async function capture(){
+      var back = /[?&]code=/.test(location.search);
+      if (typeof handleAuthCallback === 'function') { try { await handleAuthCallback(); } catch (e) {} }
+      var db = await getSupabase();
+      if (!db) return;
+      var s = null;
+      for (var i = 0; i < (back ? 6 : 1) && !s; i++) {
+        if (i) await new Promise(function(r){ setTimeout(r, 400); });
+        try { var g = await db.auth.getSession(); s = g && g.data && g.data.session; } catch (e) {}
+        if (s && !s.provider_token && back && i < 5) s = null;
+      }
+      if (!s || !s.provider_token) return;
+      var fingerprint = String(s.provider_token).slice(-12);
+      try { if (sessionStorage.getItem('cudic_gh_sent') === fingerprint) return; } catch (e) {}
+      var t = await token();
+      if (!t) return;
+      try {
+        var r = await fetch(apiHost() + '/api/github/connect', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: s.provider_token })
+        });
+        var d = await r.json().catch(function(){ return {}; });
+        if (r.ok) { try { sessionStorage.setItem('cudic_gh_sent', fingerprint); } catch (e) {} note('GitHub connected.', true); }
+        else note(d.text || d.error || 'GitHub could not be linked.');
+      } catch (e) { note('Could not finish connecting GitHub.'); }
+    }
+    await capture();
+    await load();
   })();
   </script>
 <script src="/cudic-modals.js?v=3"></script></body></html>

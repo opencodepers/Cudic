@@ -532,7 +532,9 @@ account and cannot be reported by id; report the game there.
 
 ### Env (all in gitignored `.env`, never commit)
 `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`, `PORT`,
-plus optional `GMAIL_CLIENT_ID/CLIENT_SECRET/REFRESH_TOKEN/SENDER`, `RESEND_API_KEY`, `GITHUB_CLIENT_SECRET`.
+plus optional `GMAIL_CLIENT_ID/CLIENT_SECRET/REFRESH_TOKEN/SENDER`, `RESEND_API_KEY`, `GITHUB_CLIENT_SECRET`,
+and `GITHUB_TOKEN_KEY` (seals the Connect-GitHub OAuth token at rest; unset turns
+that one feature off, nothing else).
 `.env.example` lists the core four. `PROJECT_MEMORY.md` indexes where secrets live
 (it contains public IDs only — client ID, project ref — those are fine).
 
@@ -996,6 +998,27 @@ File menu, both right-click menus) and a shareable `/studio?github=owner/repo`.
   `index.html` is preferred — a 2000-file monorepo still yields a runnable page.
 - **Private repos are deliberately out of scope** until the Connect GitHub
   setting ships; the error says so instead of failing cryptically.
+
+### Connect GitHub (`github_connections`)
+Profile → Connections links a GitHub account for the repo access the public
+import cannot have: private repos, and later committing back. The browser gets
+the OAuth token from Supabase `linkIdentity({provider:'github', scopes:'repo'})`,
+captures it the moment it comes back (a token refresh drops `provider_token`),
+and POSTs it once to `/api/github/connect`. That route verifies it with a single
+`GET https://api.github.com/user`, checks the `X-OAuth-Scopes` response header
+contains `repo` or `public_repo` (a sign-in token never does — that is the case
+the check exists for), then seals it with AES-256-GCM under `GITHUB_TOKEN_KEY`
+(sha256-stretched, random IV, `v1.` prefix so the scheme can rotate).
+
+No route returns the token. `GET /api/github/connection` answers `{enabled,
+connected, login, scopes, connected_at}` and does not even select `token_enc`;
+`DELETE` removes the row. Unset `GITHUB_TOKEN_KEY` → `{enabled:false}` and the
+card turns into a plain notice; a missing table degrades the same way (PGRST205)
+instead of 500ing. Both writes call `needVerified()` and the connect route is
+rate-limited per account. The table is service-role only — RLS on, no policies —
+so a user's own anon-key JWT cannot read it (`migration/github-connections.sql`).
+Sign-in and connection stay separate concepts: OAuth login proves identity,
+connecting grants repo scope, and the UI says so.
 
 ### Weekly theme + community spotlight
 - `GET /api/weekly` (public): current week's build theme. State lives in

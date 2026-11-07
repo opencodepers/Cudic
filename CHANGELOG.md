@@ -8,6 +8,13 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Connect GitHub**
+
+- **Profile → Connections → Connect GitHub** links a GitHub account for the repo access public import can't have: private repos, and later committing back. Signing in with GitHub and connecting it are separate — one proves who you are, the other grants read access to your repositories, and the card says so before you approve anything.
+- The OAuth token is sealed with AES-256-GCM under `GITHUB_TOKEN_KEY` and no endpoint ever returns it: `/api/github/connection` answers with the GitHub username and the scopes you granted, and the read route does not even select the sealed column. **Disconnect GitHub** deletes the row.
+- A token without repo scope is rejected with a sentence that says what to do, because a token left over from GitHub sign-in looks perfectly valid until you try to read a repo with it. Without `GITHUB_TOKEN_KEY`, or before the migration is applied, the card shows a plain notice instead of an error and public import keeps working untouched.
+
+
 **Open a project from GitHub**
 
 - **Cudic: Open from GitHub** (command palette, File menu, right-click in the Explorer or editor) pulls a public repo into Studio as a normal project: `owner/repo`, a full `github.com/...` link, or a `/tree/<branch>/<subfolder>` link for repos holding more than one game. A `/blob/` link imports the folder that holds the file. `/studio?github=owner/repo` does the same from a shared link, so a README can point straight at a working Studio session.

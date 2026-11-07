@@ -924,6 +924,163 @@ async function handleRequest(req, res) {
     return;
   }
 
+  // ── Connect GitHub (profile → Connections) ─────────────────────
+  // The public import in Studio needs no account. This is the other half:
+  // link GitHub once and Cudic can read your repos, private ones included
+  // (committing back comes later). Supabase's linkIdentity flow hands the
+  // browser an OAuth token; it is POSTed here once, verified against
+  // GitHub, then sealed with AES-256-GCM under GITHUB_TOKEN_KEY. No route
+  // ever returns the token — only the GitHub login and granted scopes — so
+  // the encrypted row has exactly one consumer: the server itself.
+  const GH_SCOPES_OK = ['repo', 'public_repo'];
+  function ghKey() {
+    const raw = process.env.GITHUB_TOKEN_KEY || '';
+    if (!raw) return null;
+    // Any passphrase is fine: stretch it to a 32-byte key.
+    return crypto.createHash('sha256').update('cudic-github:' + raw).digest();
+  }
+  function ghSeal(text, key) {
+    const iv = crypto.randomBytes(12);
+    const c = crypto.createCipheriv('aes-256-gcm', key, iv);
+    const body = Buffer.concat([c.update(text, 'utf8'), c.final()]);
+    // v1.<base64(iv | auth tag | ciphertext)> — the prefix leaves room to
+    // rotate the scheme without guessing at old rows.
+    return 'v1.' + Buffer.concat([iv, c.getAuthTag(), body]).toString('base64');
+  }
+  // A missing table/column is a PostgREST error, not a SQL one. Server and
+  // DB deploy separately, so the feature has to degrade, never 500.
+  function ghNoTable(err) {
+    const code = String((err && err.code) || '');
+    const msg = String((err && err.message) || '');
+    return code === 'PGRST205' || code === '42P01' || /does not exist|schema cache/i.test(msg);
+  }
+  const GH_SETUP_TEXT = 'GitHub connections are not set up on this server yet.';
+
+  if (url.pathname === '/api/github/connection' && req.method === 'GET') {
+    cors(res);
+    const user = await userOf(req);
+    if (!user) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Sign in required.' }));
+      return;
+    }
+    if (!ghKey()) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ enabled: false, connected: false, text: GH_SETUP_TEXT }));
+      return;
+    }
+    const { data, error } = await supabase.from('github_connections')
+      .select('login, scopes, connected_at').eq('user_id', user.id).maybeSingle();
+    if (error && !ghNoTable(error)) {
+      console.error('github connection read:', error.message || error);
+    }
+    const row = error ? null : data;
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      enabled: true,
+      connected: !!row,
+      login: (row && row.login) || '',
+      scopes: String((row && row.scopes) || '').split(',').map((s) => s.trim()).filter(Boolean),
+      connected_at: (row && row.connected_at) || null,
+    }));
+    return;
+  }
+
+  if (url.pathname === '/api/github/connect' && req.method === 'POST') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    if (!(await needVerified(user, res))) return;
+    const key = ghKey();
+    if (!key) {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'github_not_configured', text: GH_SETUP_TEXT }));
+      return;
+    }
+    if (!rateLimit('github:connect:' + user.id, 10, 60 * 60 * 1000)) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Too many attempts. Try again later.' }));
+      return;
+    }
+    const body = await readBody(req).catch(() => ({}));
+    const token = String(body.token || '').trim();
+    // GitHub OAuth tokens are 40+ chars, no whitespace. Reject obvious junk
+    // before spending a call on it.
+    if (token.length < 20 || token.length > 255 || /\s/.test(token)) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'github_bad_token', text: 'That does not look like a GitHub token.' }));
+      return;
+    }
+    let gh;
+    try {
+      gh = await fetch('https://api.github.com/user', {
+        headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json', 'User-Agent': 'cudic' },
+      });
+    } catch (e) {
+      res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'github_unreachable', text: 'Could not reach GitHub. Try again.' }));
+      return;
+    }
+    if (!gh.ok) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        error: 'github_rejected',
+        text: gh.status === 401 ? 'GitHub rejected that token — reconnect and approve repo access.' : 'GitHub answered ' + gh.status + '.',
+      }));
+      return;
+    }
+    // GitHub reports what the token may do in a header, not the body. A token
+    // from a plain sign-in has no repo scope, which is exactly the case this
+    // check exists to catch.
+    const scopes = String(gh.headers.get('x-oauth-scopes') || '')
+      .split(',').map((s) => s.trim()).filter(Boolean);
+    if (!GH_SCOPES_OK.some((s) => scopes.includes(s))) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        error: 'github_scope',
+        text: 'Cudic needs repo access — reconnect and allow access to your repositories.',
+      }));
+      return;
+    }
+    const me = await gh.json().catch(() => null);
+    const login = String((me && me.login) || '').replace(/[^A-Za-z0-9._-]/g, '').slice(0, 100);
+    const { error: saveErr } = await supabase.from('github_connections').upsert({
+      user_id: user.id,
+      login,
+      scopes: scopes.join(','),
+      token_enc: ghSeal(token, key),
+      connected_at: new Date().toISOString(),
+      last_used_at: null,
+    }, { onConflict: 'user_id' });
+    if (saveErr) {
+      console.error('github connection save:', saveErr.message || saveErr);
+      res.writeHead(ghNoTable(saveErr) ? 503 : 500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        error: ghNoTable(saveErr) ? 'github_not_configured' : 'github_save_failed',
+        text: ghNoTable(saveErr) ? GH_SETUP_TEXT : 'Could not save the connection.',
+      }));
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, login, scopes }));
+    return;
+  }
+
+  if (url.pathname === '/api/github/connection' && req.method === 'DELETE') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    if (!(await needVerified(user, res))) return;
+    const { error } = await supabase.from('github_connections').delete().eq('user_id', user.id);
+    if (error && !ghNoTable(error)) {
+      console.error('github connection delete:', error.message || error);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Could not disconnect.' }));
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
   if (url.pathname === '/api/user' && req.method === 'GET') {
     try {
       const q = new URL(req.url, 'http://localhost').searchParams;
