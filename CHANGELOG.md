@@ -18,6 +18,8 @@ fixed. Commits are referenced by short hash.
 
 - Once GitHub is connected, **Cudic: Open from GitHub** reads private repos too. jsDelivr only sees public code, so the listing and the bytes come from Cudic's own server — `GET /api/github/repos`, `/api/github/tree` and `/api/github/file` — which spends the connected account's GitHub quota instead of the deployment's shared 60 requests an hour, and returns file paths and bytes only, never the token.
 - `ghOpen()` is the decryption half of the seal: the sealed row is opened inside the request, `last_used_at` is stamped, and a row that no longer decrypts (rotated key) answers "reconnect GitHub" instead of a server error.
+- With GitHub connected, **Cudic: Open from GitHub** now opens a picker of the account's repositories — private ones first, with fork/archived and the description beside each name — instead of asking you to type a repo you can only half-remember. **Paste a link instead…** sits at the bottom of the list, and a signed-out or unconnected user still gets the paste box directly, so public import is untouched. The listing comes from `/api/github/repos` with a session cookie; a failed listing falls back to the paste box rather than showing an error.
+- The picker passes the repo's default branch to the importer, so the server no longer spends a request discovering it for the repos it lists.
 - Public repos are unchanged: the CDN path is tried first, so an anonymous import still makes no authenticated request and only failures fall through to the server. Budgets and the file-selection heuristics are the same for both paths.
 
 

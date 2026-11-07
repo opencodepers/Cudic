@@ -244,6 +244,36 @@ async function fetchConnectedFile(
   return new Uint8Array(await res.arrayBuffer());
 }
 
+export interface ConnectedRepo {
+  full_name: string;
+  owner: string;
+  name: string;
+  private: boolean;
+  fork: boolean;
+  archived: boolean;
+  default_branch: string;
+  size_kb: number;
+  updated_at: string | null;
+  description: string;
+}
+
+/**
+ * The connected account's repositories, private ones first (the server sorts).
+ * This is the only call that reveals repo names, so the picker built on it is
+ * also the only affordance for a repo a public import could never reach. Throws
+ * with the server's own sentence when GitHub is not connected or the token died,
+ * which the caller treats as "fall back to the paste box", never as an error.
+ */
+async function listConnectedRepos(): Promise<{ login: string; repos: ConnectedRepo[] }> {
+  const j = await cudicJson<{ login?: string; repos?: ConnectedRepo[] }>('/api/github/repos');
+  const repos = (Array.isArray(j.repos) ? j.repos : []).filter(
+    (r): r is ConnectedRepo => typeof r?.full_name === 'string' && r.full_name.indexOf('/') > 0
+  );
+  return { login: String(j.login ?? ''), repos };
+}
+
+export { listConnectedRepos };
+
 function dirname(p: string): string {
   const i = p.lastIndexOf('/');
   return i < 0 ? '' : p.slice(0, i);

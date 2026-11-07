@@ -13,7 +13,7 @@ import {
 import JSZip from 'jszip';
 import { sceneToFiles } from './npmutil';
 import { kenneyAssets, kenneyUrl, type KenneyAsset } from './kenney';
-import { importRepo, parseRepoInput } from './github';
+import { importRepo, listConnectedRepos, parseRepoInput, type ConnectedRepo } from './github';
 
 const DEMO: Record<string, string> = {
   'index.html':
@@ -1197,14 +1197,77 @@ async function runRepoImport(input: string, replace: boolean): Promise<void> {
   }
 }
 
-async function importGitHub(): Promise<void> {
+async function askRepoLink(): Promise<string | null> {
   const typed = await vscode.window.showInputBox({
-    prompt: 'Public GitHub repo — paste the link, or type owner/repo',
+    prompt: 'GitHub repo — paste the link, or type owner/repo',
     placeHolder: 'https://github.com/owner/repo  ·  owner/repo  ·  …/tree/main/subfolder',
     validateInput: (v) => (parseRepoInput(v) == null ? 'Not a GitHub repo link or owner/repo.' : null)
   });
-  if (typed == null) return;
-  await runRepoImport(typed, false);
+  return typed == null ? null : typed;
+}
+
+interface RepoPick {
+  label: string;
+  description?: string;
+  detail?: string;
+  repo?: ConnectedRepo;
+  paste?: boolean;
+}
+
+const PASTE_LABEL = 'Paste a link instead…';
+
+// Connected GitHub turns the paste box into a picker of that account's repos.
+// Private repos only exist here, so this list is the feature, not a shortcut:
+// without it a private repo can only be imported by typing its name from memory.
+// A signed-out or unconnected user must still reach public import, so a failed
+// listing is a fallback to the paste box rather than an error.
+async function chooseGitHubSource(): Promise<string | null> {
+  let repos: ConnectedRepo[] = [];
+  try {
+    repos = (await listConnectedRepos()).repos;
+  } catch {
+    // No session, or GitHub not connected — the paste box is the public path.
+  }
+  if (repos.length === 0) return askRepoLink();
+  const qp = vscode.window.createQuickPick<RepoPick>();
+  qp.title = 'Open from GitHub';
+  qp.placeholder = 'Pick a repository — private ones are listed first';
+  qp.items = [
+    ...repos.map((r) => ({
+      label: r.full_name,
+      description: r.private ? 'Private' : 'Public',
+      detail: [r.fork ? 'fork' : '', r.archived ? 'archived' : '', r.description]
+        .filter((s) => s !== '')
+        .join(' · '),
+      repo: r
+    })),
+    { label: PASTE_LABEL, paste: true }
+  ];
+  qp.show();
+  const chosen = await new Promise<RepoPick | null>((resolve) => {
+    qp.onDidAccept(() => {
+      const sel = qp.selectedItems[0] ?? null;
+      qp.hide();
+      resolve(sel);
+    });
+    qp.onDidHide(() => resolve(null));
+  });
+  qp.dispose();
+  if (chosen == null) return null;
+  if (chosen.paste === true || chosen.repo == null) return askRepoLink();
+  // The branch is already known from the listing, so hand it to the importer:
+  // the server then skips its default-branch lookup for this repo. A branch name
+  // with a slash cannot survive `owner/repo/tree/<ref>` parsing, so skip it —
+  // the importer falls back to discovering the default branch itself.
+  const branch = chosen.repo.default_branch;
+  const ref = branch !== '' && !branch.includes('/') ? '/tree/' + branch : '';
+  return chosen.repo.full_name + ref;
+}
+
+async function importGitHub(): Promise<void> {
+  const source = await chooseGitHubSource();
+  if (source == null) return;
+  await runRepoImport(source, false);
 }
 
 // The template chooser, shared by the "Cudic: Start from template" command
