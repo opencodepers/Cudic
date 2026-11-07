@@ -1081,6 +1081,177 @@ async function handleRequest(req, res) {
     return;
   }
 
+  // ── Connected GitHub: what the sealed token is actually for ────────
+  // Studio cannot read a private repo: jsDelivr only sees public code and
+  // api.github.com allows 60 requests/hour per IP, an IP every visitor shares
+  // on Render. So the work moves here, where the user's own token pays the
+  // quota (5000/hour) and never leaves this process.
+  function ghOpen(sealed, key) {
+    const s = String(sealed || '');
+    if (!s.startsWith('v1.')) return null;
+    const buf = Buffer.from(s.slice(3), 'base64');
+    if (buf.length < 29) return null; // iv(12) + tag(16) + at least 1 byte
+    const d = crypto.createDecipheriv('aes-256-gcm', key, buf.subarray(0, 12));
+    d.setAuthTag(buf.subarray(12, 28));
+    return Buffer.concat([d.update(buf.subarray(28)), d.final()]).toString('utf8');
+  }
+  // Encrypted row → token. A rotated key or an edited row throws, and that has
+  // to read as "reconnect", never as a 500 with no way forward.
+  async function ghToken(user) {
+    const key = ghKey();
+    if (!key) return { error: 'github_not_configured' };
+    const { data, error } = await supabase.from('github_connections')
+      .select('login, token_enc').eq('user_id', user.id).maybeSingle();
+    if (error) return { error: ghNoTable(error) ? 'github_not_configured' : 'github_read_failed' };
+    if (!data) return { error: 'github_not_connected' };
+    let token = null;
+    try { token = ghOpen(data.token_enc, key); } catch (e) { token = null; }
+    if (!token) return { error: 'github_reconnect' };
+    supabase.from('github_connections').update({ last_used_at: new Date().toISOString() })
+      .eq('user_id', user.id).then(() => {}, () => {});
+    return { token, login: data.login || '' };
+  }
+  const GH_ERR_TEXT = {
+    github_not_configured: 'GitHub connections are not set up on this server yet.',
+    github_not_connected: 'Connect GitHub in Profile → Connections first.',
+    github_reconnect: 'That GitHub token can no longer be read — reconnect GitHub in Profile → Connections.',
+    github_read_failed: 'Could not read your GitHub connection.',
+  };
+  const GH_NAME = /^[A-Za-z0-9._-]{1,100}$/;
+  const GH_PATH = /^[A-Za-z0-9._\-/ ]{1,400}$/;
+  function ghApi(path, token, accept) {
+    return fetch('https://api.github.com' + path, {
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Accept': accept || 'application/vnd.github+json',
+        'User-Agent': 'cudic',
+      },
+    });
+  }
+  function ghFail(res, status, error, text) {
+    res.writeHead(status, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error, text: text || GH_ERR_TEXT[error] || 'GitHub request failed.' }));
+  }
+  async function ghGate(req, res, bucket, limit) {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return null;
+    const got = await ghToken(user);
+    if (got.error) {
+      ghFail(res, got.error === 'github_not_connected' ? 409 : got.error === 'github_reconnect' ? 401 : 503, got.error);
+      return null;
+    }
+    if (!rateLimit('github:' + bucket + ':' + user.id, limit, 60 * 60 * 1000)) {
+      ghFail(res, 429, 'slow_down', 'Too many GitHub requests just now. Try again in a few minutes.');
+      return null;
+    }
+    return got;
+  }
+
+  if (url.pathname === '/api/github/repos' && req.method === 'GET') {
+    const got = await ghGate(req, res, 'repos', 120); if (!got) return;
+    let r;
+    try {
+      r = await ghApi('/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator', got.token);
+    } catch (e) { return ghFail(res, 502, 'github_unreachable', 'Could not reach GitHub. Try again.'); }
+    if (r.status === 401) return ghFail(res, 401, 'github_reconnect');
+    if (r.status === 403) return ghFail(res, 429, 'github_rate_limited', 'GitHub is rate-limiting that account right now.');
+    if (!r.ok) return ghFail(res, 502, 'github_error', 'GitHub answered ' + r.status + '.');
+    const list = await r.json().catch(() => null);
+    const repos = (Array.isArray(list) ? list : []).map((x) => ({
+      full_name: String((x && x.full_name) || '').slice(0, 200),
+      owner: String((x && x.owner && x.owner.login) || '').slice(0, 100),
+      name: String((x && x.name) || '').slice(0, 100),
+      private: !!(x && x.private),
+      fork: !!(x && x.fork),
+      archived: !!(x && x.archived),
+      default_branch: String((x && x.default_branch) || 'main').slice(0, 200),
+      size_kb: Number(x && x.size) || 0,
+      updated_at: (x && x.updated_at) || null,
+      description: typeof (x && x.description) === 'string' ? x.description.slice(0, 140) : '',
+    }));
+    // Private first — those are the ones no public path can reach.
+    repos.sort((a, b) =>
+      (Number(b.private) - Number(a.private)) ||
+      String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ login: got.login, repos }));
+    return;
+  }
+
+  if (url.pathname === '/api/github/tree' && req.method === 'GET') {
+    const got = await ghGate(req, res, 'tree', 300); if (!got) return;
+    const owner = String(url.searchParams.get('owner') || '');
+    const repo = String(url.searchParams.get('repo') || '');
+    const wantRef = String(url.searchParams.get('ref') || '');
+    if (!GH_NAME.test(owner) || !GH_NAME.test(repo)) return ghFail(res, 400, 'github_bad_repo', 'That is not a repo name.');
+    if (wantRef !== '' && !GH_PATH.test(wantRef)) return ghFail(res, 400, 'github_bad_ref', 'That is not a branch name.');
+    try {
+      let ref = wantRef;
+      if (ref === '') {
+        const info = await ghApi('/repos/' + owner + '/' + repo, got.token);
+        if (info.status === 401) return ghFail(res, 401, 'github_reconnect');
+        if (info.status === 404) return ghFail(res, 404, 'github_not_found', 'No repo at ' + owner + '/' + repo + ' that this account can read.');
+        if (!info.ok) return ghFail(res, 502, 'github_error', 'GitHub answered ' + info.status + '.');
+        const j = await info.json().catch(() => null);
+        ref = String((j && j.default_branch) || 'main');
+      }
+      const t = await ghApi('/repos/' + owner + '/' + repo + '/git/trees/' + encodeURIComponent(ref) + '?recursive=1', got.token);
+      if (t.status === 401) return ghFail(res, 401, 'github_reconnect');
+      if (t.status === 403) return ghFail(res, 409, 'github_scope', 'Cudic cannot read that repo — reconnect GitHub and allow access to it.');
+      if (t.status === 404) return ghFail(res, 404, 'github_not_found', 'No branch ' + ref + ' in ' + owner + '/' + repo + '.');
+      if (t.status === 409) return ghFail(res, 409, 'github_empty', 'That repository is empty.');
+      if (!t.ok) return ghFail(res, 502, 'github_error', 'GitHub answered ' + t.status + '.');
+      const j = await t.json().catch(() => null);
+      const files = [];
+      for (const n of (j && j.tree) || []) {
+        if (!n || n.type !== 'blob') continue;
+        files.push({ path: String(n.path || '').slice(0, 400), size: Number(n.size) || 0 });
+        if (files.length >= 5000) break;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ owner, repo, ref, truncated: !!(j && j.truncated), files }));
+    } catch (e) {
+      return ghFail(res, 502, 'github_unreachable', 'Could not reach GitHub. Try again.');
+    }
+    return;
+  }
+
+  if (url.pathname === '/api/github/file' && req.method === 'GET') {
+    const got = await ghGate(req, res, 'file', 2000); if (!got) return;
+    const owner = String(url.searchParams.get('owner') || '');
+    const repo = String(url.searchParams.get('repo') || '');
+    const ref = String(url.searchParams.get('ref') || '');
+    const filePath = String(url.searchParams.get('path') || '');
+    if (!GH_NAME.test(owner) || !GH_NAME.test(repo) || ref === '' || !GH_PATH.test(filePath)) {
+      return ghFail(res, 400, 'github_bad_path', 'That is not a repo path.');
+    }
+    let r;
+    try {
+      r = await ghApi(
+        '/repos/' + owner + '/' + repo + '/contents/' +
+          filePath.split('/').map(encodeURIComponent).join('/') +
+          '?ref=' + encodeURIComponent(ref),
+        got.token,
+        'application/vnd.github.raw'
+      );
+    } catch (e) { return ghFail(res, 502, 'github_unreachable', 'Could not reach GitHub. Try again.'); }
+    if (r.status === 401) return ghFail(res, 401, 'github_reconnect');
+    if (r.status === 403) return ghFail(res, 409, 'github_scope', 'Cudic cannot read that file — reconnect GitHub and allow access.');
+    if (r.status === 404) return ghFail(res, 404, 'github_not_found', 'No file ' + filePath + ' on ' + ref + '.');
+    if (!r.ok) return ghFail(res, 502, 'github_error', 'GitHub answered ' + r.status + '.');
+    let buf;
+    try { buf = Buffer.from(await r.arrayBuffer()); }
+    catch (e) { return ghFail(res, 502, 'github_error', 'Could not download that file.'); }
+    if (buf.length > 8 * 1024 * 1024) return ghFail(res, 413, 'github_too_big', 'That file is over 8MB.');
+    res.writeHead(200, {
+      'Content-Type': 'application/octet-stream',
+      'Content-Length': String(buf.length),
+      'Cache-Control': 'no-store',
+    });
+    res.end(buf);
+    return;
+  }
+
   if (url.pathname === '/api/user' && req.method === 'GET') {
     try {
       const q = new URL(req.url, 'http://localhost').searchParams;

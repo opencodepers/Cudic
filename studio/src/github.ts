@@ -193,8 +193,55 @@ export async function listRepo(r: RepoRef): Promise<RepoListing> {
   }
   throw new Error(
     'could not read ' + r.owner + '/' + r.repo + ' — ' + tried.join(' · ') +
-    '. Private repos need a GitHub connection, which Studio cannot do yet.'
+    '. Private repos need GitHub connected in Profile → Connections.'
   );
+}
+
+// ---- Private repos (Connect GitHub) --------------------------------------
+// jsDelivr only sees public code, and api.github.com is 60 req/hour per IP —
+// one IP shared by every visitor because Render egresses from a single one. So
+// the work moves to Cudic's own server, which spends the connected account's
+// own quota and never returns the token. Studio only ever sees paths and bytes.
+
+interface CudicError {
+  error?: string;
+  text?: string;
+}
+
+async function cudicJson<T>(path: string): Promise<T> {
+  const res = await fetch(path, {
+    credentials: 'include',
+    cache: 'no-store',
+    headers: { Accept: 'application/json' },
+  });
+  const j = (await res.json().catch(() => null)) as (T & CudicError) | null;
+  if (!res.ok) throw new Error((j && (j.text ?? j.error)) ?? 'Cudic answered ' + res.status);
+  if (j == null) throw new Error('Cudic answered ' + res.status + ' with no body');
+  return j;
+}
+
+async function listConnectedRepo(r: RepoRef): Promise<RepoListing> {
+  const q = new URLSearchParams({ owner: r.owner, repo: r.repo });
+  if (r.ref != null) q.set('ref', r.ref);
+  const j = await cudicJson<{ ref?: string; files?: ListedFile[] }>('/api/github/tree?' + q.toString());
+  const files = Array.isArray(j.files) ? j.files : [];
+  if (files.length === 0) throw new Error('that repo has no files at ' + (j.ref ?? r.ref ?? 'main'));
+  return { ref: String(j.ref ?? r.ref ?? 'main'), files };
+}
+
+async function fetchConnectedFile(
+  owner: string,
+  repo: string,
+  ref: string,
+  path: string
+): Promise<Uint8Array> {
+  const q = new URLSearchParams({ owner, repo, ref, path });
+  const res = await fetch('/api/github/file?' + q.toString(), { credentials: 'include', cache: 'no-store' });
+  if (!res.ok) {
+    const j = (await res.json().catch(() => null)) as CudicError | null;
+    throw new Error(path + ' (' + ((j && (j.text ?? j.error)) || res.status) + ')');
+  }
+  return new Uint8Array(await res.arrayBuffer());
 }
 
 function dirname(p: string): string {
@@ -321,7 +368,23 @@ export async function importRepo(
 ): Promise<RepoImport> {
   const r = parseRepoInput(input);
   if (r == null) throw new Error('that is not a GitHub repo link or owner/repo');
-  const listing = await listRepo(r);
+  let listing: RepoListing;
+  let connected = false;
+  try {
+    // Public first: anonymous, CDN-fast, and no authenticated request at all.
+    listing = await listRepo(r);
+  } catch (publicErr) {
+    // Everything jsDelivr cannot serve — private, or over its 50MB cap — goes
+    // through the server with the connected account's token.
+    try {
+      listing = await listConnectedRepo(r);
+      connected = true;
+    } catch (e) {
+      const msg = String((e as Error)?.message ?? '');
+      // Not signed in, or GitHub not connected: the public error is the honest one.
+      throw new Error(/sign in|connect github|reconnect/i.test(msg) ? String((publicErr as Error)?.message ?? msg) : msg);
+    }
+  }
   const sel = selectFiles(listing.files, r.subdir);
   if (sel.picked.length === 0) {
     throw new Error('nothing to import from that ' + (r.subdir === '' ? 'repo' : 'folder') + ' (only CI config or lockfiles)');
@@ -333,7 +396,10 @@ export async function importRepo(
     6,
     async (f) => {
       try {
-        const buf = await fetchFile(r.owner, r.repo, listing.ref, (r.subdir === '' ? '' : r.subdir + '/') + f.path);
+        const full = (r.subdir === '' ? '' : r.subdir + '/') + f.path;
+        const buf = connected
+          ? await fetchConnectedFile(r.owner, r.repo, listing.ref, full)
+          : await fetchFile(r.owner, r.repo, listing.ref, full);
         files[f.path] = sniffBinary(buf) ? buf : new TextDecoder().decode(buf);
       } catch (e) {
         failed.push((e as Error).message);

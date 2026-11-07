@@ -999,6 +999,31 @@ File menu, both right-click menus) and a shareable `/studio?github=owner/repo`.
 - **Private repos are deliberately out of scope** until the Connect GitHub
   setting ships; the error says so instead of failing cryptically.
 
+### Private repos (`/api/github/repos`, `/api/github/tree`, `/api/github/file`)
+The sealed token has exactly one consumer: these three routes. Each one requires
+a signed-in user, decrypts that user's row with `ghOpen()` (the other half of
+`ghSeal()`), and calls GitHub with **the user's** token — so the 5000/hour limit
+is theirs, not the deployment's shared 60/hour. The token never crosses the
+wire: `/api/github/file` streams raw bytes as `application/octet-stream` and no
+JSON in the group has a token field.
+
+- `ghOpen()` returns `null`/throws on anything that is not `v1.<b64(iv|tag|body)>`.
+  A rotated `GITHUB_TOKEN_KEY` or an edited row must surface as `github_reconnect`
+  (HTTP 401) so the user's fix is "reconnect in Profile → Connections", never a
+  500 that leaves them stuck. `last_used_at` is stamped best-effort on every read.
+- `/api/github/repos` lists repos including private ones, private first, capped at
+  100. `/api/github/tree?owner&repo&ref` uses the git trees API (`recursive=1`),
+  resolves the default branch when `ref` is omitted, and drops directories.
+  `/api/github/file` proxies one blob via the contents API with
+  `Accept: application/vnd.github.raw` and refuses files over 8MB.
+- Owner/repo/ref/path are validated with `GH_NAME` / `GH_PATH` before they reach a
+  URL, and per-user hourly buckets (`ghGate`) keep one account from burning its
+  quota in a loop.
+- Studio's `github.ts` tries the public jsDelivr path **first** and only falls back
+  to these routes, so a public repo stays anonymous and CDN-fast. Missing sign-in
+  or connection re-throws the public error, which is the honest one. Budgets
+  (400 files / 8MB / 25MB) and the file-selection heuristics are shared.
+
 ### Connect GitHub (`github_connections`)
 Profile → Connections links a GitHub account for the repo access the public
 import cannot have: private repos, and later committing back. The browser gets

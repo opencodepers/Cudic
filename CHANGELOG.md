@@ -14,6 +14,12 @@ fixed. Commits are referenced by short hash.
 - The OAuth token is sealed with AES-256-GCM under `GITHUB_TOKEN_KEY` and no endpoint ever returns it: `/api/github/connection` answers with the GitHub username and the scopes you granted, and the read route does not even select the sealed column. **Disconnect GitHub** deletes the row.
 - A token without repo scope is rejected with a sentence that says what to do, because a token left over from GitHub sign-in looks perfectly valid until you try to read a repo with it. Without `GITHUB_TOKEN_KEY`, or before the migration is applied, the card shows a plain notice instead of an error and public import keeps working untouched.
 
+**Private repos in Studio**
+
+- Once GitHub is connected, **Cudic: Open from GitHub** reads private repos too. jsDelivr only sees public code, so the listing and the bytes come from Cudic's own server — `GET /api/github/repos`, `/api/github/tree` and `/api/github/file` — which spends the connected account's GitHub quota instead of the deployment's shared 60 requests an hour, and returns file paths and bytes only, never the token.
+- `ghOpen()` is the decryption half of the seal: the sealed row is opened inside the request, `last_used_at` is stamped, and a row that no longer decrypts (rotated key) answers "reconnect GitHub" instead of a server error.
+- Public repos are unchanged: the CDN path is tried first, so an anonymous import still makes no authenticated request and only failures fall through to the server. Budgets and the file-selection heuristics are the same for both paths.
+
 
 **Open a project from GitHub**
 

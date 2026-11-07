@@ -168,7 +168,7 @@
         <a href="#sec-collections">Collections</a>
         <a href="#sec-cosmetics">Cosmetics</a>
         <a href="#sec-appearance">Appearance</a>
-        <a href="#sec-creatorpage">Public profile</a>
+        <a href="#sec-creatorpage">Profile page</a>
         <div class="toc-label" style="margin-top:12px">Site</div>
         <a href="/privacy">Privacy</a>
         <a href="/docs">Guide</a>
@@ -295,8 +295,8 @@
         <div class="pref-row" id="packRow"><div><b id="packName">—</b><span class="sub" id="packSlug" style="font-family:'Geist Mono',monospace;font-size:0.78rem"></span></div><a href="/themes" class="btn btn-secondary" style="padding:6px 12px;font-size:0.78rem">Edit →</a></div>
       </div>
       <div class="profile-card" id="sec-creatorpage">
-        <h2>Public profile</h2>
-        <p class="sub">Your public profile is the page others see — accent, banner, links, pinned game, sections, and CSS.</p>
+        <h2>Profile page</h2>
+        <p class="sub">The page others see at /u/you — accent, banner, links, pinned game, sections, and CSS.</p>
         <div class="field"><label>Accent color</label>
           <div style="display:flex;gap:8px;margin:6px 0" id="cpPresets">
             <a href="#" class="cp-sw on" data-c="#b8f23a" style="background:#b8f23a" title="Lime"></a>
@@ -1271,7 +1271,7 @@
   /* Tabbed settings nav: one section visible at a time, preview stays put.
      Site links (Privacy/Guide/Terms) navigate away untouched. */
   (function(){
-    var SECTIONS = ['sec-profile', 'sec-security', 'sec-awards', 'sec-streak', 'sec-coins', 'sec-stats', 'sec-liked', 'sec-collections', 'sec-appearance', 'sec-creatorpage'];
+    var SECTIONS = ['sec-profile', 'sec-security', 'sec-connections', 'sec-awards', 'sec-streak', 'sec-coins', 'sec-ach', 'sec-stats', 'sec-liked', 'sec-collections', 'sec-cosmetics', 'sec-appearance', 'sec-pack', 'sec-creatorpage'];
     var links = Array.prototype.slice.call(document.querySelectorAll('.pnav a[href^="#sec-"]'));
     if (!links.length) return;
     function show(id, push) {
