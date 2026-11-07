@@ -8,6 +8,10 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**A New menu that opens**
+
+- **New** in the gallery did nothing, and neither did the gallery: the menu is a React island, and the page's own script grabbed its button before the island had rendered, so `newDropBtn.addEventListener` threw on `null` and took the rest of that script with it — the cards stayed on their skeletons and the sort control was never wired either. The handler is delegated from `document` and looks the elements up per click, so mount order cannot break the page again.
+
 **Connect GitHub**
 
 - **Profile → Connections → Connect GitHub** links a GitHub account for the repo access public import can't have: private repos, and later committing back. Signing in with GitHub and connecting it are separate — one proves who you are, the other grants read access to your repositories, and the card says so before you approve anything.
