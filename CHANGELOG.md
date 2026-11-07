@@ -14,6 +14,11 @@ fixed. Commits are referenced by short hash.
 - The OAuth token is sealed with AES-256-GCM under `GITHUB_TOKEN_KEY` and no endpoint ever returns it: `/api/github/connection` answers with the GitHub username and the scopes you granted, and the read route does not even select the sealed column. **Disconnect GitHub** deletes the row.
 - A token without repo scope is rejected with a sentence that says what to do, because a token left over from GitHub sign-in looks perfectly valid until you try to read a repo with it. Without `GITHUB_TOKEN_KEY`, or before the migration is applied, the card shows a plain notice instead of an error and public import keeps working untouched.
 
+**Connecting when you signed in with GitHub**
+
+- **Connect GitHub** no longer goes quiet for the accounts most likely to use it. Supabase will not link a GitHub identity that already exists, so a user who signed in with GitHub got an error with no token, no stored row and a card still reading "Not connected". That case now takes the sign-in-with-repo-scope path instead — same GitHub consent screen, nothing to link — and the card repaints to *Connected as …* the moment the token is saved rather than on the next reload.
+- The card also stops lying about three states: a guest is asked to sign in instead of being offered a Connect button that cannot work, a 401 reads as "your session expired" instead of "not connected", and a return from GitHub that arrives without a token says so rather than looking like the click did nothing.
+
 **Private repos in Studio**
 
 - Once GitHub is connected, **Cudic: Open from GitHub** reads private repos too. jsDelivr only sees public code, so the listing and the bytes come from Cudic's own server — `GET /api/github/repos`, `/api/github/tree` and `/api/github/file` — which spends the connected account's GitHub quota instead of the deployment's shared 60 requests an hour, and returns file paths and bytes only, never the token.

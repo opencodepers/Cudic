@@ -1364,24 +1364,53 @@
       var on = document.getElementById('ghConnect');
       if (on) on.addEventListener('click', connect);
     }
+    // A connection is a row keyed by user id, so a guest cannot own one and an
+    // expired token gets a 401. Neither may be shown a Connect button that can
+    // only fail — that is what made "I connected it" and "not connected" both
+    // true on the same screen.
+    function signInPrompt(text){
+      box.innerHTML = '<p class="sub">' + esc(text || 'Sign in to connect GitHub — a guest session cannot hold a connection.') + '</p>'
+        + '<a class="btn btn-primary" style="display:inline-block;text-decoration:none" href="/login?next='
+        + encodeURIComponent('/profile#sec-connections') + '">Sign in</a>';
+    }
     async function load(){
       var t = await token();
-      if (!t) { box.innerHTML = '<p class="sub">Sign in to connect GitHub.</p>'; return; }
-      try {
-        var r = await fetch(apiHost() + '/api/github/connection', { headers: { 'Authorization': 'Bearer ' + t } });
-        paint(await r.json());
-      } catch (e) { box.innerHTML = '<p class="sub">Could not check the connection.</p>'; }
+      if (!t) { signInPrompt(); return; }
+      var r;
+      try { r = await fetch(apiHost() + '/api/github/connection', { headers: { 'Authorization': 'Bearer ' + t } }); }
+      catch (e) { box.innerHTML = '<p class="sub">Could not check the connection.</p>'; return; }
+      if (r.status === 401) { signInPrompt('Your session expired — sign in again to connect GitHub.'); return; }
+      if (!r.ok) { box.innerHTML = '<p class="sub">Could not check the connection.</p>'; return; }
+      paint(await r.json().catch(function(){ return {}; }));
     }
     async function connect(){
       note('');
       var db = await getSupabase();
       if (!db) { note('Supabase not configured'); return; }
-      var res = await db.auth.linkIdentity({
+      var t = await token();
+      if (!t) { location.href = '/login?next=' + encodeURIComponent('/profile#sec-connections'); return; }
+      var opts = {
         provider: 'github',
         options: { scopes: 'repo', redirectTo: location.origin + '/profile' }
-      });
+      };
+      // Signing in with GitHub already created the identity, and Supabase refuses
+      // to link one that exists. That case is a sign-in with repo scope instead:
+      // same consent screen, same provider token, no manual linking involved.
+      var hasGithub = false;
+      try {
+        var g = await db.auth.getUser();
+        var ids = (g && g.data && g.data.user && g.data.user.identities) || [];
+        hasGithub = ids.some(function(i){ return i && i.provider === 'github'; });
+      } catch (e) {}
+      var res = hasGithub ? await db.auth.signInWithOAuth(opts) : await db.auth.linkIdentity(opts);
       if (res && res.error) {
         var m = res.error.message || '';
+        if (/already|linked/i.test(m)) {
+          // Identity appeared between the check and the click — a sign-in still works.
+          var again = await db.auth.signInWithOAuth(opts).catch(function(e){ return { error: e }; });
+          m = (again && again.error && again.error.message) || '';
+          if (!m) return;
+        }
         if (/manual link/i.test(m)) note('Linking is turned off in Supabase (Manual linking) — an admin has to enable it.');
         else if (/provider is not enabled|unsupported provider|validation_failed/i.test(m)) note('GitHub is not enabled as a provider in Supabase yet, so there is nothing to link to.');
         else note(m || 'GitHub could not be linked.');
@@ -1398,19 +1427,24 @@
     // Capture it right away (a token refresh drops provider_token) and send it
     // once; the browser never shows it and never keeps a second copy.
     async function capture(){
-      var back = /[?&]code=/.test(location.search);
+      var back = /[?&]code=/.test(location.search) || /(?:^|[#&])access_token=/.test(location.hash);
       if (typeof handleAuthCallback === 'function') { try { await handleAuthCallback(); } catch (e) {} }
       var db = await getSupabase();
       if (!db) return;
       var s = null;
-      for (var i = 0; i < (back ? 6 : 1) && !s; i++) {
+      for (var i = 0; i < (back ? 8 : 1) && !s; i++) {
         if (i) await new Promise(function(r){ setTimeout(r, 400); });
         try { var g = await db.auth.getSession(); s = g && g.data && g.data.session; } catch (e) {}
-        if (s && !s.provider_token && back && i < 5) s = null;
+        if (s && !s.provider_token && back && i < 7) s = null;
       }
-      if (!s || !s.provider_token) return;
+      if (!s || !s.provider_token) {
+        // Back from GitHub with nothing to send: say it, rather than leaving the
+        // card on "Not connected" as if the click had done nothing at all.
+        if (back) note('GitHub came back without a token for Cudic — press Connect GitHub and approve repository access again.');
+        return;
+      }
       var fingerprint = String(s.provider_token).slice(-12);
-      try { if (sessionStorage.getItem('cudic_gh_sent') === fingerprint) return; } catch (e) {}
+      try { if (sessionStorage.getItem('cudic_gh_sent') === fingerprint) { await load(); return; } } catch (e) {}
       var t = await token();
       if (!t) return;
       try {
@@ -1420,7 +1454,11 @@
           body: JSON.stringify({ token: s.provider_token })
         });
         var d = await r.json().catch(function(){ return {}; });
-        if (r.ok) { try { sessionStorage.setItem('cudic_gh_sent', fingerprint); } catch (e) {} note('GitHub connected.', true); }
+        if (r.ok) {
+          try { sessionStorage.setItem('cudic_gh_sent', fingerprint); } catch (e) {}
+          note('GitHub connected.', true);
+          await load();
+        }
         else note(d.text || d.error || 'GitHub could not be linked.');
       } catch (e) { note('Could not finish connecting GitHub.'); }
     }
