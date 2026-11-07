@@ -284,9 +284,31 @@ async function doCreateRepo(): Promise<void> {
   hint('Creating ' + name.trim() + '…');
   try {
     const created = await createGitHubRepo(name.trim(), vis.private);
-    hint('Created github.com/' + created.owner + '/' + created.repo + ' — push to fill it.');
+    // A repository created with auto_init:false has no commits, and GitHub's
+    // "Quick setup" page reads like a failure. Push the first commit straight
+    // away so the new repo already holds the project.
+    let first = '';
+    let why = '';
+    try {
+      const pushed = await pushToGitHub('Initial commit from Cudic');
+      first = pushed.sha.slice(0, 7);
+    } catch (e) {
+      why = (e as Error).message || 'unknown error';
+    }
+    hint(
+      'Created github.com/' + created.owner + '/' + created.repo +
+      (first !== ''
+        ? ' · first push ' + first
+        : why !== ''
+          ? ' · first push failed: ' + why
+          : ' — push to fill it.')
+    );
     void vscode.window
-      .showInformationMessage('Created ' + created.owner + '/' + created.repo + '.', 'Open on GitHub')
+      .showInformationMessage(
+        'Created ' + created.owner + '/' + created.repo +
+        (first !== '' ? ' and pushed the first commit (' + first + ').' : '. Push to fill it.'),
+        'Open on GitHub'
+      )
       .then((pick) => {
         if (pick === 'Open on GitHub') window.open(created.url, '_blank');
       });

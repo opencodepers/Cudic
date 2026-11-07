@@ -1275,7 +1275,11 @@ async function handleRequest(req, res) {
     if (refRes.status === 200) {
       const rj = await refRes.json().catch(() => null);
       parentSha = String((rj && rj.object && rj.object.sha) || '') || null;
-    } else if (refRes.status !== 404) {
+    } else if (refRes.status !== 404 && refRes.status !== 409) {
+      // 404 = no such ref; 409 = GitHub's answer for a repository with no
+      // commits yet ("Git Repository is empty"). Both mean the same thing:
+      // this is the first push, so the commit has no parent and the branch ref
+      // is created below instead of updated.
       if (!guard(refRes, 'reading the branch')) return;
     }
     if (parentSha) {
