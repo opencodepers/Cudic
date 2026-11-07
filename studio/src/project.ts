@@ -13,6 +13,7 @@ import {
 import JSZip from 'jszip';
 import { sceneToFiles } from './npmutil';
 import { kenneyAssets, kenneyUrl, type KenneyAsset } from './kenney';
+import { importRepo, parseRepoInput } from './github';
 
 const DEMO: Record<string, string> = {
   'index.html':
@@ -361,6 +362,10 @@ export function getProjectId(): string | null {
 
 export function getProjectTitle(): string {
   return projectTitle;
+}
+
+export function setProjectTitle(title: string): void {
+  projectTitle = title;
 }
 
 export function applyProjectToProvider(
@@ -1148,6 +1153,60 @@ async function exportProject(): Promise<void> {
   }
 }
 
+// Public repo → workspace snapshot. No token: github.ts explains why the
+// listing comes from jsDelivr. `replace` is for the /studio?github= deep link,
+// where the demo shell would otherwise survive next to the repo's index.html.
+async function runRepoImport(input: string, replace: boolean): Promise<void> {
+  if (provider == null) {
+    vscode.window.showErrorMessage('GitHub import needs a ready workspace, reload Studio.');
+    return;
+  }
+  const ref = parseRepoInput(input);
+  if (ref == null) {
+    vscode.window.showWarningMessage('That is not a GitHub repo link or owner/repo.');
+    return;
+  }
+  try {
+    const d = await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: 'Opening ' + ref.owner + '/' + ref.repo + '…' },
+      async (progress) => {
+        let last = 0;
+        return await importRepo(input, (done, total) => {
+          const pct = Math.round((done / total) * 100);
+          progress.report({ message: done + '/' + total + ' files', increment: pct - last });
+          last = pct;
+        });
+      }
+    );
+    const existing = replace ? {} : await collectFiles();
+    registerFiles({ ...existing, ...d.files });
+    if (getProjectTitle() === 'Untitled Project') setProjectTitle(d.repo);
+    const first = d.files['index.html'] != null ? 'index.html' : Object.keys(d.files)[0];
+    if (first != null) {
+      void vscode.commands.executeCommand('vscode.open', monaco.Uri.file('/workspace/' + first));
+    }
+    const skipped = d.skippedJunk + d.skippedOversize + d.skippedBudget + d.skippedTooMany;
+    vscode.window.showInformationMessage(
+      'Opened ' + d.owner + '/' + d.repo + '@' + d.ref + ' — ' + d.imported + ' file(s).' +
+      (skipped > 0 ? ' ' + skipped + ' skipped (config, lockfiles or over budget).' : '') +
+      (d.failed.length > 0 ? ' ' + d.failed.length + ' failed to download.' : '') +
+      ' Save to keep them on Cudic.'
+    );
+  } catch (e) {
+    vscode.window.showErrorMessage('GitHub import failed: ' + (e as Error).message);
+  }
+}
+
+async function importGitHub(): Promise<void> {
+  const typed = await vscode.window.showInputBox({
+    prompt: 'Public GitHub repo — paste the link, or type owner/repo',
+    placeHolder: 'https://github.com/owner/repo  ·  owner/repo  ·  …/tree/main/subfolder',
+    validateInput: (v) => (parseRepoInput(v) == null ? 'Not a GitHub repo link or owner/repo.' : null)
+  });
+  if (typed == null) return;
+  await runRepoImport(typed, false);
+}
+
 // The template chooser, shared by the "Cudic: Start from template" command
 // and the automatic offer for brand-new users (main.ts, freshDraft boot).
 // The session marker keeps Esc from re-asking on every reload; a new tab or
@@ -1350,6 +1409,26 @@ export function registerProjectCommands(): void {
     class extends Action2 {
       constructor() {
         super({
+          id: 'glox.importGitHub',
+          title: { value: 'Cudic: Open from GitHub', original: 'Cudic: Open from GitHub' },
+          menu: [
+            { id: MenuId.CommandPalette },
+            { id: MenuId.MenubarFileMenu, group: '5_glox' },
+            { id: MenuId.ExplorerContext, group: 'cudic' },
+            { id: MenuId.EditorContext, group: 'cudic' }
+          ]
+        });
+      }
+      async run(): Promise<void> {
+        await importGitHub();
+      }
+    }
+  );
+
+  registerAction2(
+    class extends Action2 {
+      constructor() {
+        super({
           id: 'glox.exportProject',
           title: { value: 'Cudic: Export project as zip', original: 'Cudic: Export project as zip' },
           menu: [
@@ -1421,6 +1500,16 @@ export function registerProjectCommands(): void {
       }
     }
   );
+
+  // /studio?github=owner/repo — a shareable way in that needs no menu digging.
+  try {
+    const gh = new URLSearchParams(location.search).get('github');
+    if (gh != null && gh.trim() !== '' && getProjectId() == null) {
+      void runRepoImport(gh, true);
+    }
+  } catch {
+    // no URL parsing in this environment — the command still works
+  }
 
   // A signed-out builder has no way to know their project lives only in this
   // browser until a save fails. Say it once, with the two exits that work.

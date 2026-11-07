@@ -8,6 +8,14 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Open a project from GitHub**
+
+- **Cudic: Open from GitHub** (command palette, File menu, right-click in the Explorer or editor) pulls a public repo into Studio as a normal project: `owner/repo`, a full `github.com/...` link, or a `/tree/<branch>/<subfolder>` link for repos holding more than one game. A `/blob/` link imports the folder that holds the file. `/studio?github=owner/repo` does the same from a shared link, so a README can point straight at a working Studio session.
+- Imported files are a snapshot — nothing is written back to GitHub, and the next Save stores your own Cudic copy. Public repos need no sign-in, no token and no OAuth, which is why this ships before the Connect GitHub setting.
+- The file list comes from jsDelivr rather than the GitHub API: GitHub allows 60 requests an hour per IP and the Render deployment egresses from one IP for every user, so a GitHub-API import would stop working within minutes. jsDelivr has no such cap and is the same CDN published games load from. The GitHub API is used once, only to find the default branch of a repo that has neither `main` nor `master`.
+- Budgets match Import files (400 files, 8MB each, 25MB total); `node_modules`, dot-folders and lockfiles are skipped, and the folder holding the shallowest `index.html` is preferred so a monorepo still opens something runnable. Repos over the CDN's 50MB limit fail with a message pointing at the subfolder route. Private repos wait for the GitHub connection — the error says that rather than failing silently.
+- Docs gained a section; checks: full suite green, `studio` build green.
+
 
 **The CLI is installable with npm**
 

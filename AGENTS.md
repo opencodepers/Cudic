@@ -888,6 +888,7 @@ glox.publishProject | glox.unpublishProject | glox.deleteProject
 glox.setThumbnail | glox.openPreview | glox.run | glox.leaveStudio | glox.toggleSidebar
 glox.runPython | glox.installPythonPackage | glox.addPackage
 glox.importScratch   (.sb3 file or shared Scratch link → playable project)
+glox.importGitHub    (public repo → project snapshot; also /studio?github=owner/repo)
 glox.insertIcon       (Kenney CC0 icon library → assets/icons + <img> at cursor)
 glox.restoreSnapshot  (restore points: ring of 10 per project, minute-by-minute;
                       pick one + reload — palette + File menu, §16 “guest guide”)
@@ -972,6 +973,29 @@ and returns 4 files Studio drops into the workspace: `index.html` (player shell)
 - Known gaps: editing `project.json` alone does not change what runs (the loader
   holds its own copy — re-import or hand-sync both); TTS/translate stay silent,
   video sensing is blocked. Blocks are **not** translated to hand-written JS.
+
+### GitHub import (`glox.importGitHub`, `/studio?github=owner/repo`)
+`studio/src/github.ts` reads a **public** repo straight into the workspace: no
+token, no OAuth, nothing written back. Files land as a snapshot and the next
+Save makes it an ordinary Cudic project. Entry points: the command (palette,
+File menu, both right-click menus) and a shareable `/studio?github=owner/repo`.
+- **Listing comes from `data.jsdelivr.com/v1/packages/gh/<o>/<r>@<ref>`, not
+  api.github.com.** The GitHub API is 60 req/hour per IP and Render egresses
+  from one IP for everybody, so an import button on it dies in minutes. jsDelivr
+  has no such ceiling and accepts `main`/`master`/a tag as the version. The API
+  is called **once** only when neither `main` nor `master` resolves (exotic
+  default branch) — that is the whole 60/hr exposure.
+- **`codeload.github.com/.../zip/...` cannot be used from the browser**: it sends
+  `Access-Control-Allow-Origin: https://render.githubusercontent.com`, not `*`.
+  Bytes therefore come from `cdn.jsdelivr.net/gh/<o>/<r>@<ref>/<path>` (`*`).
+- **jsDelivr 403s repos over 50MB** ("Package size exceeded"). That error is
+  translated into "open a subfolder instead", which works because
+  `/tree/<ref>/<subdir>` and `/blob/` links are parsed down to a folder.
+- Budget mirrors Import files: 400 files, 8MB/file, 25MB total. `node_modules`,
+  dot-dirs and lockfiles are skipped, and the folder holding the shallowest
+  `index.html` is preferred — a 2000-file monorepo still yields a runnable page.
+- **Private repos are deliberately out of scope** until the Connect GitHub
+  setting ships; the error says so instead of failing cryptically.
 
 ### Weekly theme + community spotlight
 - `GET /api/weekly` (public): current week's build theme. State lives in

@@ -91,6 +91,7 @@
                         <tr><td><strong>Insert icon</strong></td><td>Browse a library of 670+ ready-made game and board-game icons. Picking one drops the file into your project and an <code>&lt;img&gt;</code> at your cursor.</td></tr>
                         <tr><td><strong>Import files</strong></td><td>Pull a set of files into the workspace, merging over what's there.</td></tr>
                         <tr><td><strong>Import folder</strong></td><td>Same, for a whole folder — relative paths are kept.</td></tr>
+                        <tr><td><strong>Open from GitHub</strong></td><td>Reads a public repo (or one folder of it) into the workspace as a project — see <a href="#github">below</a>.</td></tr>
                         <tr><td><strong>Import Scratch project</strong></td><td>Turn a <code>.sb3</code> or a shared Scratch link into a playable Cudic project. See <a href="#scratch">below</a>.</td></tr>
                         <tr><td><strong>Export project as zip</strong></td><td>Downloads the whole workspace as a zip.</td></tr>
                         <tr><td><strong>Publish / Unpublish</strong></td><td>Puts your project in the gallery, or takes it back out.</td></tr>
@@ -109,6 +110,7 @@
                         <tr><th>Command</th><th>What it does</th></tr>
                         <tr><td><strong>Save project</strong> <code>Ctrl+S</code></td><td>Saves the workspace to your Cudic account.</td></tr>
                         <tr><td><strong>Import files / Import folder</strong></td><td>Pulls files or a whole folder into the workspace, merging over what's there.</td></tr>
+                        <tr><td><strong>Open from GitHub</strong></td><td>Reads a public GitHub repo — or one folder of it — into the workspace.</td></tr>
                         <tr><td><strong>Import Scratch project</strong></td><td>Turns a <code>.sb3</code> or shared Scratch link into a playable project.</td></tr>
                         <tr><td><strong>Export project as zip</strong></td><td>Downloads the workspace.</td></tr>
                         <tr><td><strong>Publish project / Unpublish project</strong></td><td>Puts the project in the gallery, or takes it back out.</td></tr>
@@ -221,6 +223,28 @@ confetti({ particleCount: 120 })</pre>
                         <li>Projects that use music load a bigger runtime the first time they run.</li>
                         <li>Scratch rate-limits downloads and sometimes won't hand over a link at all — if a link fails, import the <code>.sb3</code> file instead. Heavy projects (lots of costumes or sounds) take longer to save.</li>
                     </ul>
+                </section>
+
+                <section id="github">
+                    <h2>Opening a project from GitHub</h2>
+                    <p><strong>Cudic: Open from GitHub</strong> reads a <em>public</em> GitHub repository into Studio as a normal project — palette, File menu, or right-click a file in the Explorer or editor. No sign-in and no GitHub connection: nothing is authorised, because nothing is written back.</p>
+                    <h3>What you can paste</h3>
+                    <table>
+                        <tr><th>You paste</th><th>What opens</th></tr>
+                        <tr><td><code>owner/repo</code></td><td>That repo's default branch.</td></tr>
+                        <tr><td><code>https://github.com/owner/repo</code></td><td>The same thing — full link, with or without <code>.git</code>.</td></tr>
+                        <tr><td><code>…/tree/main/games/snake</code></td><td>Just that folder. Use this for a repo holding several games, or one too big for the CDN.</td></tr>
+                        <tr><td><code>…/blob/main/games/snake/index.html</code></td><td>The folder that holds the file.</td></tr>
+                        <tr><td><code>/studio?github=owner/repo</code></td><td>The same import, from a link you can put in a README.</td></tr>
+                    </table>
+                    <h3>What happens to the files</h3>
+                    <ul>
+                        <li>Text files arrive editable; images, models and audio arrive as real binary files — the same as <strong>Import folder</strong>.</li>
+                        <li><strong>It's a snapshot.</strong> Nothing is pushed back to GitHub. <strong>Save project</strong> stores your own Cudic copy, and your edits live here.</li>
+                        <li>A repo isn't a project, so the folder holding the shallowest <code>index.html</code> is preferred, then code, then media.</li>
+                        <li>Limits match Import files: 400 files, 8MB each, 25MB in total. <code>node_modules</code>, dot-folders and lockfiles are skipped.</li>
+                    </ul>
+                    <div class="note"><p>Private repositories aren't supported yet — they need a GitHub connection, which is on the way. Until then, make the repo public, or export a zip from GitHub and use <strong>Import folder</strong>.</p></div>
                 </section>
 
                 <section id="cli">
