@@ -19,6 +19,11 @@ fixed. Commits are referenced by short hash.
 - **Connect GitHub** no longer goes quiet for the accounts most likely to use it. Supabase will not link a GitHub identity that already exists, so a user who signed in with GitHub got an error with no token, no stored row and a card still reading "Not connected". That case now takes the sign-in-with-repo-scope path instead — same GitHub consent screen, nothing to link — and the card repaints to *Connected as …* the moment the token is saved rather than on the next reload.
 - The card also stops lying about three states: a guest is asked to sign in instead of being offered a Connect button that cannot work, a 401 reads as "your session expired" instead of "not connected", and a return from GitHub that arrives without a token says so rather than looking like the click did nothing.
 
+**Picking a folder in a repo**
+
+- Pressing Enter on the highlighted folder used to close the picker and import nothing: the accept handler read `selectedItems`, which only fills once a row has been clicked, instead of `activeItems`. Enter on the highlighted row is an accept now, as it looks.
+- The confirmation names the folder that was opened (`owner/repo@main → games/snake — 12 file(s)`) and the entry page is revealed in the explorer, so an import cannot land invisibly while the tree still shows the old files.
+
 **Private repos in Studio**
 
 - Once GitHub is connected, **Cudic: Open from GitHub** reads private repos too. jsDelivr only sees public code, so the listing and the bytes come from Cudic's own server — `GET /api/github/repos`, `/api/github/tree` and `/api/github/file` — which spends the connected account's GitHub quota instead of the deployment's shared 60 requests an hour, and returns file paths and bytes only, never the token.

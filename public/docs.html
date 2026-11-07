@@ -240,7 +240,7 @@ confetti({ particleCount: 120 })</pre>
                     <h3>What happens to the files</h3>
                     <ul>
                         <li>Text files arrive editable; images, models and audio arrive as real binary files — the same as <strong>Import folder</strong>.</li>
-                        <li><strong>More than one game in the repo?</strong> Cudic reads the file list first and asks which folder to open — every folder with its own <code>index.html</code>, root included. One folder means no question, and a <code>/tree/…/subfolder</code> link already answers it. Without this, a monorepo silently opened whichever demo sat closest to the top.</li>
+                        <li><strong>More than one game in the repo?</strong> Cudic reads the file list first and asks which folder to open — every folder with its own <code>index.html</code>, root included. One folder means no question, and a <code>/tree/…/subfolder</code> link already answers it. Without this, a monorepo silently opened whichever demo sat closest to the top. The confirmation names the one it opened (e.g. <code>owner/repo@main &rarr; games/snake</code>).</li>
                         <li><strong>It's a snapshot.</strong> Nothing is pushed back to GitHub. <strong>Save project</strong> stores your own Cudic copy, and your edits live here.</li>
                         <li>A repo isn't a project, so the folder holding the shallowest <code>index.html</code> is preferred, then code, then media.</li>
                         <li>Limits match Import files: 400 files, 8MB each, 25MB in total. <code>node_modules</code>, dot-folders and lockfiles are skipped.</li>

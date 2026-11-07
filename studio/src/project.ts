@@ -1198,7 +1198,10 @@ async function askSubfolder(r: RepoRef): Promise<string | null> {
   qp.show();
   const chosen = await new Promise<FolderPick | null>((resolve) => {
     qp.onDidAccept(() => {
-      const sel = qp.selectedItems[0] ?? null;
+      // Enter on the highlighted row is a legal accept. `selectedItems` only
+      // fills once a row has been clicked, so reading it alone made Enter look
+      // exactly like Esc: the picker closed and the import silently vanished.
+      const sel = qp.activeItems[0] ?? qp.selectedItems[0] ?? null;
       qp.hide();
       resolve(sel);
     });
@@ -1240,10 +1243,18 @@ async function runRepoImport(input: string, replace: boolean): Promise<void> {
     const first = d.files['index.html'] != null ? 'index.html' : Object.keys(d.files)[0];
     if (first != null) {
       void vscode.commands.executeCommand('vscode.open', monaco.Uri.file('/workspace/' + first));
+      // A file that appears only in an editor tab still reads as "nothing
+      // happened" if the explorer is showing the old tree. Reveal it there.
+      void Promise.resolve(
+        vscode.commands.executeCommand('workbench.files.action.showActiveFileInExplorer')
+      ).catch(() => {});
     }
     const skipped = d.skippedJunk + d.skippedOversize + d.skippedBudget + d.skippedTooMany;
+    // Name the folder: with five games in one repo, "Opened owner/repo" does not
+    // tell you which of them you are now looking at.
+    const where = subdir === '' ? '' : ' → ' + subdir;
     vscode.window.showInformationMessage(
-      'Opened ' + d.owner + '/' + d.repo + '@' + d.ref + ' — ' + d.imported + ' file(s).' +
+      'Opened ' + d.owner + '/' + d.repo + '@' + d.ref + where + ' — ' + d.imported + ' file(s).' +
       (skipped > 0 ? ' ' + skipped + ' skipped (config, lockfiles or over budget).' : '') +
       (d.failed.length > 0 ? ' ' + d.failed.length + ' failed to download.' : '') +
       ' Save to keep them on Cudic.'
