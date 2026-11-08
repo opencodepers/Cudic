@@ -1130,6 +1130,16 @@ so a user's own anon-key JWT cannot read it (`migration/github-connections.sql`)
 Sign-in and connection stay separate concepts: OAuth login proves identity,
 connecting grants repo scope, and the UI says so.
 
+**A repository with no commits cannot take git-data writes.** `POST /git/blobs`,
+`/git/trees` and `/git/commits` all answer `409` ("Git Repository is empty.") until
+the repository holds one commit, so reading the ref as "no parent" is only half
+the first-push story — the first blob still fails, and the panel says only "GitHub
+answered 409 while uploading index.html". The push route probes
+`/commits?per_page=1`; on `409` it seeds one real file through the **Contents API**
+(`PUT /contents/<path>`, which does work on an empty repository) and builds the
+rest of the project as one normal commit on top of that seed. Any other `409` is
+reported with the write that failed, never as a bare status code.
+
 The GitHub OAuth app must keep **Expire user access tokens** off. With it on,
 GitHub returns an 8-hour token plus a refresh token; only `provider_token` is
 stored today, so a connection made that way dies overnight. Turning expiry on
@@ -1632,11 +1642,13 @@ This section rots within days. `git log -5 --oneline` and `git status` are the
 truth; `CHANGELOG.md` says what shipped. If this disagrees with the repo, delete
 the stale lines instead of trusting them — that is how this file got fixed.
 
-Snapshot 2026-11-08: `master` = `origin/master` = `origin/main` = `64d2c7d`
-("Name the editor CIDE and put Cudic's mark in the title bar corner"), clean tree.
-Recent thread: Studio chrome — the activity bar emptied itself when Cudic's tabs
-were injected into VS Code's list; tabs now live in their own strip, the top-bar
-buttons take clicks, and the editor is branded CIDE.
+Snapshot 2026-11-08: `master` = `origin/master` = `origin/main` = `32de2b9`
+("Check the docs, note every source file, and pin Cudic's tabs inside the activity
+bar"). Recent thread: Studio chrome — the activity bar emptied itself when Cudic's
+tabs were injected into VS Code's list; tabs now live in their own strip inside
+`.content`, the top-bar buttons take clicks, and the editor is branded CIDE.
+Next up: the top bar's Exit went to `/account` (no such route — it is `/profile`),
+and the first push to a repository with zero commits failed on `409`.
 
 ## Releasing the CLI
 

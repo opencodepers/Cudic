@@ -1269,6 +1269,7 @@ async function handleRequest(req, res) {
       if (r.status === 401) { ghFail(res, 401, 'github_reconnect'); return false; }
       if (r.status === 403) { ghFail(res, 429, 'github_rate_limited'); return false; }
       if (r.status === 404) { ghFail(res, 404, 'repo_missing', 'GitHub could not find ' + owner + '/' + repoName + '.'); return false; }
+      if (r.status === 409) { ghFail(res, 409, 'github_conflict', 'GitHub refused a write to ' + owner + '/' + repoName + ' (' + what + '). If that repository has no commits yet, open it on GitHub once and push again.'); return false; }
       if (!r.ok) { ghFail(res, 502, 'github_error', 'GitHub answered ' + r.status + ' while ' + what + '.'); return false; }
       return true;
     };
@@ -1296,6 +1297,42 @@ async function handleRequest(req, res) {
       if (cRes && cRes.ok) {
         const cj = await cRes.json().catch(() => null);
         parentTree = String((cj && cj.tree && cj.tree.sha) || '') || null;
+      }
+    }
+
+    // GitHub's git-data endpoints answer 409 ("Git Repository is empty.") while
+    // a repository has no commits at all — there is no object database to write
+    // blobs and trees into yet. Reading the ref already treats 409 as "no
+    // parent", but the first blob still fails, which is exactly what "GitHub
+    // answered 409 while uploading index.html" was. The Contents API does work
+    // on an empty repository, so the first push seeds one real file through it
+    // and then builds the rest of the project into a normal commit.
+    if (!parentSha) {
+      const probe = await ghApi(base + '/commits?per_page=1', got.token).catch(() => null);
+      const seed = usable[0];
+      if (probe != null && probe.status === 409 && seed) {
+        const seedPath = String(seed.path).split('/').map(encodeURIComponent).join('/');
+        const seedRes = await ghSend(base + '/contents/' + seedPath, got.token, 'PUT', {
+          message: 'Initial commit from Cudic',
+          content: seed.base64,
+        }).catch(() => null);
+        const sj = seedRes && seedRes.ok ? await seedRes.json().catch(() => null) : null;
+        const seedSha = String((sj && sj.commit && sj.commit.sha) || '');
+        if (seedSha) {
+          parentSha = seedSha;
+          parentTree = String((sj && sj.commit && sj.commit.tree && sj.commit.tree.sha) || '') || null;
+          // The Contents API writes to the repository's default branch; a
+          // project pushing to any other name needs that ref to exist before
+          // the final step updates it.
+          const seedRef = await ghApi(base + '/git/ref/heads/' + branch, got.token).catch(() => null);
+          if (seedRef != null && seedRef.status === 404) {
+            await ghSend(base + '/git/refs', got.token, 'POST', { ref: 'refs/heads/' + branch, sha: seedSha }).catch(() => null);
+          }
+        } else if (seedRes && seedRes.status === 401) {
+          return ghFail(res, 401, 'github_reconnect');
+        } else if (seedRes && seedRes.status === 403) {
+          return ghFail(res, 429, 'github_rate_limited');
+        }
       }
     }
 

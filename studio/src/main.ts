@@ -412,7 +412,9 @@ async function mountTitleBarActions(): Promise<void> {
         topAction('Preview', 'Run this project in the preview tab', () => runCommand('glox.openPreview')),
         topAction('Save', 'Save this project to Cudic (Ctrl+S)', () => runCommand('glox.saveProject'), true),
         topAction('Exit', 'Leave Studio and go back to your account', () => {
-          window.location.assign('/account');
+          // The account page is served at /profile. There is no /account route,
+          // so Exit landed on Cudic's 404 page and read as a broken button.
+          window.location.assign('/profile');
         })
       );
       // `.titlebar-right` is the workbench's own interactive cluster, so buttons
