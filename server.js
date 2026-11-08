@@ -466,7 +466,10 @@ async function copyAssetPrefix(fromPrefix, toPrefix, pathsIn) {
     } catch {
       try {
         const { data: blob } = await bucket.download(from);
-        if (blob) { await bucket.upload(to, blob, { upsert: true }); copied.add(from); }
+        // Never overwrite: an existing destination is the child's own file with
+        // the same name, and the child's version wins. The skipped copy counts
+        // as a failure, so the parent keeps its bytes instead of a fork losing.
+        if (blob) { await bucket.upload(to, blob, { upsert: false }); copied.add(from); }
         else throw new Error('download returned empty');
       } catch {
         console.error('asset copy failed for', from, '->', to);
@@ -491,7 +494,12 @@ async function accountStorageBytes(userId) {
   if (hit && Date.now() - hit.at < 60_000) return hit.bytes;
   const { data: rows } = await supabase.from('games').select('id, asset_owner').eq('owner_id', userId);
   const prefixes = new Set();
-  for (const r of rows || []) prefixes.add(r.asset_owner || r.id);
+  // Union, not either/or: a fork that uploaded its own files has bytes in its
+  // own prefix *and* in the prefix it shares, so the ledger must count both.
+  for (const r of rows || []) {
+    prefixes.add(r.id);
+    if (r.asset_owner) prefixes.add(r.asset_owner);
+  }
   let bytes = 0;
   const bucket = supabase.storage.from('game-assets');
   for (const prefix of prefixes) {
