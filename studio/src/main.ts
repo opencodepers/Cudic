@@ -180,7 +180,7 @@ const commonServices: IEditorOverrideServices = {
 const constructOptions: IWorkbenchConstructionOptions = {
   // Workspace trust disabled entirely: everything is always trusted (no Restricted Mode)
   enableWorkspaceTrust: false,
-  windowIndicator: { label: 'Cudic Studio', tooltip: '', command: '' },
+  windowIndicator: { label: 'CIDE', tooltip: 'Cudic IDE', command: '' },
   workspaceProvider: {
     trusted: true,
     async open() {
@@ -194,8 +194,8 @@ const constructOptions: IWorkbenchConstructionOptions = {
       firstFile != null ? [{ uri: monaco.Uri.file(firstFile), viewColumn: 1 }] : []
   },
   productConfiguration: {
-    nameShort: 'Cudic Studio',
-    nameLong: 'Cudic Studio',
+    nameShort: 'CIDE',
+    nameLong: 'Cudic IDE',
     extensionsGallery: {
       serviceUrl: 'https://open-vsx.org/vscode/gallery',
       resourceUrlTemplate:
@@ -206,7 +206,7 @@ const constructOptions: IWorkbenchConstructionOptions = {
     }
   },
   configurationDefaults: {
-    'window.title': 'Cudic Studio${separator}${dirty}${activeEditorShort}'
+    'window.title': 'CIDE${separator}${dirty}${activeEditorShort}'
   }
 };
 
@@ -363,25 +363,31 @@ async function mountTitleBarActions(): Promise<void> {
       '[class*="titlebar"], [class*="title-bar"], .part.titlebar'
     ) as HTMLElement | null;
     if (titleBar != null) {
-      // The cube: brand mark, and a shortcut into the preview.
-      const icon = document.createElement('button');
-      icon.id = 'glox-title-icon';
-      icon.title = 'Cudic: Open Preview';
-      icon.setAttribute('aria-label', 'Cudic: Open Preview');
-      icon.style.cssText =
-        'display:flex;align-items:center;justify-content:center;width:28px;height:24px;' +
-        'background:transparent;border:none;cursor:pointer;padding:0;margin-right:6px;flex:0 0 auto;';
+      // Top corner of the IDE: Cudic's logo and the name CIDE (Cudic + IDE).
+      // Non-interactive on purpose — it marks the app, it is not a button, and
+      // pointer-events:none keeps it out of the title bar's drag region.
+      const brand = document.createElement('div');
+      brand.id = 'cudic-brand';
+      brand.title = 'Cudic IDE';
+      brand.setAttribute('aria-label', 'Cudic IDE');
+      brand.style.cssText =
+        'display:flex;align-items:center;gap:8px;height:100%;padding:0 12px 0 6px;' +
+        'flex:0 0 auto;pointer-events:none;user-select:none;';
       const img = document.createElement('img');
-      img.src = new URL('./glox.svg', import.meta.url).toString();
+      img.src = '/cudic_sfsvg.svg';
       img.alt = 'Cudic';
-      img.style.cssText = 'width:18px;height:18px;display:block;';
-      icon.append(img);
-      icon.onclick = () => runCommand('glox.openPreview');
+      img.style.cssText =
+        'width:18px;height:18px;display:block;flex:0 0 auto;border-radius:3px;object-fit:contain;';
+      const word = document.createElement('span');
+      word.textContent = 'CIDE';
+      word.style.cssText =
+        'font:600 12px/1 "Geist Mono",ui-monospace,monospace;letter-spacing:.14em;color:#f7f5ec;';
+      brand.append(img, word);
       const left =
         titleBar.querySelector('[class*="navigation"]') ??
         titleBar.querySelector('[class*="left"]') ??
         titleBar;
-      left.prepend(icon);
+      left.prepend(brand);
 
       const bar = document.createElement('div');
       bar.id = 'cudic-top-actions';

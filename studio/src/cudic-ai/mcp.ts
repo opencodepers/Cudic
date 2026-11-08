@@ -53,7 +53,7 @@ export async function fetchCatalog(server: McpServer, rawName: string): Promise<
     params: {
       protocolVersion: '2025-03-26',
       capabilities: {},
-      clientInfo: { name: 'Cudic Studio', version: '1.0' }
+      clientInfo: { name: 'CIDE', version: '1.0' }
     }
   };
   const ready = await rpc(server, body);

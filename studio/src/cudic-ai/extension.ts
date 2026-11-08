@@ -210,7 +210,7 @@ function systemPrompt(
   withTools: boolean,
   extra?: string
 ): string {
-  let s = 'You are Cudic AI, a coding assistant inside Cudic Studio (a browser VS Code for small web games). Be concise. ';
+  let s = 'You are Cudic AI, a coding assistant inside CIDE (Cudic IDE, a browser VS Code for small web games). Be concise. ';
   s += 'When you provide a complete file, open its fence as ```lang:/workspace/path so the user can Apply it.';
   if (withTools) {
     s += '\n\nTools you can call on the open project:\n' +
