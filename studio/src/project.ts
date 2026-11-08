@@ -1,3 +1,10 @@
+/* file: studio/src/project.ts
+ * what: Project storage and lifecycle — save, import, export, publish, delete,
+ *   the preview bridge, plus the file map / mime helpers everything else uses.
+ * invariants: files travel as text (html/css/js/json/svg/md) — binaries need the
+ *   storage path. Publish asks for <=3 tags and PUTs them through sanitizeTags.
+ * see: AGENTS.md 4, 8 */
+
 // Phase 2 — bridge Explorer ↔ Cudic backend (games.files JSON).
 import * as vscode from 'vscode';
 import * as monaco from 'monaco-editor';

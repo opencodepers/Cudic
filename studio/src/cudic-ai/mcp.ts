@@ -1,3 +1,10 @@
+/* file: studio/src/cudic-ai/mcp.ts
+ * what: The MCP connector — fetch a server's tool catalog and call a tool, so
+ *   external MCP servers show up in the AI's tool list.
+ * invariants: tools are aggregated into the one agent loop; extend this file
+ *   rather than adding a bespoke path per server.
+ * see: AGENTS.md 7 "MCP connector" */
+
 // MCP connector for the Cudic AI agent — Streamable HTTP only, which is the
 // transport that works from a browser (no stdio). For each configured server
 // we run the JSON-RPC handshake, pull tools/list, and expose each tool to the

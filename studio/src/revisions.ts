@@ -1,3 +1,11 @@
+/* file: studio/src/revisions.ts
+ * what: Project snapshots — createSnapshot(auto) plus the restore UI, backed by
+ *   the owner-only project_revisions routes (manifest + revision_blobs).
+ * invariants: project_revisions.files is NOT NULL, so manifests store {} there
+ *   and the content lives in revision_blobs. Register commands through
+ *   registerRevisionCommands so glox.restoreSnapshot stays callable.
+ * see: AGENTS.md 5 "Project revisions", 12b "Database" */
+
 // Revision history: snapshot/restore project files against the account.
 // Snapshots are staged: "Save snapshot" diffs the workspace against the
 // newest snapshot and lets you uncheck files, which keep their previous

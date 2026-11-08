@@ -1,3 +1,10 @@
+/* file: studio/src/cudic-ai/llm.ts
+ * what: One provider-agnostic chat call and its streaming handling, plus
+ *   friendlyError() that turns raw provider text into something a person reads.
+ * invariants: keep the wire formats in providers.ts; never call a provider
+ *   directly, always through the proxy in server.js.
+ * see: AGENTS.md 7 "The proxy" */
+
 // Cudic AI LLM client — runs in the extension host (worker).
 // One engine for chat + autocomplete + model lists across every preset.
 // Loopback engines go direct; everything cloud goes through our same-origin

@@ -1,3 +1,9 @@
+/* file: studio/src/source-control.ts
+ * what: The Cudic source-control panel — repo state, staged changes and commits
+ *   for the open project, driven by git-core/isomorphic-git.
+ * invariants: same overlay rule as collab.ts — hide via onOtherTabSelected.
+ * see: AGENTS.md 7b, 12.21 */
+
 // Source Control: a real Git repository for the open project.
 //
 // Commits here are actual Git commits — isomorphic-git writes loose objects and

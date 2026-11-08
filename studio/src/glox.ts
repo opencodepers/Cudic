@@ -1,3 +1,10 @@
+/* file: studio/src/glox.ts
+ * what: Preview and Run — the preview iframe assembly, gloxRun/gloxRunPython,
+ *   editor context menus, error draining out of the frame (drainPreviewErrors).
+ * invariants: the preview document is assembled here, so a new project file type
+ *   has to be wired into both this assembly and project.ts's file list.
+ * see: AGENTS.md 8 */
+
 // Cudic built-ins — core UI, no vsix, cannot be uninstalled.
 // Preview is a real editor tab (same as index.html). No sidebar container.
 import * as vscode from 'vscode';

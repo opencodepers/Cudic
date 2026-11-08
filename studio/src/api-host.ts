@@ -1,3 +1,10 @@
+/* file: studio/src/api-host.ts
+ * what: Where the API is and who is asking — apiBase() derived from the page,
+ *   the session token (liveToken refreshes it) and headers() for JSON writes.
+ * invariants: derive the host from the page/WS_URL; a hardcoded origin breaks
+ *   local dev, previews and Render at once.
+ * see: AGENTS.md 12b "A new page" (script order) */
+
 // Where the backend actually is, and who is asking.
 //
 // These three lived in project.ts, which github.ts may not import: project.ts

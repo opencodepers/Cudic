@@ -14,6 +14,8 @@ landing/dist-server/
 landing/dist-404-server/
 # Local-only, never commit: agent skills, lockfiles, CLI temp, personal assets
 .agents/
+# MCP servers for the agent, with credentials in headers
+.mcp.json
 skills-lock.json
 supabase/.temp/
 public/3d_models/
@@ -29,6 +31,8 @@ tests.results.md
 # Weekly challenge state (server runtime, auto-regenerates)
 /weekly.json
 
-# Agent scratch space (debug hops, throwaway checks) — never commit
+# Agent scratch space (debug hops, throwaway checks) — never commit.
+# Both spellings: notes say `.freebuff/`, the ignore rule said `/freebuff/`.
 /freebuff/
+.freebuff/
 cli/*.tgz

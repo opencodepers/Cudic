@@ -1,3 +1,10 @@
+/* file: studio/src/git-repo.ts
+ * what: The repo side of source control — remember/stored remote source, init,
+ *   clone, saveRepo() and repoView() for the panel.
+ * invariants: repo identity is remembered per project (RepoSource); losing it
+ *   makes saveRepo operate on the wrong remote.
+ * see: AGENTS.md 8 */
+
 // Binds the real Git engine (git-core.ts) to a Studio project.
 //
 // One repository per project key, stored in IndexedDB by lightning-fs, so the

@@ -1,9 +1,12 @@
 # Cudic — Project Memory & Credentials
 
+> Facts here are checked by `python tools/check-docs.py`. The work lists
+> below are historical — `git log` and `CHANGELOG.md` are the truth.
+
 ## Project Overview
 - Real-time chat lobby web app with persistent messages, OAuth login, split deployment
-- Working directory: `C:\Users\sophi\OneDrive\Desktop\Glox`
-- GitHub repo: `nathent2023-glitch/Cudic` (branch: `master`)
+- Working directory: `C:\Users\sophi\glox` (bash: `/c/Users/sophi/glox`)
+- GitHub repo: `opencodepers/Cudic` — branch `master`, mirrored to `main` for Vercel
 
 ## Deployment URLs
 - Frontend (Vercel): `https://cudic.vercel.app`
@@ -35,7 +38,7 @@
 
 ## User Preferences
 - Beginner at web dev — prefers simple explanations
-- PowerShell on this machine — use `;` not `&&`
+- Bash on this machine (Git Bash) — `&&`, `$(...)`, POSIX paths
 - Does NOT want Google OAuth — only GitHub and email/password
 - Wants impressive UI — dark grid-led editorial system (design.md v2), Geist + Geist Mono, lime/blue accents, hard edges — glassmorphism/gradients/purple are explicit anti-patterns now
 - Do NOT delete `agora.db` files (Live Share)
@@ -48,7 +51,7 @@
 - Login page redesigned with split layout
 - GitHub OAuth configured in Supabase
 - P2P collab editing in Studio (Yjs/y-webrtc rooms, live co-edit, chat, guest aliases) — pushed ea76000, 2026-10-29
-- Follows + activity feed + awards system (badges/flairs/titles, equip 5/10/2 on profile; follow buttons on friends + creator pages) — local build 2026-10-29, migration applied, awaiting user OK to commit/push
+- Follows + activity feed + awards system (badges/flairs/titles, equip 5/10/2 on profile; follow buttons on friends + creator pages) — local build 2026-10-29, migration applied, shipped
 - Mod grant page `/grant` (moderators only): search players, grant/revoke any award, inbox notify on grant; plus `/moderate` link
 - Mod tools on `/grant` extended: send a message to a player's inbox, and temp-ban from chat & comments (`user_bans` table, `activeBan()` check in WS send + comment POST; unban lifts)
 - Profile preview no longer silently stays at dashes on a failed/expired session — shows a sign-in nudge

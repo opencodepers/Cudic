@@ -1,3 +1,10 @@
+/* file: studio/src/cudic-ai/providers.ts
+ * what: The provider catalog — presets with base URL, wire format
+ *   (openai-chat | anthropic | gemini) and loopback detection.
+ * invariants: a new provider's host must also be added to AI_HOSTS in server.js
+ *   or the proxy 403s; loopback hosts are intentionally blocked there.
+ * see: AGENTS.md 12.7, 7 "Model catalogs" */
+
 // Cudic AI provider registry — ~50 presets over 3 wire formats.
 // OpenAI-compatible chat completions covers nearly everything; Anthropic and
 // Gemini need their native shapes. Model IDs drift — every preset allows

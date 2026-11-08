@@ -1,3 +1,10 @@
+/* file: studio/src/git-core.ts
+ * what: isomorphic-git plumbing shared by the git panel: Change, CommitInfo,
+ *   RepoSummary, author defaults — the shapes, not the UI.
+ * invariants: browser git only (no terminal, no backend exec); everything here
+ *   runs against lightning-fs, so paths are project-relative.
+ * see: AGENTS.md 8 "Runtimes" */
+
 // Real Git, in the browser, with no server and no network.
 //
 // isomorphic-git writes actual loose objects and refs into `.git`, so a commit

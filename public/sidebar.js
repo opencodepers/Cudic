@@ -1,4 +1,13 @@
-﻿// ── Glox Sidebar Component ──────────────────────────────
+﻿// file: public/sidebar.js
+// what: The shared 60px icon rail on every classic page — brand (inline SVG so
+//   each path can stagger), nav rows, per-lobby links, the account row, and the
+//   theme-pack boot at the end of the file.
+// invariants: bump sidebar.js?v= on every page that includes it after editing;
+//   labels never expand (hover shows #railTip) and the rail brand keeps no white
+//   chip — the user wants raw art there.
+// see: AGENTS.md 9, 12.10
+
+// ── Glox Sidebar Component ──────────────────────────────
 (function(){
   if(window._gloxSidebar) return; window._gloxSidebar=true;
   if(document.querySelector('nav.sidebar'))return;

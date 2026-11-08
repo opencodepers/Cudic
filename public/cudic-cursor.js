@@ -1,3 +1,10 @@
+/* file: public/cudic-cursor.js
+ * what: Applies the design.md cursor sheet for the current theme — pointer:fine
+ *   only, reduced-motion respected.
+ * invariants: set the cursor on html/body once per page; don't set it per section
+ *   (that is what the .cursor-* classes are for).
+ * see: design.md cursors, AGENTS.md 11 */
+
 (() => {
   if (!matchMedia('(pointer:fine)').matches) return;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;

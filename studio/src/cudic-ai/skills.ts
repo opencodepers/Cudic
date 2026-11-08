@@ -1,3 +1,10 @@
+/* file: studio/src/cudic-ai/skills.ts
+ * what: The skill table — short instruction packs injected into the AI system
+ *   message so the assistant writes code the Cudic way.
+ * invariants: text is user-visible prompt content; docs claims and tests may pin
+ *   its wording.
+ * see: AGENTS.md 7 "Skills & tools" */
+
 // Cudic AI premade skills — selectable prompt blocks the panel appends to
 // the system prompt. Two ship in v1: an anti-slop frontend taste skill
 // (condensed from the full tasteskill doc) and a Cudic platform skill

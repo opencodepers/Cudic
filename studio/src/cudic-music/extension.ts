@@ -1,3 +1,10 @@
+/* file: studio/src/cudic-music/extension.ts
+ * what: The Music Lab panel — compose, save to the cloud (/api/music) and pick a
+ *   track for a game to play through /cudic-music.js.
+ * invariants: saves are owner-scoped; public playback reads /api/music/:id/public
+ *   and must stay reachable without a session.
+ * see: AGENTS.md 5 "Music tracks" */
+
 // Cudic Music tab — a picker, not a composer. Music is made in the Music
 // Lab page (/music); this tab rides in on the bottom panel (same mounting
 // shape as cudic-ai) and lists (a) your saved tracks and (b) every

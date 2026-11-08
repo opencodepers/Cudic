@@ -1,3 +1,11 @@
+/* file: studio/src/npmutil.ts
+ * what: Makes bare npm imports work in the browser build — detects module
+ *   imports, rewrites bare specifiers to CDN URLs, splits an import head from
+ *   the body of a script.
+ * invariants: this is what keeps "import react" working inside a preview; a
+ *   wrong rewrite shows up as a blank frame, not an error dialog.
+ * see: AGENTS.md 8 */
+
 // Pure helpers for npm-package support in previews. Zero imports so they
 // stay unit-testable outside the workbench (see studio tests in docs).
 // Nothing here touches the publish pipeline by design.

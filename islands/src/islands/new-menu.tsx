@@ -1,3 +1,10 @@
+/* file: islands/src/islands/new-menu.tsx
+ * what: The "New" dropdown in the games topbar.
+ * invariants: it mounts synchronously while the page parses — the page's inline
+ *   script grabs #newDropBtn by id, so a deferred mount kills the rest of that
+ *   script block.
+ * see: AGENTS.md 9b */
+
 import { ChevronDown, Gamepad2, Music, Palette, Plus } from 'lucide-react';
 
 // "New" dropdown island: same IDs/classes as the classic markup it

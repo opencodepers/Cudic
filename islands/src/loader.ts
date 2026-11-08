@@ -1,3 +1,10 @@
+/* file: islands/src/loader.ts
+ * what: The React island loader — scans [data-island] and createRoot-mounts the
+ *   registry entry, one bundle for every classic page.
+ * invariants: public/islands/ is COMMITTED (Vercel builds no JS), so rebuild with
+ *   `cd islands && npm run build` and bump islands.js?v= on the pages that use it.
+ * see: AGENTS.md 9b */
+
 import { createElement, StrictMode } from 'react';
 import type { ComponentType } from 'react';
 import { createRoot } from 'react-dom/client';

@@ -6,6 +6,36 @@ when shipping a page or feature) are the ones that save you.
 
 ---
 
+## 0. Read this first (60 seconds)
+
+Most wasted hours in this repo are one of these ten, skipped:
+
+1. **The docs are checked, not trusted.** `python tools/check-docs.py` proves
+   AGENTS.md still matches the repo (remote, asset `?v=` numbers, studio source
+   inventory, route wiring). Run it when you start, and after adding a page,
+   asset or studio file. Before editing any file, run
+   `python tools/file-docs.py --path <file>` (2b) — it prints that file's own
+   note plus every doc and test that mentions it.
+2. **Shell is bash** (Git Bash on Windows) — `&&`, `$(...)`, `/c/Users/sophi/glox`
+   paths and `nohup ... &` all work. Notes saying PowerShell are stale.
+3. **Studio does not hot-reload.** `cd studio && npm run build` (~80s) after any
+   `studio/src` change; `public/studio/` is gitignored output.
+4. **`server.js` does not hot-reload.** Kill the :3000 PID, restart, then read the
+   log before believing a page.
+5. **Nothing in a VS Code workbench is a normal DOM.** Never append to VS Code's
+   own lists — build your own strip as a *sibling* (gotcha 20).
+6. **Code ships with tests, docs and CHANGELOG** — `python tests/run_tests.py`
+   (345), `public/docs.html`, `CHANGELOG.md`. A feature without them is unfinished.
+7. **Never delete** `public/cucid.svg`, `public/cudic_sfsvg.svg`,
+   `public/cudic_sfpng.png`.
+8. **Gitignored:** `public/studio/`, `tests/`, `.freebuff/`, `.agents/`. Test
+   edits are local proof, never a shipped change.
+9. **Push both deploy targets:** `git push origin master master:main` — Render
+   builds `master`, Vercel builds `main`. Commit and push only when asked.
+10. **Every commit hash and Section 16 here is a snapshot.** `git log -5` wins.
+
+---
+
 ## 1. What this is
 
 **Cudic** (renamed from **Glox** in commit `5add766`) — a browser tool for building
@@ -14,7 +44,9 @@ theme packs, and a VS Code workbench shell at `/studio`.
 
 - **Not open source.** `README.md` is an all-rights-reserved notice. Don't publish,
   fork, or paste this code anywhere.
-- Repo: `nathent2023-glitch/Cudic`. Primary branch **`master`**.
+- Repo: **`opencodepers/Cudic`** (remote `origin`, also aliased `neworigin`).
+  Local work is `master`; `main` mirrors it for Vercel, so
+  `git push origin master master:main` keeps both correct.
 - Split deploy: static frontend on **Vercel**, Node API/WS on **Render**.
 
 ### Two editors, don't confuse them
@@ -26,6 +58,38 @@ theme packs, and a VS Code workbench shell at `/studio`.
 
 `design.md` v2 (asset-pack based, `public/cudic-assets/`) governs the classic pages;
 editor/studio stay dark IDE chrome (see §11). Both routes exist and are served.
+
+---
+
+## 2b. Every file carries its own note
+
+The first thing in every source file is a short block:
+
+```
+/* file: studio/src/activity-bar.ts
+ * what: Cudic's own activity-bar strip (#cudic-activity-tabs).
+ * invariants: never append to VS Code's .actions-container ...
+ * see: AGENTS.md 12.20 */
+```
+
+It travels with the code, so whoever opens the file reads it without being told
+to — that is the point. Three keys, no prose:
+
+- `what:` — one sentence, what this file *is* in the product (not a tour of it).
+- `invariants:` — only what breaks *silently* if it is changed. No restating the code.
+- `see:` — the AGENTS.md section / design.md page that has the long version.
+
+Rules:
+
+- **Before editing a file:** `python tools/file-docs.py --path <file>` prints the
+  file's note, every AGENTS.md / CHANGELOG.md / docs.html line that mentions it,
+  the files that import it, and the tests that pin it. Two seconds, and it is the
+  closest thing to knowing the codebase before touching it.
+- **A new source file without a note fails `python tools/file-docs.py`.** The same
+  way `tools/check-docs.py` gates the markdown, this gates coverage: 4 lines per
+  file is the price of not re-deriving the file next session.
+- Keep notes current when you change an invariant. A stale `invariants:` line is
+  worse than none — it is confidently wrong.
 
 ---
 
@@ -58,7 +122,7 @@ toast, tabs). Dark mode is our own token block (`:root[data-theme="dark"]`,
 
 ## 3. Commands
 
-```powershell
+```bash
 # root
 npm start            # node server.js  → http://localhost:3000
 npm run dev          # same thing
@@ -73,19 +137,26 @@ cd islands
 npm run build        # vite build (lib IIFE) → ../public/islands/  (~5s, 657KB)
 ```
 
-- Shell is **PowerShell 5.1**: use `;` not `&&`. Quote paths with spaces.
+- Shell is **bash** (Git Bash on Windows): `&&`, `$(...)`, forward-slash paths,
+  `nohup ... &` and `kill` behave normally. Quote paths with spaces.
+- **Start of session:** `python tools/check-docs.py` — it fails when this file
+  drifts from the repo (remote, asset `?v=`, studio source inventory, routes).
+- **Before editing a file:** `python tools/file-docs.py --path <file>` — that
+  file's own note (2b) + every doc line and test that mentions it.
+- **After adding a source file:** `python tools/file-docs.py` — coverage gate;
+  fails until the new file carries its 4-line note.
 - **Restart `server.js` after editing it** — no hot reload.
 - **Rebuild Studio after editing anything under `studio/src/`** — `public/studio/`
   is gitignored, so what you see in the browser is always the last build.
 - **Rebuild islands after editing anything under `islands/src/`** — unlike
   Studio, `public/islands/` IS committed (Vercel builds no JS), so rebuild
-  then commit the bundle. Bump `islands.js?v=N` + `cudic-islands.css?v=N`
-  (currently **v7**) on using pages after rebuilding.
-- Bump `sidebar.css?v=N` across all pages when editing `public/sidebar.css`
-  (currently **v24**) — pages cache CSS aggressively. Same for
-  `sidebar.js?v=N` (currently **v14**) / `client.js?v=N` (currently **v7**) after editing those.
-  New shared scripts take `?v=1` (`ctheme.js`, `csel.js`).
-- **Test suite exists**: `python tests/run_tests.py` (~130 stdlib tests; boots
+  then commit the bundle. Bump `islands.js?v=8` + `cudic-islands.css?v=8`
+  on the pages that use it after rebuilding.
+- Bump `sidebar.css?v=25` across all pages when editing `public/sidebar.css`
+  — pages cache CSS aggressively. Same for `sidebar.js?v=25` /
+  `client.js?v=16` after editing those. New shared scripts take `?v=1`
+  (`ctheme.js`, `csel.js`).
+- **Test suite exists**: `python tests/run_tests.py` (345 stdlib tests; boots
   server.js itself on :3000, appends machine-readable history to
   `tests/results.json`). Run it after every server/page/library change —
   regression pins in `tests/test_regressions.py` re-read source files, so
@@ -152,12 +223,26 @@ public/                   # the classic app (served at Vercel output root)
   studio/                 # ← GITIGNORED build output
 studio/
   vite.config.js          # base '/studio/', outDir '../public/studio'
-  src/main.ts             # workbench bootstrap, service overrides, title bar icon
-  src/glox.ts             # Preview tab, Run, context menus, preview assembly   src/project.ts          # save/import/export/publish/delete project commands
+  src/main.ts             # workbench bootstrap, service overrides, CIDE branding
+                          # (#cudic-brand mark + name), title-bar button mount
+  src/glox.ts             # Preview tab, Run, context menus, preview assembly
+  src/project.ts          # save/import/export/publish/delete project commands
                           # publish asks for ≤3 tags (showInputBox) and PUTs them
-
-  src/cudic-ai/           # ← the AI panel (see §7)
-  src/collab.ts           # ← collab editing panel: P2P co-edit, chat, names (see §7b)
+  src/activity-bar.ts     # owns the #cudic-activity-tabs strip + tab mounting (gotcha 20)
+  src/collab.ts           # collab editing panel: P2P co-edit, chat, names (see 7b)
+  src/source-control.ts   # Cudic source-control panel (git state + commit UI)
+  src/git-core.ts         # isomorphic-git plumbing (branch/commit/diff)
+  src/git-repo.ts         # repo init/clone/remote helpers for the SC panel
+  src/github.ts           # GitHub connect + import entry points
+  src/revisions.ts        # project snapshot/restore UI (project_revisions)
+  src/npmutil.ts          # npm-on-CDN resolution for project imports
+  src/kenney.ts           # Kenney icon picker (public/assets/kenney)
+  src/api-host.ts         # derives the API origin from the page URL
+  src/style.css           # workbench-level chrome overrides
+  src/glox.svg            # legacy purple cube — no longer used in the chrome
+  src/cudic-ai/           # the AI panel: extension.ts, llm.ts, providers.ts,
+                          # mcp.ts, skills.ts, chat.html
+  src/cudic-music/extension.ts  # Music Lab panel (cloud track saves)
 supabase/
   schema.sql              # base schema
   migrations/             # 4 dated migrations
@@ -844,9 +929,9 @@ browser↔browser over WebRTC; Cudic's servers do nothing.
 
 - **Mount**: same shadow-root pattern as the AI panel — `registerCollabCommands(shadowRoot)`
   from `main.ts` (the §7 webview-rule applies here too). The panel is an absolute
-  overlay (`inset:0`) in `.part.sidebar`; a permanent people-icon tab at
-  `bottom:76px` in `.part.activitybar` toggles it, or starts/joins a room when
-  none is active.
+  overlay (`inset:0`) in `.part.sidebar`; a permanent people-icon tab in the
+  activity bar's `#cudic-activity-tabs` strip toggles it, or starts/joins a room
+  when none is active.
 - **Sync**: Yjs — `Y.Map('files')` (string per text file) + `Y.Array('chat')`,
   `WebrtcProvider` on public signaling (`wss://signaling.yjs.dev`,
   `wss://y-webrtc-signaling-eu.herokuapp.com`; community-run — first suspect if
@@ -1235,9 +1320,9 @@ grid-led, Geist everywhere. Read it before building any public surface. Headline
    split, SEO files, screenshot crops) was committed as `d3cb2dc` and pushed to
    both branches. If you see modified `public/*.html` or `server.js`, something
    new is in flight: confirm with `git status` before assuming it is stale.
-5. **The OneDrive copy** (`C:\Users\sophi\OneDrive\Desktop\Glox`) is a *separate*
-   worktree parked on a **detached HEAD** (it used to hold `master`). It's only
-   a mirror — do real work in `C:\Users\sophi\Glox`, directly on `master`.
+5. **Work here, on `master`.** The real tree is `C:\Users\sophi\glox`
+   (lowercase; older notes say `Glox` or point at a OneDrive copy — those are
+   mirrors). Confirm with `git rev-parse --abbrev-ref HEAD` before editing.
 6. **Branch**: `master` only (local = origin). `fix-inline-scripts` was
    merged and deleted on 2026-10-03; `fix-live-auth` still exists. Pushing
    `master` deploys Vercel + Render.
@@ -1245,9 +1330,12 @@ grid-led, Geist everywhere. Read it before building any public surface. Headline
    403s. Loopback hosts are intentionally *blocked* there and called directly.
 8. **`public/studio/` is gitignored** — a fresh clone has no `/studio` until
    `cd studio && npm run build` (or Vercel's `buildCommand` runs).
-9. **No `&&`** — PowerShell 5.1. Use `;` and `if ($?) { }`.
-10. **CSS/JS cache** — bump `sidebar.css?v=N` (v24) on every page after editing it;
-  same for versioned `sidebar.js` (v14) / `client.js` (v10).
+9. **Bash, not PowerShell** — `&&`, `$(...)` and POSIX paths work. A note here
+  saying otherwise is stale (section 0.2).
+10. **CSS/JS cache** — bump the `?v=` on every page after editing a shared file.
+  Current: `sidebar.css?v=25`, `sidebar.js?v=25`, `client.js?v=16`,
+  `islands.js?v=8` (new shared scripts start at `?v=1`).
+  `tools/check-docs.py` fails when this line and the pages disagree.
 11. **Restart the server** after any `server.js` edit; **rebuild Studio** after any
     `studio/src` edit. Neither auto-reloads.
 12. **Command IDs keep the `glox.` prefix** — storage keys and IDs were not renamed.
@@ -1277,6 +1365,33 @@ grid-led, Geist everywhere. Read it before building any public surface. Headline
   Scoring writes only live in the POST /play path (`race_plays`),
   best-effort, never awaited. Reuse `digestWeekStart()` for the week
   boundary; a second week-calcuation helper would drift from the jam.
+
+20. **A workbench's own lists are not appendable.** VS Code's
+   `ul.actions-container` keeps parallel arrays of buttons and their state;
+   appending a hand-made `li.action-item` desyncs them and the activity bar
+   renders **completely empty** (real bug, fixed in `ce241b4`). Cudic's tabs live
+   in their own `#cudic-activity-tabs` strip, inserted **inside `.content`,
+   directly after `.composite-bar`**, with a watchdog that re-places it
+   (`studio/src/activity-bar.ts`). Mounting it beside `.content` hides it: that
+   element is `height:100%`, so the strip lands below it, off the bar. Same rule
+   for any `monaco-*` list.
+21. **Anything you overlay on the workbench needs three details.** Title-bar
+   buttons mount into `.titlebar-right` (the interactive cluster) and carry
+   `pointer-events:auto; position:relative; z-index:2500; -webkit-app-region:no-drag`
+   — otherwise the window drag region eats the click (`21b79af`). And a panel
+   that covers the sidebar must hide itself when another activity tab is chosen
+   (`onOtherTabSelected` in `collab.ts` / `source-control.ts`), or it hangs over
+   a sidebar the user just asked for.
+22. **The editor is named CIDE** (Cudic + IDE). User-visible strings read `CIDE`
+   / `Cudic IDE` (`nameShort`/`nameLong`, `window.title`, `windowIndicator`,
+   browser title, AI system prompt, MCP `clientInfo`); command IDs keep the
+   `glox.` prefix. The title-bar corner is `#cudic-brand`: the square mark
+   `/cudic_sfsvg.svg` + `CIDE`, non-interactive. Do not point it at
+   `/cucid.svg` — that is a 660x189 wordmark and turns to mush at 18px.
+23. **When a file search comes back empty, do not conclude the code is gone.**
+   `code_search`/`glob`/`read_files` can resolve against the wrong root on this
+   machine; fall back to `grep -rn` / `cat` in bash with an absolute
+   `/c/Users/sophi/glox/...` path.
 
 ---
 
@@ -1432,7 +1547,7 @@ Then the page itself still has to look and behave like the others:
   token cannot be scoped to a package that does not exist yet — that failure is
   a **404**, not a 403.
 - **Deploy targets differ**: Render builds `master`; Vercel production builds
-  `main`. Push both (`git push origin master main`) or the site keeps serving the
+  `main`. Push both (`git push origin master master:main`) or the site keeps serving the
   previous build while the API is current. Confirm with `gh api …/deployments`
   (`environment: Production`) plus a cache-busted fetch.
 
@@ -1465,16 +1580,43 @@ confirm the production deploy before claiming a page is live.
   (security + performance) after DDL.
 - CLI: `supabase` for local dev if present. `SUPABASE_ACCESS_TOKEN` is a
   read-only user env var.
-- A **shadcn MCP** entry exists in `~/.config/opencode/opencode.jsonc`
-  (`cmd /c npx -y shadcn@latest mcp`) — needs an opencode restart, and is mostly
-  reference-only since this project has no React.
+- **The agent reads `.mcp.json` in the project root** (also `.cursor/mcp.json`,
+  `.claude/settings.json`, `.vscode/mcp.json`) — that list is baked into
+  `freebuff.exe`, so it is not a guess. Shape: `{"mcpServers": {"name": {"url":
+  ..., "headers": {...}}}}` for HTTP servers, `{"command": ..., "env": {...}}`
+  for stdio ones. `${ENV_VAR}` expands inside these values.
+  It is **gitignored** because header auth lives in it. Two things that silently
+  produce zero tools: the file missing/renamed, and the project not being
+  trusted — the binary refuses repro mcp.json with "has not been trusted".
+  Servers load at **startup only**; editing config mid-session does nothing.
+- **Composio exposes only its 12 meta-tools** (`COMPOSIO_SEARCH_TOOLS`,
+  `COMPOSIO_MULTI_EXECUTE_TOOL`, `COMPOSIO_MANAGE_CONNECTIONS`, ...). Provider
+  tools like `DISCORD_LIST_MY_GUILDS` are NOT MCP tools: calling one by name
+  returns `MCP error -32602: Tool ... not found`. Wrap them:
+  `COMPOSIO_MULTI_EXECUTE_TOOL {tools:[{tool_slug, arguments}]}`, then read the
+  result out of `results[0].response.data.*`. This also means Discord/Gmail/etc.
+  can be driven straight from a shell with the consumer key, no restart needed.
+- `~/.config/opencode/opencode.jsonc` is **opencode's** config, not this agent's,
+  and `.agents/mcp.json` is a stray copy nothing reads. Both were mistaken for
+  the live config at some point — do not wire credentials there.
+- **Composio** — `composio` in that file points at the hosted gateway
+  `https://connect.composio.dev/mcp`: one endpoint for ~1,500 apps, exposing 7
+  meta-tools (discover apps/actions, authorize on demand, execute). Auth is either
+  the client's OAuth prompt or a consumer key from the Composio dashboard
+  (AI Clients) sent as the `x-consumer-api-key` header (`ck_...`). Because the
+  config is gitignored the key never reaches a commit — do not move that entry
+  into a tracked file.
+  `COMPOSIO_API_KEY` is also set as a Windows user env var (`setx`) and in
+  `.env`, so other clients and scripts can read it without parsing this
+  file; `.env.example` carries the name only. Env vars land in *new*
+  processes — a running app needs a restart to see them.
 
 ---
 
 ## 15. User preferences (from `PROJECT_MEMORY.md` + session history)
 
 - **Beginner at web dev** — prefer simple explanations over jargon.
-- **PowerShell** — `;` not `&&`.
+- **Bash** (Git Bash on Windows) — `&&`, `$(...)`, POSIX paths.
 - **No Google OAuth** — GitHub + email/password only.
 - Wants **impressive UI**: dark IDE chrome, split layouts, grid-led editorial
   surfaces (glass/gradients now explicit anti-patterns per design.md v2).
@@ -1484,46 +1626,17 @@ confirm the production deploy before claiming a page is live.
 
 ---
 
-## 16. Work state at time of writing
+## 16. Work state — a snapshot, never a source of truth
 
-**Clean tree.** `master` = `origin` = `ea76000`, pushed 2026-10-29.
-Verify with `git status` before assuming this still holds.
+This section rots within days. `git log -5 --oneline` and `git status` are the
+truth; `CHANGELOG.md` says what shipped. If this disagrees with the repo, delete
+the stale lines instead of trusting them — that is how this file got fixed.
 
-**Shipped in `ea76000`** (collab + docs batch):
-- Studio: P2P collab panel (`collab.ts` — Yjs/y-webrtc room codes, partial-diff
-  co-editing in one file, live chat, guest aliases, auto-rejoin), mounted as a
-  sidebar tab via `registerCollabCommands(shadowRoot)`. Architecture: §7b.
-- `/docs`: new "Command palette" guide (all Cudic commands grouped) and
-  "Collab editing" sections; plan.md row 14 marked Shipped.
-
-**Shipped local, uncommitted** (follows + awards — applies to rows 7 and 9):
-Migration `20261029120000_follows_badges.sql` **already applied to the remote
-Supabase**. server.js: `AWARDS` catalog + `awardUser`/`autoGrant`/`onPublished`,
-`PUT /api/profile` equips validation, follow/follow-unfollow/feed/badges
-endpoints, hooks on server create / scratch import / play bump / publish flip.
-Pages: profile `#sec-awards` equip grid (5/10/2 caps, brand-styled), friends
-Following + Followers + Activity cards, creator page title/flairs/badges +
-Follow button. Server probes pass locally (`/api/badges` public catalog,
-401s on feed/follow unauth). plan.md rows 7/9 flipped. Do not re-apply the
-migration — check `follows` exists first.
-
-**Shipped earlier**: `1fa91dd` audit-fix + reliability batch (XSS fixes, WS
-message guards, rightmost-XFF rate-limit keying, readBody caps, AI multi-turn
-memory, WS reconnect w/ backoff, save backup/restore — details in git history);
-`d3cb2dc` marketing landing + `/login` split + SEO;
-`7de42e7` thumbnails + model catalogs + rail animation; `17b6043` Cudic AI
-panel, theme packs, sidebar push-aside, editor context menus, gallery motion.
-
-**Live and verified after push**: server probes pass (malformed `%` → 404 not
-crash, oversized body bounded, server stays alive); Studio build ✓ 56.64s.
-
-**Deferred**: pack atomicity (needs migration), preview zombie timers,
-`public/3d_models/` deletion (confirm first), `public/_next/` must stay
-(live landing).
-
-**Blocked / needs the user**: manual two-window collab test (chat display,
-same-file co-edit, guest aliases); real end-to-end AI inference call (sign in,
-add key, hit Test). AdSense resubmission needs custom domain + 2–3 weeks.
+Snapshot 2026-11-08: `master` = `origin/master` = `origin/main` = `64d2c7d`
+("Name the editor CIDE and put Cudic's mark in the title bar corner"), clean tree.
+Recent thread: Studio chrome — the activity bar emptied itself when Cudic's tabs
+were injected into VS Code's list; tabs now live in their own strip, the top-bar
+buttons take clicks, and the editor is branded CIDE.
 
 ## Releasing the CLI
 

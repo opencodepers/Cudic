@@ -1,4 +1,11 @@
-﻿// ── Shared island helpers: read-only bridge to the classic page ──
+﻿/* file: islands/src/cudic.ts
+ * what: Read-only host interop for islands — apiBase(), getAuthToken(),
+ *   seatHeaders(), apiGet/apiPost.
+ * invariants: never duplicate auth or config here; read the host globals so an
+ *   island and its page can never disagree about who is signed in.
+ * see: AGENTS.md 9b */
+
+// ── Shared island helpers: read-only bridge to the classic page ──
 // Islands never duplicate auth/config: everything comes from the host
 // page's globals (config.js / auth.js / sidebar.js). All class names
 // below are informational only — styling is scoped .isl- CSS.

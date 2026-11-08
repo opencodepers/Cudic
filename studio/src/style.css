@@ -1,3 +1,10 @@
+/* file: studio/src/style.css
+ * what: Workbench chrome overrides — Cudic's tabs, panels and brand layered on
+ *   top of VS Code's own dark theme, all scoped to the workbench shadow parts.
+ * invariants: workbench internals are not a public DOM; scope every selector and
+ *   re-check after a monaco-vscode-api bump.
+ * see: AGENTS.md 11, 12.20 */
+
 html, body {
   margin: 0;
   padding: 0;

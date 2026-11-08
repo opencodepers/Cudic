@@ -1,4 +1,14 @@
-﻿// Cudic Studio Phase 1 — workbench shell + built-in Cudic panels
+﻿/* file: studio/src/main.ts
+ * what: Studio's entry point — boots the @codingame/monaco-vscode-api workbench,
+ *   applies CIDE branding (#cudic-brand in the title bar), mounts the Cudic
+ *   top-bar buttons, registers Cudic's commands and keybindings.
+ * invariants: Ctrl+S stays bound to glox.saveProject inside initUserKeybindings —
+ *   the built-in files.save is not wired up, so an unbound Ctrl+S is a silent
+ *   no-op. The old purple cube icon is gone from the chrome; don't bring it back.
+ *   Any edit here needs `cd studio && npm run build`.
+ * see: AGENTS.md 12.17, 12.22 */
+
+// Cudic Studio Phase 1 — workbench shell + built-in Cudic panels
 import '@codingame/monaco-vscode-theme-defaults-default-extension';
 import '@codingame/monaco-vscode-theme-seti-default-extension';
 import '@codingame/monaco-vscode-javascript-default-extension';

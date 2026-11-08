@@ -1,3 +1,10 @@
+/* file: studio/src/github.ts
+ * what: GitHub import and connect — parse "owner/repo", list a repo, pull files;
+ *   private repos go through /api/github/repos|tree|file with the stored token.
+ * invariants: never call api.github.com directly from the browser without the
+ *   server proxy, or private repos and rate limits both break.
+ * see: AGENTS.md 8 "Private repos", "Connect GitHub" */
+
 // Public GitHub repos as Cudic projects — no token, no GitHub API quota.
 //
 // The listing comes from jsDelivr's package API, not api.github.com. The GitHub

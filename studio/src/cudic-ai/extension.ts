@@ -1,3 +1,10 @@
+/* file: studio/src/cudic-ai/extension.ts
+ * what: The Cudic AI panel — provider picker, chat UI, the agent tool loop, and
+ *   the calls that route through the /api/ai/fetch proxy.
+ * invariants: user-facing strings say CIDE; the tool loop contract is documented
+ *   in AGENTS.md and tests pin it — don't restructure it casually.
+ * see: AGENTS.md 7, 7 "Agent tool loop" */
+
 // Cudic AI built-in — chat panel mounted straight into the bottom panel
 // part. This stack ships no WebviewViewPane, so sidebar webview
 // views can never render — direct DOM mount instead, the same proven pattern

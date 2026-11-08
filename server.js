@@ -1,3 +1,12 @@
+/* file: server.js
+ * what: The whole backend in one hand-rolled HTTP server — static files, REST,
+ *   WebSocket, email verification, AI proxy. No framework; routes are one if-chain.
+ * invariants: specific paths sit ABOVE generic ones (/api/games/mine before :id);
+ *   every authenticated write calls needVerified(user, res); a write that changes
+ *   the gallery calls gamesListCacheClear(); a new AI host goes in AI_HOSTS.
+ *   Nothing hot-reloads — kill the :3000 PID and restart.
+ * see: AGENTS.md 5, 12b "A new endpoint or feature" */
+
 require('dotenv').config();
 const http = require('http');
 const fs = require('fs');

@@ -1,3 +1,11 @@
+/* file: studio/src/activity-bar.ts
+ * what: Cudic's own activity-bar strip — the Chat / Collab / Source Control tabs,
+ *   mounted inside .content, directly after .composite-bar (#cudic-activity-tabs).
+ * invariants: NEVER append an <li> to VS Code's ul.actions-container. Its parallel
+ *   arrays desync and the entire activity bar renders empty (fixed in ce241b4).
+ *   Every consumer imports mountTab / setTabActive / onOtherTabSelected from here.
+ * see: AGENTS.md 12.20 */
+
 // Cudic's own tabs in the activity bar.
 //
 // History matters here, because two earlier attempts broke the bar:
@@ -13,7 +21,10 @@
 //
 // So: Cudic's tabs live in their own strip. It is a sibling of the workbench's
 // icon list, never a child of it, so a re-render of VS Code's actions cannot
-// touch it, and it cannot corrupt their bookkeeping. The strip is in normal
+// touch it, and it cannot corrupt their bookkeeping. It goes inside `.content`
+// (the bar's 100%-height flex column), directly after `.composite-bar`; beside
+// `.content` instead and it lands below a full-height box, off the bottom of
+// the bar, which is how both tabs went missing. The strip is in normal
 // flow (no absolute offsets), one 48px row per tab — the same height the
 // workbench uses for its own icons — so the spacing matches by construction.
 
@@ -111,15 +122,20 @@ function arm(act: HTMLElement): void {
 
 /** Keep the strip inside the bar: the workbench rebuilds the bar's contents. */
 function place(act: HTMLElement): void {
-  if (wrap == null || wrap.isConnected) return;
+  if (wrap == null) return;
   const composite = act.querySelector('.composite-bar') as HTMLElement | null;
   const content = act.querySelector('.content') as HTMLElement | null;
-  if (composite != null && composite.parentElement != null) {
+  if (composite != null) {
     // Directly under the workbench's own icons, inside the same column.
-    composite.parentElement.insertAdjacentElement('afterend', wrap);
+    // `.activitybar > .content` is height:100%, so inserting after `.content`
+    // puts the strip under a full-height box — off the bottom of the bar,
+    // where neither tab is visible. `.composite-bar` has margin-bottom:auto,
+    // so the strip lands immediately beneath the icon list. Checked, not just
+    // "is it connected": a rebuilt bar can append a new icon list after us.
+    if (composite.nextElementSibling !== wrap) composite.insertAdjacentElement('afterend', wrap);
   } else if (content != null) {
-    content.appendChild(wrap);
-  } else {
+    if (wrap.parentElement !== content) content.appendChild(wrap);
+  } else if (wrap.parentElement !== act) {
     act.appendChild(wrap);
   }
 }

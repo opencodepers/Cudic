@@ -1,3 +1,9 @@
+/* file: islands/src/islands/report-button.tsx
+ * what: The Report button and its modal on game pages (view.html).
+ * invariants: styled with .isl- classes and site vars only — no Tailwind, which
+ *   collides with sidebar.css.
+ * see: AGENTS.md 9b */
+
 import { useEffect, useState } from 'react';
 import { Flag, Loader2 } from 'lucide-react';
 import { apiPost, getToken } from '../cudic';

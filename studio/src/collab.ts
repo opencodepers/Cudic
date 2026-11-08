@@ -1,4 +1,11 @@
-﻿// Collab editing: peer-to-peer via Yjs + y-webrtc (open source).
+﻿/* file: studio/src/collab.ts
+ * what: The collab editing panel — P2P rooms over Yjs/y-webrtc, co-editing one
+ *   file at a time, live chat, guest aliases, auto-rejoin by room code.
+ * invariants: the panel overlays the sidebar, so it must register a closer with
+ *   onOtherTabSelected or it hangs over a tab the user just picked.
+ * see: AGENTS.md 7b, 12.21 */
+
+// Collab editing: peer-to-peer via Yjs + y-webrtc (open source).
 // Mounted as a left-sidebar panel (like Explorer/Search) instead of a
 // floating widget. Auto-reconnects on reload using the saved room code.
 import * as vscode from 'vscode';

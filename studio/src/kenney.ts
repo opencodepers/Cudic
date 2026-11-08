@@ -1,3 +1,10 @@
+/* file: studio/src/kenney.ts
+ * what: Index over the bundled Kenney asset packs (/assets/kenney) — asset list
+ *   and URL helpers for Studio's icon picker.
+ * invariants: paths are served statically by server.js and Vercel; a new pack
+ *   needs its manifest.json in public/assets/kenney.
+ * see: AGENTS.md 4 */
+
 // Kenney asset index — fetched at runtime from the upstream repo, never
 // committed to this codebase. Swap these to point at your fork: images track
 // the branch via raw.githubusercontent, models use the pinned 3d tree SHA.
