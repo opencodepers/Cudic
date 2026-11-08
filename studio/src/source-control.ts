@@ -30,7 +30,7 @@ import {
   type CommitInfo,
   type RepoView
 } from './git-repo';
-import { mountTab, setTabActive as setActive } from './activity-bar';
+import { mountTab, onOtherTabSelected, setTabActive as setActive } from './activity-bar';
 
 let sr: ShadowRoot | null = null;
 let tabIcon: HTMLButtonElement | null = null;
@@ -555,6 +555,8 @@ async function openPanel(): Promise<void> {
 
 export function registerSourceControl(shadowRoot: ShadowRoot): void {
   sr = shadowRoot;
+  // Step aside when another activity-bar tab is picked, same as Collab.
+  onOtherTabSelected(hidePanel);
   const mount = (): boolean => buildTabIcon() && buildPanel();
   if (!mount()) {
     const timer = setInterval(() => {

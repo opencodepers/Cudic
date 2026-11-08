@@ -1,14 +1,25 @@
 // Adding tabs to the activity bar without fighting its layout.
 //
 // The Collab and Source Control tabs used to be absolutely positioned at
-// `bottom:76px` / `bottom:128px`, which is guesswork: the workbench's own
-// bottom cluster (account, settings) moves with the theme and the window
-// height, so the icons ended up unevenly spaced and overlapping the account
-// avatar. This appends a real `li.action-item` to the activity bar's own list
-// instead, so VS Code lays it out with the built-in icons and the spacing is
-// whatever the workbench uses for every other tab.
+// guessed offsets, which is why the icons were unevenly spaced and overlapped
+// the account avatar. They are real `li.action-item` rows in the bar's own list
+// instead, so the workbench spaces them like every other tab.
+//
+// Two things this file has to survive:
+//  * the workbench re-rendering `ul.actions-container`, which drops any row it
+//    did not create — so a mounted tab is re-appended whenever it goes missing;
+//  * picking a built-in tab (Explorer, Search, …) while a Cudic panel is open —
+//    those panels overlay the sidebar, so they register a closer here and are
+//    hidden the moment someone selects another view.
 
 let styled = false;
+let root: ShadowRoot | null = null;
+let mountedList: HTMLElement | null = null;
+let armedFor: HTMLElement | null = null;
+let watchdog: ReturnType<typeof setInterval> | null = null;
+
+const entries: Array<{ li: HTMLLIElement; btn: HTMLButtonElement }> = [];
+const closers: Array<() => void> = [];
 
 /**
  * Point the workbench at Cudic's palette (same tokens as the site and the
@@ -16,7 +27,8 @@ let styled = false;
  * overriding them here is the supported way to recolour a part without
  * out-specificity hacks on every internal class.
  */
-export function styleActivityBar(root: ShadowRoot): void {
+export function styleActivityBar(sr: ShadowRoot): void {
+  root = sr;
   if (styled) return;
   styled = true;
   const style = document.createElement('style');
@@ -32,7 +44,6 @@ export function styleActivityBar(root: ShadowRoot): void {
     '--vscode-activityBarBadge-background:#b8f23a;' +
     '--vscode-activityBarBadge-foreground:#0d0e10;' +
     '}' +
-    '#cudic-activitybar-theme{display:none;}' +
     '.part.activitybar .action-item.cudic-tab>.action-label{' +
     'display:flex;align-items:center;justify-content:center;' +
     'width:100%;height:100%;background:transparent;border:none;padding:0;' +
@@ -49,7 +60,7 @@ export function styleActivityBar(root: ShadowRoot): void {
     '.part.activitybar .action-item.cudic-tab>.action-label:focus-visible{' +
     'outline:1px solid #b8f23a;outline-offset:-2px;' +
     '}';
-  root.appendChild(style);
+  sr.appendChild(style);
 }
 
 export interface TabOptions {
@@ -70,13 +81,67 @@ function actionList(act: HTMLElement): HTMLElement | null {
 }
 
 /**
+ * Selecting any built-in tab means "show that view". A Cudic panel covering the
+ * sidebar has to get out of the way, otherwise Explorer/Search look broken.
+ */
+export function onOtherTabSelected(fn: () => void): void {
+  closers.push(fn);
+}
+
+function arm(act: HTMLElement): void {
+  if (armedFor === act) return;
+  armedFor = act;
+  act.addEventListener(
+    'click',
+    (ev) => {
+      const el = ev.target as HTMLElement | null;
+      const item = el && el.closest ? (el.closest('.action-item') as HTMLElement | null) : null;
+      if (item == null || item.classList.contains('cudic-tab')) return;
+      for (const fn of closers) {
+        try {
+          fn();
+        } catch {
+          /* a closer failing must not block the tab the user actually clicked */
+        }
+      }
+    },
+    true
+  );
+}
+
+/**
+ * Put every mounted tab back where it belongs. Runs on a slow timer because the
+ * workbench rebuilds the activity bar on layout and view changes, and the rows
+ * it did not create are dropped in the process — a mounted tab that vanishes
+ * looks exactly like a tab that was never added.
+ */
+function ensure(): void {
+  if (entries.length === 0 || root == null) return;
+  const act = root.querySelector('.part.activitybar') as HTMLElement | null;
+  if (act == null) return;
+  arm(act);
+  const list = mountedList != null && mountedList.isConnected ? mountedList : actionList(act);
+  if (list == null) return;
+  mountedList = list;
+  for (const e of entries) {
+    // Same node, re-attached: the click listener and the caller's reference to
+    // the button both survive, so active state keeps working.
+    if (e.li.parentElement !== list) list.appendChild(e.li);
+  }
+}
+
+/**
  * Append a tab to the activity bar and hand back its button. Returns null while
  * the workbench has not built the bar yet, so callers can retry.
  */
-export function mountTab(root: ShadowRoot, act: HTMLElement, o: TabOptions): HTMLButtonElement | null {
-  styleActivityBar(root);
-  const existing = act.querySelector('#' + o.id) as HTMLButtonElement | null;
-  if (existing != null) return existing;
+export function mountTab(sr: ShadowRoot, act: HTMLElement, o: TabOptions): HTMLButtonElement | null {
+  styleActivityBar(sr);
+  const found = entries.find((e) => e.btn.id === o.id);
+  if (found != null) {
+    arm(act);
+    ensure();
+    return found.btn;
+  }
   const list = actionList(act);
   if (list == null) return null;
 
@@ -93,6 +158,11 @@ export function mountTab(root: ShadowRoot, act: HTMLElement, o: TabOptions): HTM
   btn.addEventListener('click', () => o.onClick());
   li.appendChild(btn);
   list.appendChild(li);
+
+  mountedList = list;
+  entries.push({ li, btn });
+  arm(act);
+  if (watchdog == null) watchdog = setInterval(ensure, 1000);
   return btn;
 }
 

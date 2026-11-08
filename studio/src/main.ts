@@ -319,6 +319,14 @@ try {
 // Save, Preview and Exit were only reachable from the palette or the File menu,
 // and the review said it plainly: the first place anyone looks for them is the
 // top bar. They now sit there in the site's colours, next to the cube.
+// A failed command has to say so: a top-bar button that quietly does
+// nothing is indistinguishable from a broken feature.
+function runCommand(id: string): void {
+  void vscode.commands.executeCommand(id).then(undefined, (e: unknown) => {
+    void vscode.window.showErrorMessage('Cudic: ' + id + ' failed — ' + String(e));
+  });
+}
+
 function topAction(label: string, title: string, onClick: () => void, primary = false): HTMLButtonElement {
   const b = document.createElement('button');
   b.type = 'button';
@@ -368,9 +376,7 @@ async function mountTitleBarActions(): Promise<void> {
       img.alt = 'Cudic';
       img.style.cssText = 'width:18px;height:18px;display:block;';
       icon.append(img);
-      icon.onclick = () => {
-        void vscode.commands.executeCommand('glox.openPreview');
-      };
+      icon.onclick = () => runCommand('glox.openPreview');
       const left =
         titleBar.querySelector('[class*="navigation"]') ??
         titleBar.querySelector('[class*="left"]') ??
@@ -379,26 +385,36 @@ async function mountTitleBarActions(): Promise<void> {
 
       const bar = document.createElement('div');
       bar.id = 'cudic-top-actions';
+      // pointer-events and stacking order are load-bearing: the workbench marks
+      // the title bar as a drag region, and a row appended into that region
+      // renders perfectly while swallowing every click — which is exactly how
+      // Preview / Save / Exit looked broken.
       bar.style.cssText =
-        'display:flex;align-items:center;gap:6px;margin-left:auto;padding:0 10px;flex:0 0 auto;';
+        'display:flex;align-items:center;gap:6px;margin-left:auto;padding:0 10px;flex:0 0 auto;' +
+        'pointer-events:auto;position:relative;z-index:2500;-webkit-app-region:no-drag;';
       bar.append(
-        topAction('Preview', 'Run this project in the preview tab', () => {
-          void vscode.commands.executeCommand('glox.openPreview');
-        }),
-        topAction(
-          'Save',
-          'Save this project to Cudic (Ctrl+S)',
-          () => {
-            void vscode.commands.executeCommand('glox.saveProject');
-          },
-          true
-        ),
+        topAction('Preview', 'Run this project in the preview tab', () => runCommand('glox.openPreview')),
+        topAction('Save', 'Save this project to Cudic (Ctrl+S)', () => runCommand('glox.saveProject'), true),
         topAction('Exit', 'Leave Studio and go back to your account', () => {
-          window.location.href = '/account';
+          window.location.assign('/account');
         })
       );
+      // `.titlebar-right` is the workbench's own interactive cluster, so buttons
+      // put there behave like VS Code's. Appending to the bare bar is a fallback
+      // and needs pointer events re-enabled by hand.
       const right =
-        titleBar.querySelector('[class*="titlebar-right"], [class*="title-actions"]') ?? titleBar;
+        (titleBar.querySelector('.titlebar-right') as HTMLElement | null) ??
+        (titleBar.querySelector('[class*="titlebar-right"], [class*="title-actions"]') as HTMLElement | null) ??
+        (titleBar.querySelector('.titlebar-container') as HTMLElement | null) ??
+        titleBar;
+      if (right === titleBar) {
+        right.style.pointerEvents = 'auto';
+        bar.style.marginLeft = '0';
+        bar.style.position = 'absolute';
+        bar.style.top = '0';
+        bar.style.bottom = '0';
+        bar.style.right = '8px';
+      }
       right.append(bar);
       return;
     }

@@ -12,7 +12,7 @@ import {
 } from '@codingame/monaco-vscode-api/vscode/vs/platform/actions/common/actions';
 import { collectTextFiles } from './project';
 import { getProjectId } from './project';
-import { mountTab, setTabActive as setActive } from './activity-bar';
+import { mountTab, onOtherTabSelected, setTabActive as setActive } from './activity-bar';
 
 let doc: Y.Doc | null = null;
 let provider: WebrtcProvider | null = null;
@@ -463,6 +463,14 @@ function defaultRoom(): string {
 
 export function registerCollabCommands(shadowRoot: ShadowRoot): void {
   sr = shadowRoot;
+  // The panel covers the sidebar, so choosing Explorer/Search/Source Control
+  // has to remove it — otherwise those tabs look like they do nothing.
+  onOtherTabSelected(() => {
+    if (panel != null && panel.style.display !== 'none') {
+      panel.style.display = 'none';
+      setTabActive(false);
+    }
+  });
   // The panel uses the Cudic brand type (Geist / Geist Mono) — load once per page.
   try {
     if (!document.querySelector('link[data-cudic-fonts]')) {
