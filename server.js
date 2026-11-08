@@ -438,6 +438,44 @@ function cors(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Seat');
 }
 
+// Copy every object under one game's storage prefix into another's. Used when a
+// fork has to materialise shared bytes (old schema), and when deleting a game
+// whose forks still point at its prefix: storage has no cheap way to share, so
+// the only safe moment to pay for a copy is just before the original vanishes.
+async function copyAssetPrefix(fromPrefix, toPrefix, pathsIn) {
+  const bucket = supabase.storage.from('game-assets');
+  const paths = Array.isArray(pathsIn) ? pathsIn : [];
+  if (!Array.isArray(pathsIn)) {
+    async function walk(prefix) {
+      const { data: entries } = await bucket.list(prefix, { limit: 1000 });
+      for (const e of entries || []) {
+        const p = prefix ? prefix + '/' + e.name : e.name;
+        if (e.metadata) paths.push(p);
+        else await walk(p);
+      }
+    }
+    await walk(fromPrefix);
+  }
+  const copied = new Set();
+  for (const from of paths) {
+    const to = toPrefix + from.substring(fromPrefix.length);
+    try {
+      const { error: cpErr } = await bucket.copy(from, to);
+      if (cpErr) throw cpErr;
+      copied.add(from);
+    } catch {
+      try {
+        const { data: blob } = await bucket.download(from);
+        if (blob) { await bucket.upload(to, blob, { upsert: true }); copied.add(from); }
+        else throw new Error('download returned empty');
+      } catch {
+        console.error('asset copy failed for', from, '->', to);
+      }
+    }
+  }
+  return { copied, total: paths.length };
+}
+
 const server = http.createServer((req, res) => {
   handleRequest(req, res).catch((e) => {
     // One bug in any route must not kill the whole process (Node turns
@@ -6307,7 +6345,7 @@ function sanitizeTags(raw) {
       .map(e => ({ id: e.id, title: String(e.title || 'Untitled') }));
     cleanChain.push({ id: g.id, title: g.title || 'Untitled' });
     const chain = cleanChain.length > 25 ? [cleanChain[0], ...cleanChain.slice(-24)] : cleanChain;
-    const { data: nu, error: insErr } = await supabase.from('games').insert({
+    const forkRow = {
       owner_id: user.id,
       title: (g.title || 'Untitled') + ' (fork)',
       description: g.description || '',
@@ -6320,65 +6358,57 @@ function sanitizeTags(raw) {
       forked_from: g.id,
       forked_from_title: g.title || 'Untitled',
       fork_chain: chain
-    }).select().single();
+    };
+    // asset_owner is the game whose storage prefix holds this fork's bytes.
+    // A database without the column falls back to copying, so forking keeps
+    // working on a schema older than the sharing migration.
+    let canShare = true;
+    let { data: nu, error: insErr } = await supabase.from('games')
+      .insert({ ...forkRow, asset_owner: g.asset_owner || g.id }).select().single();
+    if (insErr && /asset_owner/.test(String(insErr.message))) {
+      canShare = false;
+      ({ data: nu, error: insErr } = await supabase.from('games').insert(forkRow).select().single());
+    }
     if (insErr || !nu) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: insErr?.message || 'Fork failed' })); return; }
     gamesListCacheClear();
-    // Copy storage objects old prefix -> new prefix (recursive), rewrite manifest.
-    const bucket = supabase.storage.from('game-assets');
-    async function walk(prefix, out) {
-      const { data: entries } = await bucket.list(prefix, { limit: 1000 });
-      for (const e of entries || []) {
-        const p = prefix ? prefix + '/' + e.name : e.name;
-        if (e.metadata) out.push(p);
-        else await walk(p, out);
+    // Assets: share the bytes instead of copying them. A fork used to duplicate
+    // every object into a fresh prefix, which is how one 40MB game forked 500
+    // times became 20GB. The fork now points at the prefix it inherited; the
+    // delete handler below copies a prefix into its children before purging it.
+    const ownerPrefix = g.asset_owner || g.id;
+    const manifest = g.assets || {};
+    const rewritten = {};
+    let copyFailed = 0;
+    if (canShare) {
+      for (const [k, v] of Object.entries(manifest)) {
+        const s = String(v);
+        const stripped = s.replace(/^game-assets\//, '');
+        rewritten[k] = stripped.startsWith(id + '/')
+          ? 'game-assets/' + ownerPrefix + stripped.substring(id.length)
+          : s;
       }
-    }
-    // Each asset copies independently; a failure must be visible, not
-    // silent (forks previously kept their text files while their images
-    // vanished with no error anywhere).
-    const copied = new Set();
-    let assetsFailed = 0;
-    try {
-      const paths = [];
-      await walk(id, paths);
-      for (const from of paths) {
-        const to = nu.id + from.substring(id.length);
-        try {
-          const { error: cpErr } = await bucket.copy(from, to);
-          if (cpErr) throw cpErr;
-          copied.add(from);
-        } catch {
-          try {
-            const { data: blob } = await bucket.download(from);
-            if (blob) { await bucket.upload(to, blob, { upsert: true }); copied.add(from); }
-            else throw new Error('download returned empty');
-          } catch {
-            assetsFailed++;
-            console.error('fork: asset copy failed for', from, '(project', id + ')');
-          }
-        }
-      }
-      const manifest = g.assets || {};
-      const rewritten = {};
+    } else {
+      const { copied, total } = await copyAssetPrefix(id, nu.id);
+      copyFailed = total - copied.size;
       for (const [k, v] of Object.entries(manifest)) {
         const stripped = String(v).replace(/^game-assets\//, '');
-        if (stripped.startsWith(id + '/')) {
-          if (!copied.has(stripped)) continue; // drop refs whose object didn't survive the fork
-          rewritten[k] = 'game-assets/' + nu.id + stripped.substring(id.length);
-        } else rewritten[k] = String(v);
+        if (!stripped.startsWith(id + '/')) { rewritten[k] = String(v); continue; }
+        if (!copied.has(stripped)) continue; // drop refs whose object didn't survive
+        rewritten[k] = 'game-assets/' + nu.id + stripped.substring(id.length);
       }
-      if (Object.keys(rewritten).length) {
-        await supabase.from('games').update({ assets: rewritten }).eq('id', nu.id);
-        nu.assets = rewritten;
-      }
-    } catch (outerErr) {
-      // Text files already forked; manifest rewrite failing is rare but
-      // must not be swallowed silently.
-      console.error('fork: manifest rewrite failed for', nu.id, outerErr);
-      assetsFailed = 'manifest';
+    }
+    if (copyFailed) console.error('fork: asset copy failed for', copyFailed, 'object(s) (project', id + ')');
+    // A manifest that fails to rewrite must be visible, not silent: text road
+    // already forked, so the game is real and its images are the only casualty.
+    if (Object.keys(rewritten).length) {
+      const { error: shareErr } = await supabase.from('games').update({ assets: rewritten }).eq('id', nu.id);
+      if (shareErr) {
+        console.error('fork: asset manifest rewrite failed for', nu.id, shareErr.message);
+        copyFailed = copyFailed || 'manifest';
+      } else nu.assets = rewritten;
     }
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ game: nu, assets_partial: assetsFailed !== 0, assets_failed: assetsFailed }));
+    res.end(JSON.stringify({ game: nu, assets_partial: copyFailed !== 0, assets_failed: copyFailed, assets_shared: canShare }));
     return;
   }
 
@@ -6954,20 +6984,50 @@ function sanitizeTags(raw) {
     if (!hasScope(user, 'projects:write')) { scopeDenied(res, 'projects:write'); return; }
     if (!(await needVerified(user, res))) return;
     const id = url.pathname.split('/')[3];
+    // Forks share their parent's bytes, so a prefix cannot be purged while a
+    // child still points at it. Copy the share into each child, rewrite its
+    // manifest and detach it first. If any copy fails, leave the bytes alone:
+    // an orphaned prefix is recoverable, a fork that lost its images is not.
+    let safeToPurge = true;
+    try {
+      const { data: kids, error: kidErr } = await supabase
+        .from('games').select('id, assets').eq('asset_owner', id).neq('id', id);
+      // No sharing column: every fork already holds its own copy.
+      if (kidErr && !/asset_owner/.test(String(kidErr.message))) throw kidErr;
+      for (const kid of kids || []) {
+        const { copied, total } = await copyAssetPrefix(id, kid.id);
+        if (copied.size !== total) { safeToPurge = false; continue; }
+        const next = {};
+        for (const [k, v] of Object.entries(kid.assets || {})) {
+          const stripped = String(v).replace(/^game-assets\//, '');
+          next[k] = stripped.startsWith(id + '/')
+            ? 'game-assets/' + kid.id + stripped.substring(id.length)
+            : String(v);
+        }
+        const { error: detachErr } = await supabase.from('games')
+          .update({ assets: next, asset_owner: kid.id }).eq('id', kid.id);
+        if (detachErr) safeToPurge = false;
+      }
+    } catch (e) {
+      safeToPurge = false;
+      console.error('delete: could not hand assets to forks of', id, e?.message || e);
+    }
     // Best-effort: purge the project's storage prefix so binaries don't orphan.
     try {
-      const bucket = supabase.storage.from('game-assets');
-      const paths = [];
-      async function walk(prefix) {
-        const { data: entries } = await bucket.list(prefix, { limit: 1000 });
-        for (const e of entries || []) {
-          const p = prefix ? prefix + '/' + e.name : e.name;
-          if (e.metadata) paths.push(p);
-          else await walk(p);
+      if (safeToPurge) {
+        const bucket = supabase.storage.from('game-assets');
+        const paths = [];
+        async function walk(prefix) {
+          const { data: entries } = await bucket.list(prefix, { limit: 1000 });
+          for (const e of entries || []) {
+            const p = prefix ? prefix + '/' + e.name : e.name;
+            if (e.metadata) paths.push(p);
+            else await walk(p);
+          }
         }
+        await walk(id, paths);
+        if (paths.length) await bucket.remove(paths);
       }
-      await walk(id, paths);
-      if (paths.length) await bucket.remove(paths);
     } catch {}
     await supabase.from('games').delete().eq('id', id).eq('owner_id', user.id);
     gamesListCacheClear();
@@ -7075,6 +7135,11 @@ function sanitizeTags(raw) {
   // ── Redirect /kit to /kit.html ─────────────────────────────────
   if (url.pathname === '/kit') {
     url.pathname = '/kit.html';
+  }
+
+  // ── Redirect /start to /start.html ─────────────────────────────
+  if (url.pathname === '/start') {
+    url.pathname = '/start.html';
   }
 
   // ── /lobbies is gone: send everyone to chat ────────────────────

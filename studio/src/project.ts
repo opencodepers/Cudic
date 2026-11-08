@@ -19,7 +19,7 @@ import {
 } from '@codingame/monaco-vscode-files-service-override';
 import JSZip from 'jszip';
 import { sceneToFiles } from './npmutil';
-import { kenneyAssets, kenneyUrl, type KenneyAsset } from './kenney';
+import { KENNEY_CREDIT, kenneyAssets, kenneyUrl, type KenneyAsset } from './kenney';
 import {
   candidateFolders,
   closestFolder,
@@ -1020,7 +1020,7 @@ interface ScratchImportResult {
 // picked file into the project as a binary — it goes to storage on save, same
 // as any imported file — drops an <img> at the cursor for images, and for .glb
 // models just lands the file (import three.js in your code to use it).
-type KenneyPick = vscode.QuickPickItem & { path: string; isModel: boolean };
+type KenneyPick = vscode.QuickPickItem & { path: string; isModel: boolean; url?: string };
 function humanBytes(n: number): string {
   return n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(0) + ' KB' : (n / 1048576).toFixed(1) + ' MB';
 }
@@ -1039,12 +1039,13 @@ async function insertIcon(): Promise<void> {
   const toItem = (a: KenneyAsset): KenneyPick => ({
     label: a.desc,
     description: a.pack,
-    detail: a.size + ' · ' + humanBytes(a.bytes),
+    detail: a.size + ' · ' + KENNEY_CREDIT + (a.bytes > 0 ? ' · ' + humanBytes(a.bytes) : ''),
     path: a.path,
+    url: a.url,
     isModel: a.pack === '3d'
   });
   const qp = vscode.window.createQuickPick<KenneyPick>();
-  qp.placeholder = 'Search all Kenney images and 3D models';
+  qp.placeholder = 'Search all Kenney images and 3D models (' + KENNEY_CREDIT + ')';
   qp.matchOnDescription = true;
   qp.matchOnDetail = true;
   const search = (q: string): KenneyPick[] => {
@@ -1075,7 +1076,8 @@ async function insertIcon(): Promise<void> {
   // pawns don't overwrite each other in the project.
   const rel = 'assets/kenney/' + pick.path;
   try {
-    const res = await fetch(kenneyUrl(pick.path), { cache: 'no-store' });
+    // Bundled picks carry their own URL: upstream does not host the same layout.
+    const res = await fetch(pick.url ?? kenneyUrl(pick.path), { cache: 'no-store' });
     if (!res.ok) throw new Error('could not fetch the file (' + res.status + ')');
     const bytes = new Uint8Array(await res.arrayBuffer());
     registerFiles({ ...(await collectFiles()), [rel]: bytes });
@@ -1091,6 +1093,88 @@ async function insertIcon(): Promise<void> {
   } catch (e) {
     vscode.window.showErrorMessage('Could not add that asset: ' + (e as Error).message);
   }
+}
+
+// A project's shape as a file instead of a chat scrollback: premise, loop,
+// scenes, mechanics. outline.json is what the AI panel and a future panel read;
+// DESIGN.md is the human half, written from the same object so they agree.
+interface Outline {
+  title: string;
+  loop: string;
+  scenes: Array<{ name: string; goal: string; win: string; lose: string; next: string }>;
+  mechanics: string[];
+  nextUnlock: string;
+}
+
+function designFromOutline(o: Outline): string {
+  const out: string[] = ['# ' + (o.title || 'Untitled') + ' — design', ''];
+  out.push('> Generated from `outline.json`. Edit the JSON, not this file, then rerun **Cudic: Game outline** to write it again.', '');
+  out.push('## The loop', '', o.loop || '_What does the player do, over and over?_', '');
+  out.push('## Scenes', '');
+  if (o.scenes.length === 0) out.push('_No scenes yet._');
+  for (const s of o.scenes) {
+    out.push('### ' + (s.name || 'Unnamed scene'), '');
+    out.push('- **Goal** — ' + (s.goal || '—'));
+    out.push('- **Win** — ' + (s.win || '—'));
+    out.push('- **Lose** — ' + (s.lose || '—'));
+    out.push('- **Goes to** — ' + (s.next || '—'), '');
+  }
+  out.push('## Mechanics', '', o.mechanics.length ? o.mechanics.map((m) => '- ' + m).join('\n') : '_Not listed yet._', '');
+  out.push('## After this works', '', o.nextUnlock || '_One thing to add once the loop is fun._', '');
+  return out.join('\n');
+}
+
+const OUTLINE_TEMPLATE: Outline = {
+  title: '',
+  loop: 'The one action the player repeats, in one sentence.',
+  scenes: [
+    { name: 'Start', goal: 'Show what the game is in under three seconds.', win: 'Player starts.', lose: '', next: 'Play' },
+    { name: 'Play', goal: 'Core loop: the thing that becomes fun when repeated.', win: 'Score, level cleared, boss down.', lose: 'Lives run out.', next: 'Win' },
+    { name: 'Win', goal: 'Say what changed and what is next.', win: '', lose: '', next: '' }
+  ],
+  mechanics: ['move', 'score'],
+  nextUnlock: 'One thing to add once the loop is fun.'
+};
+
+async function newOutline(): Promise<void> {
+  if (provider == null) {
+    vscode.window.showErrorMessage('An outline needs a ready workspace, reload Studio.');
+    return;
+  }
+  const files = await collectFiles();
+  if (files['outline.json'] != null) {
+    const again = await vscode.window.showWarningMessage(
+      'This project already has an outline. Rewrite DESIGN.md from it?',
+      { modal: true },
+      'Rewrite'
+    );
+    if (again !== 'Rewrite') return;
+    let parsed: Outline;
+    try {
+      parsed = JSON.parse(String(files['outline.json'])) as Outline;
+    } catch (e) {
+      vscode.window.showErrorMessage('outline.json is not valid JSON: ' + (e as Error).message);
+      return;
+    }
+    registerFiles({
+      ...files,
+      'DESIGN.md': designFromOutline({
+        title: String(parsed.title || ''),
+        loop: String(parsed.loop || ''),
+        scenes: Array.isArray(parsed.scenes) ? parsed.scenes : [],
+        mechanics: Array.isArray(parsed.mechanics) ? parsed.mechanics : [],
+        nextUnlock: String(parsed.nextUnlock || '')
+      })
+    });
+    vscode.window.showInformationMessage('Cudic: DESIGN.md rewritten from outline.json. Save to keep it.');
+    return;
+  }
+  registerFiles({
+    ...files,
+    'outline.json': JSON.stringify(OUTLINE_TEMPLATE, null, 2) + '\n',
+    'DESIGN.md': designFromOutline(OUTLINE_TEMPLATE)
+  });
+  vscode.window.showInformationMessage('Cudic: Added outline.json and DESIGN.md — fill them in, then Save.');
 }
 
 // Unpacks an .sb3 (or shared Scratch project) on the server and drops the
@@ -1667,6 +1751,27 @@ export function registerProjectCommands(): void {
       }
       async run(): Promise<void> {
         await shipProject();
+      }
+    }
+  );
+
+  registerAction2(
+    class extends Action2 {
+      constructor() {
+        super({
+          id: 'glox.newOutline',
+          title: {
+            value: 'Cudic: Game outline (loop, scenes, win and lose)',
+            original: 'Cudic: Game outline'
+          },
+          menu: [
+            { id: MenuId.CommandPalette },
+            { id: MenuId.MenubarFileMenu, group: '5_glox' }
+          ]
+        });
+      }
+      async run(): Promise<void> {
+        await newOutline();
       }
     }
   );

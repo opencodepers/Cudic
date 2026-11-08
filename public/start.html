@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Start here — Cudic</title>
+  <meta name="description" content="Five steps from an empty tab to a game someone can play: pick a template, make it run, let it remember, grab CC0 art, and ship it. Each step links the one page you need.">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Cudic">
+  <meta property="og:title" content="Start here — Cudic">
+  <meta property="og:description" content="Five steps from an empty tab to a game someone can play.">
+  <meta property="og:url" content="https://cudic.vercel.app/start">
+  <meta property="og:image" content="https://cudic.vercel.app/og.png?v=2">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://cudic.vercel.app/start">
+  <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #0b0c12;
+      --panel: #14151f;
+      --raised: #1c1e2b;
+      --line: #272a3b;
+      --tx: #e9eaf2;
+      --ts: #a7adc2;
+      --tt: #737a93;
+      --signal: #ff3d81;
+      --accent: #8b7bff;
+      --ok: #4ade80;
+      --r: 14px;
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--ink);
+      color: var(--tx);
+      font: 16px/1.6 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      background-image: radial-gradient(60rem 30rem at 70% -10%, rgba(139, 123, 255, .18), transparent 70%),
+        radial-gradient(40rem 24rem at 10% 0%, rgba(255, 61, 129, .12), transparent 65%);
+      background-repeat: no-repeat;
+    }
+    a { color: var(--signal); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { max-width: 780px; margin: 0 auto; padding: 28px 22px 88px; }
+    header { display: flex; align-items: center; gap: 14px; padding-bottom: 44px; }
+    header img { width: 26px; height: 26px; }
+    header .brand { font-weight: 700; letter-spacing: -.02em; font-size: 18px; color: var(--tx); }
+    header nav { margin-left: auto; display: flex; gap: 18px; font-size: 14px; }
+    header nav a { color: var(--ts); }
+    .kick { font: 500 12px/1 'Geist Mono', ui-monospace, monospace; letter-spacing: .16em; text-transform: uppercase; color: var(--signal); margin: 0 0 14px; }
+    h1 { font-size: clamp(2rem, 6vw, 3rem); line-height: 1.05; letter-spacing: -.035em; margin: 0 0 16px; font-weight: 700; }
+    .lede { font-size: 1.06rem; color: var(--ts); max-width: 58ch; margin: 0 0 12px; }
+    .meta { color: var(--tt); font-size: .88rem; margin: 0 0 48px; }
+    ol.steps { list-style: none; counter-reset: step; margin: 0 0 56px; padding: 0; display: grid; gap: 14px; }
+    ol.steps > li {
+      counter-increment: step;
+      position: relative;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      padding: 20px 22px 20px 66px;
+    }
+    ol.steps > li::before {
+      content: counter(step);
+      position: absolute;
+      left: 20px;
+      top: 20px;
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 9px;
+      background: var(--raised);
+      border: 1px solid var(--line);
+      font: 600 14px/1 'Geist Mono', monospace;
+      color: var(--accent);
+    }
+    ol.steps h2 { font-size: 1.05rem; margin: 0 0 6px; letter-spacing: -.01em; }
+    ol.steps p { margin: 0 0 10px; color: var(--ts); font-size: .95rem; }
+    ol.steps p:last-child { margin-bottom: 0; }
+    .do { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .do a, .do span {
+      font-size: .82rem;
+      padding: 5px 11px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--raised);
+      color: var(--tx);
+      white-space: nowrap;
+    }
+    .do span { color: var(--tt); }
+    code {
+      font: 500 .85em/1.4 'Geist Mono', ui-monospace, monospace;
+      background: var(--raised);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 1px 5px;
+    }
+    h2.section { font-size: 1.35rem; letter-spacing: -.02em; margin: 0 0 6px; }
+    .sub { color: var(--tt); font-size: .92rem; margin: 0 0 20px; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 56px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; }
+    .card .mono { font: 500 11px/1 'Geist Mono', monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--tt); }
+    .card h3 { font-size: .98rem; margin: 10px 0 6px; }
+    .card p { margin: 0; color: var(--ts); font-size: .88rem; }
+    .note { border-left: 2px solid var(--accent); padding: 2px 0 2px 16px; color: var(--ts); font-size: .92rem; margin: 0 0 40px; }
+    footer { border-top: 1px solid var(--line); padding-top: 20px; color: var(--tt); font-size: .85rem; display: flex; flex-wrap: wrap; gap: 10px 18px; }
+    footer a { color: var(--ts); }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <img src="/cudic_sfsvg.svg" alt="">
+      <a class="brand" href="/">cudic</a>
+      <nav>
+        <a href="/games">Gallery</a>
+        <a href="/docs">Docs</a>
+        <a href="/studio">Studio</a>
+      </nav>
+    </header>
+
+    <main>
+      <p class="kick">Start here</p>
+      <h1>Five steps from an empty tab to a game someone can play.</h1>
+      <p class="lede">You do not need to read the docs first. Do these in order, one sitting, and you will have a link you can send to someone. Every step links the single page that covers it.</p>
+      <p class="meta">Roughly an afternoon. Nothing to install — everything runs in the browser.</p>
+
+      <ol class="steps">
+        <li>
+          <h2>Pick a starting point</h2>
+          <p>A template already runs. Start from one instead of an empty folder, then change what it says — text first, physics second. The platformer and clicker templates are the two that teach the most per edit.</p>
+          <div class="do">
+            <a href="/studio">Open Studio</a>
+            <span>Ctrl+Shift+P → “Cudic: Start from template”</span>
+            <a href="/cookbook/platformer.html">Platformer cookbook</a>
+          </div>
+        </li>
+        <li>
+          <h2>Make it run</h2>
+          <p>Save the file, watch the preview. When something throws, the console under the preview names the file and line — that is the fastest loop you have, so learn to keep it open.</p>
+          <div class="do">
+            <a href="/cookbook/canvas-art.html">Draw with canvas</a>
+            <a href="/docs#studio">Studio reference</a>
+          </div>
+        </li>
+        <li>
+          <h2>Let it remember</h2>
+          <p>A game with progress is a game people come back to. One script gives you saving, best scores and a “continue” that follows the account instead of the browser.</p>
+          <div class="do">
+            <a href="/cookbook/cloud-saves.html">Cloud saves</a>
+            <a href="/docs#saves">How saving works</a>
+          </div>
+        </li>
+        <li>
+          <h2>Grab art in about ten seconds</h2>
+          <p>Press <code>Ctrl+Shift+P</code> and run <strong>Cudic: Insert asset</strong>. The whole Kenney library is searchable — CC0, so no credit is legally required, though the credit line is already generated for you. Sprites, emotes and 3D models all land in <code>assets/kenney/</code>.</p>
+          <div class="do">
+            <a href="/docs#files">Files and assets</a>
+            <span>CC0 1.0 · Kenney</span>
+          </div>
+        </li>
+        <li>
+          <h2>Ship it</h2>
+          <p><strong>Save</strong> keeps the project. <strong>Ship</strong> saves, publishes, and hands you the URL — that is the whole release. Each ship becomes a numbered version, so you can go back to the one that worked.</p>
+          <div class="do">
+            <a href="/docs#publish">Publishing</a>
+            <a href="/games">See what others shipped</a>
+          </div>
+        </li>
+      </ol>
+
+      <h2 class="section">Where to go after the five steps</h2>
+      <p class="sub">Short, complete, copy-paste shaped — not a manual.</p>
+      <div class="cards">
+        <div class="card">
+          <span class="mono">Cookbook</span>
+          <h3>Working examples</h3>
+          <p>Platformer, clicker, canvas art, multiplayer rooms and cloud saves, each in one page. <a href="/cookbook/index.html">Open the cookbook</a>.</p>
+        </div>
+        <div class="card">
+          <span class="mono">Docs</span>
+          <h3>The reference</h3>
+          <p>Runtimes, importing, GitHub, releases, chat, themes, coins. <a href="/docs">Read the docs</a>.</p>
+        </div>
+        <div class="card">
+          <span class="mono">Structure</span>
+          <h3>Game outline</h3>
+          <p>Before the code sprawls: <strong>Cudic: Game outline</strong> writes <code>outline.json</code> and <code>DESIGN.md</code> — loop, scenes, win and lose — which the AI panel reads. <a href="/docs#files">How it works</a>.</p>
+        </div>
+        <div class="card">
+          <span class="mono">Remix</span>
+          <h3>Someone else's start</h3>
+          <p>Fork a published game and its code and assets are yours to change. <a href="/docs#remix">Remixing</a>.</p>
+        </div>
+      </div>
+
+      <p class="note">Stuck on step two for an hour? That is normal and it is the fastest part of the learning. The <a href="/chat">chat</a> is full of people doing the same thing, and the AI panel in Studio can read your files.</p>
+    </main>
+
+    <footer>
+      <span>© 2026 Cudic</span>
+      <a href="/docs">Docs</a>
+      <a href="/cookbook/index.html">Cookbook</a>
+      <a href="/themes">Themes</a>
+      <a href="/privacy">Privacy</a>
+    </footer>
+  </div>
+</body>
+
+</html>
