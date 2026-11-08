@@ -53,6 +53,18 @@ export interface BootProject {
 }
 
 let projectId: string | null = new URLSearchParams(location.search).get('id');
+// Read-only view: someone else's published game, opened from "See inside".
+// The server already refuses writes to a game you don't own, so this is not a
+// fence — it is the editor admitting it, instead of letting an edit evaporate.
+export const READ_ONLY = new URLSearchParams(location.search).get('readonly') === '1';
+
+function readOnlyBlocked(): boolean {
+  if (!READ_ONLY) return false;
+  vscode.window.showInformationMessage(
+    'Read-only: this is someone else\'s game. Fork it from its page to make your own copy.'
+  );
+  return true;
+}
 let projectTitle = 'Untitled Project';
 let provider: RegisteredFileSystemProvider | null = null;
 let registered: monaco.IDisposable[] = [];
@@ -324,7 +336,9 @@ export async function bootProject(): Promise<BootProject> {
   }
   // Unsaved local work wins over the backend copy — a frozen tab shouldn't
   // cost anyone their edits.
-  const snap = await snapGet(snapKey()).catch(() => null);
+  // A read-only look must show the published build, not whatever this browser
+  // happened to have open for this id before.
+  const snap = READ_ONLY ? null : await snapGet(snapKey()).catch(() => null);
   if (snap != null) result = { ...result, title: snap.title, files: snap.files };
   // Fresh only when nothing at all loads back — returning users (a project
   // id or saved work in this browser) already know their way around.
@@ -518,6 +532,7 @@ function agoLabel(ts: number): string {
 }
 
 async function restoreSnapshot(): Promise<void> {
+  if (readOnlyBlocked()) return;
   const id = snapKey();
   const list = await snapList(id).catch(() => []);
   if (list.length === 0) {
@@ -548,6 +563,7 @@ async function restoreSnapshot(): Promise<void> {
 }
 
 async function setPublished(pub: boolean, releaseNotes?: string): Promise<void> {
+  if (readOnlyBlocked()) return;
   const token = getToken();
   if (token == null) {
     vscode.window.showWarningMessage('Sign in to publish projects.');
@@ -606,6 +622,7 @@ async function setPublished(pub: boolean, releaseNotes?: string): Promise<void> 
  * an unsaved buffer would release the previous build.
  */
 async function shipProject(): Promise<void> {
+  if (readOnlyBlocked()) return;
   if (getToken() == null) {
     vscode.window.showWarningMessage('Sign in to ship a game.');
     return;
@@ -703,6 +720,7 @@ function pickImageFile(): Promise<File | null> {
 }
 
 async function setThumbnail(): Promise<void> {
+  if (readOnlyBlocked()) return;
   const token = getToken();
   if (token == null) {
     vscode.window.showWarningMessage('Sign in to set a thumbnail.');
@@ -749,6 +767,7 @@ async function setThumbnail(): Promise<void> {
 }
 
 async function deleteProject(): Promise<void> {
+  if (readOnlyBlocked()) return;
   const token = getToken();
   if (token == null) {
     vscode.window.showWarningMessage('Sign in to delete projects.');
@@ -781,6 +800,7 @@ async function deleteProject(): Promise<void> {
 }
 
 async function saveProject(): Promise<void> {
+  if (readOnlyBlocked()) return;
   const token = getToken();
   if (token == null) {
     const pick = await vscode.window.showWarningMessage(

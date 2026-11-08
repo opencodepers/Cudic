@@ -101,6 +101,7 @@
       <button class="btn btn-secondary" id="fsBtn">Fullscreen</button>
       <a class="btn btn-primary" id="studioBtn" href="#" style="display:none">Open in Studio</a>
       <button class="btn btn-secondary" id="forkBtn" style="display:none">Fork</button>
+      <button class="btn btn-secondary" id="insideBtn" style="display:none" title="Read this game's code in Studio — nothing you change is saved until you fork it">See inside</button>
       <button class="btn btn-secondary" id="featureBtn" style="display:none" title="Feature this game on the homepage">Feature</button>
       <button class="btn btn-secondary" id="shareBtn">Share</button>
       <button class="btn btn-secondary" id="collBtn" style="display:none">Save</button>
@@ -1054,6 +1055,14 @@ setInterval(function () {
             }).catch(function(){ alert('Fork failed.'); fb.disabled = false; fb.textContent = 'Fork'; });
           });
         });
+        // See inside: read a published game's code in Studio without forking.
+        // Studio boots it read-only (no save, publish or delete), so looking can
+        // never become an accidental remix or a stray project in an account.
+        var ib = document.getElementById('insideBtn');
+        if (game && game.published) {
+          ib.href = '/studio?id=' + encodeURIComponent(id) + '&readonly=1';
+          ib.style.display = '';
+        }
         document.getElementById('content').style.display = 'block';
         // Mod spotlight: harnesses the moderators table. The button is only
         // shown after /api/profile confirms is_moderator — the server 403s

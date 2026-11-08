@@ -30,6 +30,7 @@ import { seedPreviewDoc } from './glox';
 import './style.css';
 import {
   bootProject,
+  READ_ONLY,
   applyProjectToProvider,
   registerProjectCommands,
   startSnapshotWatcher,
@@ -87,7 +88,10 @@ import { EnvironmentOverride } from '@codingame/monaco-vscode-api/workbench';
 const fileSystemProvider = new RegisteredFileSystemProvider(false);
 const boot = await bootProject();
 applyProjectToProvider(fileSystemProvider, boot);
-startSnapshotWatcher();
+// Nothing to protect in a read-only view: the project is someone else's, and
+// autosaving their files into this browser's ring would only confuse a later
+// visit of our own.
+if (!READ_ONLY) startSnapshotWatcher();
 fileSystemProvider.registerFile(
   new RegisteredMemoryFile(
     monaco.Uri.file('/workspace.code-workspace'),
@@ -408,15 +412,34 @@ async function mountTitleBarActions(): Promise<void> {
       bar.style.cssText =
         'display:flex;align-items:center;gap:6px;margin-left:auto;padding:0 10px;flex:0 0 auto;' +
         'pointer-events:auto;position:relative;z-index:2500;-webkit-app-region:no-drag;';
-      bar.append(
-        topAction('Preview', 'Run this project in the preview tab', () => runCommand('glox.openPreview')),
-        topAction('Save', 'Save this project to Cudic (Ctrl+S)', () => runCommand('glox.saveProject'), true),
+      const actions: HTMLElement[] = [
+        topAction('Preview', 'Run this project in the preview tab', () => runCommand('glox.openPreview'))
+      ];
+      if (READ_ONLY) {
+        // Say it in the chrome, not only when someone tries to save: a view that
+        // looks editable and silently discards work is worse than a locked one.
+        const note = document.createElement('a');
+        note.href = boot.id != null ? '/view?id=' + encodeURIComponent(boot.id) : '/games';
+        note.textContent = 'Read-only — fork to edit';
+        note.title = 'You can read and run this project; nothing you change is saved. Fork it to make your own copy.';
+        note.style.cssText =
+          'display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;' +
+          'background:#3d2a00;color:#ffd479;border:1px solid #7a5600;' +
+          'font:600 11px/1.4 "Geist Mono",ui-monospace,monospace;text-decoration:none;white-space:nowrap;';
+        actions.push(note);
+      } else {
+        actions.push(
+          topAction('Save', 'Save this project to Cudic (Ctrl+S)', () => runCommand('glox.saveProject'), true)
+        );
+      }
+      actions.push(
         topAction('Exit', 'Leave Studio and go back to your account', () => {
           // The account page is served at /profile. There is no /account route,
           // so Exit landed on Cudic's 404 page and read as a broken button.
           window.location.assign('/profile');
         })
       );
+      bar.append(...actions);
       // `.titlebar-right` is the workbench's own interactive cluster, so buttons
       // put there behave like VS Code's. Appending to the bare bar is a fallback
       // and needs pointer events re-enabled by hand.
