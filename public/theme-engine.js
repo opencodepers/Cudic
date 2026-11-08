@@ -368,11 +368,17 @@ function apiHost() {
 
   /* ── Public API ── */
   function applyPack(manifest, slug) {
+    // The landing page is never themed: it carries its own layout and art, and
+    // a visitor's installed pack must not repaint the front door. Bail out
+    // here too, not just at the loader, in case the engine is included anyway.
+    if (document.querySelector('.landing')) {
+      state.manifest = null; state.slug = null;
+      clearVars(); teardownBg(); teardownCustom();
+      return;
+    }
     state.manifest = manifest; state.slug = slug || manifest.slug || null;
     applyVars(manifest);
-    var isLanding = !!document.querySelector('.landing');
-    applyVars(manifest);
-    if (!isLanding) buildBackground(manifest);
+    buildBackground(manifest);
     applyCustom(manifest.custom);
     mountSidebar();
     // Pages (e.g. themes.html) render their install/uninstall buttons before
@@ -404,6 +410,7 @@ function apiHost() {
     return currentSlug;
   }
   async function boot() {
+    if (document.querySelector('.landing')) return;
     var tokRaw = (typeof localStorage !== 'undefined') ? localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token') : '';
     var tok = tokRaw ? (function () { try { var s = JSON.parse(tokRaw); return s && s.access_token ? s.access_token : tokRaw; } catch (e) { return tokRaw; } })() : '';
     var profileSlug = null;
