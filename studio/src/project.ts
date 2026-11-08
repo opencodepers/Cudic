@@ -547,7 +547,7 @@ async function restoreSnapshot(): Promise<void> {
   location.reload();
 }
 
-async function setPublished(pub: boolean): Promise<void> {
+async function setPublished(pub: boolean, releaseNotes?: string): Promise<void> {
   const token = getToken();
   if (token == null) {
     vscode.window.showWarningMessage('Sign in to publish projects.');
@@ -577,6 +577,9 @@ async function setPublished(pub: boolean): Promise<void> {
   try {
     const body: Record<string, unknown> = { published: pub };
     if (pub && tagAnswer !== undefined) body.tags = tags;
+    // Notes ride the publish: the server turns this into a release snapshot,
+    // which is what the play page then serves.
+    if (pub && releaseNotes != null && releaseNotes.trim() !== '') body.release_notes = releaseNotes.trim().slice(0, 500);
     const res = await fetch(base + '/api/games/' + encodeURIComponent(projectId), {
       method: 'PUT',
       headers: headers(true),
@@ -584,12 +587,53 @@ async function setPublished(pub: boolean): Promise<void> {
     });
     const d = await res.json();
     if (d?.error != null && d.game == null) throw new Error(d.error);
+    const shipped = (d as { release?: { version?: number } } | null)?.release?.version;
     vscode.window.showInformationMessage(
-      pub ? 'Cudic: Published "' + projectTitle + '"' + (tags.length ? ' — tags: ' + tags.join(', ') : '') : 'Cudic: Unpublished (back to draft).'
+      pub
+        ? 'Cudic: Published "' + projectTitle + '"' +
+          (shipped ? ' as v' + shipped : '') +
+          (tags.length ? ' — tags: ' + tags.join(', ') : '')
+        : 'Cudic: Unpublished (back to draft).'
     );
   } catch (e) {
     vscode.window.showErrorMessage('Publish failed: ' + (e as Error).message);
   }
+}
+
+/**
+ * Ship: save, publish and hand back the link — the tagline as a button.
+ * Saving first matters: publishing snapshots the saved files, so shipping with
+ * an unsaved buffer would release the previous build.
+ */
+async function shipProject(): Promise<void> {
+  if (getToken() == null) {
+    vscode.window.showWarningMessage('Sign in to ship a game.');
+    return;
+  }
+  await saveProject();
+  if (projectId == null) return; // save was declined or failed
+  const notes = await vscode.window.showInputBox({
+    prompt: "What's new in this release? (optional)",
+    placeHolder: 'e.g. added double jump and a new level',
+    ignoreFocusOut: false
+  });
+  if (notes === undefined) return; // cancelled — the save already landed
+  await setPublished(true, notes);
+  const base = await apiBase();
+  const link = base + '/game?id=' + encodeURIComponent(projectId);
+  void vscode.window
+    .showInformationMessage('Shipped "' + projectTitle + '".', 'Copy link', 'Open')
+    .then(async (pick) => {
+      if (pick === 'Copy link') {
+        try {
+          await navigator.clipboard.writeText(link);
+        } catch {
+          window.prompt('Copy the link', link);
+        }
+      } else if (pick === 'Open') {
+        window.open(link, '_blank');
+      }
+    });
 }
 
 async function putThumbnail(value: string | null): Promise<void> {
@@ -1594,6 +1638,24 @@ export function registerProjectCommands(): void {
       }
       async run(): Promise<void> {
         await setPublished(true);
+      }
+    }
+  );
+
+  registerAction2(
+    class extends Action2 {
+      constructor() {
+        super({
+          id: 'glox.shipProject',
+          title: { value: 'Cudic: Ship (save, publish, get the link)', original: 'Cudic: Ship' },
+          menu: [
+            { id: MenuId.CommandPalette },
+            { id: MenuId.MenubarFileMenu, group: '5_glox' }
+          ]
+        });
+      }
+      async run(): Promise<void> {
+        await shipProject();
       }
     }
   );

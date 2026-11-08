@@ -1120,6 +1120,50 @@ async function handleRequest(req, res) {
       .eq('user_id', user.id).then(() => {}, () => {});
     return { token, login: data.login || '' };
   }
+  // ── Push to deploy ──────────────────────────────────────────────
+  // Warned once when the deploy columns have not been migrated yet, so a
+  // missing column reads as one line of logs instead of noise on every push.
+  let ghDeployWarned = false;
+  // The files of one commit, path → text, read through the git-data API. This
+  // is what a webhook deploys: the tree names the blobs, each blob is fetched
+  // raw. Text only — a release snapshot stores strings, and a game's images
+  // already live in the asset bucket.
+  const DEPLOY_MAX_FILES = 200;
+  const DEPLOY_MAX_FILE = 300 * 1024;
+  const DEPLOY_MAX_BYTES = 4 * 1024 * 1024;
+  async function repoTreeFiles(fullName, sha, token) {
+    if (!/^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(fullName)) return null;
+    if (!/^[0-9a-f]{7,40}$/.test(String(sha || ''))) return null;
+    let tree = null;
+    try {
+      const r = await ghApi('/repos/' + fullName + '/git/trees/' + sha + '?recursive=1', token);
+      if (!r.ok) return null;
+      tree = await r.json();
+    } catch (e) {
+      return null;
+    }
+    const nodes = (tree && Array.isArray(tree.tree) ? tree.tree : [])
+      .filter((n) => n && n.type === 'blob' && typeof n.path === 'string' &&
+        GH_PATH.test(n.path) && !n.path.includes('..') && !n.path.startsWith('.') &&
+        Number(n.size || 0) <= DEPLOY_MAX_FILE)
+      .slice(0, DEPLOY_MAX_FILES);
+    const out = {};
+    let total = 0;
+    for (const node of nodes) {
+      try {
+        const r = await ghApi('/repos/' + fullName + '/git/blobs/' + node.sha, token, 'application/vnd.github.raw');
+        if (!r.ok) continue;
+        const text = await r.text();
+        if (text.indexOf('\u0000') === 0) continue; // binary — releases are text
+        total += text.length;
+        if (total > DEPLOY_MAX_BYTES) break;
+        out[node.path] = text;
+      } catch (e) {
+        /* one unreadable blob must not sink the deploy */
+      }
+    }
+    return Object.keys(out).length > 0 ? out : null;
+  }
   const GH_ERR_TEXT = {
     github_not_configured: 'GitHub connections are not set up on this server yet.',
     github_not_connected: 'Connect GitHub in Profile → Connections first.',
@@ -1153,7 +1197,7 @@ async function handleRequest(req, res) {
       ghFail(res, 429, 'slow_down', 'Too many GitHub requests just now. Try again in a few minutes.');
       return null;
     }
-    return got;
+    return { ...got, user };
   }
 
   if (url.pathname === '/api/github/repos' && req.method === 'GET') {
@@ -1397,6 +1441,28 @@ async function handleRequest(req, res) {
       return ghFail(res, 409, 'remote_moved', 'The branch moved on GitHub since this project last read it — pull or fetch before pushing again.');
     }
     if (!guard(refWrite, 'updating the branch')) return;
+
+    // Remember which project this repository belongs to. Without it a push is
+    // an anonymous contribution: the server holds the repo, the token and the
+    // code, but nothing that says which game it is, so a later commit to the
+    // repo cannot deploy anything. Columns are additive (see the
+    // game_github_deploy migration); until it is applied this update fails
+    // harmlessly and the push still succeeds.
+    const pushProject = /^[0-9a-fA-F-]{8,64}$/.test(String(body.game_id || '')) ? String(body.game_id) : '';
+    if (pushProject !== '' && got.login) {
+      const mapped = await supabase.from('games').update({
+        github_repo: owner + '/' + repoName,
+        github_branch: branch,
+        github_login: got.login,
+      }).eq('id', pushProject).eq('owner_id', got.user.id).select('id').maybeSingle();
+      if (mapped.error != null) {
+        // Say it once per process instead of failing every push ever made.
+        if (!ghDeployWarned) {
+          ghDeployWarned = true;
+          console.warn('github deploy: games.github_repo not writable (' + mapped.error.message + ') — apply supabase/migrations/20261108120000_game_github_deploy.sql');
+        }
+      }
+    }
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
@@ -2331,6 +2397,70 @@ async function handleRequest(req, res) {
       if (byHash.has(h)) out[path] = byHash.get(h);
     }
     return out;
+  }
+  // ── Releases ─────────────────────────────────────────────────────
+  // Publishing used to be a boolean on the live row, so every save changed what
+  // players got and there was no way to say what version they played. A publish
+  // now snapshots the files into project_revisions labeled `release vN`, with a
+  // synthetic _release.json carrying the notes and source. The play page serves
+  // that snapshot; the row keeps being the working draft. No schema change.
+  const RELEASE_PREFIX = 'release v';
+  const RELEASE_FILE = '_release.json';
+  async function latestRelease(gameId) {
+    const { data: rows } = await supabase.from('project_revisions')
+      .select('id, label, files, manifest, created_at')
+      .eq('game_id', gameId).like('label', RELEASE_PREFIX + '%')
+      .order('created_at', { ascending: false }).limit(1);
+    const row = rows && rows[0];
+    if (!row) return null;
+    const files = await revisionFilesOf(row);
+    let meta = {};
+    try { meta = JSON.parse(files[RELEASE_FILE] || '{}'); } catch (e) { meta = {}; }
+    delete files[RELEASE_FILE];
+    const n = Number(String(row.label).replace(RELEASE_PREFIX, '')) || 1;
+    return {
+      version: Number(meta.version) || n,
+      notes: String(meta.notes || ''),
+      source: String(meta.source || 'studio'),
+      commit: String(meta.commit || ''),
+      at: row.created_at || meta.at || null,
+      revision: row.id,
+      files,
+    };
+  }
+  async function createRelease(gameId, ownerId, files, notes, source, commit) {
+    const prev = await latestRelease(gameId);
+    const version = (prev ? prev.version : 0) + 1;
+    const all = {};
+    for (const [k, v] of Object.entries(files || {})) if (typeof v === 'string') all[k] = v;
+    all[RELEASE_FILE] = JSON.stringify({
+      version, notes: String(notes || '').slice(0, 500), source: source || 'studio',
+      commit: String(commit || ''), at: new Date().toISOString(),
+    });
+    const manifest = {};
+    const fresh = new Map();
+    for (const [path, text] of Object.entries(all)) {
+      const hash = crypto.createHash('sha256').update(String(text)).digest('hex').slice(0, 32);
+      manifest[path] = hash;
+      if (!fresh.has(hash)) fresh.set(hash, text);
+    }
+    let addressed = false;
+    if (fresh.size) {
+      const up = await supabase.from('revision_blobs').upsert(
+        [...fresh].map(([hash, content]) => ({ game_id: gameId, hash, content })),
+        { onConflict: 'game_id,hash', ignoreDuplicates: true }
+      );
+      addressed = !up.error; // no blob table yet -> fall back to a plain copy
+    }
+    const { data, error } = await supabase.from('project_revisions').insert({
+      game_id: gameId, owner_id: ownerId, label: RELEASE_PREFIX + version,
+      files: addressed ? {} : all, manifest: addressed ? manifest : null,
+    }).select('id, label, created_at').single();
+    if (error) return null;
+    return {
+      version, notes: String(notes || ''), source: source || 'studio', commit: String(commit || ''),
+      at: data.created_at, revision: data.id, files: all,
+    };
   }
   const revList = url.pathname.match(/^\/api\/games\/([^/]+)\/revisions$/);
   const revOne = url.pathname.match(/^\/api\/games\/([^/]+)\/revisions\/([^/]+)(?:\/restore)?$/);
@@ -3785,8 +3915,51 @@ function sanitizeTags(raw) {
       const { error } = await supabase.from('changelog').insert({ kind, title: subject, body, commit_sha: c.id, created_at: c.timestamp || new Date().toISOString(), author_id: null });
       if (!error) inserted++;
     }
+    // ── Deploy a release ────────────────────────────────────────
+    // The point of the mapping: a push to the repository a project publishes
+    // from becomes the next release. Guarded three ways, because a webhook is
+    // unauthenticated apart from its signature — only the publish branch, only
+    // while the game is published, and only for a push by the GitHub login
+    // that pushed from that project. Anyone else's commit is just a changelog
+    // line, which is also why a fork or a PR cannot ship under your name.
+    let deployed = null;
+    const repoFull = String((payload.repository && payload.repository.full_name) || '');
+    const pushedRef = String(payload.ref || '');
+    if (repoFull !== '' && pushedRef.indexOf('refs/heads/') === 0 && commits.length > 0) {
+      const pushedBranch = pushedRef.slice('refs/heads/'.length);
+      const pusher = String(
+        (payload.sender && payload.sender.login) || (payload.pusher && payload.pusher.name) || ''
+      );
+      const { data: mappedRows, error: mapError } = await supabase.from('games')
+        .select('id, owner_id, published, github_branch, github_login')
+        .ilike('github_repo', repoFull).limit(1);
+      const game = !mapError && mappedRows && mappedRows[0];
+      if (game) {
+        const wantBranch = String(game.github_branch || (payload.repository && payload.repository.default_branch) || 'main');
+        const ownerLogin = String(game.github_login || '').toLowerCase();
+        if (!game.published) deployed = { skipped: 'not-published' };
+        else if (pushedBranch !== wantBranch) deployed = { skipped: 'other-branch' };
+        else if (ownerLogin !== '' && pusher !== '' && ownerLogin !== pusher.toLowerCase()) deployed = { skipped: 'not-the-owner' };
+        else {
+          const ownerToken = await ghToken({ id: game.owner_id });
+          if (ownerToken.error) deployed = { skipped: ownerToken.error };
+          else {
+            const files = await repoTreeFiles(repoFull, String(payload.after || ''), ownerToken.token);
+            if (files == null) deployed = { skipped: 'no-readable-files' };
+            else {
+              const headCommit = commits[commits.length - 1] || {};
+              const notes = String(headCommit.message || '').split('\n')[0].slice(0, 200);
+              const rel = await createRelease(
+                game.id, game.owner_id, files, notes, 'github', String(payload.after || '').slice(0, 7)
+              );
+              deployed = rel ? { game: game.id, version: rel.version } : { skipped: 'release-failed' };
+            }
+          }
+        }
+      }
+    }
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, inserted, ref: payload.ref || '' }));
+    res.end(JSON.stringify({ ok: true, inserted, ref: payload.ref || '', deployed }));
     return;
   }
 
@@ -5968,7 +6141,18 @@ function sanitizeTags(raw) {
       myRating = (mine && mine.rating) || 0;
     }
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ game: { ...data, likes: likeCount || 0, liked, playing: liveCount(id), rating_avg: Math.round(avg * 10) / 10, rating_count: ratings.length, my_rating: myRating } }));
+    // A published game plays its shipped release, not the working draft: save
+    // freely in Studio and players stay on the build you published. Games with
+    // no release yet (published before releases existed) keep serving the row.
+    const out = { ...data, likes: likeCount || 0, liked, playing: liveCount(id), rating_avg: Math.round(avg * 10) / 10, rating_count: ratings.length, my_rating: myRating };
+    if (data.published) {
+      const rel = await latestRelease(id);
+      if (rel) {
+        out.files = rel.files;
+        out.release = { version: rel.version, notes: rel.notes, at: rel.at, source: rel.source, commit: rel.commit };
+      }
+    }
+    res.end(JSON.stringify({ game: out }));
     return;
   }
 
@@ -6717,8 +6901,18 @@ function sanitizeTags(raw) {
     if (error) console.error('games update error:', error.message);
     else if (wasPub === false && data) onPublished(user.id, id, data.title).catch(() => {});
     gamesListCacheClear(); // title/tags/publish flips change the gallery
+    // Publishing ships a release: snapshot the files that just went live, so
+    // later saves are a draft until the next publish. Failures leave the old
+    // behaviour (row files) in place rather than failing the save.
+    let release = null;
+    if (updates.published === true && data) {
+      release = await createRelease(
+        id, user.id, body.files !== undefined ? body.files : data.files,
+        body.release_notes, body.release_source || 'studio', body.release_commit
+      );
+    }
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ game: data, error: error ? 'Could not save the game.' : undefined }));
+    res.end(JSON.stringify({ game: data, release, error: error ? 'Could not save the game.' : undefined }));
     return;
   }
 

@@ -109,8 +109,21 @@ function paint(v: RepoView | null): void {
   const exists = v?.exists === true;
   if (branchBtn != null) branchBtn.textContent = exists ? '⎇ ' + (v?.branch || 'main') : '⎇ no repository';
   const pushed = exists ? lastPush() : null;
+  // How far the local history has moved past what was last pushed: the panel
+  // used to say only "pushed abc1234", which looked identical whether the repo
+  // was in sync or six commits ahead.
+  const pushedAt = pushed != null ? (v?.log ?? []).findIndex((c) => c.oid === pushed.head) : -1;
+  const ahead =
+    pushed == null || !exists
+      ? 0
+      : pushedAt === -1
+        ? (v?.log.length ?? 0)
+        : pushedAt;
   if (remoteEl != null) {
-    remoteEl.textContent = remoteText(v) + (pushed != null ? '  ·  pushed ' + pushed.sha.slice(0, 7) : '');
+    remoteEl.textContent =
+      remoteText(v) +
+      (pushed != null ? '  ·  pushed ' + pushed.sha.slice(0, 7) : '') +
+      (ahead > 0 ? '  ·  ' + ahead + ' to push' : '');
   }
   if (initWrap != null) initWrap.style.display = exists ? 'none' : 'flex';
   if (mainWrap != null) mainWrap.style.display = exists ? 'flex' : 'none';
@@ -147,9 +160,18 @@ function paint(v: RepoView | null): void {
   if (commitBtn != null) commitBtn.disabled = busy || changes.length === 0;
   const pushBtn = q<HTMLButtonElement>('scPush');
   const hasRemote = remoteText(v) !== '';
+  // Commit depends on the tree; push depended only on having a remote, so a
+  // clean tree still offered a push that re-uploaded the same files as a second
+  // commit. It is only offered now when the remote does not already hold HEAD.
+  const head = v?.log[0]?.oid ?? '';
+  const nothingNew = changes.length === 0 && head !== '' && pushed != null && pushed.head === head;
   if (pushBtn != null) {
-    pushBtn.disabled = busy || !hasRemote;
-    pushBtn.title = hasRemote ? 'Write these files to ' + remoteText(v) : 'Set or create a GitHub remote first';
+    pushBtn.disabled = busy || !hasRemote || nothingNew;
+    pushBtn.title = !hasRemote
+      ? 'Set or create a GitHub remote first'
+      : nothingNew
+        ? 'Nothing to push — GitHub already has ' + (pushed?.sha.slice(0, 7) ?? '') + '.'
+        : 'Write these files to ' + remoteText(v);
   }
   paintHistory(v?.log ?? []);
 }
@@ -239,6 +261,18 @@ async function doCommit(): Promise<void> {
 async function doPush(): Promise<void> {
   const pushBtn = q<HTMLButtonElement>('scPush');
   const typed = (q<HTMLInputElement>('scMsg')?.value || '').trim();
+  // A push overwrites the remote branch tip, so say what is about to be sent
+  // before sending it — file names, not just a count.
+  const files = (view?.changes ?? []).map((c) => c.path);
+  const preview = files.slice(0, 6).join(', ') + (files.length > 6 ? ' +' + (files.length - 6) + ' more' : '');
+  const where = remoteText(view) || 'GitHub';
+  const confirm = await vscode.window.showWarningMessage(
+    'Push to ' + where + '?\n\n' +
+      (files.length > 0 ? files.length + ' file(s): ' + preview : 'No file changes — this ships the commits already made here.'),
+    { modal: true },
+    'Push'
+  );
+  if (confirm !== 'Push') return;
   busy = true;
   if (pushBtn != null) {
     pushBtn.disabled = true;
@@ -248,7 +282,10 @@ async function doPush(): Promise<void> {
   try {
     const r = await pushToGitHub(typed !== '' ? typed : view?.log[0]?.message || '');
     const short = r.sha.slice(0, 7);
-    hint('Pushed ' + r.files + ' file(s) to ' + r.branch + ' as ' + short + '.');
+    hint(
+      'Pushed ' + r.files + ' file(s) to ' + r.branch + ' as ' + short +
+        (r.local !== '' ? ' — recorded locally as ' + r.local : '') + '.'
+    );
     void vscode.window
       .showInformationMessage('Pushed ' + short + ' to ' + r.branch + '.', 'Open commit')
       .then((pick) => {
@@ -563,6 +600,13 @@ export function registerSourceControl(shadowRoot: ShadowRoot): void {
   sr = shadowRoot;
   // Step aside when another activity-bar tab is picked, same as Collab.
   onOtherTabSelected(hidePanel);
+  // The panel only re-read the repository when it opened, refreshed or acted,
+  // so a file saved underneath it kept the old list — and the old "no changes"
+  // line that disables Commit. Every save now re-reads while the panel is up.
+  vscode.workspace.onDidSaveTextDocument(() => {
+    if (busy || panel == null || panel.style.display === 'none') return;
+    void load();
+  });
   const mount = (): boolean => buildTabIcon() && buildPanel();
   if (!mount()) {
     const timer = setInterval(() => {

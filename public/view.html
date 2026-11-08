@@ -731,6 +731,35 @@ setInterval(function () {
       });
     }
 
+    // The page serves the shipped release, so name it: version chip, when it
+    // landed, and the notes the creator shipped it with.
+    function initRelease(game) {
+      var rel = game && game.release;
+      if (!rel || !rel.version) return;
+      var title = document.getElementById('gameTitle');
+      if (!title || !title.parentNode) return;
+      var el = document.createElement('div');
+      el.className = 'release-line';
+      el.style.cssText = 'display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;margin:7px 0 0;' +
+        'font:500 12px/1.5 "Geist Mono",ui-monospace,monospace;color:#9a9a94';
+      var chip = document.createElement('span');
+      chip.textContent = 'v' + rel.version;
+      chip.style.cssText = 'background:#b8f23a;color:#0d0e10;padding:1px 7px;border-radius:2px;font-weight:700';
+      el.appendChild(chip);
+      var when = '';
+      try { if (rel.at) when = ' · updated ' + new Date(rel.at).toLocaleDateString([], { month: 'short', day: 'numeric' }); } catch (e) {}
+      var meta = document.createElement('span');
+      meta.textContent = 'release' + when;
+      el.appendChild(meta);
+      if (rel.notes) {
+        var notes = document.createElement('span');
+        notes.style.color = '#f7f5ec';
+        notes.textContent = '— ' + String(rel.notes).slice(0, 240);
+        el.appendChild(notes);
+      }
+      title.parentNode.insertBefore(el, title.nextSibling);
+    }
+
     fetch(apiBase() + '/api/games/' + encodeURIComponent(id))
       .then(function(r){ return r.json(); })
       .then(function(d){
@@ -742,6 +771,7 @@ setInterval(function () {
         if (!files || !Object.keys(files).length) { location.href = '/studio?id=' + encodeURIComponent(id); return; }
         document.title = (game.title || 'Untitled') + ' — Cudic';
         document.getElementById('gameTitle').textContent = game.title || 'Untitled Game';
+        initRelease(game);
         // (tag chips removed — the gallery is search + sort only)
         likeBtn.style.display = '';
         document.getElementById('islReportSlot').style.display = '';

@@ -21,6 +21,7 @@ import {
   apiBase,
   collectBinaryFiles,
   collectTextFiles,
+  getProjectId,
   getToken,
   projectKey,
   replaceWorkspace,
@@ -402,6 +403,8 @@ export interface PushResult {
   branch: string;
   url: string;
   files: number;
+  /** short sha of the local commit recording the push, '' when HEAD already matched */
+  local: string;
 }
 
 export interface CreatedRepo {
@@ -450,12 +453,16 @@ export async function pushToGitHub(message: string): Promise<PushResult> {
     path,
     base64: toBase64(typeof content === 'string' ? new TextEncoder().encode(content) : content)
   }));
+  const msg = message.trim() === '' ? 'Push from Cudic' : message.trim();
   const res = await authed('/api/github/push', {
     owner: src.owner,
     repo: src.repo,
     branch: summary.branch || 'main',
-    message: message.trim() === '' ? 'Push from Cudic' : message.trim(),
-    files: entries
+    message: msg,
+    files: entries,
+    // Names the project so the server can map this repository to it: without
+    // it a push cannot deploy, because nothing connects the commit to a game.
+    game_id: getProjectId() || ''
   });
   const d = (await res.json().catch(() => null)) as
     | { commit?: string; branch?: string; url?: string; files?: number; text?: string; error?: string }
@@ -463,9 +470,30 @@ export async function pushToGitHub(message: string): Promise<PushResult> {
   if (!res.ok || typeof d?.commit !== 'string') {
     throw new Error(d?.text || d?.error || 'Push failed (' + res.status + ').');
   }
+  // The commit was made on GitHub; nothing here made one. That is why History
+  // still read "No commits yet" right after a successful push. Record the files
+  // this push published as a local commit, so the two histories stop disagreeing.
+  let local = '';
+  try {
+    const before = await repo.summary();
+    if (before.changes.length > 0 || before.log.length === 0) {
+      await repo.sync(files);
+      local = (await repo.commit(msg, author())).short;
+      await repo.summary(); // keep the index consistent with the new HEAD
+      scheduleSave();
+    }
+  } catch {
+    /* the push already succeeded — the local record is only a convenience */
+  }
+  let head = '';
+  try {
+    head = (await repo.summary()).log[0]?.oid ?? '';
+  } catch {
+    /* no HEAD to record */
+  }
   try {
     localStorage.setItem('cudic_git_pushed:' + projectKey(), JSON.stringify({
-      sha: d.commit, branch: d.branch, at: Date.now()
+      sha: d.commit, branch: d.branch, at: Date.now(), head, local
     }));
   } catch {
     /* private mode — the push already happened */
@@ -474,17 +502,23 @@ export async function pushToGitHub(message: string): Promise<PushResult> {
     sha: d.commit,
     branch: String(d.branch || summary.branch || 'main'),
     url: String(d.url || ''),
-    files: Number(d.files) || entries.length
+    files: Number(d.files) || entries.length,
+    local
   };
 }
 
-export function lastPush(): { sha: string; branch: string; at: number } | null {
+export function lastPush(): { sha: string; branch: string; at: number; head: string } | null {
   try {
     const raw = localStorage.getItem('cudic_git_pushed:' + projectKey());
     if (raw == null) return null;
-    const j = JSON.parse(raw) as { sha?: string; branch?: string; at?: number };
+    const j = JSON.parse(raw) as { sha?: string; branch?: string; at?: number; head?: string };
     if (typeof j.sha !== 'string') return null;
-    return { sha: j.sha, branch: String(j.branch || 'main'), at: Number(j.at) || 0 };
+    return {
+      sha: j.sha,
+      branch: String(j.branch || 'main'),
+      at: Number(j.at) || 0,
+      head: typeof j.head === 'string' ? j.head : ''
+    };
   } catch {
     return null;
   }
