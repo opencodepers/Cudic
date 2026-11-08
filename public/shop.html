@@ -236,7 +236,18 @@
   }
 
   function load(){
-    return api('GET','/api/cosmetics').then(function(r){
+    // No session, no wardrobe: /api/cosmetics answers 401 signed out, so the
+    // request was a console error for a page that could only show an empty
+    // grid. Show the empty state instead of asking.
+    return token().then(function(t){
+      if (!t) {
+        document.getElementById('grid').style.display='none';
+        document.getElementById('empty').style.display='block';
+        return null;
+      }
+      return api('GET','/api/cosmetics');
+    }).then(function(r){
+      if (!r) return;
       if (!r.ok || !r.d.cosmetics && !r.d.catalog) {
         if (r.d && r.d.error) msg(r.d.error, false);
         document.getElementById('grid').style.display='none';
@@ -298,9 +309,14 @@
     render();
   });
 
-  // Reflect the signed-in user at the top of the preview card.
-  api('GET','/api/profile').then(function(r){
-    var p = r.d && r.d.profile;
+  // Reflect the signed-in user at the top of the preview card. Signed out this
+  // was an unconditional /api/profile request, i.e. a 401 in the console for a
+  // card that has no name to show anyway — ask only when a session exists.
+  token().then(function(tok){
+    if (!tok) return null;
+    return api('GET','/api/profile');
+  }).then(function(r){
+    var p = r && r.d && r.d.profile;
     if (!p) return;
     var av=document.getElementById('lookAvatar');
     if (p.avatar_url) av.innerHTML='<img src="'+esc(p.avatar_url)+'" alt="">';

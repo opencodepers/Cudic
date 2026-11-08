@@ -26,6 +26,13 @@ Most wasted hours in this repo are one of these ten, skipped:
    own lists — build your own strip as a *sibling* (gotcha 20).
 6. **Code ships with tests, docs and CHANGELOG** — `python tests/run_tests.py`
    (345), `public/docs.html`, `CHANGELOG.md`. A feature without them is unfinished.
+   On a page or chrome change, `node tools/check-console.mjs` runs that suite,
+   boots Cudic on a spare port and walks **every** top-level page (`public/*.html`
+   plus Studio — 38 pages, ~2 min) in headless Chrome: it fails on console
+   errors, uncaught page exceptions and failed loads, and names the page, which
+   is the class of breakage a source-reading test cannot see. Platform noise it
+   cannot fix is printed under KNOWN with the reason; `--no-baseline` enforces
+   it, `--pages /a,/b` narrows the sweep, `--strict` fails on warnings too.
 7. **Never delete** `public/cucid.svg`, `public/cudic_sfsvg.svg`,
    `public/cudic_sfpng.png`.
 8. **Gitignored:** `public/studio/`, `tests/`, `.freebuff/`, `.agents/`. Test

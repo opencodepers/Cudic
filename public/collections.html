@@ -124,7 +124,14 @@ input[type=text]:focus,select:focus,textarea:focus{border-color:var(--signal)}
   }
 
   function loadMine(){
-    api('GET','/api/collections?mine=1').then(function(d){
+    // Signed out there is no "mine" to fetch: asking anyway put a 401 in the
+    // console for a list that could only ever be empty. Ask with a session,
+    // and say why the list is blank when there is none.
+    token().then(function(t){
+      if(!t){ document.getElementById('mineList').innerHTML='<div class="empty">Sign in to keep collections.</div>'; return null; }
+      return api('GET','/api/collections?mine=1');
+    }).then(function(d){
+      if(!d) return;
       var cs=d.collections||[];
       var box=document.getElementById('mineList');
       if(!cs.length){ box.innerHTML='<div class="empty">No collections yet.</div>'; return; }
