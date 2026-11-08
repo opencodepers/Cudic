@@ -1,31 +1,35 @@
-// Adding tabs to the activity bar without fighting its layout.
+// Cudic's own tabs in the activity bar.
 //
-// The Collab and Source Control tabs used to be absolutely positioned at
-// guessed offsets, which is why the icons were unevenly spaced and overlapped
-// the account avatar. They are real `li.action-item` rows in the bar's own list
-// instead, so the workbench spaces them like every other tab.
+// History matters here, because two earlier attempts broke the bar:
 //
-// Two things this file has to survive:
-//  * the workbench re-rendering `ul.actions-container`, which drops any row it
-//    did not create — so a mounted tab is re-appended whenever it goes missing;
-//  * picking a built-in tab (Explorer, Search, …) while a Cudic panel is open —
-//    those panels overlay the sidebar, so they register a closer here and are
-//    hidden the moment someone selects another view.
+//  1. Absolutely positioned buttons at guessed `bottom:` offsets drifted into
+//     the account avatar.
+//  2. Appending `li.action-item` rows into the workbench's own
+//     `ul.actions-container`. The workbench keeps its action list and that
+//     container in step one entry per action; a foreign row desyncs it, its
+//     re-render then fails part-way, and the whole icon column disappears —
+//     leaving only the account/settings cluster. That is why the bar went
+//     empty.
+//
+// So: Cudic's tabs live in their own strip. It is a sibling of the workbench's
+// icon list, never a child of it, so a re-render of VS Code's actions cannot
+// touch it, and it cannot corrupt their bookkeeping. The strip is in normal
+// flow (no absolute offsets), one 48px row per tab — the same height the
+// workbench uses for its own icons — so the spacing matches by construction.
 
 let styled = false;
 let root: ShadowRoot | null = null;
-let mountedList: HTMLElement | null = null;
+let wrap: HTMLElement | null = null;
 let armedFor: HTMLElement | null = null;
 let watchdog: ReturnType<typeof setInterval> | null = null;
 
-const entries: Array<{ li: HTMLLIElement; btn: HTMLButtonElement }> = [];
 const closers: Array<() => void> = [];
+const tabs: HTMLButtonElement[] = [];
 
 /**
  * Point the workbench at Cudic's palette (same tokens as the site and the
- * Collab panel). VS Code reads these variables on `.monaco-workbench`, so
- * overriding them here is the supported way to recolour a part without
- * out-specificity hacks on every internal class.
+ * panels). VS Code reads these variables on `.monaco-workbench`, which is the
+ * supported way to recolour a part without out-specificity hacks.
  */
 export function styleActivityBar(sr: ShadowRoot): void {
   root = sr;
@@ -44,22 +48,25 @@ export function styleActivityBar(sr: ShadowRoot): void {
     '--vscode-activityBarBadge-background:#b8f23a;' +
     '--vscode-activityBarBadge-foreground:#0d0e10;' +
     '}' +
-    '.part.activitybar .action-item.cudic-tab>.action-label{' +
-    'display:flex;align-items:center;justify-content:center;' +
-    'width:100%;height:100%;background:transparent;border:none;padding:0;' +
+    '#cudic-activity-tabs{' +
+    'display:flex;flex-direction:column;flex:0 0 auto;width:100%;' +
+    'padding:6px 0 0;margin:0;overflow:visible;' +
+    '}' +
+    '#cudic-activity-tabs .cudic-tab{' +
+    'width:100%;height:48px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;' +
+    'padding:0;background:transparent;border:0;border-left:2px solid transparent;' +
     'color:var(--vscode-activityBar-inactiveForeground,#8b8d94);cursor:pointer;' +
-    'border-left:2px solid transparent;transition:color .12s steps(2),background .12s steps(2);' +
+    'transition:color .12s steps(2),background .12s steps(2);' +
     '}' +
-    '.part.activitybar .action-item.cudic-tab>.action-label:hover{' +
-    'color:var(--vscode-activityBar-foreground,#f7f5ec);' +
-    'background:rgba(184,242,58,.06);' +
+    '#cudic-activity-tabs .cudic-tab:hover{' +
+    'color:#f7f5ec;background:rgba(184,242,58,.06);' +
     '}' +
-    '.part.activitybar .action-item.cudic-tab.on>.action-label{' +
+    '#cudic-activity-tabs .cudic-tab.on{' +
     'color:#f7f5ec;background:rgba(184,242,58,.08);border-left-color:#b8f23a;' +
     '}' +
-    '.part.activitybar .action-item.cudic-tab>.action-label:focus-visible{' +
-    'outline:1px solid #b8f23a;outline-offset:-2px;' +
-    '}';
+    '#cudic-activity-tabs .cudic-tab svg{width:22px;height:22px;display:block;color:inherit}' +
+    '#cudic-activity-tabs .cudic-tab:focus-visible{outline:1px solid #b8f23a;outline-offset:-2px}' +
+    '#cudic-activitybar-theme{display:none}';
   sr.appendChild(style);
 }
 
@@ -69,15 +76,6 @@ export interface TabOptions {
   /** inner SVG markup, inheriting currentColor */
   svg: string;
   onClick: () => void;
-}
-
-function actionList(act: HTMLElement): HTMLElement | null {
-  const bars = act.querySelectorAll('.monaco-action-bar.vertical');
-  for (const bar of bars) {
-    const list = bar.querySelector('ul.actions-container');
-    if (list != null) return list as HTMLElement;
-  }
-  return null;
 }
 
 /**
@@ -96,12 +94,14 @@ function arm(act: HTMLElement): void {
     (ev) => {
       const el = ev.target as HTMLElement | null;
       const item = el && el.closest ? (el.closest('.action-item') as HTMLElement | null) : null;
-      if (item == null || item.classList.contains('cudic-tab')) return;
+      // Our own buttons are not `.action-item`: only the workbench's tabs close
+      // a panel, never a click on Collab or Source Control itself.
+      if (item == null) return;
       for (const fn of closers) {
         try {
           fn();
         } catch {
-          /* a closer failing must not block the tab the user actually clicked */
+          /* a closer failing must not eat the click the user made */
         }
       }
     },
@@ -109,67 +109,62 @@ function arm(act: HTMLElement): void {
   );
 }
 
-/**
- * Put every mounted tab back where it belongs. Runs on a slow timer because the
- * workbench rebuilds the activity bar on layout and view changes, and the rows
- * it did not create are dropped in the process — a mounted tab that vanishes
- * looks exactly like a tab that was never added.
- */
-function ensure(): void {
-  if (entries.length === 0 || root == null) return;
-  const act = root.querySelector('.part.activitybar') as HTMLElement | null;
-  if (act == null) return;
-  arm(act);
-  const list = mountedList != null && mountedList.isConnected ? mountedList : actionList(act);
-  if (list == null) return;
-  mountedList = list;
-  for (const e of entries) {
-    // Same node, re-attached: the click listener and the caller's reference to
-    // the button both survive, so active state keeps working.
-    if (e.li.parentElement !== list) list.appendChild(e.li);
+/** Keep the strip inside the bar: the workbench rebuilds the bar's contents. */
+function place(act: HTMLElement): void {
+  if (wrap == null || wrap.isConnected) return;
+  const composite = act.querySelector('.composite-bar') as HTMLElement | null;
+  const content = act.querySelector('.content') as HTMLElement | null;
+  if (composite != null && composite.parentElement != null) {
+    // Directly under the workbench's own icons, inside the same column.
+    composite.parentElement.insertAdjacentElement('afterend', wrap);
+  } else if (content != null) {
+    content.appendChild(wrap);
+  } else {
+    act.appendChild(wrap);
   }
 }
 
 /**
- * Append a tab to the activity bar and hand back its button. Returns null while
- * the workbench has not built the bar yet, so callers can retry.
+ * Append a tab to Cudic's strip and hand back its button. Returns null while
+ * the workbench has not built the activity bar yet, so callers can retry.
  */
 export function mountTab(sr: ShadowRoot, act: HTMLElement, o: TabOptions): HTMLButtonElement | null {
   styleActivityBar(sr);
-  const found = entries.find((e) => e.btn.id === o.id);
-  if (found != null) {
-    arm(act);
-    ensure();
-    return found.btn;
+  const existing = tabs.find((b) => b.id === o.id);
+  if (existing != null) {
+    place(act);
+    return existing;
   }
-  const list = actionList(act);
-  if (list == null) return null;
-
-  const li = document.createElement('li');
-  li.className = 'action-item cudic-tab';
-  li.setAttribute('role', 'presentation');
+  if (wrap == null) {
+    wrap = document.createElement('div');
+    wrap.id = 'cudic-activity-tabs';
+    wrap.setAttribute('role', 'toolbar');
+    wrap.setAttribute('aria-label', 'Cudic');
+  }
   const btn = document.createElement('button');
   btn.id = o.id;
   btn.type = 'button';
-  btn.className = 'action-label';
+  btn.className = 'cudic-tab';
   btn.title = o.title;
   btn.setAttribute('aria-label', o.title);
   btn.innerHTML = o.svg;
   btn.addEventListener('click', () => o.onClick());
-  li.appendChild(btn);
-  list.appendChild(li);
+  wrap.appendChild(btn);
+  tabs.push(btn);
 
-  mountedList = list;
-  entries.push({ li, btn });
+  place(act);
   arm(act);
-  if (watchdog == null) watchdog = setInterval(ensure, 1000);
+  if (watchdog == null) {
+    watchdog = setInterval(() => {
+      const bar = root?.querySelector('.part.activitybar') as HTMLElement | null;
+      if (bar != null) place(bar);
+    }, 1000);
+  }
   return btn;
 }
 
 /** Active state: left accent bar + faint tint, on the site's lime. */
 export function setTabActive(btn: HTMLButtonElement | null, on: boolean): void {
   if (btn == null) return;
-  const li = btn.parentElement;
-  if (li == null) return;
-  li.classList.toggle('on', on);
+  btn.classList.toggle('on', on);
 }
