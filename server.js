@@ -476,6 +476,39 @@ async function copyAssetPrefix(fromPrefix, toPrefix, pathsIn) {
   return { copied, total: paths.length };
 }
 
+// ── Per-account storage budget ─────────────────────────────────
+// Uploads go straight from the browser to Supabase storage, so save time is the
+// one place that can see the whole account. Usage is counted per distinct
+// storage prefix, which is what makes fork sharing pay off: 500 forks of one
+// game count once, because they all point at the same prefix. A save that would
+// land over the cap is refused, and the message names both numbers instead of
+// "upload failed".
+const ACCOUNT_STORAGE_CAP = Number(process.env.STORAGE_CAP_BYTES) || 250 * 1024 * 1024;
+const storageUsageCache = new Map();
+
+async function accountStorageBytes(userId) {
+  const hit = storageUsageCache.get(userId);
+  if (hit && Date.now() - hit.at < 60_000) return hit.bytes;
+  const { data: rows } = await supabase.from('games').select('id, asset_owner').eq('owner_id', userId);
+  const prefixes = new Set();
+  for (const r of rows || []) prefixes.add(r.asset_owner || r.id);
+  let bytes = 0;
+  const bucket = supabase.storage.from('game-assets');
+  for (const prefix of prefixes) {
+    const pending = [prefix];
+    while (pending.length) {
+      const dir = pending.pop();
+      const { data: entries } = await bucket.list(dir, { limit: 1000 });
+      for (const e of entries || []) {
+        if (e.metadata) bytes += Number(e.metadata.size || 0);
+        else pending.push(dir + '/' + e.name);
+      }
+    }
+  }
+  storageUsageCache.set(userId, { bytes, at: Date.now() });
+  return bytes;
+}
+
 const server = http.createServer((req, res) => {
   handleRequest(req, res).catch((e) => {
     // One bug in any route must not kill the whole process (Node turns
@@ -6948,6 +6981,26 @@ function sanitizeTags(raw) {
       ? (((await supabase.from('games').select('published').eq('id', id).eq('owner_id', user.id).single()).data || {}).published)
       : null;
     updates.updated_at = new Date().toISOString();
+    // Storage budget: worth counting only when the save actually carries binary
+    // assets (text files live in the row, not the bucket). Uploaded bytes are
+    // already in storage by now, so this counts the real total.
+    let storage = null;
+    if (body.assets !== undefined) {
+      const used = await accountStorageBytes(user.id).catch(() => null);
+      if (used != null) {
+        storage = { used, cap: ACCOUNT_STORAGE_CAP };
+        if (used > ACCOUNT_STORAGE_CAP) {
+          res.writeHead(413, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            error: 'storage_over_cap',
+            text: 'That save would put you over your storage budget.',
+            used,
+            cap: ACCOUNT_STORAGE_CAP
+          }));
+          return;
+        }
+      }
+    }
     let { data, error } = await supabase.from('games').update(updates).eq('id', id).eq('owner_id', user.id).select().single();
     // A database without the deploy columns (migration not applied) must still
     // save the game: drop them and retry once instead of failing the write.
@@ -6972,7 +7025,8 @@ function sanitizeTags(raw) {
       );
     }
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ game: data, release, error: error ? 'Could not save the game.' : undefined }));
+    if (!error) storageUsageCache.delete(user.id);
+    res.end(JSON.stringify({ game: data, release, storage, error: error ? 'Could not save the game.' : undefined }));
     return;
   }
 

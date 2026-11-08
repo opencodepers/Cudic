@@ -642,7 +642,8 @@ confetti({ particleCount: 120 })</pre>
                 <section id="credits">
                     <h2>Credits</h2>
                     <ul>
-                        <li><strong>Art</strong> — Kenney's CC0 game and board-game icon assets, shipped inside Studio's Insert-icon library and used across the site.</li>
+                        <li><strong>Art</strong> — Kenney's CC0 game and board-game icon assets, shipped inside Studio's Insert-icon library and used across the site. If the upstream library can't be reached, the picker falls back to the icons shipped with the site.</li>
+                        <li><strong>Storage</strong> — 250MB per account, counted once per shared file, so a fork of your game costs nothing extra. A save that would go over the budget is refused with the numbers rather than failing quietly.</li>
                         <li><strong>Type</strong> — Geist and Geist Mono (Vercel) carry every page.</li>
                         <li><strong>Scratch runtime</strong> — TurboWarp's Scaffolding loader, so imported Scratch projects play as themselves.</li>
                         <li><strong>Editor</strong> — Studio's workbench is built on the VS&nbsp;Code core (monaco), wired up in the browser.</li>

@@ -849,10 +849,24 @@ async function saveProject(): Promise<void> {
       body: JSON.stringify({ title: projectTitle, files: text, assets, github_link: githubLink })
     });
     const d = await res.json();
+    // The storage budget is an account rule, not a failed upload: say how much
+    // is used and what to do, because "storage_over_cap" helps nobody.
+    if (d?.error === 'storage_over_cap') {
+      const mb = (n: number): string => Math.round(Number(n || 0) / 1048576) + ' MB';
+      vscode.window.showErrorMessage(
+        'Cudic: storage full — ' + mb(d.used) + ' of ' + mb(d.cap) +
+        ' used. Delete an old project or remove large files, then save again.'
+      );
+      return;
+    }
     if (d?.error != null && d.game == null) throw new Error(d.error);
+    const usedNote = d?.storage != null
+      ? ' ' + Math.round(Number(d.storage.used || 0) / 1048576) + ' of ' +
+        Math.round(Number(d.storage.cap || 0) / 1048576) + ' MB used.'
+      : '';
     vscode.window.showInformationMessage(
       'Cudic: Saved "' + projectTitle + '"' +
-      (bins.length > 0 ? ' (' + bins.length + ' asset(s)).' : '')
+      (bins.length > 0 ? ' (' + bins.length + ' asset(s)).' : '') + usedNote
     );
     // The work is safely in the backend now — drop the local copy so it can't
     // clobber a newer published version on the next load.
