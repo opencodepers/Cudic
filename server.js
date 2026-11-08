@@ -2691,10 +2691,15 @@ async function handleRequest(req, res) {
       cors(res);
       const user = await requireUser(req, res); if (!user) return;
       const { data: rev } = await supabase.from('project_revisions').select('*').eq('id', revId).single();
-      if (!rev || rev.owner_id !== user.id) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+      // Both ids are attacker-controlled: the revision has to belong to this
+      // user AND to the game in the path. Checking only the revision let a
+      // user restore their own snapshot into somebody else's project.
+      if (!rev || rev.owner_id !== user.id || rev.game_id !== gid) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
       if (restore) {
+        const { data: own } = await supabase.from('games').select('owner_id').eq('id', gid).single();
+        if (!own || own.owner_id !== user.id) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
         const restored = await revisionFilesOf(rev);
-        await supabase.from('games').update({ files: restored, updated_at: new Date().toISOString() }).eq('id', gid);
+        await supabase.from('games').update({ files: restored, updated_at: new Date().toISOString() }).eq('id', gid).eq('owner_id', user.id);
         gamesListCacheClear(); // updated_at shifts the gallery ordering
         res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true })); return;
       }
@@ -2706,9 +2711,11 @@ async function handleRequest(req, res) {
     if (req.method === 'DELETE') {
       cors(res);
       const user = await requireUser(req, res); if (!user) return;
-      const { data: rev } = await supabase.from('project_revisions').select('id').eq('id', revId).single();
-      if (!rev) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-      await supabase.from('project_revisions').delete().eq('id', revId);
+      // A revision id is not permission: without this check anyone signed in
+      // could delete another creator's history, including a live release.
+      const { data: rev } = await supabase.from('project_revisions').select('id, owner_id').eq('id', revId).single();
+      if (!rev || rev.owner_id !== user.id) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+      await supabase.from('project_revisions').delete().eq('id', revId).eq('owner_id', user.id);
       res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true }));
       return;
     }
