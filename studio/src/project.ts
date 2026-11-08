@@ -19,7 +19,7 @@ import {
 } from '@codingame/monaco-vscode-files-service-override';
 import JSZip from 'jszip';
 import { sceneToFiles } from './npmutil';
-import { KENNEY_CREDIT, kenneyAssets, kenneyUrl, type KenneyAsset } from './kenney';
+import { KENNEY_CREDIT, kenneyAssets, kenneyLink, kenneyUrl, type KenneyAsset } from './kenney';
 import {
   candidateFolders,
   closestFolder,
@@ -1034,7 +1034,7 @@ interface ScratchImportResult {
 // picked file into the project as a binary — it goes to storage on save, same
 // as any imported file — drops an <img> at the cursor for images, and for .glb
 // models just lands the file (import three.js in your code to use it).
-type KenneyPick = vscode.QuickPickItem & { path: string; isModel: boolean; url?: string };
+type KenneyPick = vscode.QuickPickItem & { path: string; isModel: boolean; url?: string; link: string };
 function humanBytes(n: number): string {
   return n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(0) + ' KB' : (n / 1048576).toFixed(1) + ' MB';
 }
@@ -1056,6 +1056,7 @@ async function insertIcon(): Promise<void> {
     detail: a.size + ' · ' + KENNEY_CREDIT + (a.bytes > 0 ? ' · ' + humanBytes(a.bytes) : ''),
     path: a.path,
     url: a.url,
+    link: kenneyLink(a),
     isModel: a.pack === '3d'
   });
   const qp = vscode.window.createQuickPick<KenneyPick>();
@@ -1088,6 +1089,20 @@ async function insertIcon(): Promise<void> {
   if (pick == null) return;
   // Keep the upstream subpath (2d/3d/icons/ui + folders) so e.g. light and dark
   // pawns don't overwrite each other in the project.
+  // Images are linked, never copied: the page gets the asset's URL, so the
+  // project stores no bytes and a fork of it stores none either. Models stay
+  // files — a .glb resolves its textures relative to itself, and glox.ts
+  // already hands that base its upstream directory.
+  if (!pick.isModel) {
+    const ed = vscode.window.activeTextEditor;
+    if (ed == null) {
+      vscode.window.showWarningMessage('Open the file you want the image in, then run Insert asset again.');
+      return;
+    }
+    await ed.edit((b) => b.replace(ed.selection, '<img src="' + pick.link + '" alt="' + pick.label + '" width="64" height="64">'));
+    vscode.window.showInformationMessage('Linked ' + pick.label + ' (' + KENNEY_CREDIT + '). Nothing was copied into the project.');
+    return;
+  }
   const rel = 'assets/kenney/' + pick.path;
   try {
     // Bundled picks carry their own URL: upstream does not host the same layout.
@@ -1095,15 +1110,7 @@ async function insertIcon(): Promise<void> {
     if (!res.ok) throw new Error('could not fetch the file (' + res.status + ')');
     const bytes = new Uint8Array(await res.arrayBuffer());
     registerFiles({ ...(await collectFiles()), [rel]: bytes });
-    if (pick.isModel) {
-      vscode.window.showInformationMessage('Added ' + rel + '. Import three.js in your code to use it.');
-      return;
-    }
-    const ed = vscode.window.activeTextEditor;
-    if (ed != null) {
-      await ed.edit((b) => b.replace(ed.selection, '<img src="' + rel + '" alt="' + pick.label + '" width="64" height="64">'));
-    }
-    vscode.window.showInformationMessage('Added ' + rel + '. Save to publish it with your game.');
+    vscode.window.showInformationMessage('Added ' + rel + '. Import three.js in your code to use it.');
   } catch (e) {
     vscode.window.showErrorMessage('Could not add that asset: ' + (e as Error).message);
   }

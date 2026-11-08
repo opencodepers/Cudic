@@ -30,6 +30,19 @@ export function kenneyUrl(path: string): string {
     path.split('/').map(encodeURIComponent).join('/');
 }
 
+/**
+ * Where an inserted image should point: the copy this site ships when there is
+ * one, otherwise the CDN. Linked into the page, never copied into the project —
+ * a sprite then costs nothing to store, and a fork of that game costs nothing
+ * either. Models are the exception (see insertIcon): a .glb resolves textures
+ * relative to itself, so those bytes still have to live in the project.
+ */
+export function kenneyLink(a: KenneyAsset): string {
+  if (a.url != null && a.url !== '') return a.url;
+  return 'https://cdn.jsdelivr.net/gh/shorepine/kenney@main/' +
+    a.path.split('/').map(encodeURIComponent).join('/');
+}
+
 let loading: Promise<KenneyAsset[]> | null = null;
 
 /** Both indexes, once per session. HTTP cache + pinned URLs cover repeats. */
