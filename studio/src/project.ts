@@ -832,10 +832,21 @@ async function saveProject(): Promise<void> {
       await uploadAsset(cfg, token, sp, bytes, mimeOf(path));
       assets[path] = 'game-assets/' + sp;
     }
+    // Where this project came from, if GitHub knows it. Sending it on save is
+    // what keeps an imported repository tracked: the server verifies access
+    // before recording it, so a saved import deploys on the repo's next commit
+    // without ever being pushed from Studio.
+    let githubLink: string | undefined;
+    try {
+      const src = await import('./git-repo').then((m) => m.storedSource());
+      if (src != null) githubLink = src.owner + '/' + src.repo + (src.ref ? '#' + src.ref : '');
+    } catch {
+      /* no GitHub source for this project */
+    }
     const res = await fetch(base + '/api/games/' + encodeURIComponent(id), {
       method: 'PUT',
       headers: headers(true),
-      body: JSON.stringify({ title: projectTitle, files: text, assets })
+      body: JSON.stringify({ title: projectTitle, files: text, assets, github_link: githubLink })
     });
     const d = await res.json();
     if (d?.error != null && d.game == null) throw new Error(d.error);

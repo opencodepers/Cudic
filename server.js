@@ -6892,12 +6892,42 @@ function sanitizeTags(raw) {
     // Tags: sanitized by the shared helper (see slugify's neighbor) so the
     // product rules live in exactly one place.
     if (body.tags !== undefined) updates.tags = sanitizeTags(body.tags);
+    // A project imported from GitHub should keep tracking that repository even
+    // if it is never pushed from Studio — otherwise an import is a dead copy
+    // and only a push sets the mapping. The client sends the repo it came from;
+    // the server checks it can actually read it with this user's GitHub token,
+    // and records the repository's owner as the login allowed to deploy (which
+    // is who pushes to it, whether or not that is the Cudic user).
+    if (body.github_link !== undefined) {
+      const linkMatch = /^([A-Za-z0-9._-]+)\/([A-Za-z0-9._-]+)(?:#([A-Za-z0-9._\/-]+))?$/.exec(String(body.github_link || '').trim());
+      if (linkMatch) {
+        const linkToken = await ghToken(user);
+        if (!linkToken.error) {
+          const repoRes = await ghApi('/repos/' + linkMatch[1] + '/' + linkMatch[2], linkToken.token).catch(() => null);
+          const repoJson = repoRes && repoRes.ok ? await repoRes.json().catch(() => null) : null;
+          if (repoJson) {
+            updates.github_repo = linkMatch[1] + '/' + linkMatch[2];
+            updates.github_branch = linkMatch[3] || String(repoJson.default_branch || 'main');
+            updates.github_login = String((repoJson.owner && repoJson.owner.login) || linkMatch[1]);
+          }
+        }
+      }
+    }
     // Only a false → true flip fires the publish hook; unpublishing can't.
     const wasPub = updates.published === true
       ? (((await supabase.from('games').select('published').eq('id', id).eq('owner_id', user.id).single()).data || {}).published)
       : null;
     updates.updated_at = new Date().toISOString();
-    const { data, error } = await supabase.from('games').update(updates).eq('id', id).eq('owner_id', user.id).select().single();
+    let { data, error } = await supabase.from('games').update(updates).eq('id', id).eq('owner_id', user.id).select().single();
+    // A database without the deploy columns (migration not applied) must still
+    // save the game: drop them and retry once instead of failing the write.
+    if (error && /github_(repo|branch|login)/.test(String(error.message)) &&
+        ('github_repo' in updates || 'github_branch' in updates || 'github_login' in updates)) {
+      delete updates.github_repo;
+      delete updates.github_branch;
+      delete updates.github_login;
+      ({ data, error } = await supabase.from('games').update(updates).eq('id', id).eq('owner_id', user.id).select().single());
+    }
     if (error) console.error('games update error:', error.message);
     else if (wasPub === false && data) onPublished(user.id, id, data.title).catch(() => {});
     gamesListCacheClear(); // title/tags/publish flips change the gallery
