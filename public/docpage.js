@@ -50,8 +50,19 @@
     var titles = {};
 
     if (secs.length && nav) {
+        var lastGroup = '';
         secs.forEach(function (s, i) {
             var h = s.querySelector('h2');
+            // Sections carry data-group so 30+ links read as six clusters
+            // instead of one flat scroll. Order comes from the document.
+            var group = s.getAttribute('data-group') || '';
+            if (group && group !== lastGroup) {
+                var gl = document.createElement('div');
+                gl.className = 'toc-group';
+                gl.textContent = group;
+                nav.appendChild(gl);
+                lastGroup = group;
+            }
             titles[s.id] = h ? h.textContent : s.id;
             if (h) h.dataset.n = String(i + 1).padStart(2, '0');
             var a = document.createElement('a');

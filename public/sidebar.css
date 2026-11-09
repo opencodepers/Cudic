@@ -34,6 +34,16 @@
   --on-signal: #1B1712;
 }
 
+/* ── Focus ring ─────────────────────────────────────────────
+   Rail pages had no keyboard focus style at all: tabbing through the
+   sidebar, the top bar or a form gave no signal. One ring, one colour
+   (--signal follows the active theme pack), only for keyboard users. */
+:where(a, button, [role="button"], .sidebar-item, .iconbtn, .btn, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
 /* ── Squircles ───────────────────────────────────────────────
    One curvature language app-wide: every rounded corner uses the
    smooth continuous (iOS-style) shape instead of plain rounding.

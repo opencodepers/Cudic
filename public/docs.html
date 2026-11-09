@@ -30,7 +30,7 @@
     <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
     <link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/docpage.css?v=6">
+    <link rel="stylesheet" href="/docpage.css?v=7">
     <script type="application/ld+json">
     {"@context":"https://schema.org","@type":"TechArticle","headline":"Cudic Docs","description":"Everything Cudic can do: Studio, runtimes, publishing, chat, themes, coins, reports, accounts, and the AI panel.","url":"https://cudic.vercel.app/docs","publisher":{"@type":"Organization","name":"Cudic"}}
     </script>
@@ -55,7 +55,7 @@
                 <div class="docbody">
                     <article>
 
-                <section id="start">
+                <section id="start" data-group="Build">
                     <h2>Getting started</h2>
                     <p>Cudic is a place to hang out and a place to build. Servers and direct messages for chat, a gallery of games anyone can play, a Studio for making your own, theme packs that restyle the app, and coins that buy the packs. Everything runs in the browser — nothing to install, nothing to build. If you would rather follow a path than read a reference, <a href="/start">Start here</a> is the five-step version of this page.</p>
                     <ol class="steps">
@@ -75,7 +75,7 @@
                     <div class="note"><p>Guests can play games and read chat. Progress isn't stored for a guest — the first time you play a game with saving, it offers a sign-in, and your bests attach to the account you pick.</p></div>
                 </section>
 
-                <section id="studio">
+                <section id="studio" data-group="Build">
                     <h2>Studio</h2>
                     <p><strong>CIDE</strong> is what the editor is called — Cudic + IDE, and the title bar's top-left corner shows Cudic's mark next to the name. Studio chrome carries the site, not VS Code's colours: the activity bar uses Cudic's dark ground and lime accent, Preview/Save/Exit sit in the top bar, and the Collab and Source Control tabs are spaced by the workbench like every other tab instead of floating over the account avatar. Those three buttons are live: they ride in the workbench's own title-bar cluster, so a click there does what it says. The Collab and Source Control panels are overlays on the sidebar, so selecting Explorer, Search or any other activity-bar tab hides them and shows that view. Cudic's two tabs sit in their own strip directly under the workbench's icons rather than inside its icon list, so the workbench rebuilding that list never removes them.</p>
 
@@ -104,7 +104,7 @@
                     <p>The import and export commands live in the palette, the <strong>File</strong> menu, and the right-click menu in the Explorer or the editor — all three routes do the same thing.</p>
                 </section>
 
-                <section id="palette">
+                <section id="palette" data-group="Build">
                     <h2>Command palette</h2>
                     <p>Press <code>Ctrl+Shift+P</code> in Studio — every Cudic command lives there, grouped here by what it's for. Most also appear in the File menu or the right-click menu in the Explorer and the editor.</p>
                     <h3>Project</h3>
@@ -153,7 +153,7 @@
                     </table>
                 </section>
 
-                <section id="files">
+                <section id="files" data-group="Build">
                     <h2>Project files</h2>
                     <p>A project is just a folder of files, and the browser is the only machine:</p>
                     <ul>
@@ -167,7 +167,7 @@
                     <div class="note"><p>If a text file you imported shows up as a <strong>binary file</strong> in the editor, it was probably saved as UTF-16 (old Windows Notepad does this by default). Re-save it as UTF-8 and import again.</p></div>
                 </section>
 
-                <section id="python">
+                <section id="python" data-group="Build">
                     <h2>Python</h2>
                     <p>Running a <code>.py</code> file (with <strong>Run</strong>, or via <strong>Cudic: Run Python</strong>) executes it with Pyodide — CPython compiled to WebAssembly — inside the preview pane. <code>micropip</code> is preloaded, so package installs are one line:</p>
                     <pre>import micropip
@@ -185,7 +185,7 @@ cowsay.cow("hello from Cudic")</pre>
                     </ul>
                 </section>
 
-                <section id="npm">
+                <section id="npm" data-group="Build">
                     <h2>npm packages</h2>
                     <p>Write a normal import and it works in the preview and in the published game:</p>
                     <pre>import confetti from 'canvas-confetti'
@@ -208,7 +208,7 @@ confetti({ particleCount: 120 })</pre>
                     </ul>
                 </section>
 
-                <section id="scratch">
+                <section id="scratch" data-group="Build">
                     <h2>Importing Scratch projects</h2>
                     <p><strong>Cudic: Import Scratch project</strong> (palette, File menu, or right-click) takes a Scratch game and turns it into a Cudic project you can edit and publish.</p>
                     <h3>Two ways in</h3>
@@ -237,7 +237,7 @@ confetti({ particleCount: 120 })</pre>
                     </ul>
                 </section>
 
-                <section id="github">
+                <section id="github" data-group="Build">
                     <h2>Opening a project from GitHub</h2>
                     <p><strong>Cudic: Open from GitHub</strong> reads a <em>public</em> GitHub repository into Studio as a normal project — palette, File menu, or right-click a file in the Explorer or editor. No sign-in and no GitHub connection: nothing is authorised, because nothing is written back.</p>
                     <p><strong>Push to deploy.</strong> Once a project has pushed to a repository from Source Control, that repository is remembered for the project — and a later push to it becomes the next release, using the commit subject as the notes and the commit sha as the source. It only fires when the game is published, the push targets the branch that was pushed to, and the pusher is the same GitHub login, so a fork or a pull request cannot release under your name. This is for projects that want GitHub to be the source of truth; projects edited in Studio only are unaffected. A repository does not have to be pushed from Studio to be connected: save a project that was imported from GitHub and the project records that repository, its default branch and its owner, so the repo's next commit deploys even if you never push. The link is verified with your GitHub token first, so a repository you cannot read is never recorded.</p>
@@ -270,7 +270,7 @@ confetti({ particleCount: 120 })</pre>
                     </ul>
                 </section>
 
-                <section id="cli">
+                <section id="cli" data-group="Build">
                     <h2>Building from a terminal (CLI)</h2>
                     <p>Everything Studio does with projects — create, save files, publish — runs through the same HTTP API, so a terminal or an AI agent can make Cudic projects without a browser. <code>cli/cudic.mjs</code> wraps that API; it needs Node 18+ and nothing installed.</p>
                     <p><strong>Installing it:</strong> <code>npm i -g cudic-cli</code> puts both <code>cudic</code> and <code>cudic-mcp</code> on your PATH. The package is called <code>cudic-cli</code> because npm reserves the bare name <code>cudic</code> (too close to an existing package) — the command you type is still <code>cudic</code>. Try it with <code>npx cudic-cli games</code>, or from a clone with <code>npm i -g ./cli</code>. Two dependency-free files, nothing to audit — and <code>npx -y --package cudic-cli cudic-mcp</code> is the whole setup for an MCP client.</p>
@@ -288,7 +288,7 @@ confetti({ particleCount: 120 })</pre>
                     </ul>
                 </section>
 
-                <section id="agents">
+                <section id="agents" data-group="Build">
                     <h2>Agents &amp; API keys</h2>
                     <p>Anything an agent can do with a browser session it can do with a <strong>scoped API key</strong> — a durable credential that does not expire, can be revoked, and only carries the permissions you grant. Keys are shown once and stored hashed.</p>
                     <ul>
@@ -300,7 +300,7 @@ confetti({ particleCount: 120 })</pre>
                     </ul>
                 </section>
 
-                <section id="publish">
+                <section id="publish" data-group="Ship">
                     <h2>Publishing &amp; the gallery</h2>
                     <ul>
                         <li><strong>Publish</strong> makes your project playable at its own page and lists it in the <a href="/games">gallery</a>. <strong>Unpublish</strong> keeps the project but hides it — absolutely no one else can load an unpublished game.</li>
@@ -322,7 +322,7 @@ confetti({ particleCount: 120 })</pre>
                     </ul>
                 </section>
 
-                <section id="remix">
+                <section id="remix" data-group="Ship">
                     <h2>Remixing</h2>
                     <p><strong>Remix</strong> on any published game copies it into your own projects so you can change it. The copy is a normal project — edit every file, publish under your own name when you're ready.</p>
                     <p><strong>See inside</strong> is the read half of that: it opens a published game's code in Studio with the preview working, and nothing you change is saved. There is no save, publish or delete in that view — fork when you want to keep an edit. Drafts never open to anyone but their owner.</p>
@@ -334,7 +334,7 @@ confetti({ particleCount: 120 })</pre>
                     </ul>
                 </section>
 
-                <section id="saves">
+                <section id="saves" data-group="Play">
                     <h2>Cloud saves</h2>
                     <p>Signed in, your progress follows your account: sign in on another device and your bests and saved state are there.</p>
                     <ul>
@@ -352,7 +352,7 @@ confetti({ particleCount: 120 })</pre>
                     </ul>
                 </section>
 
-                <section id="touch">
+                <section id="touch" data-group="Play">
                     <h2>Touch controls for phones</h2>
                     <p>Most players who tap your game link are on a phone, where the keyboard doesn't exist. <code>cudic-touch.js</code> adds an on-screen D-pad and actions button that turn taps into ordinary key events:</p>
                     <ul>
@@ -364,7 +364,7 @@ confetti({ particleCount: 120 })</pre>
                     </ul>
                 </section>
 
-                <section id="clip">
+                <section id="clip" data-group="Play">
                     <h2>Share clips</h2>
                     <p>Any game with a canvas can be turned into a short video without screen-recording software: on a game page press <strong>Clip</strong>. Cudic records about eight seconds of play, draws the game's title, creator and your last score over it, and drops the finished file on the page.</p>
                     <h3>What you get</h3>
@@ -383,7 +383,7 @@ confetti({ particleCount: 120 })</pre>
                     <div class="note"><p>If you post a clip of someone else's game, credit the creator — their name is already in the video, and the game page is the best link to share alongside it.</p></div>
                 </section>
 
-                <section id="chat">
+                <section id="chat" data-group="Community">
                     <h2>Chat &amp; servers</h2>
                     <p>A <strong>server</strong> holds channels; a <strong>channel</strong> holds messages. You can also message people directly. Chat history is permanent — messages stay unless a moderator removes them.</p>
                     <div class="cards">
@@ -400,7 +400,7 @@ confetti({ particleCount: 120 })</pre>
                     </ul>
                 </section>
 
-                <section id="multi">
+                <section id="multi" data-group="Play">
                     <h2>Playing together</h2>
                     <p>With other members on Cudic in the same published game: many games run live rooms over Cudic's connection, so you play the real thing together — no extra downloads, no accounts at other services.</p>
                     <ol class="steps">
@@ -424,7 +424,7 @@ confetti({ particleCount: 120 })</pre>
                     <div class="note"><p>Nothing in a room is stored, so a room's chat isn't reviewable after the fact. Report a player from the game page's live strip (by account); guests have no account to report — report the game and describe what happened in the note.</p></div>
                 </section>
 
-                <section id="collab">
+                <section id="collab" data-group="Play">
                     <h2>Collab editing</h2>
                     <p>Build together, Live Share-style. Everyone in a collab room sees the project's files in their own Studio, and edits merge live — even when two people type in the same file. Connections are peer-to-peer (browser&nbsp;→ browser), so a room barely touches Cudic's servers.</p>
                     <ol class="steps">
@@ -446,7 +446,7 @@ confetti({ particleCount: 120 })</pre>
                     <div class="note"><p>Handing someone the room code shares that session's files, not ownership of the project. If a playtest goes wrong, the owner has <a href="#palette">version history</a> as a safety net — save a snapshot before starting a big collab.</p></div>
                 </section>
 
-                <section id="friends">
+                <section id="friends" data-group="Community">
                     <h2>Following &amp; activity</h2>
                     <p>Following someone puts their news on your feed: when they publish a game or earn a badge or title, it lands in <strong>Activity</strong> on the <a href="/friends">Friends</a> page. Following is one-way — you decide who you see, and friendship isn't required.</p>
                     <ol class="steps">
@@ -461,7 +461,7 @@ confetti({ particleCount: 120 })</pre>
                     </div>
                 </section>
 
-                <section id="jams">
+                <section id="jams" data-group="Community">
                     <h2>Game jams</h2>
                     <p>Every week Cudic runs a jam. A theme is picked Monday, you have the week to build and publish a game around it, and players vote for their favourite. Winners get coins, a badge, and a spot on the homepage.</p>
                     <ol class="steps">
@@ -478,7 +478,7 @@ confetti({ particleCount: 120 })</pre>
                     <div class="note"><p>Moderators can set the weekly theme manually on purpose (e.g. for a seasonal jam); otherwise it rotates on its own.</p></div>
                 </section>
 
-                <section id="race">
+                <section id="race" data-group="Play">
                     <h2>Creator race</h2>
                     <p>The weekly creator race runs at <a href="/race">/race</a>. It measures the thing jams don't: whether people keep playing what you ship. Every unique player who starts one of your published games during the week — signed in or not — is one point for you. Nothing to enter: publishing a game puts you in the race.</p>
                     <ol class="steps">
@@ -494,7 +494,7 @@ confetti({ particleCount: 120 })</pre>
                     <div class="note"><p>Privacy note: race dedupe uses a salted hash of the viewer's IP — no account or IP is stored, and one point per household per week is the accepted bias.</p></div>
                 </section>
 
-                <section id="awards">
+                <section id="awards" data-group="Community">
                     <h2>Badges, flairs &amp; titles</h2>
                     <p>Awards are the three ways you show off on Cudic. They appear next to your name on your public page and in your profile preview.</p>
                     <div class="cards">
@@ -510,7 +510,7 @@ confetti({ particleCount: 120 })</pre>
                     <div class="note"><p>Every badge and title you earn is announced on your followers' feed. Flairs stay quiet — they're for you.</p></div>
                 </section>
 
-                <section id="themes">
+                <section id="themes" data-group="Shop">
                     <h2>Theme packs</h2>
                     <p>A theme pack restyles Cudic's app pages — colours, fonts, rail icons, rail background art, motion, and a live background scene. The landing page is deliberately left alone, so a visitor's installed pack never repaints the front door. Anyone can try one instantly, and buying with coins keeps it — even if the author later changes the price.</p>
                     <h3>Using packs</h3>
@@ -528,7 +528,7 @@ confetti({ particleCount: 120 })</pre>
                     <p>Anyone can report a pack — see <a href="#reports">Reports</a>. Prefer plain CSS? You don't need a pack: any project you publish can include its own stylesheet.</p>
                 </section>
 
-                <section id="shop">
+                <section id="shop" data-group="Shop">
                     <h2>Shop — cosmetics</h2>
                     <p>Coins do something besides theme packs: the <a href="/shop">Shop</a> sells looks for your profile. Nothing here changes gameplay, gives you an advantage, or costs real money — it's the place your quest, streak and jam coins go once you own the packs you want.</p>
                     <h3>Six slots</h3>
@@ -551,7 +551,7 @@ confetti({ particleCount: 120 })</pre>
                     <p>Spending is capped per day and per hour, so a stolen account can't drain a balance in one go.</p>
                 </section>
 
-                <section id="coins">
+                <section id="coins" data-group="Shop">
                     <h2>Coins</h2>
                     <p>Coins are Cudic's own currency — there is no real money and no cash-out, ever. You earn them for being around and making things, and spend them on theme packs and <a href="#shop">profile cosmetics</a>.</p>
                     <ul>
@@ -567,7 +567,7 @@ confetti({ particleCount: 120 })</pre>
                     <p>Your balance and every transaction are listed in the same panel, so you can always see where coins came from and went.</p>
                 </section>
 
-                <section id="reports">
+                <section id="reports" data-group="Community">
                     <h2>Reports</h2>
                     <p>Published games, theme packs, chat messages, players in multiplayer rooms, and users can all be reported: pick the reason and add what's going on. Packs can include a screenshot. Reports go to the moderators, not to the person who made the thing.</p>
                     <ul>
@@ -579,7 +579,7 @@ confetti({ particleCount: 120 })</pre>
                     </ul>
                 </section>
 
-                <section id="ai">
+                <section id="ai" data-group="Account">
                     <h2>Cudic AI panel</h2>
                     <p>The ✦ button in the title bar (or the palette command <strong>Cudic AI: Open chat</strong>) opens a chat panel along the bottom of Studio. It works with the model provider of your choice.</p>
                     <ul>
@@ -598,7 +598,7 @@ confetti({ particleCount: 120 })</pre>
                     <p>It needs to know what you're working on to be useful — open the file you're editing or mention it, and it'll answer about that instead of in generalities.</p>
                 </section>
 
-                <section id="account">
+                <section id="account" data-group="Account">
                     <h2>Account</h2>
                     <p>Your profile at <a href="/profile">/profile</a> holds the things that follow you: display name, avatar, a short bio, a few interests, accent colour and light/dark preference. Theme, accent and reduced-motion settings are remembered in this browser and applied on every page. Games you've liked are listed there too.</p>
                     <h3>Verifying your email</h3>
@@ -613,7 +613,7 @@ confetti({ particleCount: 120 })</pre>
                     </ul>
                 </section>
 
-                <section id="faq">
+                <section id="faq" data-group="Account">
                     <h2>FAQ</h2>
                     <h3>Why is index.html almost empty after a Scratch import?</h3>
                     <p>It is just the player page. The project is <code>project.json</code>, and <code>scratch.js</code> runs it.</p>
@@ -633,7 +633,7 @@ confetti({ particleCount: 120 })</pre>
                     <p>Yes — <a href="/parents">/parents</a> is a landing page written for teachers and parents: what Cudic costs (nothing), how Classroom laptops handle it, Scratch import for existing lessons, and what moderation looks like. The <a href="/cookbook/">Cookbook</a> guides double as lesson material.</p>
                 </section>
 
-                <section id="limits">
+                <section id="limits" data-group="Account">
                     <h2>Limits &amp; known gaps</h2>
                     <ul>
                         <li>It's a browser: no terminal, no native binaries, no installing system software. Python runs in WebAssembly, npm packages come from a CDN.</li>
@@ -648,7 +648,7 @@ confetti({ particleCount: 120 })</pre>
                     <p>Something missing or wrong? Tell us in a server, or report the game or pack and we'll take a look.</p>
                 </section>
 
-                <section id="credits">
+                <section id="credits" data-group="Account">
                     <h2>Credits</h2>
                     <ul>
                         <li><strong>Art</strong> — Kenney's CC0 game and board-game icon assets, shipped inside Studio's Insert-icon library and used across the site. If the upstream library can't be reached, the picker falls back to the icons shipped with the site.</li>

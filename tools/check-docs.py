@@ -56,7 +56,7 @@ else:
 
 # 2. Shared asset versions -------------------------------------------------
 pages = sorted(glob.glob('public/*.html'))
-for asset in ('sidebar.css', 'sidebar.js', 'client.js', 'islands.js'):
+for asset in ('sidebar.css', 'sidebar.js', 'client.js', 'islands.js', 'docpage.css'):
     version = re.compile(re.escape(asset) + r'\?v=(\d+)')
     counts = collections.Counter()
     per_page = {}

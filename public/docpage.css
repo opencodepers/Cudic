@@ -31,6 +31,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 "Geist",sy
 .brandrow .mark{display:block}
 .brandrow:hover{background:var(--panel)}
 #docNav{flex:1;overflow-y:auto;padding-bottom:6px}
+.toc-group{font-family:"Geist Mono",ui-monospace,monospace;font-size:10px;color:var(--mute);letter-spacing:.09em;text-transform:uppercase;padding:16px 14px 5px;border-bottom:1px solid var(--line)}
+.toc-group:first-child{padding-top:10px}
 #docNav a{display:flex;align-items:center;gap:9px;padding:9px 14px;color:var(--mute);text-decoration:none;font-size:13.5px;border-bottom:1px solid var(--line)}
 #docNav a .n{font-family:"Geist Mono",ui-monospace,monospace;font-size:10px;color:var(--mute);letter-spacing:.02em}
 #docNav a .si{width:14px;height:14px;flex-shrink:0;opacity:.7;transition:transform 120ms steps(4),opacity 120ms}
@@ -124,6 +126,10 @@ footer a{color:var(--mute);text-decoration:underline}
 footer a:hover{color:var(--ink)}
 
 a:focus-visible,button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+/* Deep links (/docs#npm) must land below the sticky rails, not under them. */
+section[id],h2[id],h3[id]{scroll-margin-top:28px}
+#docNav a:focus-visible,.subtoc a:focus-visible{outline-offset:-2px}
+.subtoc a.on{color:var(--ink);box-shadow:inset 2px 0 var(--lime)}
 
 @media (max-width:1180px){
     .docgrid{grid-template-columns:238px minmax(0,1fr)}

@@ -245,6 +245,7 @@ studio/
   src/npmutil.ts          # npm-on-CDN resolution for project imports
   src/build.ts            # .ts/.tsx build step (preview in memory, Save on disk)
   src/testrunner.ts       # project tests: *.test.js in a sandboxed frame
+  src/preview.ts          # preview document: inline, modules, pins, TS, assets
   src/kenney.ts           # Kenney icon picker (public/assets/kenney)
   src/api-host.ts         # derives the API origin from the page URL
   src/style.css           # workbench-level chrome overrides
@@ -1353,7 +1354,7 @@ grid-led, Geist everywhere. Read it before building any public surface. Headline
   saying otherwise is stale (section 0.2).
 10. **CSS/JS cache** — bump the `?v=` on every page after editing a shared file.
   Current: `sidebar.css?v=25`, `sidebar.js?v=25`, `client.js?v=16`,
-  `islands.js?v=8` (new shared scripts start at `?v=1`).
+  `islands.js?v=8`, `docpage.css?v=7` (new shared scripts start at `?v=1`).
   `tools/check-docs.py` fails when this line and the pages disagree.
 11. **Restart the server** after any `server.js` edit; **rebuild Studio** after any
     `studio/src` edit. Neither auto-reloads.
