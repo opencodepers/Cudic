@@ -2304,7 +2304,10 @@ async function handleRequest(req, res) {
   const RELEASE_FILE = '_release.json';
   async function latestRelease(gameId) {
     const { data: rows } = await supabase.from('project_revisions')
-      .select('id, label, files, manifest, created_at')
+      // game_id is not optional: revisionFilesOf filters revision_blobs by
+      // row.game_id, and a select that omits it reads zero blobs — every
+      // release then ships an empty file set to players. Caught in prod.
+      .select('id, game_id, label, files, manifest, created_at')
       .eq('game_id', gameId).like('label', RELEASE_PREFIX + '%')
       .order('created_at', { ascending: false }).limit(1);
     const row = rows && rows[0];
