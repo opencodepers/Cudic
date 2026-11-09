@@ -192,7 +192,13 @@ cowsay.cow("hello from Cudic")</pre>
 confetti({ particleCount: 120 })</pre>
                     <p><strong>Add package</strong> inserts a fully-qualified import (optionally with a pinned version) so the file also works when someone else opens it.</p>
                     <p>Pin a whole project in a <code>package.json</code> at the project root. Every <code>dependencies</code> entry becomes an import-map entry on <code>esm.sh</code> at the version you wrote — <code>"react": "^18.3.1"</code> loads <code>react@18.3.1</code>, in the preview and in the published game, and <code>react-dom/client</code> resolves through the same pin. Ranges that cannot be pinned, like <code>"*"</code> or <code>"latest"</code>, fall back to the CDN default. An importmap you wrote yourself always wins over the file.</p>
-                    <p>Types for the in-game APIs ship at <code>/cudic.d.ts</code>. Drop it into your project (or reference it) and <code>CudicSave</code> and <code>CudicMulti</code> get real signatures, event names and JSDoc in the editor instead of <code>any</code>.</p>
+                    <p>Types for the in-game APIs ship at <code>/cudic.d.ts</code>. Every new project gets that file automatically, so <code>CudicSave</code> and <code>CudicMulti</code> have real signatures, event names and JSDoc in the editor instead of <code>any</code>.</p>
+                    <h3>TypeScript and tests</h3>
+                    <ul>
+                        <li>Save compiles every <code>.ts</code> / <code>.tsx</code> file to a sibling <code>.js</code> with a <code>// generated from …</code> header, and points <code>index.html</code> at the build output. Edit the source: a <code>.js</code> you wrote yourself is never replaced, and the preview builds in memory so you do not have to save first.</li>
+                        <li>A <code>.d.ts</code> file is never compiled, so <code>cudic.d.ts</code> stays a declaration.</li>
+                        <li><strong>Cudic: Run project tests</strong> runs files named <code>*.test.js</code> (or anything under <code>tests/</code>) in a sandboxed frame. Use <code>test('name', fn)</code>, <code>assert(cond, 'why')</code> and <code>assert.equal(a, b, 'why')</code>; async tests are awaited, and results land in the <code>Cudic tests</code> output channel.</li>
+                    </ul>
                     <h3>The rules</h3>
                     <ul>
                         <li><code>import 'pkg/style.css'</code> is lifted into a stylesheet link automatically.</li>

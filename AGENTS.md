@@ -243,6 +243,8 @@ studio/
   src/github.ts           # GitHub connect + import entry points
   src/revisions.ts        # project snapshot/restore UI (project_revisions)
   src/npmutil.ts          # npm-on-CDN resolution for project imports
+  src/build.ts            # .ts/.tsx build step (preview in memory, Save on disk)
+  src/testrunner.ts       # project tests: *.test.js in a sandboxed frame
   src/kenney.ts           # Kenney icon picker (public/assets/kenney)
   src/api-host.ts         # derives the API origin from the page URL
   src/style.css           # workbench-level chrome overrides

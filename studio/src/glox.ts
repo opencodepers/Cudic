@@ -48,6 +48,7 @@ import {
   dependencyImportMap,
   type ModuleSlots
 } from './npmutil';
+import { compileTypes, generatedPath, isTypeScript } from './build';
 import mammoth from 'mammoth';
 import JSZip from 'jszip';
 
@@ -164,8 +165,19 @@ async function assemble(baseHtml: string, selfName: string, selfCode: string): P
   // The open file's live editor text wins over what is on disk.
   const files: Record<string, string> = { ...project };
   if (selfName) files[selfName] = selfCode;
-  const selfLower = selfName.toLowerCase();
-  const find = (ref: string): string | null => lookupFile(files, ref);
+  // TypeScript/TSX projects build before every render, in memory: the preview
+  // runs the same generated .js that Save writes. A project with no .ts files
+  // never loads the compiler.
+  let all: Record<string, string> = files;
+  try {
+    all = (await compileTypes(files)).files as Record<string, string>;
+  } catch {
+    // Compiler unavailable (offline): preview the sources unchanged.
+  }
+  const selfKey = selfName !== '' && isTypeScript(selfName) ? generatedPath(selfName) : selfName;
+  const selfJs = isTypeScript(selfName) ? (all[selfKey] ?? selfCode) : selfCode;
+  const selfLower = selfKey.toLowerCase();
+  const find = (ref: string): string | null => lookupFile(all, ref);
   const mods: ModuleSlots = {};
   const basePath = /\.html?$/i.test(selfName) ? selfName : 'index.html';
   let cssUsed = false;
@@ -174,7 +186,7 @@ async function assemble(baseHtml: string, selfName: string, selfCode: string): P
     const hit = find(ref);
     if (hit == null) return null;
     if (hit.toLowerCase() === selfLower) markUsed();
-    return { path: hit, code: files[hit] };
+    return { path: hit, code: all[hit] };
   };
   let html = baseHtml.replace(
     /<link\b[^>]*rel\s*=\s*(["'])stylesheet\1[^>]*href\s*=\s*(["'])([^"']+)\2[^>]*>/gi,
@@ -202,8 +214,8 @@ async function assemble(baseHtml: string, selfName: string, selfCode: string): P
     const tag = '<style>' + selfCode.replace(/<\/style/gi, '<\\/style') + '</style>';
     html = /<\/head\s*>/i.test(html) ? html.replace(/<\/head\s*>/i, tag + '</head>') : html + tag;
   }
-  if (/\.m?jsx?$/i.test(selfName) && !jsUsed) {
-    const tag = scriptTag('', mapModuleImports(selfCode, selfName, find, mods));
+  if ((/\.m?jsx?$/i.test(selfName) || isTypeScript(selfName)) && !jsUsed) {
+    const tag = scriptTag('', mapModuleImports(selfJs, selfKey, find, mods));
     html = /<\/body\s*>/i.test(html) ? html.replace(/<\/body\s*>/i, tag + '</body>') : html + tag;
   }
   // `package.json` dependencies become import-map entries at the version the
@@ -225,7 +237,7 @@ async function assemble(baseHtml: string, selfName: string, selfCode: string): P
   html = html.replace(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi, (m, attrs: string, code: string) =>
     /\bsrc\s*=/.test(attrs) ? m : '<script' + attrs + '>' + mapModuleImports(code, basePath, find, mods) + '</script>'
   );
-  drainModuleSlots(files, mods, find);
+  drainModuleSlots(all, mods, find);
   html = finishModuleMap(html, { ...pinMap, ...moduleDataUrls(mods) });
   return injectAssetUrls(html);
 }
@@ -265,7 +277,7 @@ async function previewHtmlFor(name: string, code: string): Promise<string> {
   const project = await collectTextFiles();
   const entry = project['index.html'];
   if (entry == null) return legacySingle(name, code);
-  if (/\.css$/i.test(name) || /\.m?jsx?$/i.test(name)) return assemble(entry, name, code);
+  if (/\.css$/i.test(name) || /\.[cm]?[jt]sx?$/i.test(name)) return assemble(entry, name, code);
   return assemble(entry, '', '');
 }
 

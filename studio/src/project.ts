@@ -340,6 +340,22 @@ export async function bootProject(): Promise<BootProject> {
   // happened to have open for this id before.
   const snap = READ_ONLY ? null : await snapGet(snapKey()).catch(() => null);
   if (snap != null) result = { ...result, title: snap.title, files: snap.files };
+  // Types for CudicSave/CudicMulti ride along with every unsaved project, so
+  // the runtime API is typed from the first file without setup. Editors read
+  // the file from the workspace; nothing here is fetched at game runtime.
+  if (result.id == null && result.files['cudic.d.ts'] == null) {
+    try {
+      const r = await fetch('/cudic.d.ts', { cache: 'force-cache' });
+      if (r.ok) {
+        const types = await r.text();
+        if (types.includes('declare global')) {
+          result = { ...result, files: { ...result.files, 'cudic.d.ts': types } };
+        }
+      }
+    } catch {
+      // Offline: types are a convenience, not a boot requirement.
+    }
+  }
   // Fresh only when nothing at all loads back — returning users (a project
   // id or saved work in this browser) already know their way around.
   return {
@@ -799,6 +815,47 @@ async function deleteProject(): Promise<void> {
   }
 }
 
+let testsChannel: ReturnType<typeof vscode.window.createOutputChannel> | null = null;
+
+// Project tests: same build as preview and save, run in a sandboxed frame.
+async function runProjectTests(): Promise<void> {
+  const out = testsChannel ?? (testsChannel = vscode.window.createOutputChannel('Cudic tests'));
+  out.clear();
+  out.show(true);
+  out.appendLine('Running project tests…');
+  try {
+    const files = await collectFiles();
+    const { runTests } = await import('./testrunner');
+    const run = await runTests(files);
+    if (run.results.length === 0 && run.loadErrors.length === 0) {
+      out.appendLine('No test files found. Name one *.test.js, or put it under tests/.');
+      vscode.window.showInformationMessage('Cudic tests: nothing to run — add a *.test.js file.');
+      return;
+    }
+    for (const r of run.results) {
+      out.appendLine(
+        (r.ok ? 'PASS ' : 'FAIL ') + r.name + '  (' + r.ms + 'ms)' +
+        (r.ok ? '' : '\n      ' + (r.error ?? 'failed'))
+      );
+    }
+    for (const e of run.loadErrors) out.appendLine('LOAD ' + e.file + '  ' + e.error);
+    const passed = run.results.filter((r) => r.ok).length;
+    const failed = run.results.length - passed + run.loadErrors.length;
+    out.appendLine('');
+    out.appendLine(passed + ' passed, ' + failed + ' failed in ' + run.ms + 'ms.');
+    if (failed > 0) {
+      vscode.window.showErrorMessage(
+        'Cudic tests: ' + passed + ' passed, ' + failed + ' failed. See the Cudic tests output.'
+      );
+    } else {
+      vscode.window.showInformationMessage('Cudic tests: all ' + passed + ' passed.');
+    }
+  } catch (e) {
+    out.appendLine('ERROR ' + (e as Error).message);
+    vscode.window.showErrorMessage('Cudic tests: ' + (e as Error).message);
+  }
+}
+
 async function saveProject(): Promise<void> {
   if (readOnlyBlocked()) return;
   const token = getToken();
@@ -812,7 +869,27 @@ async function saveProject(): Promise<void> {
     else if (pick === 'Sign in') window.open('/login', '_blank');
     return;
   }
-  const files = await collectFiles();
+  let files = await collectFiles();
+  // Build step: .ts/.tsx compile before anything is saved, so the published
+  // game runs the same code the preview runs. Generated files sit next to
+  // their source and carry a header; build.ts never replaces a hand-written
+  // .js. A compile failure stops the save rather than shipping broken output.
+  try {
+    const { compileTypes } = await import('./build');
+    const built = await compileTypes(files);
+    files = built.files as FileMap;
+    for (const path of built.generated) {
+      await vscode.workspace.fs.writeFile(
+        monaco.Uri.file('/workspace/' + path),
+        new TextEncoder().encode(String(built.files[path]))
+      );
+    }
+  } catch (e) {
+    vscode.window.showErrorMessage(
+      'Cudic: could not compile TypeScript — ' + (e as Error).message + '. Nothing was saved.'
+    );
+    return;
+  }
   const text: Record<string, string> = {};
   const bins: Array<[string, Uint8Array]> = [];
   const isScratch = !!files['assets.js'] && /__SCRATCH_ASSETS__/.test(String(files['assets.js']));
@@ -1601,6 +1678,27 @@ export function registerProjectCommands(): void {
       }
       async run(): Promise<void> {
         await saveProject();
+      }
+    }
+  );
+
+  registerAction2(
+    class extends Action2 {
+      constructor() {
+        super({
+          id: 'glox.runTests',
+          title: {
+            value: 'Cudic: Run project tests',
+            original: 'Cudic: Run project tests'
+          },
+          menu: [
+            { id: MenuId.CommandPalette },
+            { id: MenuId.MenubarFileMenu, group: '5_glox' }
+          ]
+        });
+      }
+      async run(): Promise<void> {
+        await runProjectTests();
       }
     }
   );
