@@ -332,7 +332,7 @@ async function copyAssetPrefix(fromPrefix, toPrefix, pathsIn) {
 }
 
 // Storage accounting lives in lib/storage-budget.js — pure Supabase reads.
-const { ACCOUNT_STORAGE_CAP, accountStorageBytes } = require('./lib/storage-budget')(supabase);
+const { ACCOUNT_STORAGE_CAP, accountStorageBytes, forgetStorageUsage } = require('./lib/storage-budget')(supabase);
 
 const server = http.createServer((req, res) => {
   handleRequest(req, res).catch((e) => {
@@ -6875,7 +6875,7 @@ function sanitizeTags(raw) {
       );
     }
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    if (!error) storageUsageCache.delete(user.id);
+    if (!error) forgetStorageUsage(user.id);
     res.end(JSON.stringify({ game: data, release, storage, error: error ? 'Could not save the game.' : undefined }));
     return;
   }
