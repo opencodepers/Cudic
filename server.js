@@ -1,6 +1,7 @@
 /* file: server.js
  * what: The whole backend in one hand-rolled HTTP server — static files, REST,
  *   WebSocket, email verification, AI proxy. No framework; routes are one if-chain.
+ *   Leaf concerns — web push, storage budget, share cards — live in lib/.
  * invariants: specific paths sit ABOVE generic ones (/api/games/mine before :id);
  *   every authenticated write calls needVerified(user, res); a write that changes
  *   the gallery calls gamesListCacheClear(); a new AI host goes in AI_HOSTS.
@@ -324,55 +325,8 @@ async function notify(userId, kind, title, body, refType, refId) {
   } catch {}
 }
 
-// ── Web push ─────────────────────────────────────────────────────
-// The VAPID pair is generated once and stored in `push_config`, so pushes
-// work on Render with no env setup and keep working across restarts — a
-// fresh keypair would invalidate every existing subscription.
-let webpushLib;
-let vapidCache = null;
-function webpush() {
-  if (webpushLib === undefined) {
-    try { webpushLib = require('web-push'); } catch (e) { webpushLib = null; }
-  }
-  return webpushLib;
-}
-async function vapidKeys() {
-  if (vapidCache) return vapidCache;
-  const lib = webpush();
-  if (!lib) return null;
-  try {
-    const { data } = await supabase.from('push_config').select('public_key, private_key').eq('id', 1).maybeSingle();
-    if (data && data.public_key && data.private_key) return (vapidCache = data);
-    const keys = lib.generateVAPIDKeys();
-    const { error } = await supabase.from('push_config').insert({ id: 1, public_key: keys.publicKey, private_key: keys.privateKey });
-    if (error) return null;
-    return (vapidCache = { public_key: keys.publicKey, private_key: keys.privateKey });
-  } catch (e) { return null; }
-}
-// Fan a notification out to every browser this user registered. Dead
-// endpoints (404/410 from the push service) are pruned on the spot.
-async function sendPush(userId, title, body) {
-  const lib = webpush();
-  const keys = await vapidKeys();
-  if (!lib || !keys) return 0;
-  let sent = 0;
-  try {
-    lib.setVapidDetails('mailto:team@cudic.vercel.app', keys.public_key, keys.private_key);
-    const { data: subs } = await supabase.from('push_subscriptions').select('id, endpoint, p256dh, auth').eq('user_id', userId);
-    for (const s of subs || []) {
-      try {
-        await lib.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify({
-          title: String(title || 'Cudic').slice(0, 120), body: String(body || '').slice(0, 240), url: '/notifications'
-        }));
-        sent++;
-      } catch (e) {
-        const code = e && (e.statusCode || e.status);
-        if (code === 404 || code === 410) await supabase.from('push_subscriptions').delete().eq('id', s.id);
-      }
-    }
-  } catch (e) { /* push is best-effort; the inbox row already exists */ }
-  return sent;
-}
+// Push implementation lives in lib/push.js; one Supabase client, injected.
+const { webpush, vapidKeys, sendPush } = require('./lib/push')(supabase);
 
 // Free claim, on own-profile reads only: flairs and longevity badges
 // arrive without effort, so they are granted lazily whenever the user
@@ -479,43 +433,8 @@ async function copyAssetPrefix(fromPrefix, toPrefix, pathsIn) {
   return { copied, total: paths.length };
 }
 
-// ── Per-account storage budget ─────────────────────────────────
-// Uploads go straight from the browser to Supabase storage, so save time is the
-// one place that can see the whole account. Usage is counted per distinct
-// storage prefix, which is what makes fork sharing pay off: 500 forks of one
-// game count once, because they all point at the same prefix. A save that would
-// land over the cap is refused, and the message names both numbers instead of
-// "upload failed".
-const ACCOUNT_STORAGE_CAP = Number(process.env.STORAGE_CAP_BYTES) || 250 * 1024 * 1024;
-const storageUsageCache = new Map();
-
-async function accountStorageBytes(userId) {
-  const hit = storageUsageCache.get(userId);
-  if (hit && Date.now() - hit.at < 60_000) return hit.bytes;
-  const { data: rows } = await supabase.from('games').select('id, asset_owner').eq('owner_id', userId);
-  const prefixes = new Set();
-  // Union, not either/or: a fork that uploaded its own files has bytes in its
-  // own prefix *and* in the prefix it shares, so the ledger must count both.
-  for (const r of rows || []) {
-    prefixes.add(r.id);
-    if (r.asset_owner) prefixes.add(r.asset_owner);
-  }
-  let bytes = 0;
-  const bucket = supabase.storage.from('game-assets');
-  for (const prefix of prefixes) {
-    const pending = [prefix];
-    while (pending.length) {
-      const dir = pending.pop();
-      const { data: entries } = await bucket.list(dir, { limit: 1000 });
-      for (const e of entries || []) {
-        if (e.metadata) bytes += Number(e.metadata.size || 0);
-        else pending.push(dir + '/' + e.name);
-      }
-    }
-  }
-  storageUsageCache.set(userId, { bytes, at: Date.now() });
-  return bytes;
-}
+// Storage accounting lives in lib/storage-budget.js — pure Supabase reads.
+const { ACCOUNT_STORAGE_CAP, accountStorageBytes } = require('./lib/storage-budget')(supabase);
 
 const server = http.createServer((req, res) => {
   handleRequest(req, res).catch((e) => {
@@ -7457,77 +7376,8 @@ function sanitizeTags(raw) {
     res.end(data);
   });
 }
-// ── Share-card head rewrite for /view.html ───────────────────────
-// Module scope, self-contained (the /g/:id helpers are nested inside the
-// request handler and unreachable from here). 60s cache keeps a Discord
-// unfurl burst from hitting Supabase for the same game repeatedly.
-const viewOgCache = new Map(); // game id → { meta, at }; capped + cleared wholesale when large
-const viewOgEscape = (s) => String(s)
-  .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-async function decorateViewHead(req, url, data) {
-  const raw = String(url.searchParams.get('id') || '');
-  if (!raw) return data;
-
-  const now = Date.now();
-  let meta = viewOgCache.get(raw);
-  if (!meta || now - meta.at > 60000) {
-    // Accept slug or id in ?id=, mirroring /g/:id — cards must resolve the
-    // same way no matter which link style got shared.
-    let query = supabase.from('games')
-      .select('id, slug, title, description, thumbnail, published, users!games_owner_id_fkey(display_name)');
-    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw)) query = query.eq('id', raw);
-    else query = query.eq('slug', raw);
-    const { data: g } = await query.single();
-    if (!g || !g.published) return data; // unpublished/missing game keeps the generic card
-    const title = String(g.title || 'Untitled');
-    meta = {
-      id: g.id,
-      slug: g.slug || g.id,
-      titleShort: title.slice(0, 70),
-      desc: String(g.description || '').trim().slice(0, 170) ||
-        'Play ' + title + ' instantly in your browser — built with Cudic Studio, fork it and make your own version.',
-      byline: g.users && g.users.display_name ? ' by ' + g.users.display_name : '',
-      hasThumb: !!g.thumbnail,
-      at: now,
-    };
-    if (viewOgCache.size > 300) viewOgCache.clear();
-    viewOgCache.set(raw, meta);
-  }
-
-  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
-  const isLocal = /^(localhost|127\.)/.test(host);
-  const base = isLocal
-    ? (req.socket.encrypted ? 'https://' : 'http://') + host
-    : (process.env.PUBLIC_ORIGIN || 'https://cudic.vercel.app');
-  const playTitle = meta.titleShort + ' — play on Cudic';
-  const card = meta.hasThumb ? base + '/g/' + meta.slug + '/thumb' : null;
-  const map = {
-    'og:title': playTitle,
-    'og:description': meta.desc,
-    'og:url': base + '/view.html?id=' + meta.id,
-    'twitter:title': playTitle,
-    'twitter:description': meta.desc,
-    description: meta.desc,
-  };
-  let html = String(data)
-    // <title> first: scrapers prefer it, humans see it in the tab.
-    .replace(/<title>[^<]*<\/title>/, () => '<title>' + viewOgEscape(playTitle + meta.byline) + '</title>')
-    .replace(/<meta\s+(property|name)="(og:title|og:description|og:url|og:image|twitter:title|twitter:description|twitter:image)"\s+content="[^"]*"/gi,
-      (m, kind, key) => map[key.toLowerCase()] ? '<meta ' + kind + '="' + key + '" content="' + viewOgEscape(map[key.toLowerCase()]) + '"' : m)
-    .replace(/<meta\s+name="description"\s+content="[^"]*"/i,
-      () => '<meta name="description" content="' + viewOgEscape(map.description) + '"');
-  if (card) {
-    // Only claim the dimensions when shipping the real card — og.png?v=2
-    // is exactly 1200×630, user thumbnails are not, and lying to scrapers
-    // crops the image. Both width and height go, not just the first.
-    html = html
-      .replace(/(<meta\s+property="og:image")\s+content="[^"]*"/i, (m, tag) => tag + ' content="' + viewOgEscape(card) + '"')
-      .replace(/(<meta\s+name="twitter:image")\s+content="[^"]*"/i, (m, tag) => tag + ' content="' + viewOgEscape(card) + '"')
-      .replace(/<meta\s+property="og:image:(?:width|height)"[^>]*>/gi, '');
-  }
-  return html;
-}
+// Share-card meta lives in lib/share-card.js; 60s cache stays per-process.
+const { decorateViewHead } = require('./lib/share-card')(supabase);
 
 // ── WebSocket server ─────────────────────────────────────────────
 const wss = new WebSocketServer({ server });
