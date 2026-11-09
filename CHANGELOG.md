@@ -8,6 +8,12 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Landing page polish**
+
+- **The closed mobile menu is no longer a keyboard trap**: it sat at `right:-260px` but stayed tabbable, so Tab walked through invisible links; it is now `visibility:hidden` when closed and visible when open, the burger is 44×44 on mobile with hover/open states and `aria-controls`, its label flips to “Close menu”, and Escape closes the drawer and both dropdowns and puts focus back on the burger. A skip-to-content link now lands on `<main id="mainContent">`.
+- **Signed-in nav keeps its icon**: the profile refresh wrote `textContent`, which deleted the user icon and made the follow-up `img` lookup dead; it now updates a `.navlabel` span, so the name and the icon both survive.
+- **Motion and hover follow the user's settings**: reduced-motion now also stops the hero caret blink, the rocket fly, the mascot wave and the doodle hop, and drops the section fades; hover lifts are disabled on touch (`hover:none`), and headings and leads use `text-wrap:balance` / `pretty` so lines break deliberately instead of orphaning a word.
+
 **Source Control**
 
 - **An import is now a connection, not a copy**: importing a repository used to leave the project tracking nothing, so the repo could move on and the game never knew. Saving a project that came from GitHub now sends its source, the server verifies it can read the repository with your token, and records the repo, its default branch and its owner as the login allowed to deploy. That repo's next commit on that branch deploys a release — with no push from Studio. Repos that cannot be read with your token are ignored, and a database without the deploy columns saves normally by dropping them and retrying.
