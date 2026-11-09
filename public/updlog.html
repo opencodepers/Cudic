@@ -61,7 +61,7 @@
     <div class="u-status" id="uStatus"></div>
   </div>
   <div id="uNote" class="u-empty" style="display:none;margin-top:18px;font-size:0.78rem">
-    Auto-update: add a GitHub webhook (Payload URL <code>https://glox-o7rr.onrender.com/api/webhooks/github</code>, content type JSON, secret = <code>GITHUB_WEBHOOK_SECRET</code> env var, event: push) and every future push posts itself. Or use <em>Sync from GitHub</em> (needs <code>GITHUB_TOKEN</code> env var) to pull the latest 100 commits on demand.
+    Auto-update: add a GitHub webhook (Payload URL <code>https://glox-o7rr.onrender.com/api/webhooks/github</code>, content type JSON, secret = <code>GITHUB_WEBHOOK_SECRET</code> env var, event: push) and every future push posts itself. Or use <em>Sync from GitHub</em> (uses your connected GitHub account, or a <code>GITHUB_PAT</code> env var) to pull the latest 100 commits on demand.
   </div>
   <div id="uList" style="margin-top:18px"></div>
 </main></div></div>
@@ -122,7 +122,7 @@
     list.innerHTML = order.map(function(day){
       return '<div class="u-date">' + esc(day) + '</div>' +
         groups[day].map(function(e){
-          var author = (e.users && e.users.display_name) ? e.users.display_name : 'team';
+          var author = (e.users && e.users.display_name) ? e.users.display_name : (e.author_name || 'team');
           return '<div class="u-entry">' +
             '<div class="u-top"><span class="u-kind ' + esc(e.kind) + '">' + esc(e.kind) + '</span><span class="u-title">' + esc(e.title) + '</span></div>' +
             (e.body ? '<div class="u-body">' + esc(e.body) + '</div>' : '') +

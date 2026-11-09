@@ -8,6 +8,11 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Update log sync**
+
+- **“Sync from GitHub” works in production again**: the button read `GITHUB_TOKEN`, an env var this project never sets, so every moderator got the red “Set GITHUB_TOKEN in Render env” error. It now accepts `GITHUB_TOKEN` or `GITHUB_PAT`, and falls back to the signed-in moderator's connected GitHub account — the connection the profile page already stores. It also fetches `opencodepers/Cudic` instead of the old `nathent2023-glitch/Cudic` owner, which 404s even with a valid token. `GITHUB_REPO` can point a fork elsewhere.
+- **Synced entries name their author**: the webhook and sync used to write `by Sophi` into `body`, so a card showed “by Sophi” and “team” at once. Commits now store `author_name` (migration plus a narrow backfill of the synthetic bodies), and the card shows `Sophi · time` with no duplicate line.
+
 **Landing page polish**
 
 - **The closed mobile menu is no longer a keyboard trap**: it sat at `right:-260px` but stayed tabbable, so Tab walked through invisible links; it is now `visibility:hidden` when closed and visible when open, the burger is 44×44 on mobile with hover/open states and `aria-controls`, its label flips to “Close menu”, and Escape closes the drawer and both dropdowns and puts focus back on the burger. A skip-to-content link now lands on `<main id="mainContent">`.

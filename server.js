@@ -3658,10 +3658,21 @@ function sanitizeTags(raw) {
     const user = await requireUser(req, res); if (!user) return;
     if (!(await needVerified(user, res))) return;
     if (!(await isModerator(user.id))) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Moderators only.' })); return; }
-    const token = process.env.GITHUB_TOKEN;
-    if (!token) { res.writeHead(503, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Set GITHUB_TOKEN in Render env to use sync.' })); return; }
+    // Prefer an env token, then the moderator's own connected GitHub account:
+    // production has no GITHUB_TOKEN (this project's name is GITHUB_PAT), so
+    // requiring it made the button dead for every moderator who had already
+    // connected GitHub on their profile.
+    let token = process.env.GITHUB_TOKEN || process.env.GITHUB_PAT || '';
+    if (!token) {
+      const conn = await ghToken(user);
+      if (conn && conn.token) token = conn.token;
+    }
+    if (!token) { res.writeHead(503, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Connect GitHub in your profile, or set GITHUB_PAT in Render env, to use sync.' })); return; }
+    // The repo moved from nathent2023-glitch to opencodepers; the old owner
+    // 404s even with a valid token. GITHUB_REPO lets a fork point elsewhere.
+    const repo = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(process.env.GITHUB_REPO || '') ? process.env.GITHUB_REPO : 'opencodepers/Cudic';
     let ghRes;
-    try { ghRes = await fetch('https://api.github.com/repos/nathent2023-glitch/Cudic/commits?per_page=100', { headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json', 'User-Agent': 'Cudic' } }); }
+    try { ghRes = await fetch('https://api.github.com/repos/' + repo + '/commits?per_page=100', { headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json', 'User-Agent': 'Cudic' } }); }
     catch (e) { res.writeHead(502, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'GitHub unreachable.' })); return; }
     if (!ghRes.ok) { res.writeHead(502, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'GitHub ' + ghRes.status })); return; }
     const commits = await ghRes.json();
@@ -3676,7 +3687,8 @@ function sanitizeTags(raw) {
       else if (prefix === 'fix') kind = 'fix';
       else if (prefix === 'perf' || prefix === 'improve') kind = 'improvement';
       const body = String((c.commit && c.commit.message) || '').split('\n').slice(1).join('\n').trim().slice(0, 2000);
-      const { error } = await supabase.from('changelog').insert({ kind, title: subject, body: body || ('by ' + ((c.commit && c.commit.author && c.commit.author.name) || 'unknown')), commit_sha: c.sha, created_at: (c.commit && c.commit.author && c.commit.author.date) || new Date().toISOString(), author_id: null });
+      const authorName = String((c.commit && c.commit.author && c.commit.author.name) || 'unknown').slice(0, 80);
+      const { error } = await supabase.from('changelog').insert({ kind, title: subject, body, author_name: authorName, commit_sha: c.sha, created_at: (c.commit && c.commit.author && c.commit.author.date) || new Date().toISOString(), author_id: null });
       if (!error) inserted++;
     }
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -3756,7 +3768,7 @@ function sanitizeTags(raw) {
   if (url.pathname === '/api/changelog' && req.method === 'GET') {
     cors(res);
     const { data } = await supabase.from('changelog')
-      .select('id, kind, title, body, created_at, users!changelog_author_id_fkey(display_name)')
+      .select('id, kind, title, body, author_name, created_at, users!changelog_author_id_fkey(display_name)')
       .order('created_at', { ascending: false }).limit(50);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ entries: data || [] }));
@@ -3819,8 +3831,9 @@ function sanitizeTags(raw) {
       if (prefix === 'feat' || prefix === 'feature' || prefix === 'add') kind = 'feature';
       else if (prefix === 'fix') kind = 'fix';
       else if (prefix === 'perf' || prefix === 'improve') kind = 'improvement';
-      const body = String(c.message || '').split('\n').slice(1).join('\n').trim().slice(0, 2000) || ('by ' + ((c.author && c.author.name) || 'unknown'));
-      const { error } = await supabase.from('changelog').insert({ kind, title: subject, body, commit_sha: c.id, created_at: c.timestamp || new Date().toISOString(), author_id: null });
+      const body = String(c.message || '').split('\n').slice(1).join('\n').trim().slice(0, 2000);
+      const authorName = String((c.author && c.author.name) || 'unknown').slice(0, 80);
+      const { error } = await supabase.from('changelog').insert({ kind, title: subject, body, author_name: authorName, commit_sha: c.id, created_at: c.timestamp || new Date().toISOString(), author_id: null });
       if (!error) inserted++;
     }
     // ── Deploy a release ────────────────────────────────────────
