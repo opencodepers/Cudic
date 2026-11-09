@@ -2502,12 +2502,13 @@ async function handleRequest(req, res) {
       notes: String(meta.notes || ''),
       source: String(meta.source || 'studio'),
       commit: String(meta.commit || ''),
+      tests: meta.tests || null,
       at: row.created_at || meta.at || null,
       revision: row.id,
       files,
     };
   }
-  async function createRelease(gameId, ownerId, files, notes, source, commit) {
+  async function createRelease(gameId, ownerId, files, notes, source, commit, tests) {
     const prev = await latestRelease(gameId);
     const version = (prev ? prev.version : 0) + 1;
     const all = {};
@@ -2515,6 +2516,7 @@ async function handleRequest(req, res) {
     all[RELEASE_FILE] = JSON.stringify({
       version, notes: String(notes || '').slice(0, 500), source: source || 'studio',
       commit: String(commit || ''), at: new Date().toISOString(),
+      tests: tests && typeof tests === 'object' ? { passed: Number(tests.passed) || 0, failed: Number(tests.failed) || 0 } : null,
     });
     const manifest = {};
     const fresh = new Map();
@@ -7016,6 +7018,19 @@ function sanitizeTags(raw) {
         }
       }
     }
+    // Publishing is gated on the project's tests. They run in the browser, so
+    // this is the client's word — but a stale Studio build (or a bug) that
+    // reports failures must not be able to flip a red build live.
+    if (updates.published === true && body.tests && Number(body.tests.failed) > 0) {
+      res.writeHead(409, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        error: 'tests_failed',
+        text: 'Tests are failing, so this build was not published.',
+        failed: Number(body.tests.failed),
+        passed: Number(body.tests.passed) || 0
+      }));
+      return;
+    }
     let { data, error } = await supabase.from('games').update(updates).eq('id', id).eq('owner_id', user.id).select().single();
     // A database without the deploy columns (migration not applied) must still
     // save the game: drop them and retry once instead of failing the write.
@@ -7036,7 +7051,7 @@ function sanitizeTags(raw) {
     if (updates.published === true && data) {
       release = await createRelease(
         id, user.id, body.files !== undefined ? body.files : data.files,
-        body.release_notes, body.release_source || 'studio', body.release_commit
+        body.release_notes, body.release_source || 'studio', body.release_commit, body.tests
       );
     }
     res.writeHead(200, { 'Content-Type': 'application/json' });

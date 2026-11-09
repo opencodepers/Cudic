@@ -578,16 +578,16 @@ async function restoreSnapshot(): Promise<void> {
   location.reload();
 }
 
-async function setPublished(pub: boolean, releaseNotes?: string): Promise<void> {
-  if (readOnlyBlocked()) return;
+async function setPublished(pub: boolean, releaseNotes?: string): Promise<boolean> {
+  if (readOnlyBlocked()) return false;
   const token = getToken();
   if (token == null) {
     vscode.window.showWarningMessage('Sign in to publish projects.');
-    return;
+    return false;
   }
   if (projectId == null) {
     vscode.window.showWarningMessage('Save the project first, then publish.');
-    return;
+    return false;
   }
   // Tags ride the publish PUT: one comma-separated ask, max 3. The server
   // sanitizes everything (lowercase, letters/digits/dashes, dedupe), so
@@ -605,9 +605,41 @@ async function setPublished(pub: boolean, releaseNotes?: string): Promise<void> 
       tags = tagAnswer.split(',').map(t => t.trim().toLowerCase().replace(/[^a-z0-9-]/g, '')).filter(Boolean).slice(0, 3);
     }
   }
+  // A release is a promise that the build works: run the project's tests
+  // before the flip and refuse to publish a red one. A test run that cannot
+  // finish (timeout, broken test file) also blocks — silence is not a pass.
+  let tests: { passed: number; failed: number } | null = null;
+  if (pub) {
+    try {
+      const { runTests } = await import('./testrunner');
+      const run = await runTests(await collectFiles());
+      const passed = run.results.filter((r) => r.ok).length;
+      const failed = run.results.filter((r) => !r.ok).length + run.loadErrors.length;
+      tests = { passed, failed };
+      if (failed > 0) {
+        const bad = run.results.filter((r) => !r.ok).map((r) => r.name).slice(0, 3);
+        const load = run.loadErrors.map((e) => e.file).slice(0, 2);
+        vscode.window.showErrorMessage(
+          'Cudic: not published — ' + failed + ' test' + (failed === 1 ? '' : 's') + ' failing' +
+          (bad.length ? ': ' + bad.join(', ') : '') +
+          (load.length ? (bad.length ? '; ' : ': ') + 'could not load ' + load.join(', ') : '') +
+          '. Fix them, then publish again.'
+        );
+        return false;
+      }
+    } catch (e) {
+      vscode.window.showErrorMessage(
+        'Cudic: not published — the tests could not run (' + (e as Error).message + ').'
+      );
+      return false;
+    }
+  }
   const base = await apiBase();
   try {
     const body: Record<string, unknown> = { published: pub };
+    // The counts ride the publish: the server refuses a release that reports
+    // failures, and the release snapshot keeps what passed this build.
+    if (pub && tests != null) body.tests = { passed: tests.passed, failed: tests.failed };
     if (pub && tagAnswer !== undefined) body.tags = tags;
     // Notes ride the publish: the server turns this into a release snapshot,
     // which is what the play page then serves.
@@ -627,8 +659,10 @@ async function setPublished(pub: boolean, releaseNotes?: string): Promise<void> 
           (tags.length ? ' — tags: ' + tags.join(', ') : '')
         : 'Cudic: Unpublished (back to draft).'
     );
+    return true;
   } catch (e) {
     vscode.window.showErrorMessage('Publish failed: ' + (e as Error).message);
+    return false;
   }
 }
 
@@ -651,7 +685,7 @@ async function shipProject(): Promise<void> {
     ignoreFocusOut: false
   });
   if (notes === undefined) return; // cancelled — the save already landed
-  await setPublished(true, notes);
+  if (!(await setPublished(true, notes))) return; // blocked: tests are red
   const base = await apiBase();
   const link = base + '/game?id=' + encodeURIComponent(projectId);
   void vscode.window
