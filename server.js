@@ -3658,21 +3658,22 @@ function sanitizeTags(raw) {
     const user = await requireUser(req, res); if (!user) return;
     if (!(await needVerified(user, res))) return;
     if (!(await isModerator(user.id))) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Moderators only.' })); return; }
-    // Prefer an env token, then the moderator's own connected GitHub account:
-    // production has no GITHUB_TOKEN (this project's name is GITHUB_PAT), so
-    // requiring it made the button dead for every moderator who had already
-    // connected GitHub on their profile.
+    // A public repo syncs with no token at all; an env token or the moderator's
+    // connected account only raises GitHub's 60/hour anonymous limit. The old
+    // code required GITHUB_TOKEN, which this project never sets, so the button
+    // was dead for every moderator — including ones with no GitHub connection.
     let token = process.env.GITHUB_TOKEN || process.env.GITHUB_PAT || '';
     if (!token) {
       const conn = await ghToken(user);
       if (conn && conn.token) token = conn.token;
     }
-    if (!token) { res.writeHead(503, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Connect GitHub in your profile, or set GITHUB_PAT in Render env, to use sync.' })); return; }
     // The repo moved from nathent2023-glitch to opencodepers; the old owner
     // 404s even with a valid token. GITHUB_REPO lets a fork point elsewhere.
     const repo = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(process.env.GITHUB_REPO || '') ? process.env.GITHUB_REPO : 'opencodepers/Cudic';
+    const ghHeaders = { 'Accept': 'application/vnd.github+json', 'User-Agent': 'Cudic' };
+    if (token) ghHeaders.Authorization = 'Bearer ' + token;
     let ghRes;
-    try { ghRes = await fetch('https://api.github.com/repos/' + repo + '/commits?per_page=100', { headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json', 'User-Agent': 'Cudic' } }); }
+    try { ghRes = await fetch('https://api.github.com/repos/' + repo + '/commits?per_page=100', { headers: ghHeaders }); }
     catch (e) { res.writeHead(502, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'GitHub unreachable.' })); return; }
     if (!ghRes.ok) { res.writeHead(502, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'GitHub ' + ghRes.status })); return; }
     const commits = await ghRes.json();

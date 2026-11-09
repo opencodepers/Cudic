@@ -10,7 +10,7 @@ fixed. Commits are referenced by short hash.
 
 **Update log sync**
 
-- **“Sync from GitHub” works in production again**: the button read `GITHUB_TOKEN`, an env var this project never sets, so every moderator got the red “Set GITHUB_TOKEN in Render env” error. It now accepts `GITHUB_TOKEN` or `GITHUB_PAT`, and falls back to the signed-in moderator's connected GitHub account — the connection the profile page already stores. It also fetches `opencodepers/Cudic` instead of the old `nathent2023-glitch/Cudic` owner, which 404s even with a valid token. `GITHUB_REPO` can point a fork elsewhere.
+- **“Sync from GitHub” works in production again**: the button read `GITHUB_TOKEN`, an env var this project never sets, so every moderator got the red “Set GITHUB_TOKEN in Render env” error. It now accepts `GITHUB_TOKEN` or `GITHUB_PAT`, falls back to the signed-in moderator's connected GitHub account, and syncs the public repo with no token at all — so a moderator without a GitHub connection is not blocked. It also fetches `opencodepers/Cudic` instead of the old `nathent2023-glitch/Cudic` owner, which 404s even with a valid token. `GITHUB_REPO` can point a fork elsewhere.
 - **Synced entries name their author**: the webhook and sync used to write `by Sophi` into `body`, so a card showed “by Sophi” and “team” at once. Commits now store `author_name` (migration plus a narrow backfill of the synthetic bodies), and the card shows `Sophi · time` with no duplicate line.
 
 **Landing page polish**
