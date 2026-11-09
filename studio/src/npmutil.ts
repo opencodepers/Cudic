@@ -205,6 +205,57 @@ export function finishModuleMap(html: string, mine: Record<string, string>): str
   return dt == null ? tag + html : html.slice(0, dt[0].length) + tag + html.slice(dt[0].length);
 }
 
+// ── package.json ────────────────────────────────────────────────────────────
+// A project that declares `dependencies` gets them pinned: the file becomes an
+// import map, so `import React from 'react'` loads the version the author wrote
+// down instead of whatever esm.sh calls latest today. Published games read the
+// same file in run.html — keep the two in step.
+export interface PackageJson {
+  dependencies?: Record<string, string>;
+}
+
+export function parsePackageJson(text: unknown): PackageJson | null {
+  if (typeof text !== 'string' || !text.trim()) return null;
+  try {
+    const j: unknown = JSON.parse(text);
+    if (j == null || typeof j !== 'object' || Array.isArray(j)) return null;
+    return j as PackageJson;
+  } catch {
+    return null;
+  }
+}
+
+// "^18.3.1" -> "18.3.1". Ranges, tags and workspace refs pin nothing, so they
+// are dropped and the import keeps the old CDN-default behaviour.
+export function cleanVersion(spec: unknown): string {
+  const v = String(spec ?? '').trim().replace(/^[\^~=v]+/, '');
+  return /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(v) ? v : '';
+}
+
+export function dependencyPins(pkg: PackageJson | null): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (pkg == null || pkg.dependencies == null || typeof pkg.dependencies !== 'object') return out;
+  for (const name of Object.keys(pkg.dependencies)) {
+    if (out[name] != null || !isValidPackageName(name)) continue;
+    const v = cleanVersion(pkg.dependencies[name]);
+    if (v) out[name] = v;
+  }
+  return out;
+}
+
+// Two keys per dep: `react` for the entry and `react/` for subpaths
+// (`react-dom/client`) — that is how import maps spell prefix matching.
+export function dependencyImportMap(pkg: PackageJson | null): Record<string, string> {
+  const out: Record<string, string> = {};
+  const pins = dependencyPins(pkg);
+  for (const name of Object.keys(pins)) {
+    const url = 'https://esm.sh/' + name + '@' + pins[name];
+    out[name] = url;
+    out[name + '/'] = url + '/';
+  }
+  return out;
+}
+
 // Split "name[@version]" —/npm version pinning rides the esm.sh URL.
 export function splitVersion(clean: string): { name: string; version: string } {
   const at = clean.lastIndexOf('@');

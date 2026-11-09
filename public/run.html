@@ -97,6 +97,23 @@ window.addEventListener('message', async (e) => {
   const mods = {}; // 'cudic~a.js' -> { path, code }
   const modId = (p) => 'cudic~' + p.toLowerCase();
   const MODULE_FILE = /\.(m?js|json)$/i;
+  // package.json dependencies -> import-map entries pinned at the declared
+  // version. The Studio preview does the same (npmutil.ts) — keep in step.
+  const pkgDeps = (function () {
+    try { const j = JSON.parse(files['package.json'] || 'null'); return (j && j.dependencies) || null; }
+    catch (e) { return null; }
+  })();
+  const pkgPins = {};
+  (function () {
+    if (!pkgDeps || typeof pkgDeps !== 'object') return;
+    Object.keys(pkgDeps).forEach(function (name) {
+      if (!/^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/i.test(name)) return;
+      const v = String(pkgDeps[name] || '').trim().replace(/^[\^~=v]+/, '');
+      if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(v)) return;
+      pkgPins[name] = 'https://esm.sh/' + name + '@' + v;
+      pkgPins[name + '/'] = pkgPins[name] + '/';
+    });
+  })();
   // Resolve a specifier against the importing file's own directory, so
   // src/main.js importing './util.js' finds src/util.js.
   function resolveSpec(from, spec) {
@@ -222,7 +239,17 @@ window.addEventListener('message', async (e) => {
   }
   mapInlineScripts();
   drainModules();
-  const mapTag = mergeMapTag(moduleImports());
+  // A hand-written importmap in the project wins over package.json pins.
+  const declaredImports = (function () {
+    const out = {};
+    const m = /<script\b[^>]*type=["']importmap["'][^>]*>([\s\S]*?)<\/script\s*>/i.exec(index);
+    if (!m) return out;
+    try { Object.keys((JSON.parse(m[1]) || {}).imports || {}).forEach(function (k) { out[k] = 1; }); } catch (e) {}
+    return out;
+  })();
+  const pinMap = {};
+  Object.keys(pkgPins).forEach(function (k) { if (!declaredImports[k]) pinMap[k] = pkgPins[k]; });
+  const mapTag = mergeMapTag(Object.assign({}, pinMap, moduleImports()));
   // Remaining relative refs (images, etc.): public asset URL or data: URL
   index = index.replace(/(src|href)=["'](?!https?:|data:|blob:|#)([^"']+)["']/g, (m, attr, p) => {
     const u = assetUrl(p);

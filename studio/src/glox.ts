@@ -43,6 +43,9 @@ import {
   drainModuleSlots,
   moduleDataUrls,
   finishModuleMap,
+  parsePackageJson,
+  dependencyPins,
+  dependencyImportMap,
   type ModuleSlots
 } from './npmutil';
 import mammoth from 'mammoth';
@@ -203,16 +206,27 @@ async function assemble(baseHtml: string, selfName: string, selfCode: string): P
     const tag = scriptTag('', mapModuleImports(selfCode, selfName, find, mods));
     html = /<\/body\s*>/i.test(html) ? html.replace(/<\/body\s*>/i, tag + '</body>') : html + tag;
   }
+  // `package.json` dependencies become import-map entries at the version the
+  // project declared, so a project runs the React it was written against, not
+  // today's latest. Bare specifiers then stay bare — the browser resolves them.
+  const pkg = parsePackageJson(files['package.json']);
+  const pins = dependencyPins(pkg);
+  const pkgMap = dependencyImportMap(pkg);
+  const declared = importMapNames(baseHtml);
+  const pinMap: Record<string, string> = {};
+  // A hand-written importmap in the project wins over the file: the author
+  // said what they meant.
+  for (const key of Object.keys(pkgMap)) if (!declared.has(key)) pinMap[key] = pkgMap[key];
   // Our ids must survive the npm pass, which would otherwise read `cudic~a.js`
   // as a package name and point it at esm.sh.
-  const skip = new Set([...importMapNames(baseHtml), ...Object.keys(mods)]);
+  const skip = new Set([...declared, ...Object.keys(mods), ...Object.keys(pins)]);
   html = rewriteBareImports(html, skip, (ref) => REMOTE_REF.test(ref) || ref.startsWith('.'));
   // `<script>` blocks written straight into the HTML resolve from its own folder.
   html = html.replace(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi, (m, attrs: string, code: string) =>
     /\bsrc\s*=/.test(attrs) ? m : '<script' + attrs + '>' + mapModuleImports(code, basePath, find, mods) + '</script>'
   );
   drainModuleSlots(files, mods, find);
-  html = finishModuleMap(html, moduleDataUrls(mods));
+  html = finishModuleMap(html, { ...pinMap, ...moduleDataUrls(mods) });
   return injectAssetUrls(html);
 }
 
