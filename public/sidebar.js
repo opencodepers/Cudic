@@ -347,6 +347,14 @@
   // JWT payloads are base64url, not base64: raw atob() throws on the
   // '-'/'_' characters, which silently left signed-in users showing as
   // Guest (GitHub metadata with avatar URLs hits this almost every time).
+  // One helper for every avatar fallback. The old code had a local string
+  // named `initials` in loadSidebarUser and a call to initials(...) in
+  // fetchProfile, where no such function existed — the throw was swallowed
+  // and a user without an avatar kept the JWT-derived letters.
+  function initialsOf(name){
+    var s=String(name||'?').trim().split(/\s+/).map(function(w){return w.charAt(0)||''}).join('');
+    return (s||'?').substring(0,2).toUpperCase();
+  }
   function jwtPayload(t){
     try{
       var p=String(t||'').split('.');
@@ -363,7 +371,7 @@
       var payload=jwtPayload(access_token);
       if(!payload) return;
       var name=payload.user_metadata?.full_name||payload.user_metadata?.name||payload.email||'User';
-      var initials=name.split(' ').map(function(w){return w[0]}).join('').substring(0,2).toUpperCase();
+      var initials=initialsOf(name);
       document.getElementById('sbAvatar').textContent=initials;
       document.getElementById('sbName').textContent=name;
       document.getElementById('sbStatus').textContent='Signed in';
@@ -390,7 +398,7 @@
         var avEl=document.getElementById('sbAvatar');
         if(avEl){
           if(data.profile.avatar_url){avEl.innerHTML='<img src="'+String(data.profile.avatar_url).replace(/"/g,'')+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">';}
-          else{avEl.textContent=initials(data.profile.display_name);}
+          else{avEl.textContent=initialsOf(data.profile.display_name);}
         }
       }
     }catch(e){}

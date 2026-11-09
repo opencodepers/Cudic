@@ -1207,8 +1207,12 @@ async function loadOlderMessages() {
     const beforeCount = messagesEl.childElementCount;
     const savedScroll = scrollToBottom;
     scrollToBottom = function () {};
-    msgs.forEach(m => addChatMessage(m.display_name, m.text, fmtTime(m.created_at), m.users && m.users.avatar_url, m.user_id, m.created_at, m.id, null));
-    scrollToBottom = savedScroll;
+    try {
+      msgs.forEach(m => addChatMessage(m.display_name, m.text, fmtTime(m.created_at), m.users && m.users.avatar_url, m.user_id, m.created_at, m.id, null));
+    } finally {
+      // A throw mid-insert must not leave auto-scroll off for the session.
+      scrollToBottom = savedScroll;
+    }
     // move newly added nodes to the top, in order
     const all = Array.from(messagesEl.children);
     const newCount = all.length - beforeCount;
