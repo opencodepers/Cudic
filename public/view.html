@@ -1233,7 +1233,7 @@ setInterval(function () {
         var card = document.getElementById('playerCard');
         document.getElementById('overlay').remove();
         var f = document.createElement('iframe');
-        f.setAttribute('sandbox', 'allow-scripts'); // no allow-same-origin: the frame must never see this page's origin/localStorage (auth token)
+        f.setAttribute('sandbox', 'allow-scripts allow-pointer-lock'); // pointer-lock sandbox token is the grant; no allow-same-origin, so the frame never sees this page's origin/localStorage (auth token)
         f.setAttribute('allowfullscreen', 'true');
         f.setAttribute('scrolling', 'no');
         f.src = '/run.html?v=9';

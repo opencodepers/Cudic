@@ -532,7 +532,7 @@ class PreviewPane extends SimpleEditorPane {
     registerPreviewSave(); // saves in the preview: see the note above
     drainPreviewErrors(); // a fresh run starts with a clean error sheet
     const fresh = document.createElement('iframe');
-    fresh.setAttribute('sandbox', 'allow-scripts');
+    fresh.setAttribute('sandbox', 'allow-scripts allow-pointer-lock');
     fresh.style.cssText = 'flex:1;width:100%;border:none;background:#fff;';
     fresh.srcdoc = html + CAPTURE_SNIPPET;
     this.slot.replaceChildren(fresh);

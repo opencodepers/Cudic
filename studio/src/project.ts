@@ -74,8 +74,8 @@ const binaryPaths = new Set<string>();
 // The API host and auth headers live in api-host.ts so github.ts can use them
 // without importing this module — project.ts → github.ts is the only legal
 // direction of that edge (a cycle makes module evaluation order matter).
-import { apiBase, getToken, headers } from './api-host';
-export { apiBase, getToken, headers };
+import { apiBase, getToken, headers, liveToken } from './api-host';
+export { apiBase, getToken, headers, liveToken };
 
 // WebSocket endpoint for the in-game multiplayer relay (preview mediator).
 // Mirrors config.js: local dev always talks to the local server on :3000, even
@@ -164,10 +164,11 @@ async function uploadAsset(
     Authorization: 'Bearer ' + token,
     'Content-Type': mime
   };
-  // ponytail: POST-then-PUT covers create+overwrite without an SDK.
+  // POST creates, PUT upserts. The upsert header matters: without it a
+  // re-save of an existing asset is rejected (the duplicate POST fails too).
   let res = await fetch(url, { method: 'POST', headers: head, body: bytes });
   if (!res.ok) {
-    res = await fetch(url, { method: 'PUT', headers: head, body: bytes });
+    res = await fetch(url, { method: 'PUT', headers: { ...head, 'x-upsert': 'true' }, body: bytes });
   }
   if (!res.ok) throw new Error('asset upload ' + res.status);
 }
@@ -580,7 +581,7 @@ async function restoreSnapshot(): Promise<void> {
 
 async function setPublished(pub: boolean, releaseNotes?: string): Promise<boolean> {
   if (readOnlyBlocked()) return false;
-  const token = getToken();
+  const token = await liveToken();
   if (token == null) {
     vscode.window.showWarningMessage('Sign in to publish projects.');
     return false;
@@ -646,7 +647,7 @@ async function setPublished(pub: boolean, releaseNotes?: string): Promise<boolea
     if (pub && releaseNotes != null && releaseNotes.trim() !== '') body.release_notes = releaseNotes.trim().slice(0, 500);
     const res = await fetch(base + '/api/games/' + encodeURIComponent(projectId), {
       method: 'PUT',
-      headers: headers(true),
+      headers: headers(true, token),
       body: JSON.stringify(body)
     });
     const d = await res.json();
@@ -892,7 +893,7 @@ async function runProjectTests(): Promise<void> {
 
 async function saveProject(): Promise<void> {
   if (readOnlyBlocked()) return;
-  const token = getToken();
+  const token = await liveToken();
   if (token == null) {
     const pick = await vscode.window.showWarningMessage(
       'Sign in to save projects to Cudic. Until then this project lives in this browser only.',
@@ -948,7 +949,7 @@ async function saveProject(): Promise<void> {
     if (id == null) {
       const res = await fetch(base + '/api/games', {
         method: 'POST',
-        headers: headers(true),
+        headers: headers(true, token),
         body: JSON.stringify({ title: projectTitle, files: text })
       });
       const d = await res.json();
@@ -976,7 +977,7 @@ async function saveProject(): Promise<void> {
     }
     const res = await fetch(base + '/api/games/' + encodeURIComponent(id), {
       method: 'PUT',
-      headers: headers(true),
+      headers: headers(true, token),
       body: JSON.stringify({ title: projectTitle, files: text, assets, github_link: githubLink })
     });
     const d = await res.json();

@@ -124,11 +124,10 @@ export async function apiBase(): Promise<string> {
   return '';
 }
 
-export function headers(json: boolean): Record<string, string> {
+export function headers(json: boolean, token: string | null = getToken()): Record<string, string> {
   const h: Record<string, string> = {};
   if (json) h['Content-Type'] = 'application/json';
-  const t = getToken();
-  if (t != null) h['Authorization'] = 'Bearer ' + t;
+  if (token != null) h['Authorization'] = 'Bearer ' + token;
   try {
     const seat = localStorage.getItem('cudic_seat');
     if (seat != null) h['X-Seat'] = seat;

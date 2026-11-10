@@ -113,7 +113,7 @@
       started = true;
       cover.hidden = true;
       var f = document.createElement('iframe');
-      f.setAttribute('sandbox', 'allow-scripts'); // no allow-same-origin: embeds must never reach the embedding site's storage
+      f.setAttribute('sandbox', 'allow-scripts allow-pointer-lock'); // pointer-lock sandbox token is the grant; no allow-same-origin, so embeds never reach the embedding site's storage
       f.setAttribute('allowfullscreen', 'true');
       f.setAttribute('scrolling', 'no');
       f.src = '/run.html?v=9';

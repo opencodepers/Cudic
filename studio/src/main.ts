@@ -341,6 +341,18 @@ function runCommand(id: string): void {
   });
 }
 
+// Ctrl/Cmd+S has to stay ours even when Monaco owns focus. The keybinding above
+// routes it too, but a workbench with no extension description can still fall
+// through to the built-in save and show "Null extension description". Capture
+// it before the editor sees it and call the Cudic command directly.
+window.addEventListener('keydown', (ev) => {
+  if (!(ev.ctrlKey || ev.metaKey) || ev.altKey || ev.shiftKey) return;
+  if (String(ev.key).toLowerCase() !== 's') return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  runCommand('glox.saveProject');
+}, true);
+
 function topAction(label: string, title: string, onClick: () => void, primary = false): HTMLButtonElement {
   const b = document.createElement('button');
   b.type = 'button';
