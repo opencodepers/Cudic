@@ -11,6 +11,7 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Cudic — Update log</title>
 <meta name="description" content="What's new in Cudic — features, fixes, and improvements.">
+<link rel="alternate" type="application/rss+xml" title="Cudic update log" href="/updlog.xml">
 <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
 <link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
 <link rel="stylesheet" href="/sidebar.css?v=25">
@@ -43,7 +44,7 @@
 <body data-page="updlog">
 <div class="page-panel"><div class="u-layout"><main class="u-content">
   <h1>Update log</h1>
-  <p class="u-sub">What's new in Cudic — features, fixes, and improvements. Posts itself; moderators add entries as they ship.</p>
+  <p class="u-sub">What's new in Cudic — features, fixes, and improvements. Posts itself; moderators add entries as they ship. <a href="/updlog.xml" style="color:var(--signal);font-weight:600">Subscribe (RSS)</a></p>
   <div id="uForm" class="u-form">
     <h2>Post an update (moderators only)</h2>
     <select id="uKind">
@@ -67,7 +68,7 @@
 </main></div></div>
 <script src="/config.js"></script>
 <script src="/auth.js"></script>
-<script src="/sidebar.js?v=25"></script>
+<script src="/sidebar.js?v=26"></script>
 <script src="/theme-toggle.js?v=2"></script>
 <script>
 (async function(){
@@ -123,7 +124,7 @@
       return '<div class="u-date">' + esc(day) + '</div>' +
         groups[day].map(function(e){
           var author = (e.users && e.users.display_name) ? e.users.display_name : (e.author_name || 'team');
-          return '<div class="u-entry">' +
+          return '<div class="u-entry" id="e-' + esc(e.id) + '">' +
             '<div class="u-top"><span class="u-kind ' + esc(e.kind) + '">' + esc(e.kind) + '</span><span class="u-title">' + esc(e.title) + '</span></div>' +
             (e.body ? '<div class="u-body">' + esc(e.body) + '</div>' : '') +
             '<div class="u-meta">' + esc(author) + ' · ' + esc(new Date(e.created_at).toLocaleTimeString()) + '</div>' +

@@ -204,6 +204,32 @@ async function logActivity(userId, kind, text) {
 // last day skips, so like-toggles and re-events can't pile up. The older
 // comment / friend-accept senders long predating this kept their inline
 // inserts — don't migrate them for its own sake.
+// ── Playtest links ───────────────────────────────────────────────
+// Stateless bearer links for drafts: `<exp>.<hmac>` over the game id and
+// expiry. Nothing is stored, so there is no token at rest, and changing the
+// secret invalidates every outstanding link at once.
+const PLAYTEST_SECRET = process.env.PLAYTEST_SECRET || process.env.GITHUB_WEBHOOK_SECRET || process.env.SUPABASE_SERVICE_KEY || '';
+function playtestSign(gid, days) {
+  const exp = Math.floor(Date.now() / 1000) + Math.max(1, Math.min(30, Number(days) || 7)) * 86400;
+  const sig = crypto.createHmac('sha256', PLAYTEST_SECRET).update('playtest|' + gid + '|' + exp).digest('base64url');
+  return { token: exp + '.' + sig, exp };
+}
+function playtestValid(gid, token) {
+  if (!PLAYTEST_SECRET || !token) return false;
+  const m = /^(\d{10})\.([A-Za-z0-9_-]{43})$/.exec(String(token));
+  if (!m) return false;
+  const exp = Number(m[1]);
+  const now = Math.floor(Date.now() / 1000);
+  if (!Number.isFinite(exp) || exp < now || exp > now + 31 * 86400) return false;
+  const want = crypto.createHmac('sha256', PLAYTEST_SECRET).update('playtest|' + gid + '|' + exp).digest('base64url');
+  try { return crypto.timingSafeEqual(Buffer.from(m[2]), Buffer.from(want)); } catch (e) { return false; }
+}
+function siteOrigin(req) {
+  const host = String((req && req.headers && req.headers.host) || '');
+  if (/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host)) return 'http://' + host;
+  return (process.env.SITE_URL || 'https://cudic.vercel.app').replace(/\/$/, '');
+}
+
 async function notify(userId, kind, title, body, refType, refId) {
   if (!userId) return;
   try {
@@ -3775,6 +3801,19 @@ function sanitizeTags(raw) {
     res.end(JSON.stringify({ entries: data || [] }));
     return;
   }
+
+  // ── Update log RSS (public, cached five minutes) ──────────────
+  if (url.pathname === '/updlog.xml' && req.method === 'GET') {
+    const { data } = await supabase.from('changelog')
+      .select('id, title, body, created_at')
+      .order('created_at', { ascending: false }).limit(50);
+    const base = (process.env.SITE_URL || 'https://cudic.vercel.app').replace(/\/$/, '');
+    const xml = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]));
+    const items = (data || []).map((e) => '<item><title>' + xml(e.title) + '</title><link>' + base + '/updlog#e-' + encodeURIComponent(e.id) + '</link><guid isPermaLink="false">' + xml(e.id) + '</guid><pubDate>' + new Date(e.created_at).toUTCString() + '</pubDate><description>' + xml(e.body || '') + '</description></item>').join('');
+    res.writeHead(200, { 'Content-Type': 'application/rss+xml; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
+    res.end('<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Cudic — Update log</title><link>' + base + '/updlog</link><description>What is new in Cudic.</description><language>en</language>' + items + '</channel></rss>');
+    return;
+  }
   if (url.pathname === '/api/changelog' && req.method === 'POST') {
     cors(res);
     const user = await requireUser(req, res); if (!user) return;
@@ -5673,8 +5712,10 @@ function sanitizeTags(raw) {
     cors(res);
     const id = url.pathname.split('/')[3];
     const { data } = await supabase.from('games').select('thumbnail, published, owner_id').eq('id', id).single();
-    // Same rule as the game body: draft thumbnails ship to their owner only.
-    if (data && !data.published) {
+    // Same rule as the game body: draft thumbnails ship to their owner or a
+    // valid playtest link only.
+    const ptToken = new URLSearchParams(url.search).get('playtest') || '';
+    if (data && !data.published && !playtestValid(id, ptToken)) {
       const tok = (req.headers.authorization || '').replace('Bearer ', '');
       const { data: { user: viewer } } = tok ? await supabase.auth.getUser(tok) : { data: { user: null } };
       if (!viewer || data.owner_id !== viewer.id) {
@@ -5956,6 +5997,51 @@ function sanitizeTags(raw) {
     return;
   }
 
+  // ── API: playtest links (drafts shared by a signed, expiring URL) ──
+  // The link is the credential. Minting is owner-only; playing and feedback
+  // need nothing but a valid token, so testers do not need an account.
+  if (/^\/api\/games\/[^/]+\/playtest$/.test(url.pathname) && req.method === 'POST') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    if (!(await seatAlive(user.id, seatFromReq(req)))) { seatDead(res); return; }
+    if (!(await needVerified(user, res))) return;
+    const gid = url.pathname.split('/')[3];
+    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
+    const { data: g } = await supabase.from('games').select('owner_id').eq('id', gid).single();
+    if (!g) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+    if (g.owner_id !== user.id) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Only the creator can make a playtest link.' })); return; }
+    if (!PLAYTEST_SECRET) { res.writeHead(503, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Playtest links need PLAYTEST_SECRET or a service key.' })); return; }
+    const body = await readBody(req).catch(() => ({}));
+    const days = Math.max(1, Math.min(30, Math.floor(Number(body.days)) || 7));
+    const made = playtestSign(gid, days);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      ok: true, token: made.token, days,
+      expires_at: new Date(made.exp * 1000).toISOString(),
+      url: siteOrigin(req) + '/view.html?id=' + encodeURIComponent(gid) + '&playtest=' + encodeURIComponent(made.token)
+    }));
+    return;
+  }
+  if (/^\/api\/games\/[^/]+\/playtest\/feedback$/.test(url.pathname) && req.method === 'POST') {
+    cors(res);
+    const gid = url.pathname.split('/')[3];
+    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
+    const body = await readBody(req).catch(() => ({}));
+    if (!playtestValid(gid, body.token)) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'This playtest link is invalid or expired.' })); return; }
+    const name = String(body.name || '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 40) || 'A playtester';
+    const text = String(body.text || '').trim().slice(0, 2000);
+    if (text.length < 2) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Write a little feedback first.' })); return; }
+    if (!rateLimit('playtestfb:' + clientIp(req), 8, 600000)) { res.writeHead(429, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Slow down a little.' })); return; }
+    const { data: g } = await supabase.from('games').select('owner_id, title').eq('id', gid).single();
+    if (!g) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+    const { error } = await supabase.from('game_posts').insert({ game_id: gid, body: text, kind: 'feedback', author_name: name });
+    if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not save feedback.' })); return; }
+    if (g.owner_id) notify(g.owner_id, 'comment', name + ' sent playtest feedback', text.slice(0, 180), 'game', gid).catch(() => {});
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
   // ── API: game devlog posts (feature 7) ────────────────────────
   // Markdown posts owned by a game: GET is public on published games,
   // POST is the creator (limit 5/game, rate-limited), DELETE is the
@@ -5965,13 +6051,22 @@ function sanitizeTags(raw) {
     cors(res);
     const gid = devlogMatch[1];
     if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
+    const wantFeedback = new URLSearchParams(url.search).get('feedback') === '1';
     const { data: g } = await supabase.from('games').select('published, owner_id').eq('id', gid).single();
-    if (!g || !g.published) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+    if (!g) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+    if (wantFeedback) {
+      const viewer = await userOf(req);
+      if (!viewer || g.owner_id !== viewer.id) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not your game.' })); return; }
+    } else if (!g.published) {
+      const viewer = await userOf(req);
+      if (!viewer || g.owner_id !== viewer.id) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+    }
     const { data: rows } = await supabase.from('game_posts')
-      .select('id, body, created_at')
+      .select('id, body, created_at, author_name')
       .eq('game_id', gid)
+      .eq('kind', wantFeedback ? 'feedback' : 'post')
       .order('created_at', { ascending: false })
-      .limit(50);
+      .limit(wantFeedback ? 20 : 50);
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
     res.end(JSON.stringify({ posts: rows || [] }));
     return;
@@ -5997,14 +6092,14 @@ function sanitizeTags(raw) {
       res.end(JSON.stringify({ error: 'Body must be 1 to 8000 characters.' }));
       return;
     }
-    const { count } = await supabase.from('game_posts').select('id', { count: 'exact', head: true }).eq('game_id', gid);
+    const { count } = await supabase.from('game_posts').select('id', { count: 'exact', head: true }).eq('game_id', gid).eq('kind', 'post');
     if ((count || 0) >= 5) {
       res.writeHead(409, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'This game already has 5 posts — delete one first.' }));
       return;
     }
     const { data: post, error } = await supabase.from('game_posts')
-      .insert({ game_id: gid, body: text }).select('id, body, created_at').single();
+      .insert({ game_id: gid, body: text, kind: 'post' }).select('id, body, created_at').single();
     if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not save the post.' })); return; }
     try {
       const { data: g } = await supabase.from('games').select('title').eq('id', gid).single();
@@ -6040,9 +6135,12 @@ function sanitizeTags(raw) {
     // Like count + whether this viewer liked it (optional token).
     const viewer = await userOf(req);
     if (viewer && !hasScope(viewer, 'projects:read')) { scopeDenied(res, 'projects:read'); return; }
-    // Drafts ship only to their owner. Anyone else gets the same Not found
-    // whether or not the id exists — never confirm a draft's existence.
-    if (!data.published && (!viewer || data.owner_id !== viewer.id)) {
+    // Drafts ship only to their owner or to a valid playtest link. Anyone
+    // else gets the same Not found whether or not the id exists — never
+    // confirm a draft's existence.
+    const playtestParam = url.searchParams.get('playtest') || '';
+    const viaPlaytest = !data.published && playtestValid(id, playtestParam);
+    if (!data.published && (!viewer || data.owner_id !== viewer.id) && !viaPlaytest) {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Not found' }));
       return;
@@ -6066,7 +6164,7 @@ function sanitizeTags(raw) {
     // A published game plays its shipped release, not the working draft: save
     // freely in Studio and players stay on the build you published. Games with
     // no release yet (published before releases existed) keep serving the row.
-    const out = { ...data, likes: likeCount || 0, liked, playing: liveCount(id), rating_avg: Math.round(avg * 10) / 10, rating_count: ratings.length, my_rating: myRating };
+    const out = { ...data, likes: likeCount || 0, liked, playing: liveCount(id), playtest: viaPlaytest, rating_avg: Math.round(avg * 10) / 10, rating_count: ratings.length, my_rating: myRating };
     if (data.published) {
       const rel = await latestRelease(id);
       if (rel) {

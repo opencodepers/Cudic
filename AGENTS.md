@@ -160,7 +160,7 @@ npm run build        # vite build (lib IIFE) → ../public/islands/  (~5s, 657KB
   then commit the bundle. Bump `islands.js?v=8` + `cudic-islands.css?v=8`
   on the pages that use it after rebuilding.
 - Bump `sidebar.css?v=25` across all pages when editing `public/sidebar.css`
-  — pages cache CSS aggressively. Same for `sidebar.js?v=25` /
+  — pages cache CSS aggressively. Same for `sidebar.js?v=26` /
   `client.js?v=16` after editing those. New shared scripts take `?v=1`
   (`ctheme.js`, `csel.js`).
 - **Test suite exists**: `python tests/run_tests.py` (345 stdlib tests; boots
@@ -216,6 +216,8 @@ public/                   # the classic app (served at Vercel output root)
   docs.html               # /docs knowledge base; docpage.js builds its section nav
   parents.html            # /parents (+ /teachers alias) teachers & parents landing — brand-kit style
   cudic-touch.js          # in-game on-screen D-pad/buttons for phones (CudicTouch)
+  cudic-pad.js            # Gamepad API shim injected into every player frame (CudicPad)
+  cudic-palette.js        # Ctrl/Cmd+K palette, loaded by sidebar.js on railed pages
   sidebar.css  sidebar.js # shared rail nav on every page
   theme-engine.js         # window.CudicTheme — pack boot/apply/install/clear
   config.js  auth.js  client.js   # shared client helpers
@@ -349,6 +351,9 @@ POST/DELETE /api/follow/:id        ← one-way follow (30/h). GET /api/feed (me+
 GET  /api/badges                   ← public award catalog + equip caps
 GET  /api/feed/games               ← follow feed SHELF: newest published games by
                                     who this viewer follows (distinct from /api/feed)
+POST /api/games/:id/playtest       ← owner: signed, expiring draft link (HMAC, no row)
+POST /api/games/:id/playtest/feedback ← token-only feedback → game_posts (kind=feedback)
+GET  /updlog.xml                   ← RSS 2.0 of the update log (Vercel rewrite → Render)
 GET  /api/jam                      ← PUBLIC jam standings for this week
 GET  /api/race                     ← PUBLIC creator-race standings (GET is
                                   authless; optional Bearer adds `me` {place,
@@ -731,7 +736,21 @@ them, deduping same-(user,kind,ref) within 24h. RLS enabled, no policies
 `public.changelog` backs `/updlog`. Seeded from git history (256 commits);
 future commits auto-post via `POST /api/webhooks/github` (HMAC-verified with
 `GITHUB_WEBHOOK_SECRET`) and a mod fallback `POST /api/mod/changelog/sync`
-(needs `GITHUB_TOKEN`). Mod-only `POST /api/changelog` for hand-written entries.
+(reads `GITHUB_PAT`, the mod's connected GitHub account, or no token at all on
+the public repo). Mod-only `POST /api/changelog` for hand-written entries.
+`GET /updlog.xml` is the RSS 2.0 view (newest 50, entry anchors `#e-<id>`),
+rewritten by Vercel to Render. Synced rows carry `author_name`; the UI falls
+back to it before the generic `team` label.
+
+### Playtest links (`migration/playtest-feedback.sql`)
+
+Draft games can be shared with `POST /api/games/:id/playtest` (owner only):
+the token is `exp.hmac(game id + expiry)` signed with `PLAYTEST_SECRET` (or the
+webhook/service key), so nothing is stored and rotating the secret revokes
+every link. `GET /api/games/:id?playtest=…` and the thumbnail route accept it
+for unpublished games. Feedback posts into `game_posts` with `kind='feedback'`
+and `author_name`; the public devlog reads only `kind='post'`, while the owner
+reads `GET /api/games/:id/devlog?feedback=1`. The migration adds both columns.
 RLS on, no policies — `20261029150000_changelog.sql` +
 `20261029160000_changelog_commit_sha.sql`.
 
@@ -1353,7 +1372,7 @@ grid-led, Geist everywhere. Read it before building any public surface. Headline
 9. **Bash, not PowerShell** — `&&`, `$(...)` and POSIX paths work. A note here
   saying otherwise is stale (section 0.2).
 10. **CSS/JS cache** — bump the `?v=` on every page after editing a shared file.
-  Current: `sidebar.css?v=25`, `sidebar.js?v=25`, `client.js?v=16`,
+  Current: `sidebar.css?v=25`, `sidebar.js?v=26`, `client.js?v=16`,
   `islands.js?v=8`, `docpage.css?v=7` (new shared scripts start at `?v=1`).
   `tools/check-docs.py` fails when this line and the pages disagree.
 11. **Restart the server** after any `server.js` edit; **rebuild Studio** after any

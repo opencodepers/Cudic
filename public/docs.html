@@ -310,6 +310,12 @@ confetti({ particleCount: 120 })</pre>
                         <li>The top of a game page shows a <strong>live strip</strong> with how many people are in the game's multiplayer rooms right now.</li>
                         <li>Games play in a sandboxed frame, so nothing in your game can reach your Cudic session. That's why saved progress is handled by Cudic rather than the game (see <a href="#saves">Cloud saves</a>).</li>
                     </ul>
+                    <h3>Playtest links</h3>
+                    <ul>
+                        <li>On your game page, <strong>Playtest link → Create 7-day link</strong> gives you a signed URL for the draft. Anyone with it can play; the game never appears in the gallery, search or your profile.</li>
+                        <li>Links expire (1–30 days) and old links stop working then. Make a new one whenever you want; changing <code>PLAYTEST_SECRET</code> invalidates every existing link.</li>
+                        <li>Testers get a feedback box on the page. Their notes land in the game's devlog card, marked <strong>Playtest feedback</strong> — only you see that section; it is never part of the public devlog.</li>
+                    </ul>
                     <h3>Finding games</h3>
                     <ul>
                         <li>The <strong>search box</strong> matches names and descriptions, and the filter lives in the page address so a search can be shared. The <strong>sort menu</strong> flips between newest, trending, oldest and A–Z.</li>
@@ -352,6 +358,11 @@ confetti({ particleCount: 120 })</pre>
                     </ul>
                 </section>
 
+                <section id="palette" data-group="Play">
+                    <h2>Find anything (Ctrl+K)</h2>
+                    <p>Press <code>Ctrl+K</code> (or <code>⌘K</code>) on any main page — including this one — for a search box over games, creators, forum threads and pages. Type, use <code>↑</code>/<code>↓</code>, press <code>Enter</code> to open, <code>Esc</code> to close. It is the fastest way to jump to a page or a game without going back to the rail.</p>
+                </section>
+
                 <section id="touch" data-group="Play">
                     <h2>Touch controls for phones</h2>
                     <p>Most players who tap your game link are on a phone, where the keyboard doesn't exist. <code>cudic-touch.js</code> adds an on-screen D-pad and actions button that turn taps into ordinary key events:</p>
@@ -362,6 +373,22 @@ confetti({ particleCount: 120 })</pre>
                         <li>Games need no changes: a press sends one <code>keydown</code>, a release one <code>keyup</code> (with <code>key</code>, <code>code</code> and <code>keyCode</code>), so any game listening to arrows, WASD or Space plays unedited.</li>
                         <li>Multitouch support: hold two D-pad directions for diagonals.</li>
                     </ul>
+                </section>
+
+                <section id="pad" data-group="Play">
+                    <h2>Gamepad support</h2>
+                    <p>Controllers work in the player with no extra tag: <code>cudic-pad.js</code> is injected into every game frame. Read it from your game's code:</p>
+                    <ul>
+                        <li><code>CudicPad.get()</code> returns <code>{ id, axes, buttons }</code> for the first connected pad (or pass an index). Poll it in your game loop; <code>buttons[i].pressed</code> and <code>.value</code> are standard Gamepad API values.</li>
+                        <li>Events: <code>CudicPad.on('buttondown', fn)</code> / <code>'buttonup'</code> / <code>'axischanged'</code> / <code>'connect'</code> / <code>'disconnect'</code>. <code>CudicPad.start()</code>/<code>stop()</code> control the polling loop; <code>CudicPad.supported</code> is false on browsers without the API.</li>
+                        <li>Standard mapping: 0 A, 1 B, 2 X, 3 Y, 4 LB, 5 RB, 6 LT, 7 RT, 8 Back, 9 Start, 10/11 stick clicks, 12–15 D-pad; axes 0/1 are the left stick, 2/3 the right. Analog axes respect <code>CudicPad.deadzone</code> (0.18).</li>
+                        <li>Nothing is stored or sent: the shim only reads <code>navigator.getGamepads()</code> inside the sandboxed game frame.</li>
+                    </ul>
+                </section>
+
+                <section id="updlog" data-group="Play">
+                    <h2>Update log &amp; RSS</h2>
+                    <p><a href="/updlog">/updlog</a> lists what shipped, newest first. Every entry also has an anchor, and the whole log is an RSS 2.0 feed at <a href="/updlog.xml">/updlog.xml</a> — paste it into any reader to follow releases without an account.</p>
                 </section>
 
                 <section id="clip" data-group="Play">
@@ -684,6 +711,7 @@ confetti({ particleCount: 120 })</pre>
     <script src="/theme-toggle.js?v=2"></script>
     <script src="/ads.js?v=1" defer></script>
 
-<script src="/cudic-modals.js?v=3"></script></body>
+<script src="/cudic-modals.js?v=3"></script><script src="/cudic-palette.js?v=1" defer></script>
+</body>
 
 </html>

@@ -276,7 +276,10 @@ window.addEventListener('message', async (e) => {
   // reach the game canvas). It answers the page's cudic-clip-start and posts
   // the finished Blob back.
   const clipTag = '<script src="/cudic-clip.js?v=1"><\/script>';
-  const fwd = clipTag + '<script>["log","warn","error"].forEach(function(k){var o=console[k];console[k]=function(){var t=Array.prototype.map.call(arguments,String).join(" ");parent.postMessage({type:"console",level:k==="log"?"info":k,text:t},"*");o.apply(console,arguments)}});window.addEventListener("error",function(e){parent.postMessage({type:"console",level:"error",text:e.message},"*")})<\/script>' + lsShim + binTag + projTag + mapTag;
+  // Gamepad shim: CudicPad lives in the game document like CudicTouch, so a
+  // controller read never needs the parent page to mediate.
+  const padTag = '<script src="/cudic-pad.js?v=1"><\/script>';
+  const fwd = clipTag + padTag + '<script>["log","warn","error"].forEach(function(k){var o=console[k];console[k]=function(){var t=Array.prototype.map.call(arguments,String).join(" ");parent.postMessage({type:"console",level:k==="log"?"info":k,text:t},"*");o.apply(console,arguments)}});window.addEventListener("error",function(e){parent.postMessage({type:"console",level:"error",text:e.message},"*")})<\/script>' + lsShim + binTag + projTag + mapTag;
   parent.postMessage({ type: 'console', level: 'info', text: 'Running' }, '*');
   // ponytail: doctype must stay first or the frame renders in quirks mode
   const doc = (/^\s*<!doctype html>/i.test(index))

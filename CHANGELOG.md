@@ -8,6 +8,13 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Playtests, RSS, gamepads and a site-wide palette**
+
+- **Playtest links**: a game page now has an owner-only **Playtest link → Create 7-day link**. The server signs an expiring token, so anyone holding the URL can play the unpublished build without it appearing in the gallery, search or your profile. Testers get a feedback box; their notes land in the game's devlog card under **Playtest feedback**, visible only to the creator.
+- **Update log RSS**: `/updlog` is now subscribable at `/updlog.xml` (RSS 2.0, newest 50 entries, anchors on every post). A Vercel rewrite points the feed at the API, so readers work without an account.
+- **Gamepad support (`CudicPad`)**: every player frame now loads `cudic-pad.js`. Games can poll `CudicPad.get()` for axes/buttons or subscribe to `buttondown`, `buttonup`, `axischanged`, `connect` and `disconnect`; no parent-page mediation, and nothing leaves the sandboxed frame.
+- **Ctrl+K command palette**: press `Ctrl+K` (or `⌘K`) on any main page to jump to a page or search games, creators and forum threads live. The palette loads with the rail, so no per-page setup; it is also on `/docs`, creator pages, `/faq` and `/parents`.
+
 **Update log sync**
 
 - **“Sync from GitHub” works in production again**: the button read `GITHUB_TOKEN`, an env var this project never sets, so every moderator got the red “Set GITHUB_TOKEN in Render env” error. It now accepts `GITHUB_TOKEN` or `GITHUB_PAT`, falls back to the signed-in moderator's connected GitHub account, and syncs the public repo with no token at all — so a moderator without a GitHub connection is not blocked. It also fetches `opencodepers/Cudic` instead of the old `nathent2023-glitch/Cudic` owner, which 404s even with a valid token. `GITHUB_REPO` can point a fork elsewhere.

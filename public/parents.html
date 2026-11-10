@@ -255,5 +255,6 @@ rv.forEach(function(e){e.classList.add('rv')});
 if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(x){if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target)}})},{threshold:.05});rv.forEach(function(e){io.observe(e)})}else rv.forEach(function(e){e.classList.add('in')});
 </script>
 <script src="/theme-toggle.js?v=2"></script>
-<script src="/cudic-modals.js?v=3"></script></body>
+<script src="/cudic-modals.js?v=3"></script><script src="/cudic-palette.js?v=1" defer></script>
+</body>
 </html>

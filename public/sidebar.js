@@ -488,3 +488,7 @@
 
 /* Animated theme toggler on every page (Magic UI pattern; fab on rail-less pages). */
 (function(){var s=document.createElement('script');s.src='/theme-toggle.js?v=1';document.head.appendChild(s);})();
+
+/* Site-wide command palette (Ctrl/Cmd+K) — loaded with the rail so every
+   page that has nav gets it without its own script tag. */
+(function(){ if (window.CudicPalette || document.querySelector('script[data-cudic-palette]')) return; var s=document.createElement('script'); s.src='/cudic-palette.js?v=1'; s.defer=true; s.setAttribute('data-cudic-palette',''); document.head.appendChild(s); })();

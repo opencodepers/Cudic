@@ -87,6 +87,7 @@
     .clip-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
     .clip-row .hint { font-size: 0.76rem; color: var(--text-tertiary); flex: 1; min-width: 180px; }
     .clip-row .hint b { color: var(--text-primary); font-weight: 600; }
+    .fb-input { width: 100%; box-sizing: border-box; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 0.83rem; font-family: inherit; padding: 9px 12px; margin: 8px 0; outline: none; resize: vertical; }
   </style><link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
 </head>
 <body data-page="games">
@@ -94,6 +95,7 @@
     <div class="game-head">
       <a class="btn btn-secondary" href="/games" style="padding:9px 14px">&larr; Gallery</a>
       <h1 id="gameTitle">Loading…</h1>
+      <span id="playtestBadge" class="live-pill" style="display:none">Playtest build</span>
       <div class="author"><div class="author-avatar" id="authorAvatar">?</div><span id="authorName"></span><button class="btn btn-secondary" id="followAuthorBtn" style="display:none;padding:5px 12px;font-size:0.72rem" title="Follow this creator — their new games land on your homepage shelf">Follow</button></div>
       <div class="spacer"></div>
       <button class="btn btn-secondary" id="scrollBtn" title="Allow the game page to scroll (for website-style games)">Scroll: off</button>
@@ -194,6 +196,24 @@
         <p class="dim" id="devlogMsg" style="margin-top:6px"></p>
       </div>
     </div>
+    <div class="side-card" id="playtestCard" style="display:none;margin-top:20px">
+      <h2>Playtest link</h2>
+      <p class="dim" style="font-size:0.82rem">A private, expiring link to this draft. Anyone with it can play and leave feedback — it never lists in the gallery.</p>
+      <button class="btn btn-primary" id="playtestMake" style="margin-top:10px;padding:7px 14px;font-size:0.78rem">Create 7-day link</button>
+      <p class="dim" id="playtestMsg" style="font-size:0.78rem;margin-top:8px"></p>
+      <div id="playtestOut" style="display:none;margin-top:10px">
+        <div class="share-row"><input type="text" id="playtestUrl" readonly><button class="btn btn-secondary" id="playtestCopy" style="width:auto">Copy</button></div>
+        <p class="dim" id="playtestExp" style="font-size:0.75rem"></p>
+      </div>
+    </div>
+    <div class="side-card" id="feedbackCard" style="display:none;margin-top:20px">
+      <h2>Playtest feedback</h2>
+      <p class="dim" style="font-size:0.82rem">This build isn't published. Tell the creator what broke or felt off.</p>
+      <input type="text" id="fbName" class="fb-input" maxlength="40" placeholder="Your name (optional)">
+      <textarea id="fbText" class="fb-input" rows="4" maxlength="2000" placeholder="What worked, what didn't?"></textarea>
+      <button class="btn btn-primary" id="fbSend" style="margin-top:2px">Send feedback</button>
+      <p class="dim" id="fbMsg" style="font-size:0.78rem;margin-top:8px"></p>
+    </div>
     <div class="side-card" id="scoresCard" style="display:none;margin-top:20px">
       <h2>Leaderboard <span class="dim" style="font-weight:400;font-size:0.78rem;color:var(--text-tertiary)">best run per player</span></h2>
       <div id="scoreTabs" style="display:none;gap:6px;margin-bottom:8px">
@@ -278,11 +298,12 @@
   </div></div>
   <script src="/config.js"></script>
   <script src="/auth.js"></script>
-  <script src="/sidebar.js?v=25"></script>
+  <script src="/sidebar.js?v=26"></script>
   <script src="/islands/islands.js?v=8"></script>
   <script>
   (function(){
     var id = new URLSearchParams(location.search).get('id');
+    var playtest = new URLSearchParams(location.search).get('playtest') || '';
     var api = '';
     var game = null;
     function apiBase(){
@@ -517,7 +538,7 @@ setInterval(function () {
       // Published games share as the short /g/<id> link — it renders real OG
       // tags for Discord/X/Slack previews. Drafts keep the plain /view link
       // because /g refuses unpublished games.
-      pageUrl = location.origin + ((game ? !!game.published : true) ? '/g/' : '/view?id=') + encodeURIComponent(id);
+      pageUrl = location.origin + ((game ? !!game.published : true) ? '/g/' : '/view?id=') + encodeURIComponent(id) + (game && !game.published && playtest ? '&playtest=' + encodeURIComponent(playtest) : '');
       document.getElementById('shareLink').value = pageUrl;
       if ((navigator.maxTouchPoints || 0) > 0 && navigator.share) {
         navigator.share({ title: document.title, url: pageUrl }).catch(function(){});
@@ -551,6 +572,10 @@ setInterval(function () {
               isOwner = true;
               document.getElementById('studioBtn').style.display = '';
               document.getElementById('editGameBtn').style.display = '';
+              var ptCard = document.getElementById('playtestCard');
+              if (ptCard) ptCard.style.display = '';
+              var fbCard = document.getElementById('feedbackCard');
+              if (fbCard) fbCard.style.display = 'none';
               // Devlog composer lives in the game-load closure; the event is
               // the only way this earlier function can reach it.
               try { window.dispatchEvent(new Event('cudic-owner-yes')); } catch (e) {}
@@ -559,6 +584,56 @@ setInterval(function () {
         }).catch(function(){});
       } catch (e) {}
     }
+    // Playtest link (owner only). The server signs the token; this page only
+    // asks for it and shows the URL to copy.
+    var ptMake = document.getElementById('playtestMake');
+    if (ptMake) ptMake.addEventListener('click', function () {
+      var msg = document.getElementById('playtestMsg');
+      ptMake.disabled = true;
+      getSession().then(function (s) {
+        if (!s) { ptMake.disabled = false; window.location.href = '/login'; return; }
+        fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/playtest', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+          body: '{}'
+        }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+          .then(function (res) {
+            ptMake.disabled = false;
+            if (!res.ok) { msg.textContent = res.j.error || 'Could not create a link.'; return; }
+            document.getElementById('playtestUrl').value = res.j.url;
+            var when = '';
+            try { when = new Date(res.j.expires_at).toLocaleString(); } catch (e) {}
+            document.getElementById('playtestExp').textContent = 'Expires ' + when + ' — anyone with it can play this draft.';
+            document.getElementById('playtestOut').style.display = '';
+            msg.textContent = 'Link ready.';
+          }).catch(function () { ptMake.disabled = false; msg.textContent = 'Network error.'; });
+      });
+    });
+    var ptCopy = document.getElementById('playtestCopy');
+    if (ptCopy) ptCopy.addEventListener('click', function () {
+      copyText(document.getElementById('playtestUrl').value, this);
+    });
+
+    // Playtest feedback (anyone holding a valid link).
+    var fbSend = document.getElementById('fbSend');
+    if (fbSend) fbSend.addEventListener('click', function () {
+      var msg = document.getElementById('fbMsg');
+      var text = (document.getElementById('fbText').value || '').trim();
+      if (!text) { msg.textContent = 'Write a little feedback first.'; return; }
+      fbSend.disabled = true;
+      fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/playtest/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: playtest, name: (document.getElementById('fbName').value || '').trim(), text: text })
+      }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+          fbSend.disabled = false;
+          if (!res.ok) { msg.textContent = res.j.error || 'Could not send.'; return; }
+          document.getElementById('fbText').value = '';
+          msg.textContent = 'Sent — thanks! The creator sees this in their devlog.';
+        }).catch(function () { fbSend.disabled = false; msg.textContent = 'Network error.'; });
+    });
+
     // Edit game modal
     var editModal = document.getElementById('editModal');
     document.getElementById('editGameBtn').addEventListener('click', function(){
@@ -761,11 +836,17 @@ setInterval(function () {
       title.parentNode.insertBefore(el, title.nextSibling);
     }
 
-    fetch(apiBase() + '/api/games/' + encodeURIComponent(id))
+    fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + (playtest ? '?playtest=' + encodeURIComponent(playtest) : ''))
       .then(function(r){ return r.json(); })
       .then(function(d){
         game = d.game || null;
         if (!game) { document.getElementById('overlayText').textContent = 'Game not found'; return; }
+        if (playtest && game.playtest) {
+          var ptBadge = document.getElementById('playtestBadge');
+          if (ptBadge) ptBadge.style.display = '';
+          var fbCard = document.getElementById('feedbackCard');
+          if (fbCard) fbCard.style.display = '';
+        }
         var files = game.files;
         if (typeof files === 'string') { try { files = JSON.parse(files); } catch (e) { files = null; } }
         // scene-JSON games open in Studio, which converts them to files on boot
@@ -1010,8 +1091,60 @@ setInterval(function () {
                 list.appendChild(item);
               });
               if (isO && form) form.style.display = '';
+              if (isO) paintFeedback();
             })
             .catch(function () {});
+        }
+        // Playtest feedback shares the devlog table but is owner-only. The
+        // public feed above never includes it.
+        function paintFeedback() {
+          if (!isOwner) return;
+          var card = document.getElementById('devlogCard');
+          var list = document.getElementById('devlogList');
+          if (!card || !list) return;
+          getSession().then(function (s) {
+            if (!s) return;
+            fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/devlog?feedback=1', { headers: { 'Authorization': 'Bearer ' + s.token } })
+              .then(function (r) { return r.ok ? r.json() : { posts: [] }; })
+              .then(function (res) {
+                var old = document.getElementById('devlogFeedback');
+                if (old) old.remove();
+                var rows = (res && res.posts) || [];
+                if (!rows.length) return;
+                card.style.display = '';
+                var wrap = document.createElement('div');
+                wrap.id = 'devlogFeedback';
+                var h = document.createElement('h3');
+                h.textContent = 'Playtest feedback';
+                h.style.cssText = 'font-size:0.78rem;color:var(--text-secondary);margin:14px 0 4px';
+                wrap.appendChild(h);
+                rows.forEach(function (p) {
+                  var item = document.createElement('div');
+                  item.style.cssText = 'padding:10px 0;border-top:1px solid var(--line)';
+                  var head = document.createElement('div');
+                  head.className = 'dim';
+                  head.style.cssText = 'font-size:0.75rem;margin-bottom:4px';
+                  head.textContent = (p.author_name || 'A playtester') + (p.created_at ? ' · ' + new Date(p.created_at).toLocaleDateString() : '');
+                  var body = document.createElement('div');
+                  body.style.cssText = 'font-size:0.85rem;white-space:pre-wrap;word-break:break-word';
+                  body.textContent = p.body || '';
+                  var del = document.createElement('button');
+                  del.className = 'btn btn-secondary';
+                  del.style.cssText = 'margin-top:6px;font-size:0.75rem;padding:2px 10px';
+                  del.textContent = 'Delete feedback';
+                  del.addEventListener('click', function () {
+                    if (!confirm('Delete this feedback?')) return;
+                    fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/devlog/' + encodeURIComponent(p.id), { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + s.token } })
+                      .then(function () { paintFeedback(); })
+                      .catch(function () {});
+                  });
+                  item.append(head, body, del);
+                  wrap.appendChild(item);
+                });
+                list.appendChild(wrap);
+              })
+              .catch(function () {});
+          });
         }
         paintDevlog(false);
         window.addEventListener('cudic-owner-yes', function () { paintDevlog(true); });

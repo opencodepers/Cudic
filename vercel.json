@@ -36,6 +36,7 @@
     { "source": "/moderate", "destination": "/moderate.html" },
 { "source": "/grant", "destination": "/grant.html" },
 { "source": "/updlog", "destination": "/updlog.html" },
+    { "source": "/updlog.xml", "destination": "https://glox-o7rr.onrender.com/updlog.xml" },
     { "source": "/studio", "destination": "/studio/index.html" },
     { "source": "/g/:id/thumb", "destination": "https://glox-o7rr.onrender.com/g/:id/thumb" },
     { "source": "/g/:id", "destination": "https://glox-o7rr.onrender.com/g/:id" }
