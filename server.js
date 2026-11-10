@@ -3803,7 +3803,7 @@ function sanitizeTags(raw) {
   }
 
   // ── Update log RSS (public, cached five minutes) ──────────────
-  if (url.pathname === '/updlog.xml' && req.method === 'GET') {
+  if (url.pathname === '/updlog.xml' && (req.method === 'GET' || req.method === 'HEAD')) {
     const { data } = await supabase.from('changelog')
       .select('id, title, body, created_at')
       .order('created_at', { ascending: false }).limit(50);
@@ -3811,7 +3811,8 @@ function sanitizeTags(raw) {
     const xml = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]));
     const items = (data || []).map((e) => '<item><title>' + xml(e.title) + '</title><link>' + base + '/updlog#e-' + encodeURIComponent(e.id) + '</link><guid isPermaLink="false">' + xml(e.id) + '</guid><pubDate>' + new Date(e.created_at).toUTCString() + '</pubDate><description>' + xml(e.body || '') + '</description></item>').join('');
     res.writeHead(200, { 'Content-Type': 'application/rss+xml; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
-    res.end('<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Cudic — Update log</title><link>' + base + '/updlog</link><description>What is new in Cudic.</description><language>en</language>' + items + '</channel></rss>');
+    const rss = '<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Cudic — Update log</title><link>' + base + '/updlog</link><description>What is new in Cudic.</description><language>en</language>' + items + '</channel></rss>';
+    res.end(req.method === 'HEAD' ? undefined : rss);
     return;
   }
   if (url.pathname === '/api/changelog' && req.method === 'POST') {
