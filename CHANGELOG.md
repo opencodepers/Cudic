@@ -8,6 +8,11 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Continue playing**
+
+- **The gallery remembers where you were**: `/games` opens with a **Continue playing** shelf — the last eight games this account opened, newest first, each card stamped with how long ago you played it (`2h ago`, `3d ago`). It reads a new `game_plays` table filled by `POST /api/games/:id/play`, so the shelf follows the login across devices instead of the browser; it hides itself for guests and empty accounts, and unpublishing a game drops it from the shelf.
+- **The play ping now carries the session** (`public/view.html`), which is what makes the shelf account-bound: guests still bump `play_count` with no auth header.
+
 **Playtests, RSS, gamepads and a site-wide palette**
 
 - **Playtest links**: a game page now has an owner-only **Playtest link → Create 7-day link**. The server signs an expiring token, so anyone holding the URL can play the unpublished build without it appearing in the gallery, search or your profile. Testers get a feedback box; their notes land in the game's devlog card under **Playtest feedback**, visible only to the creator.

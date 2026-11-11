@@ -137,6 +137,32 @@
         .prompt-text { font-weight: 600; color: var(--text-primary); }
         .prompt-hint { font-size: 0.85rem; color: var(--text-tertiary); margin-top: 2px; }
 
+        /* ── Continue playing: the games this account last opened ── */
+        .continue { margin-bottom: 18px; }
+        .continue-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+        .continue-head h2 { font-size: 0.95rem; font-weight: 600; letter-spacing: -0.01em; color: var(--text-primary); }
+        .continue-head .mono {
+            font-family: "Geist Mono", ui-monospace, monospace;
+            font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase;
+            color: var(--text-tertiary);
+        }
+        .continue-strip {
+            display: grid; grid-auto-flow: column; grid-auto-columns: 220px;
+            gap: 14px; overflow-x: auto; padding-bottom: 4px;
+            scrollbar-width: thin;
+        }
+        .cont-item { position: relative; display: flex; min-width: 0; }
+        .cont-item .game-card { flex: 1; min-width: 0; }
+        .cont-time {
+            position: absolute; top: 8px; right: 8px; pointer-events: none;
+            font-family: "Geist Mono", ui-monospace, monospace;
+            font-size: 0.62rem; letter-spacing: 0.05em;
+            color: #4a4a46; background: rgba(255, 255, 255, 0.88);
+            border: 1px solid rgba(0, 0, 0, 0.12); border-radius: 999px;
+            padding: 3px 8px;
+        }
+        @media (max-width: 640px) { .continue-strip { grid-auto-columns: 78%; } }
+
         .findlink {
             border: 0;
             background: none;
@@ -496,6 +522,15 @@
                 </div>
                 <a class="btn btn-secondary" href="/studio" style="text-decoration:none">Build it</a>
             </section>
+
+            <section class="continue" id="continueShelf" hidden aria-label="Continue playing">
+                <div class="continue-head">
+                    <h2>Continue playing</h2>
+                    <span class="mono" id="continueCount"></span>
+                </div>
+                <div class="continue-strip" id="continueStrip"></div>
+            </section>
+
             <div class="ad-frame ad-leaderboard"><span class="ad-cap" aria-hidden="true">Advertisement</span><script>
   atOptions = {
     'key' : 'aa54ebd8c3acf5d1bbeb740803efce87',
@@ -823,6 +858,60 @@ async function loadMine() { var token = await getToken(); if (!token) { showEmpt
         card.dataset.ready = '1';
         card.style.display = (window._tab === 'mine') ? 'none' : '';
       }).catch(function () {});
+    })();
+    </script>
+<script>
+    /* file: public/games.html (section)
+     * what: "Continue playing" — the last few games this account opened, from
+     *   GET /api/games/continue (game_plays, filled by POST /api/games/:id/play).
+     * invariants: hidden for guests, for an empty list, and while "Your Projects"
+     *   is the open tab; cards reuse cardHtml() so the shelf cannot drift from
+     *   the grid. A missing game_plays table just yields an empty shelf.
+     * see: supabase/migrations/20261111120000_game_plays.sql
+     */
+    (function () {
+        var shelf = document.getElementById('continueShelf');
+        var strip = document.getElementById('continueStrip');
+        var count = document.getElementById('continueCount');
+        if (!shelf || !strip) return;
+        var filled = false;
+
+        function ago(iso) {
+            var t = new Date(iso).getTime();
+            if (!t) return '';
+            var m = Math.round((Date.now() - t) / 60000);
+            if (m < 1) return 'just now';
+            if (m < 60) return m + 'm ago';
+            var h = Math.round(m / 60);
+            if (h < 24) return h + 'h ago';
+            var d = Math.round(h / 24);
+            if (d < 7) return d + 'd ago';
+            try { return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' }); }
+            catch (e) { return ''; }
+        }
+
+        function paint(games) {
+            if (!games || !games.length) { shelf.hidden = true; return; }
+            strip.innerHTML = games.map(function (g) {
+                var when = ago(g.played_at);
+                return '<div class="cont-item">' + cardHtml(g, false) +
+                    (when ? '<span class="cont-time">' + escapeHtml(when) + '</span>' : '') + '</div>';
+            }).join('');
+            count.textContent = games.length === 1 ? '1 game' : games.length + ' games';
+            filled = true;
+            shelf.hidden = window._tab === 'mine';
+        }
+
+        getToken().then(function (tk) {
+            if (!tk) return; // guests have no shelf — their plays still count
+            return fetch(apiBase + '/api/games/continue', {
+                headers: { 'Authorization': 'Bearer ' + tk }
+            }).then(function (r) { return r.ok ? r.json() : null; })
+              .then(function (d) { paint(d && d.games); });
+        }).catch(function () {});
+
+        document.getElementById('tabMine').addEventListener('click', function () { shelf.hidden = true; });
+        document.getElementById('tabBrowse').addEventListener('click', function () { if (filled) shelf.hidden = false; });
     })();
     </script>
 <script src="/cudic-modals.js?v=3"></script></body>

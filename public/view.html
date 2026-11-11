@@ -501,7 +501,25 @@ setInterval(function () {
     // the same room without each game hardcoding a code.
     var roomParam = new URLSearchParams(location.search).get('room');
     function countPlay() {
-      fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/play', { method: 'POST' })
+      // Send the session when there is one. A signed-in play also lands in
+      // game_plays, which is what the gallery's "Continue playing" shelf reads;
+      // guests still bump play_count with no auth header, exactly as before.
+      function sessionToken() {
+        if (window.getAuthToken) {
+          try { return Promise.resolve(window.getAuthToken()).catch(function () { return null; }); }
+          catch (e) { return Promise.resolve(null); }
+        }
+        try {
+          var raw = localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token');
+          var s = raw ? JSON.parse(raw) : null;
+          return Promise.resolve((s && s.access_token) || null);
+        } catch (e) { return Promise.resolve(null); }
+      }
+      sessionToken().then(function (tk) {
+        var opts = { method: 'POST' };
+        if (tk) opts.headers = { 'Authorization': 'Bearer ' + tk };
+        return fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/play', opts);
+      })
         .then(function (r) { return r.json(); })
         .then(function (d) { if (d && typeof d.plays === 'number') paintPlays(d.plays); })
         .catch(function () {});

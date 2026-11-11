@@ -5379,6 +5379,33 @@ function sanitizeTags(raw) {
     return;
   }
 
+  // ── API: recently played ─────────────────────────────────────────
+  // Backs the gallery's "Continue playing" shelf: the games this account last
+  // opened, newest first. Published only — unpublishing a game hides it from
+  // the shelf the same way it hides it from the gallery. Reads game_plays,
+  // which POST /api/games/:id/play fills. Before that migration runs the table
+  // is missing, so this answers with an empty shelf instead of a 500 and the
+  // page simply shows nothing.
+  if (url.pathname === '/api/games/continue' && req.method === 'GET') {
+    cors(res);
+    const user = await userOf(req);
+    if (!user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+    const { data: rows } = await supabase
+      .from('game_plays')
+      .select('played_at, games!inner(id, title, description, thumbnail, tags, play_count, owner_id, forked_from, forked_from_title, created_at, updated_at, users!owner_id(display_name, user_id, avatar_url))')
+      .eq('user_id', user.id)
+      .eq('games.published', true)
+      .order('played_at', { ascending: false })
+      .limit(8);
+    const games = (rows || []).map(r => {
+      const g = Array.isArray(r.games) ? r.games[0] : r.games;
+      return g ? { ...g, played_at: r.played_at } : null;
+    }).filter(Boolean);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ games }));
+    return;
+  }
+
   if (url.pathname === '/api/games/mine' && req.method === 'GET') {
     cors(res);
     const user = await userOf(req);
@@ -6250,6 +6277,19 @@ function sanitizeTags(raw) {
     const token = authHeader.replace('Bearer ', '');
     const { data: { user } } = token ? await supabase.auth.getUser(token) : { data: { user: null } };
     if (!g || !(g.published || (user && g.owner_id === user.id))) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+    // Recently-played ledger for the gallery's "Continue playing" shelf.
+    // Guests only bump the counter; a signed-in play is remembered per game,
+    // and re-opening a game refreshes the timestamp instead of adding a row.
+    // Never awaited for long and never fatal: a database without game_plays
+    // (before the migration runs) just records nothing, and the play still counts.
+    if (user) {
+      try {
+        await supabase.from('game_plays').upsert(
+          { user_id: user.id, game_id: gid, played_at: new Date().toISOString() },
+          { onConflict: 'user_id,game_id' }
+        );
+      } catch (e) { /* shelf stays empty, play_count already bumped */ }
+    }
     // One play per game per browser per hour: a reload shouldn't inflate it.
     const key = 'play:' + clientIp(req) + ':' + gid;
     if (!rateLimit(key, 1, 3600000)) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true })); return; }
