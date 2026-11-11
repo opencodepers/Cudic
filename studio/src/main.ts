@@ -4,8 +4,10 @@
  *   top-bar buttons, registers Cudic's commands and keybindings.
  * invariants: Ctrl+S stays bound to glox.saveProject inside initUserKeybindings —
  *   the built-in files.save is not wired up, so an unbound Ctrl+S is a silent
- *   no-op. The old purple cube icon is gone from the chrome; don't bring it back.
- *   Any edit here needs `cd studio && npm run build`.
+ *   no-op. READ_ONLY must lock every code editor, including ones opened later,
+ *   or "See inside" is a read-only label on an editable file. The old purple
+ *   cube icon is gone from the chrome; don't bring it back. Any edit here needs
+ *   `cd studio && npm run build`.
  * see: AGENTS.md 12.17, 12.22 */
 
 // Cudic Studio Phase 1 — workbench shell + built-in Cudic panels
@@ -27,6 +29,8 @@ import extensionHostWorkerUrl from '@codingame/monaco-vscode-api/workers/extensi
 // the workbench, no vsix, cannot be uninstalled.
 import './glox';
 import { seedPreviewDoc } from './glox';
+import { icon, type IconName } from './icons';
+import { openProjectPicker } from './projects';
 import './style.css';
 import {
   bootProject,
@@ -148,7 +152,16 @@ win.MonacoEnvironment = {
 // Dark default before init (prevents theme flicker)
 await Promise.all([
   initUserConfiguration(
-    JSON.stringify({ 'workbench.colorTheme': 'Default Dark+', 'workbench.iconTheme': 'vs-seti', 'editor.fontSize': 13 })
+    JSON.stringify({
+      'workbench.colorTheme': 'Default Dark+',
+      'workbench.iconTheme': 'vs-seti',
+      'editor.fontSize': 13,
+      // The workspace has to be read-only before the first editor is created.
+      // Monaco's readOnly option alone leaves the native edit context able to
+      // accept text, so mark every workspace file in VS Code's own config and
+      // let the workbench derive editor read-only from the file.
+      ...(READ_ONLY ? { 'files.readonlyInclude': { '**/*': true } } : {})
+    })
   ),
   // Desktop VS Code (incl. Simple Browser) swallows Ctrl+Shift+P, so our own
   // palette gets an unbound-by-default chord that passes through to the page.
@@ -249,6 +262,21 @@ await initializeMonacoService(
   constructOptions,
   envOptions
 );
+
+// "See inside" is a read, not a silent edit: block typing in every code
+// editor, including files opened after boot. Save/publish guards alone let the
+// model accept keystrokes that could never be persisted.
+if (READ_ONLY) {
+  const lockEditor = (editor: monaco.editor.ICodeEditor): void => {
+    editor.updateOptions({
+      readOnly: true,
+      domReadOnly: true,
+      readOnlyMessage: { value: 'Read-only — fork this game to edit.' }
+    });
+  };
+  monaco.editor.onDidCreateEditor(lockEditor);
+  for (const editor of monaco.editor.getEditors()) lockEditor(editor);
+}
 
 // Cudic ads: slim banner strip under the workbench (#studioAd in
 // index.html). Stays hidden until an ad actually fills it, so blockers
@@ -353,10 +381,25 @@ window.addEventListener('keydown', (ev) => {
   runCommand('glox.saveProject');
 }, true);
 
-function topAction(label: string, title: string, onClick: () => void, primary = false): HTMLButtonElement {
+function topAction(
+  label: string,
+  title: string,
+  onClick: () => void,
+  primary = false,
+  iconName?: IconName
+): HTMLButtonElement {
   const b = document.createElement('button');
   b.type = 'button';
-  b.textContent = label;
+  if (iconName != null) {
+    const glyph = document.createElement('span');
+    glyph.setAttribute('aria-hidden', 'true');
+    glyph.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;flex:0 0 auto;';
+    glyph.innerHTML = icon(iconName, 13, 1.8);
+    b.append(glyph);
+  }
+  const text = document.createElement('span');
+  text.textContent = label;
+  b.append(text);
   b.title = title;
   b.setAttribute('aria-label', title);
   const paint = (hover: boolean): void => {
@@ -372,7 +415,7 @@ function topAction(label: string, title: string, onClick: () => void, primary = 
   };
   b.style.cssText =
     'font:500 11px/1 "Geist Mono",ui-monospace,monospace;text-transform:uppercase;letter-spacing:.06em;' +
-    'padding:0 10px;height:24px;display:inline-flex;align-items:center;cursor:pointer;border-radius:0;' +
+    'padding:0 10px;height:24px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;border-radius:0;' +
     'border:1px solid #2b2f38;background:transparent;color:#dbe4ff;' +
     'transition:background .12s steps(2),color .12s steps(2),border-color .12s steps(2);';
   paint(primary);
@@ -425,7 +468,8 @@ async function mountTitleBarActions(): Promise<void> {
         'display:flex;align-items:center;gap:6px;margin-left:auto;padding:0 10px;flex:0 0 auto;' +
         'pointer-events:auto;position:relative;z-index:2500;-webkit-app-region:no-drag;';
       const actions: HTMLElement[] = [
-        topAction('Preview', 'Run this project in the preview tab', () => runCommand('glox.openPreview'))
+        topAction('Projects', 'Switch project', () => openProjectPicker(), false, 'folder-open'),
+        topAction('Preview', 'Run this project in the preview tab', () => runCommand('glox.openPreview'), false, 'play')
       ];
       if (READ_ONLY) {
         // Say it in the chrome, not only when someone tries to save: a view that
@@ -441,7 +485,7 @@ async function mountTitleBarActions(): Promise<void> {
         actions.push(note);
       } else {
         actions.push(
-          topAction('Save', 'Save this project to Cudic (Ctrl+S)', () => runCommand('glox.saveProject'), true)
+          topAction('Save', 'Save this project to Cudic (Ctrl+S)', () => runCommand('glox.saveProject'), true, 'save')
         );
       }
       actions.push(
@@ -449,7 +493,7 @@ async function mountTitleBarActions(): Promise<void> {
           // The account page is served at /profile. There is no /account route,
           // so Exit landed on Cudic's 404 page and read as a broken button.
           window.location.assign('/profile');
-        })
+        }, false, 'log-out')
       );
       bar.append(...actions);
       // `.titlebar-right` is the workbench's own interactive cluster, so buttons

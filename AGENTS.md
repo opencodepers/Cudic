@@ -117,7 +117,7 @@ Rules:
 ### Dependencies actually in use
 `ws`, `@supabase/supabase-js`, `dotenv`, `nodemailer`, `resend` (root).
 Studio: `@codingame/monaco-vscode-*` (~40 override packages), `monaco-editor`,
-`vscode` (alias to the extension API), `gsap`, `jszip`, `mammoth`.
+`vscode` (alias to the extension API), `gsap`, `jszip`, `lucide`, `mammoth`.
 Classic pages: **Web Awesome 3.14.0** via pinned CDN (`sidebar.js` injects default
 theme + `webawesome.loader.js`; components load on demand only when a `<wa-*>`
 tag exists). No build step, no framework — do not add one. Hand-roll visuals to
@@ -238,6 +238,8 @@ studio/
   src/project.ts          # save/import/export/publish/delete project commands
                           # publish asks for ≤3 tags (showInputBox) and PUTs them
   src/activity-bar.ts     # owns the #cudic-activity-tabs strip + tab mounting (gotcha 20)
+  src/icons.ts            # Lucide icons for Cudic's Studio chrome
+  src/projects.ts         # project picker dialog + save-before-switch flow
   src/collab.ts           # collab editing panel: P2P co-edit, chat, names (see 7b)
   src/source-control.ts   # Cudic source-control panel (git state + commit UI)
   src/git-core.ts         # isomorphic-git plumbing (branch/commit/diff)

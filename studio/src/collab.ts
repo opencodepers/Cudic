@@ -19,6 +19,7 @@ import {
 } from '@codingame/monaco-vscode-api/vscode/vs/platform/actions/common/actions';
 import { collectTextFiles } from './project';
 import { getProjectId } from './project';
+import { icon } from './icons';
 import { mountTab, onOtherTabSelected, setTabActive as setActive } from './activity-bar';
 
 let doc: Y.Doc | null = null;
@@ -245,10 +246,7 @@ function setTabActive(on: boolean): void {
   setActive(tabIcon, on);
 }
 
-const COLLAB_SVG =
-  '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">' +
-  '<circle cx="9" cy="8" r="3.4"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/>' +
-  '<circle cx="17" cy="9" r="2.6"/><path d="M14.8 19.8c.3-2.9 2.3-4.6 4.9-4.6 1 0 2 .3 2.8.8"/></svg>';
+const COLLAB_SVG = icon('users');
 
 function buildTabIcon(): boolean {
   if (tabIcon != null || !sr) return true;
@@ -318,7 +316,8 @@ function buildSidebarPanel(code: string) {
     '<code id="collabCode" title="' + code + '" style="flex:1;min-width:0;font-family:' + MONO + ';font-size:11px;' +
     'letter-spacing:.02em;color:var(--mute);background:var(--bg);border:1px solid var(--line);padding:3px 8px;' +
     'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + code + '</code>' +
-    '<button id="collabCopy" title="Copy room code">copy</button>' +
+    '<button id="collabCopy" title="Copy room code" aria-label="Copy room code" style="display:inline-flex;align-items:center;gap:4px">' +
+    icon('copy', 12, 1.8) + 'copy</button>' +
     '<span id="collabStatus" title="Connection status" style="font-family:' + MONO + ';font-size:10px;color:var(--mute)">…</span>' +
     '</div>' +
     '<div id="collabPeople" class="cl-row" style="font-family:' + MONO + ';font-size:11px;color:var(--mute)"></div>' +

@@ -37,6 +37,7 @@ import {
   type RepoView
 } from './git-repo';
 import { mountTab, onOtherTabSelected, setTabActive as setActive } from './activity-bar';
+import { icon } from './icons';
 
 let sr: ShadowRoot | null = null;
 let tabIcon: HTMLButtonElement | null = null;
@@ -107,7 +108,10 @@ function paint(v: RepoView | null): void {
   const commitBtn = q<HTMLButtonElement>('scCommit');
 
   const exists = v?.exists === true;
-  if (branchBtn != null) branchBtn.textContent = exists ? '⎇ ' + (v?.branch || 'main') : '⎇ no repository';
+  if (branchBtn != null) {
+    const label = exists ? v?.branch || 'main' : 'no repository';
+    branchBtn.innerHTML = icon('git-branch', 12, 1.8) + '<span>' + esc(label) + '</span>';
+  }
   const pushed = exists ? lastPush() : null;
   // How far the local history has moved past what was last pushed: the panel
   // used to say only "pushed abc1234", which looked identical whether the repo
@@ -483,8 +487,9 @@ function buildPanel(): boolean {
     '#cudic-source-control #scInitBtn:hover{background:var(--ink);border-color:var(--ink)}' +
     '#cudic-source-control #scSetRemote{background:transparent;color:var(--ink);border:1px solid var(--line)}' +
     '#cudic-source-control #scSetRemote:hover{border-color:var(--ink)}' +
-    '#cudic-source-control #scBranch{background:transparent;border:1px solid var(--line);color:var(--ink);cursor:pointer;' +
-    'font-family:' + MONO + ';font-size:11px;padding:2px 8px;max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '#cudic-source-control #scBranch{display:inline-flex;align-items:center;gap:4px;background:transparent;border:1px solid var(--line);' +
+    'color:var(--ink);cursor:pointer;font-family:' + MONO + ';font-size:11px;padding:2px 8px;max-width:46%;overflow:hidden;' +
+    'text-overflow:ellipsis;white-space:nowrap}' +
     '#cudic-source-control #scBranch:hover{border-color:var(--ink)}' +
     '#cudic-source-control #scPush{margin-top:6px;width:100%;padding:7px 10px;background:transparent;color:var(--ink);' +
     'border:1px solid var(--ink);font-family:' + MONO + ';font-size:11px;text-transform:uppercase;letter-spacing:.06em;cursor:pointer}' +
@@ -493,14 +498,16 @@ function buildPanel(): boolean {
     '#cudic-source-control #scCreateRepo{background:transparent;color:var(--ink);border:1px solid var(--line);' +
     'font-family:' + MONO + ';font-size:11px;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;padding:6px 10px}' +
     '#cudic-source-control #scCreateRepo:hover{border-color:var(--ink)}' +
-    '#cudic-source-control .sc-icon{background:transparent;border:none;color:inherit;opacity:.7;cursor:pointer;font-size:14px}' +
+    '#cudic-source-control .sc-icon{display:inline-flex;align-items:center;gap:4px;background:transparent;border:none;color:inherit;' +
+    'opacity:.7;cursor:pointer;font-size:14px;padding:2px}' +
+    '#cudic-source-control .sc-icon svg{width:13px;height:13px;display:block}' +
     '</style>' +
     '<div class="sc-head">' +
     '<b style="font-weight:500;letter-spacing:-.02em;font-size:14px">Source Control</b>' +
     '<span style="flex:1"></span>' +
-    '<button id="scBranch" title="Switch branch">⎇ —</button>' +
-    '<button id="scRefresh" class="sc-icon" title="Refresh">⟳</button>' +
-    '<button id="scHide" class="sc-icon" title="Hide" style="font-size:15px">×</button>' +
+    '<button id="scBranch" title="Switch branch">' + icon('git-branch', 12, 1.8) + ' —</button>' +
+    '<button id="scRefresh" class="sc-icon" title="Refresh">' + icon('refresh-cw', 13, 1.8) + '</button>' +
+    '<button id="scHide" class="sc-icon" title="Hide">' + icon('x', 14, 1.8) + '</button>' +
     '</div>' +
     '<div class="sc-hint" id="scRemote" style="font-family:' + MONO + ';font-size:10px" title="origin"></div>' +
     // Outside #scMain on purpose: an initialise failure used to be reported
@@ -521,7 +528,8 @@ function buildPanel(): boolean {
     '</div>' +
     '<div class="sc-body">' +
     '<div class="sc-sec">Changes <span class="sc-count" id="scCount"></span><span style="flex:1"></span>' +
-    '<button id="scSetRemote2" class="sc-icon" title="Set GitHub remote" style="font-size:11px">remote</button></div>' +
+    '<button id="scSetRemote2" class="sc-icon" title="Set GitHub remote" style="font-size:11px">' +
+    icon('link', 12, 1.8) + 'remote</button></div>' +
     '<div id="scChanges"></div>' +
     '<div class="sc-sec" style="border-top:1px solid var(--line)">History</div>' +
     '<div id="scHistory"></div>' +
@@ -553,10 +561,7 @@ function setTabActive(on: boolean): void {
   setActive(tabIcon, on);
 }
 
-const BRANCH_SVG =
-  '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">' +
-  '<circle cx="7" cy="5" r="2.4"/><circle cx="7" cy="19" r="2.4"/><circle cx="17" cy="9" r="2.4"/>' +
-  '<path d="M7 7.4v9.2"/><path d="M17 11.4c0 3.2-3.4 3.6-6.2 4.2"/></svg>';
+const BRANCH_SVG = icon('git-branch');
 
 function buildTabIcon(): boolean {
   if (tabIcon != null || sr == null) return true;

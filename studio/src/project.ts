@@ -891,8 +891,8 @@ async function runProjectTests(): Promise<void> {
   }
 }
 
-async function saveProject(): Promise<void> {
-  if (readOnlyBlocked()) return;
+async function saveProject(): Promise<boolean> {
+  if (readOnlyBlocked()) return false;
   const token = await liveToken();
   if (token == null) {
     const pick = await vscode.window.showWarningMessage(
@@ -902,7 +902,7 @@ async function saveProject(): Promise<void> {
     );
     if (pick === 'Export .zip') await vscode.commands.executeCommand('glox.exportProject');
     else if (pick === 'Sign in') window.open('/login', '_blank');
-    return;
+    return false;
   }
   let files = await collectFiles();
   // Build step: .ts/.tsx compile before anything is saved, so the published
@@ -923,7 +923,7 @@ async function saveProject(): Promise<void> {
     vscode.window.showErrorMessage(
       'Cudic: could not compile TypeScript — ' + (e as Error).message + '. Nothing was saved.'
     );
-    return;
+    return false;
   }
   const text: Record<string, string> = {};
   const bins: Array<[string, Uint8Array]> = [];
@@ -989,7 +989,7 @@ async function saveProject(): Promise<void> {
         'Cudic: storage full — ' + mb(d.used) + ' of ' + mb(d.cap) +
         ' used. Delete an old project or remove large files, then save again.'
       );
-      return;
+      return false;
     }
     if (d?.error != null && d.game == null) throw new Error(d.error);
     const usedNote = d?.storage != null
@@ -1004,9 +1004,16 @@ async function saveProject(): Promise<void> {
     // clobber a newer published version on the next load.
     if (wasNew) await snapDelete('draft').catch(() => {});
     await snapDelete(id).catch(() => {});
+    return true;
   } catch (e) {
     vscode.window.showErrorMessage('Save failed: ' + (e as Error).message);
+    return false;
   }
+}
+
+/** Save before a full project switch; false means the switch must stop. */
+export async function saveBeforeSwitch(): Promise<boolean> {
+  return saveProject();
 }
 
 // Memory FS + JSON both punish blobs — skip files past the budget, say so.

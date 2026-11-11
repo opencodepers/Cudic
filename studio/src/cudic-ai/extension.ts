@@ -28,6 +28,7 @@ import {
   setPartVisibility,
   isPartVisibile
 } from '@codingame/monaco-vscode-workbench-service-override';
+import { icon } from '../icons';
 import chatHtmlRaw from './chat.html?raw';
 // Terminal base layer (MIT, vendored inline): type scale + form rhythm for
 // the panel's terminal skin. Our rules come after it in chat.html and win.
@@ -958,8 +959,9 @@ export function registerCudicAi(shadowRoot: ShadowRoot): void {
         '<span>✦ CUDIC AI</span><span style="flex:1"></span></div>'
       );
       const hide = el(
-        '<button title="Hide panel" style="background:transparent;border:none;cursor:pointer;font-size:15px;' +
-        'color:inherit;opacity:.7;padding:2px 6px;">×</button>'
+        '<button title="Hide panel" aria-label="Hide panel" style="display:inline-flex;align-items:center;' +
+        'justify-content:center;width:24px;height:24px;background:transparent;border:none;cursor:pointer;' +
+        'color:inherit;opacity:.7;padding:0;">' + icon('x', 14, 1.8) + '</button>'
       );
       hide.addEventListener('click', hidePanel);
       bar.append(hide);

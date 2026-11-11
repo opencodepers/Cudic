@@ -15,6 +15,19 @@ fixed. Commits are referenced by short hash.
 - **Gamepad support (`CudicPad`)**: every player frame now loads `cudic-pad.js`. Games can poll `CudicPad.get()` for axes/buttons or subscribe to `buttondown`, `buttonup`, `axischanged`, `connect` and `disconnect`; no parent-page mediation, and nothing leaves the sandboxed frame.
 - **Ctrl+K command palette**: press `Ctrl+K` (or `⌘K`) on any main page to jump to a page or search games, creators and forum threads live. The palette loads with the rail, so no per-page setup; it is also on `/docs`, creator pages, `/faq` and `/parents`.
 
+**See inside**
+
+- **See inside now opens the read-only editor**: the control was a `<button>` whose only navigation was an assigned `href` property, which buttons ignore, so clicking it did nothing. It is a real anchor to `/studio?id=…&readonly=1` now, and the read-only view boots from it.
+- **See inside really is read-only**: the flag stopped saves, publishes and deletes, but the Monaco editor still accepted keystrokes that could never be persisted. Every code editor is now locked on boot and on creation, with a “fork this game to edit” message.
+
+**Project picker**
+
+- **Switch projects from Studio**: a **Projects** button in the title bar lists every project owned by the signed-in account, with its last-edited time and Draft/Published state. Picking one saves the open project first, then reloads Studio at the selected project, so switching never silently drops work; a failed save keeps you where you are. Signed out, the dialog links to sign-in, and a failed list request offers Retry.
+
+**Studio icons**
+
+- **Cudic's chrome uses Lucide line icons**: the Collab and Source Control activity tabs, Preview / Save / Exit, and the panels' copy, branch, refresh, remote and close controls now use the same 24px line icons behind 21st.dev's icon browser instead of ad-hoc SVGs and text glyphs. The Cudic mark and VS Code's own codicons/file icons stay as they are.
+
 **Update log sync**
 
 - **“Sync from GitHub” works in production again**: the button read `GITHUB_TOKEN`, an env var this project never sets, so every moderator got the red “Set GITHUB_TOKEN in Render env” error. It now accepts `GITHUB_TOKEN` or `GITHUB_PAT`, falls back to the signed-in moderator's connected GitHub account, and syncs the public repo with no token at all — so a moderator without a GitHub connection is not blocked. It also fetches `opencodepers/Cudic` instead of the old `nathent2023-glitch/Cudic` owner, which 404s even with a valid token. `GITHUB_REPO` can point a fork elsewhere.

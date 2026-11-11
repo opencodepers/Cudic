@@ -24,6 +24,7 @@ import {
 } from '@codingame/monaco-vscode-api/vscode/vs/platform/actions/common/actions';
 import { Parts, setPartVisibility, isPartVisibile } from '@codingame/monaco-vscode-workbench-service-override';
 import { apiBase, headers } from '../project';
+import { icon } from '../icons';
 
 interface TrackRow {
   id: string;
@@ -66,8 +67,9 @@ export function registerCudicMusic(shadowRoot: ShadowRoot): void {
         '<span>♪ CUDIC MUSIC</span><span style="flex:1"></span></div>'
       );
       const hide = el(
-        '<button title="Hide panel" style="background:transparent;border:none;cursor:pointer;font-size:15px;' +
-        'color:inherit;opacity:.7;padding:2px 6px;">×</button>'
+        '<button title="Hide panel" aria-label="Hide panel" style="display:inline-flex;align-items:center;' +
+        'justify-content:center;width:24px;height:24px;background:transparent;border:none;cursor:pointer;' +
+        'color:inherit;opacity:.7;padding:0;">' + icon('x', 14, 1.8) + '</button>'
       );
       hide.addEventListener('click', hidePanel);
       bar.append(hide);
