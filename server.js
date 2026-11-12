@@ -301,6 +301,7 @@ const MIME = {
   '.json': 'application/json',
   '.txt': 'text/plain; charset=utf-8',
   '.png': 'image/png',
+  '.webmanifest': 'application/manifest+json',
   '.jpg': 'image/jpeg',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',

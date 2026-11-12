@@ -28,6 +28,8 @@
   <meta name="twitter:image" content="https://cudic.vercel.app/twitter.png?v=2">
   <link rel="canonical" href="https://cudic.vercel.app/docs">
     <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
     <link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/docpage.css?v=7">
@@ -64,6 +66,7 @@
                         <li><strong>Build something</strong> — write HTML/CSS/JS by hand, import existing files or a whole folder, or bring a Scratch game across.</li>
                         <li><strong>Save, then Publish</strong> — saving keeps the project in your account; publishing puts it in the <a href="/games">gallery</a> with its own playable page.</li>
                     </ol>
+                    <p><strong>Install Cudic</strong> — in a desktop browser use <em>Install</em>, on a phone use <em>Add to Home Screen</em>, and Cudic opens in its own window with its own icon instead of a tab. It is the live site in a standalone frame, not an offline copy: the service worker only handles push, so every page still comes from the network and a deploy can never leave you on a stale one.</p>
                     <h3>What's on Cudic</h3>
                     <div class="cards">
                         <div class="card"><span class="mono">THE RAIL</span><h3>One nav everywhere</h3><p>Most pages share a rail on the left — Chat, Servers, Games, Themes and your account at the bottom. The rail follows whatever theme pack you've bought; these docs use their own list on the left instead.</p></div>
@@ -80,6 +83,7 @@
                     <p><strong>CIDE</strong> is what the editor is called — Cudic + IDE, and the title bar's top-left corner shows Cudic's mark next to the name. Studio chrome carries the site, not VS Code's colours: the activity bar uses Cudic's dark ground and lime accent, Preview/Save/Exit sit in the top bar, and the Collab and Source Control tabs are spaced by the workbench like every other tab instead of floating over the account avatar. Those three buttons are live: they ride in the workbench's own title-bar cluster, so a click there does what it says. The Collab and Source Control panels are overlays on the sidebar, so selecting Explorer, Search or any other activity-bar tab hides them and shows that view. Cudic's two tabs sit in their own strip directly under the workbench's icons rather than inside its icon list, so the workbench rebuilding that list never removes them.</p>
 
                     <p>Studio is a VS&nbsp;Code-style workbench in the browser: the file Explorer on the left, editor tabs in the middle, the live Preview on the right, and the Cudic AI panel along the bottom bar. Nothing is compiled — the preview assembles your files into a real web page and runs it.</p>
+                    <p><strong>Projects</strong> in the title bar is the project switcher: open another project, start a new one from a template, rename a project in place, or duplicate it as a draft copy. Switching or starting a new project saves the open one first, so nothing is dropped silently.</p>
                     <div class="cards">
                         <div class="card"><span class="mono">EXPLORER</span><h3>Project tree</h3><p>A tree of your files. Right-click a file for commands, and drag in files to import.</p></div>
                         <div class="card"><span class="mono">EDITOR</span><h3>Tabs &amp; palette</h3><p>Full editor with syntax highlighting, find &amp; replace, and every command in <code>Ctrl+Shift+P</code>.</p></div>

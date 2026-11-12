@@ -8,6 +8,10 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Install Cudic**
+
+- **Cudic installs as an app**: every page now declares a web app manifest (`public/manifest.webmanifest`) with 192/512/maskable icons cut from the logo plus an `apple-touch-icon`, so Chrome, Edge and Safari offer *Install* / *Add to Home Screen* and launch Cudic in its own window on the ink background. The service worker still has no fetch handler, so the installed app is the live site — nothing is cached and a deploy can never serve a stale page.
+
 **Continue playing**
 
 - **The gallery remembers where you were**: `/games` opens with a **Continue playing** shelf — the last eight games this account opened, newest first, each card stamped with how long ago you played it (`2h ago`, `3d ago`). It reads a new `game_plays` table filled by `POST /api/games/:id/play`, so the shelf follows the login across devices instead of the browser; it hides itself for guests and empty accounts, and unpublishing a game drops it from the shelf.
