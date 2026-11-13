@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675" role="img" aria-label="This game has no preview image yet">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#191c22"/>
+      <stop offset=".55" stop-color="#111318"/>
+      <stop offset="1" stop-color="#0b0c0e"/>
+    </linearGradient>
+    <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+      <path d="M60 0H0v60" fill="none" stroke="#ffffff" stroke-opacity=".045" stroke-width="1"/>
+    </pattern>
+    <radialGradient id="glow" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#b8f23a" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#b8f23a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="675" fill="url(#bg)"/>
+  <rect width="1200" height="675" fill="url(#grid)"/>
+  <circle cx="600" cy="305" r="300" fill="url(#glow)"/>
+  <g fill="none" stroke="#b8f23a" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" opacity=".92">
+    <path d="M600 226 528 268v84l72 42 72-42v-84l-72-42Z"/>
+    <path d="M528 268l72 42 72-42M600 310v84"/>
+  </g>
+  <text x="600" y="432" text-anchor="middle" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace" font-size="26" letter-spacing="7" fill="#f7f5ec" opacity=".9">CUDIC</text>
+  <text x="600" y="480" text-anchor="middle" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace" font-size="17" letter-spacing="4.5" fill="#9a9a94">NO PREVIEW YET</text>
+</svg>

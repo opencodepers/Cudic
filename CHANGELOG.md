@@ -8,6 +8,9 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Every game has a cover**
+
+- **No more blank cards** (`lib/default-thumb.js`, `public/default-thumb.svg`): a game that never uploaded a thumbnail now gets one shared Cudic cover instead of an empty box. `/g/<slug>/thumb` and `/api/games/:id/thumbnail` serve it (real art still wins), so the gallery, `/arcade`, `/daily`, `/five`, forum cards, profiles and the Studio project picker all fill in with no client change. `has_thumb` now answers "does this thumbnail URL return an image?", which is always true.
 **Account from the terminal**
 
 - **Password reset in the CLI** (`cli/cudic.mjs`): `cudic password reset --email you@example.com` mails a 6-digit code through the same `/auth/send-code` endpoint the site uses, and `cudic password reset --email … --code 123456 --password <new>` trades it for a new password via `/api/auth/reset-password` — hashed code, 10-minute expiry, 5 attempts, burned on use. Signed-in users skip the code with `cudic password change --password <new>`, and `cudic verify` sends or enters the signup confirmation code. Covered by `tests/test_cli_account.py` and documented under the CLI section of `public/docs.html`.

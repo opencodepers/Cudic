@@ -18,6 +18,7 @@ const { WebSocketServer } = require('ws');
 const { createClient } = require('@supabase/supabase-js');
 const { Resend } = require('resend');
 const JSZip = require('jszip');
+const defaultThumb = require('./lib/default-thumb');
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
@@ -1970,7 +1971,7 @@ async function handleRequest(req, res) {
     if (ids.length) {
       const { data: rows } = await supabase.from('games')
         .select('id, title, slug, thumbnail, owner_id, users!owner_id(display_name, user_id)').eq('published', true).in('id', ids.slice(0, 50));
-      games = (rows || []).map(({ thumbnail, ...x }) => ({ ...x, has_thumb: !!thumbnail, votes: tally[x.id] || 0 }))
+      games = (rows || []).map(({ thumbnail, ...x }) => ({ ...x, has_thumb: true, votes: tally[x.id] || 0 }))
         .sort((a, b) => b.votes - a.votes);
     }
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -2012,7 +2013,7 @@ async function handleRequest(req, res) {
       .order('created_at', { ascending: false }).limit(12);
     if (error) console.error('feed list error:', error.message);
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ games: (data || []).map(({ thumbnail, ...g }) => ({ ...g, has_thumb: !!thumbnail })), following: ids.length }));
+    res.end(JSON.stringify({ games: (data || []).map(({ thumbnail, ...g }) => ({ ...g, has_thumb: true })), following: ids.length }));
     return;
   }
 
@@ -5318,7 +5319,7 @@ function sanitizeTags(raw) {
     // Ship a flag instead and let the browser fetch image bytes from
     // /api/games/:id/thumbnail (cached a day) per card it actually shows.
     res.end(JSON.stringify({
-      games: rows.map(({ thumbnail, ...g }) => ({ ...g, has_thumb: !!thumbnail, likes: counts[g.id] || 0, liked: liked.has(g.id), playing: liveCount(g.id) })),
+      games: rows.map(({ thumbnail, ...g }) => ({ ...g, has_thumb: true, likes: counts[g.id] || 0, liked: liked.has(g.id), playing: liveCount(g.id) })),
       tags,
       error: error ? 'Could not load games.' : undefined
     }));
@@ -5414,7 +5415,7 @@ function sanitizeTags(raw) {
     if (!hasScope(user, 'projects:read')) { scopeDenied(res, 'projects:read'); return; }
     const { data } = await supabase.from('games').select('id, title, description, thumbnail, published, forked_from, forked_from_title, created_at, updated_at').eq('owner_id', user.id).order('updated_at', { ascending: false });
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ games: (data || []).map(({ thumbnail, ...g }) => ({ ...g, has_thumb: !!thumbnail })) }));
+    res.end(JSON.stringify({ games: (data || []).map(({ thumbnail, ...g }) => ({ ...g, has_thumb: true })) }));
     return;
   }
 
@@ -5587,7 +5588,7 @@ function sanitizeTags(raw) {
   };
   const forumGame = (row) => {
     const g = Array.isArray(row.games) ? row.games[0] : row.games;
-    return g && g.id ? { id: g.id, title: g.title || 'Untitled game', has_thumb: !!g.thumbnail } : null;
+    return g && g.id ? { id: g.id, title: g.title || 'Untitled game', has_thumb: true } : null;
   };
   if (url.pathname === '/api/forums/threads' && req.method === 'GET') {
     cors(res);
@@ -5751,12 +5752,15 @@ function sanitizeTags(raw) {
         res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('Not found'); return;
       }
     }
-    const m = data && typeof data.thumbnail === 'string'
+    if (!data) { res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('Not found'); return; }
+    // No upload yet → the shared default card, not a 404. Callers put this URL
+    // straight into an <img> (gallery, arcade, Studio picker), so a 404 here is
+    // a blank card there.
+    const m = typeof data.thumbnail === 'string'
       ? /^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/i.exec(data.thumbnail) : null;
-    if (!m) { res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('Not found'); return; }
-    const buf = Buffer.from(m[2], 'base64');
+    const buf = m ? Buffer.from(m[2], 'base64') : defaultThumb();
     res.writeHead(200, {
-      'Content-Type': m[1],
+      'Content-Type': m ? m[1] : defaultThumb.TYPE,
       'Content-Length': buf.length,
       'Cache-Control': 'public, max-age=86400'
     });
@@ -5780,7 +5784,7 @@ function sanitizeTags(raw) {
       .order('created_at', { ascending: false })
       .limit(50);
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ games: (rows || []).map((r) => r.games).filter((g) => g && g.id).map(({ thumbnail, ...g }) => ({ ...g, has_thumb: !!thumbnail, likes: 1 })) }));
+    res.end(JSON.stringify({ games: (rows || []).map((r) => r.games).filter((g) => g && g.id).map(({ thumbnail, ...g }) => ({ ...g, has_thumb: true, likes: 1 })) }));
     return;
   }
 
@@ -7386,7 +7390,7 @@ function sanitizeTags(raw) {
     const html = renderArcade((data || []).map((g) => ({
       ...g,
       author: g.users && g.users.display_name,
-      has_thumb: !!g.thumbnail
+      has_thumb: true
     })), { base });
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
     res.end(req.method === 'HEAD' ? undefined : html);
@@ -7412,7 +7416,7 @@ function sanitizeTags(raw) {
     const rows = (data || []).map((g) => ({
       ...g,
       author: g.users && g.users.display_name,
-      has_thumb: !!g.thumbnail
+      has_thumb: true
     }));
     if (url.pathname === '/api/daily') {
       const pick = pickDaily(rows);
@@ -7457,9 +7461,10 @@ function sanitizeTags(raw) {
     const attr = (s) => escHtml(s).replace(/"/g, '&quot;');
     if (parts[1] === 'thumb') {
       const m = typeof g.thumbnail === 'string' ? /^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/i.exec(g.thumbnail) : null;
-      if (!m) { res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('No thumbnail'); return; }
-      const buf = Buffer.from(m[2], 'base64');
-      res.writeHead(200, { 'Content-Type': m[1], 'Content-Length': buf.length, 'Cache-Control': 'public, max-age=86400' });
+      // Same fallback as /api/games/:id/thumbnail: this is the URL every card
+      // and share preview points at, so it must never 404 for a live game.
+      const buf = m ? Buffer.from(m[2], 'base64') : defaultThumb();
+      res.writeHead(200, { 'Content-Type': m ? m[1] : defaultThumb.TYPE, 'Content-Length': buf.length, 'Cache-Control': 'public, max-age=86400' });
       res.end(buf);
       return;
     }

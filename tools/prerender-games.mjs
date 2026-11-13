@@ -55,16 +55,6 @@ async function fetchGames(cfg) {
   return await res.json();
 }
 
-// Thumbnail presence without shipping the data URLs (one row can hold 266KB).
-async function fetchThumbIds(cfg) {
-  const res = await fetch(cfg.url + '/rest/v1/games?select=id&published=eq.true&thumbnail=not.is.null&limit=' + LIMIT, {
-    headers: { apikey: cfg.anon, Authorization: 'Bearer ' + cfg.anon },
-    signal: AbortSignal.timeout(30000)
-  });
-  if (!res.ok) return new Set();
-  return new Set((await res.json()).map((r) => r.id));
-}
-
 // Author names are not readable with the anon key (users RLS is locked down),
 // so they come from the public Render API — newest 50 — merged in by game id.
 async function fetchAuthors() {
@@ -97,8 +87,7 @@ function relatedFor(g, games) {
   return rel;
 }
 
-function gamePage(g, names, games, thumbIds) {
-  const hasThumb = thumbIds.has(g.id);
+function gamePage(g, names, games) {
   const title = (g.title || '').trim() || 'Untitled game';
   const author = (names[g.id]) || 'A Cudic creator';
   const desc = (g.description || '').trim();
@@ -124,17 +113,13 @@ function gamePage(g, names, games, thumbIds) {
     operatingSystem: 'Web'
   });
   const related = relatedFor(g, games);
-  const shot = hasThumb
-    ? '<img src="/g/' + g.id + '/thumb" alt="' + esc(title) + ' cover art">'
-    : '';
+  const shot = '<img src="/g/' + g.id + '/thumb" alt="' + esc(title) + ' cover art">';
   const relHtml = related.map((x) => {
     const t = (x.title || '').trim() || 'Untitled game';
     const a2 = names[x.id] || 'A Cudic creator';
-    const thumb = thumbIds.has(x.id)
-      ? '<img src="/g/' + x.id + '/thumb" alt="" loading="lazy">'
-      : '';
+    const thumb = '<img src="/g/' + x.id + '/thumb" alt="" loading="lazy">';
     return '<a class="tile" href="/game/' + x.id + '/">'
-      + '<div class="thumb' + (thumb ? '' : ' noimg') + '">' + thumb + '</div>'
+      + '<div class="thumb">' + thumb + '</div>'
       + '<div class="tb"><b>' + esc(t) + '</b><span class="mono">BY ' + esc(a2).toUpperCase() + '</span></div></a>';
   }).join('');
   const relBlock = relHtml
@@ -199,7 +184,6 @@ h1{margin:0;font-weight:500;font-size:clamp(38px,5.4vw,68px);line-height:1.02;le
 .sub{margin:0}
 .shot{position:relative;background:var(--line);display:flex;align-items:center;justify-content:center;min-height:280px}
 .shot img{display:block;width:100%;height:100%;object-fit:cover}
-.shot.noimg:after{content:"";width:96px;height:96px;background:var(--mark) center/96px no-repeat;opacity:.5}
 .share{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
 .sbtn{appearance:none;background:transparent;color:var(--ink);border:1px solid var(--line);padding:9px 14px;font-family:"Geist Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;text-decoration:none}
 .sbtn:hover{border-color:var(--ink)}
@@ -213,8 +197,6 @@ h1{margin:0;font-weight:500;font-size:clamp(38px,5.4vw,68px);line-height:1.02;le
 .tile:hover{background:var(--panel)}
 .thumb{aspect-ratio:16/9;background:var(--panel);overflow:hidden;border-bottom:1px solid var(--line)}
 .thumb img{display:block;width:100%;height:100%;object-fit:cover}
-.thumb.noimg{display:flex;align-items:center;justify-content:center}
-.thumb.noimg:after{content:"";display:block;width:44px;height:44px;background:var(--mark) center/44px no-repeat;opacity:.35}
 .tb{padding:14px 16px;display:flex;flex-direction:column;gap:6px}
 .tb b{font-weight:500;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 footer{padding:20px 28px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;border-top:1px solid var(--line);color:var(--mute);font-size:13px}
@@ -250,7 +232,7 @@ footer .sp{flex:1}
       </div>
       <a class="build" href="${SITE}/studio?utm_source=gamepage&utm_medium=cta&utm_campaign=build">Make your own game →</a>
     </div>
-    <div class="shot${hasThumb ? '' : ' noimg'}">${shot}</div>
+    <div class="shot">${shot}</div>
   </section>
   ${relBlock}
   <footer>
@@ -324,13 +306,6 @@ try {
   const cfg = readConfig();
   const games = await fetchGames(cfg);
   log('fetched ' + games.length + ' published games');
-  let thumbIds = new Set();
-  try {
-    thumbIds = await fetchThumbIds(cfg);
-    log('thumbnails: ' + thumbIds.size + ' of ' + games.length);
-  } catch (e) {
-    log('thumbnail check skipped — ' + (e && e.message ? e.message : e));
-  }
   let names = {};
   try {
     names = await fetchAuthors();
@@ -343,7 +318,7 @@ try {
   for (const g of games) {
     if (!g || !/^[0-9a-f-]{36}$/i.test(g.id)) continue;
     mkdirSync(join(GAME_DIR, g.id), { recursive: true });
-    writeFileSync(join(GAME_DIR, g.id, 'index.html'), gamePage(g, names, games, thumbIds));
+    writeFileSync(join(GAME_DIR, g.id, 'index.html'), gamePage(g, names, games));
   }
   writeFileSync(join(PUB, 'sitemap.xml'), sitemap(games));
   // /arcade is deliberately NOT written here. It is rendered per request by the
