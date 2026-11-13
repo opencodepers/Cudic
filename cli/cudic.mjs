@@ -344,6 +344,84 @@ async function cmdWhoami(pos, flags) {
   else console.log(name + '  ·  ' + apiBase());
 }
 
+// ── account: password reset (email code) + change while signed in ──────
+// A reset is two steps on purpose: the first call mails a 6-digit code to the
+// account's inbox, the second trades that code for the new password. The
+// server hashes the code, expires it in 10 minutes and burns it on use, so the
+// code never travels back to us. `change` is the signed-in path and skips the
+// code because the session already proves the account.
+const configEmail = () => String(readConfig().email || process.env.CUDIC_EMAIL || '').toLowerCase().trim();
+
+async function ask(question) {
+  if (!process.stdin.isTTY) return null;
+  const rl = (await import('node:readline/promises')).createInterface({ input: process.stdin, output: process.stdout });
+  const v = await rl.question(question);
+  rl.close();
+  return v;
+}
+
+async function newPassword(flags) {
+  let pw = flags.password || flags.new;
+  if (!pw) {
+    if (!process.stdin.isTTY) die('pass --password <new password> (6-72 characters).');
+    pw = await ask('New password: ');
+  }
+  if (!pw || pw.length < 6 || pw.length > 72) die('password must be 6-72 characters.');
+  return pw;
+}
+
+async function cmdPassword(pos, flags) {
+  const sub = (pos.shift() || 'reset').toLowerCase();
+
+  if (sub === 'change' || sub === 'set') {
+    if (apiKeyCred()) die('an API key cannot change a password. Run `cudic login --email you@example.com` first.');
+    const pw = await newPassword(flags);
+    const { url, anon } = await supa();
+    const res = await fetch(url + '/auth/v1/user', {
+      method: 'PUT',
+      headers: { apikey: anon, Authorization: 'Bearer ' + (await token()), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) die((d && (d.msg || d.error_description || d.error)) || 'change failed (' + res.status + ').');
+    console.log('Password changed. Run `cudic login --email ' + (configEmail() || 'you@example.com') + '` again if a token refresh is rejected.');
+    return;
+  }
+
+  if (sub !== 'reset' && sub !== 'forgot') die('usage: cudic password reset [--email you@example.com]  |  cudic password change --password <new>');
+
+  const email = String(flags.email || configEmail()).toLowerCase().trim();
+  if (!email || email.indexOf('@') === -1) die('give the account email: `cudic password reset --email you@example.com`');
+  const code = String(flags.code || '').replace(/\D/g, '');
+
+  if (!code) {
+    await api('/auth/send-code', { method: 'POST', auth: false, body: { email } });
+    console.log('Reset code sent to ' + email + '. It expires in 10 minutes (5 tries).');
+    console.log('Next: cudic password reset --email ' + email + ' --code <code> --password <new password>');
+    return;
+  }
+
+  if (code.length !== 6) die('the code is 6 digits.');
+  const pw = await newPassword(flags);
+  await api('/api/auth/reset-password', { method: 'POST', auth: false, body: { email, code, newPassword: pw } });
+  console.log('Password reset for ' + email + '. Sign in: cudic login --email ' + email);
+}
+
+async function cmdVerify(pos, flags) {
+  const email = String(flags.email || configEmail()).toLowerCase().trim();
+  if (!email || email.indexOf('@') === -1) die('give the email: `cudic verify --email you@example.com`');
+  const code = String(flags.code || '').replace(/\D/g, '');
+  if (!code) {
+    await api('/auth/send-code', { method: 'POST', auth: false, body: { email } });
+    console.log('Confirmation code sent to ' + email + '. It expires in 10 minutes (5 tries).');
+    console.log('Next: cudic verify --email ' + email + ' --code <code>');
+    return;
+  }
+  if (code.length !== 6) die('the code is 6 digits.');
+  const d = await api('/auth/verify-code', { method: 'POST', auth: false, body: { email, code, userId: typeof flags.user === 'string' ? flags.user : '' } });
+  console.log(d && d.verified ? 'Email confirmed for ' + email + '.' : 'Code accepted.');
+}
+
 async function cmdList(pos, flags) {
   const d = await api('/api/games/mine');
   const games = (d && d.games) || [];
@@ -985,6 +1063,10 @@ Usage
   cudic login --key <cudic_...>                           durable agent key (also CUDIC_API_KEY=)
   cudic logout                                            forget stored credentials
   cudic whoami [--json]                                   who the token belongs to
+  cudic password reset --email you@example.com            email a 6-digit reset code
+  cudic password reset --email ... --code 123456 --password <new>   set the new password
+  cudic password change --password <new>                  change it while signed in (no code)
+  cudic verify --email you@example.com [--code 123456]    send / enter a signup confirmation code
   cudic list [--json]                                     your projects (id, title, state)
   cudic new <dir> [--title "Name"]                        scaffold a starter project
   cudic push [dir] [--title T] [--description D] [--tags a,b]   create or update the project
@@ -1050,6 +1132,9 @@ async function main() {
     case 'login': return cmdLogin(pos, flags);
     case 'logout': clearConfig(); console.log('Signed out.'); return;
     case 'whoami': return cmdWhoami(pos, flags);
+    case 'password':
+    case 'passwd': return cmdPassword(pos, flags);
+    case 'verify': return cmdVerify(pos, flags);
     case 'list':
     case 'projects': return cmdList(pos, flags);
     case 'new':

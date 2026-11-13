@@ -8,6 +8,20 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Account from the terminal**
+
+- **Password reset in the CLI** (`cli/cudic.mjs`): `cudic password reset --email you@example.com` mails a 6-digit code through the same `/auth/send-code` endpoint the site uses, and `cudic password reset --email … --code 123456 --password <new>` trades it for a new password via `/api/auth/reset-password` — hashed code, 10-minute expiry, 5 attempts, burned on use. Signed-in users skip the code with `cudic password change --password <new>`, and `cudic verify` sends or enters the signup confirmation code. Covered by `tests/test_cli_account.py` and documented under the CLI section of `public/docs.html`.
+
+**Play it now**
+
+- **`/daily` is one game a day** (`lib/daily.js`, `server.js`): the pick is a hash of the UTC date over the published games, so there is no rotation table to fall out of date and every host agrees. The page is real HTML with a real link, keeps a streak in `localStorage` (a gap resets it rather than punishing it), and exports a 1200×630 card through `navigator.share({ files })` with a download fallback. `GET /api/daily` returns the same pick for clients.
+- **`/five` names five games** instead of handing you a grid — the most-played published games with a description and a link each, so "what do I play?" has an answer that fits on one screen.
+- **Phone mode** (`public/view.html`, `public/embed.html`): `viewport-fit=cover`, a `100dvh` player that is the whole screen, safe-area padding, `touch-action: manipulation` and `overscroll-behavior: contain` so a swipe cannot drag the page out from under the game, and a landscape rule that drops the chrome entirely.
+- **The first 30 seconds get a cover** (`public/view.html`): a game's first visit waits behind one Play button with its title and a how-to-play line guessed from its own source (`GET /api/games/:id/howto`), then never appears again for that game. The player frame is not navigated until Play, so the cover cannot burn the time it exists to save.
+- **Install offered after the second play**, once per device, in a bar that calls the captured `beforeinstallprompt` and names the two taps Safari requires instead of pretending it has one.
+- **Guests get a name**: a stable `Swift Otter`-style identity in `localStorage`, shown under the player and labelled honestly — scores still need an account, and the badge links to sign-in.
+- **Creators can take the game elsewhere**: `GET /api/games/:id/export` reassembles the project into one self-contained `.html` (scripts and styles inlined, credit in the head) from the Share dialog, which is the shape itch.io and CrazyGames accept as an upload.
+
 **Get found**
 
 - **`/arcade` is the crawlable catalogue** (`lib/arcade.js`): every published game as real HTML with a real link on every card, plus `ItemList` structured data. `/games` builds its cards in JavaScript, so a crawler sees an empty page there; this is the page search engines can actually follow. It is written into `public/arcade.html` on every Vercel deploy by `tools/prerender-games.mjs` and served live from Render at `/arcade`, added to the sitemap and linked from every game page.
@@ -39,6 +53,7 @@ fixed. Commits are referenced by short hash.
 **Project picker**
 
 - **Switch projects from Studio**: a **Projects** button in the title bar lists every project owned by the signed-in account, with its last-edited time and Draft/Published state. Picking one saves the open project first, then reloads Studio at the selected project, so switching never silently drops work; a failed save keeps you where you are. Signed out, the dialog links to sign-in, and a failed list request offers Retry.
+- **Manage projects without leaving Studio**: **New project** opens the starter picker and begins a clean project (not the old draft, and never read-only), **Rename** edits a project name in place, and **Duplicate** makes a draft copy with the same assets without opening the gallery. Starting a new project still saves the open one first, and a failed save aborts the move.
 
 **Studio icons**
 
