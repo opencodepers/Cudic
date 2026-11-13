@@ -8,7 +8,7 @@
     { "source": "/profile", "destination": "/profile.html" },
     { "source": "/chat", "destination": "/chat.html" },
     { "source": "/games", "destination": "/games.html" },
-    { "source": "/arcade", "destination": "/arcade.html" },
+    { "source": "/arcade", "destination": "https://glox-o7rr.onrender.com/arcade" },
     { "source": "/daily", "destination": "https://glox-o7rr.onrender.com/daily" },
     { "source": "/five", "destination": "https://glox-o7rr.onrender.com/five" },
     { "source": "/forums", "destination": "/forums.html" },

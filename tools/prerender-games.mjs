@@ -24,7 +24,6 @@ const PUB = new URL('../public', import.meta.url).pathname.replace(/^\/([A-Za-z]
 const GAME_DIR = join(PUB, 'game');
 const LIMIT = 400;
 // Shared with the Render server so /arcade is identical on both hosts.
-const renderArcade = createRequire(import.meta.url)('../lib/arcade');
 
 function log(m) { console.log('[prerender-games] ' + m); }
 
@@ -347,11 +346,11 @@ try {
     writeFileSync(join(GAME_DIR, g.id, 'index.html'), gamePage(g, names, games, thumbIds));
   }
   writeFileSync(join(PUB, 'sitemap.xml'), sitemap(games));
-  writeFileSync(join(PUB, 'arcade.html'), renderArcade(
-    games.map((g) => ({ ...g, author: names[g.id] || '', has_thumb: thumbIds.has(g.id) })),
-    { base: SITE }
-  ));
-  log('wrote ' + games.length + ' game pages + arcade + sitemap (' + (CORE.length + games.length) + ' URLs)');
+  // /arcade is deliberately NOT written here. It is rendered per request by the
+  // Render server (lib/arcade.js), so a game published after this build still
+  // appears. A static copy would shadow that rewrite and freeze the list at
+  // deploy time — publish ten minutes later and the game is invisible.
+  log('wrote ' + games.length + ' game pages + sitemap (' + (CORE.length + games.length) + ' URLs)');
 } catch (e) {
   log('SKIPPED — ' + (e && e.message ? e.message : e));
 }
