@@ -20,6 +20,7 @@ const { Resend } = require('resend');
 const JSZip = require('jszip');
 const defaultThumb = require('./lib/default-thumb');
 
+const discord = require('./lib/discord');
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 // ── Input validation ──────────────────────────────────────────
@@ -7092,7 +7093,13 @@ function sanitizeTags(raw) {
       ({ data, error } = await supabase.from('games').update(updates).eq('id', id).eq('owner_id', user.id).select().single());
     }
     if (error) console.error('games update error:', error.message);
-    else if (wasPub === false && data) onPublished(user.id, id, data.title).catch(() => {});
+    else if (wasPub === false && data) {
+      onPublished(user.id, id, data.title).catch(() => {});
+      // Announcing belongs to publishing, not saving: this branch only runs on
+      // the false → true flip. A webhook that is unset, slow or failing is
+      // logged inside lib/discord.js and must never fail the publish.
+      discord.announcePublished(data).catch(() => {});
+    }
     gamesListCacheClear(); // title/tags/publish flips change the gallery
     // Publishing ships a release: snapshot the files that just went live, so
     // later saves are a draft until the next publish. Failures leave the old

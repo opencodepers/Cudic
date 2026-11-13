@@ -1,0 +1,39 @@
+name: Discord status
+
+# The site is probed from outside on a timer, because the app host sleeps and
+# the proxy can be up while the app is not. Posting only on a state change keeps
+# #website-status readable. Run it by hand from the Actions tab to test setup.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The cached file is the previous answer. Cache entries are immutable, so
+      # each run saves under its own key and restores the newest by prefix.
+      - uses: actions/cache/restore@v4
+        with:
+          path: .discord-status.json
+          key: discord-status-${{ github.run_id }}
+          restore-keys: |
+            discord-status-
+
+      - name: Probe and report
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+          DISCORD_STATUS_WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK }}
+        run: node tools/discord-status.mjs
+
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .discord-status.json
+          key: discord-status-${{ github.run_id }}

@@ -38,3 +38,6 @@ tests.results.md
 /freebuff/
 .freebuff/
 cli/*.tgz
+
+# Discord status reporter state (tools/discord-status.mjs, runtime only)
+.discord-status.json

@@ -8,6 +8,11 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**The server talks to Discord**
+
+- **First publish announces itself** (`lib/discord.js`, `server.js`): when a game flips from draft to published, the server posts one embed to `DISCORD_WEBHOOK_GAMES` — title, blurb, and the game's cover (the shared default cover when it has no art), linking `/g/<slug>`. Re-saving a live game stays quiet, and an unset or failing webhook changes nothing about the publish.
+- **Uptime is reported, not spammed** (`tools/discord-status.mjs`, `.github/workflows/discord-status.yml`): a ten-minute cron probes `/arcade` and `/` from outside, records the result, and posts to `DISCORD_WEBHOOK_STATUS` only when the state changes — down, degraded, or back up with the minutes it was out. `--dry` prints the message instead of sending it.
+
 **Cards that go where they point**
 
 - **Shared slugs no longer blank a card** (`lib/slug.js`, `server.js`): game URLs come from titles, so nine projects called "Untitled Project" all saved `slug: untitled-project` and three of them were published. `/g/untitled-project` then matched more than one row, `.single()` errored, and the 404 landed in the `<img>` — a broken-image box instead of the cover, with a card link that went nowhere. The share route now picks one published row deterministically, `/arcade` and `/five` link a shared slug by that game id, and new games claim the first free slug (`untitled-project-2`, …).

@@ -83,3 +83,32 @@ Supabase project `opimjwmgmzwapkzgxvhk`. Schema in `supabase/schema.sql`, dated 
 ## License
 
 All rights reserved — see [LICENSE.md](LICENSE.md).
+
+## Discord
+
+The Cudic server posts into two channels through webhooks, so no bot process has
+to run on the host. Both variables are optional — unset means nothing is sent.
+
+| Variable | Channel | Sent by |
+|---|---|---|
+| `DISCORD_WEBHOOK_GAMES` | `#announcements` | `server.js` — one embed per game, on its first publish |
+| `DISCORD_WEBHOOK_STATUS` | `#website-status` | `.github/workflows/discord-status.yml` |
+
+Announcements carry the game's blurb and its `/g/<slug>/thumb` cover (the shared
+default cover when it has no art) and link to the game page. Saving a game that
+is already live stays quiet, and a failing webhook never fails the publish.
+
+`.github/workflows/discord-status.yml` runs `tools/discord-status.mjs` every ten
+minutes, probing `/arcade` (the app) and `/` (the static front) from outside. It
+posts only when the state changes — down, degraded, or back up with how long it
+was out — so an outage shows up once instead of as a stream of "still up".
+
+Run the reporter by hand:
+
+    node tools/discord-status.mjs --dry     # print the message, post nothing
+    node tools/discord-status.mjs --force   # post the current state even if unchanged
+
+Repository setup: add `DISCORD_STATUS_WEBHOOK` as an Actions **secret**, and
+`SITE_URL` as an Actions **variable** if the public origin is not
+`https://cudic.vercel.app`. On Render, add `DISCORD_WEBHOOK_GAMES` to the
+service's environment.
