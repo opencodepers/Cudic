@@ -1645,12 +1645,14 @@ async function importGitHub(): Promise<void> {
 // and the automatic offer for brand-new users (main.ts, freshDraft boot).
 // The session marker keeps Esc from re-asking on every reload; a new tab or
 // session asks again.
-export async function offerTemplatePicker(): Promise<void> {
-  try {
-    if (sessionStorage.getItem('cudic_tpl_asked') === '1') return;
-    sessionStorage.setItem('cudic_tpl_asked', '1');
-  } catch {
-    // private mode — ask without the guard
+export async function offerTemplatePicker(force = false): Promise<void> {
+  if (!force) {
+    try {
+      if (sessionStorage.getItem('cudic_tpl_asked') === '1') return;
+      sessionStorage.setItem('cudic_tpl_asked', '1');
+    } catch {
+      // private mode — ask without the guard
+    }
   }
   const qp = vscode.window.createQuickPick<{ label: string; description: string; id: string }>();
   try {
@@ -1672,7 +1674,14 @@ export async function offerTemplatePicker(): Promise<void> {
           const url = new URL(location.href);
           url.searchParams.set('template', sel.id);
           url.searchParams.delete('id');
-          location.href = url.toString();
+          // A chosen template is a fresh project: do not inherit the previous
+          // read-only view or let an old draft snapshot replace its files.
+          url.searchParams.delete('readonly');
+          void snapDelete('draft')
+            .catch(() => {})
+            .then(() => {
+              location.href = url.toString();
+            });
         }
         resolve();
       });
