@@ -70,6 +70,19 @@ async function fetchAuthors() {
   return names;
 }
 
+// Same rule as lib/slug.js: a slug more than one game claims cannot name a
+// single game, so those share links fall back to the id.
+function sharedSlugs(games) {
+  const seen = new Set();
+  const dup = new Set();
+  for (const g of games || []) {
+    const s = String((g && g.slug) || '').trim();
+    if (!s) continue;
+    if (seen.has(s)) dup.add(s); else seen.add(s);
+  }
+  return dup;
+}
+
 function relatedFor(g, games) {
   // Same tag first, newest others to fill — an internal link trail that
   // crawlers can follow between game pages.
@@ -97,7 +110,7 @@ function gamePage(g, names, games) {
   const date = String(g.updated_at || g.created_at || '').slice(0, 10);
   const tags = Array.isArray(g.tags) ? g.tags.filter((t) => typeof t === 'string').slice(0, 6) : [];
   const play = '/view.html?id=' + encodeURIComponent(g.id);
-  const shareUrl = SITE + '/g/' + (g.slug || g.id);
+  const shareUrl = SITE + '/g/' + (g.slug && !sharedSlugs(games).has(g.slug) ? g.slug : g.id);
   const playCount = Number(g.play_count) || 0;
   const jsonLd = JSON.stringify({
     '@context': 'https://schema.org',

@@ -8,6 +8,10 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Cards that go where they point**
+
+- **Shared slugs no longer blank a card** (`lib/slug.js`, `server.js`): game URLs come from titles, so nine projects called "Untitled Project" all saved `slug: untitled-project` and three of them were published. `/g/untitled-project` then matched more than one row, `.single()` errored, and the 404 landed in the `<img>` — a broken-image box instead of the cover, with a card link that went nowhere. The share route now picks one published row deterministically, `/arcade` and `/five` link a shared slug by that game id, and new games claim the first free slug (`untitled-project-2`, …).
+
 **Every game has a cover**
 
 - **No more blank cards** (`lib/default-thumb.js`, `public/default-thumb.svg`): a game that never uploaded a thumbnail now gets one shared Cudic cover instead of an empty box. `/g/<slug>/thumb` and `/api/games/:id/thumbnail` serve it (real art still wins), so the gallery, `/arcade`, `/daily`, `/five`, forum cards, profiles and the Studio project picker all fill in with no client change. `has_thumb` now answers "does this thumbnail URL return an image?", which is always true.

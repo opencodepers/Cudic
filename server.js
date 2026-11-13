@@ -3393,6 +3393,20 @@ function slugify(s) {
     .slice(0, 40) || 'game';
 }
 
+// Public game URLs are /g/<slug>, but titles are not unique: two games called
+// "Untitled Project" both slugify to "untitled-project" and one of them becomes
+// unreachable. Claim the first free slug — appending -2, -3 … — instead.
+async function freeGameSlug(title, keepId) {
+  const base = slugify(title || 'Untitled Game');
+  for (let n = 1; n < 100; n++) {
+    const suffix = n === 1 ? '' : '-' + n;
+    const candidate = base.slice(0, 40 - suffix.length) + suffix;
+    const { data } = await supabase.from('games').select('id').eq('slug', candidate);
+    if (!data || !data.some((row) => row.id !== keepId)) return candidate;
+  }
+  return base.slice(0, 31) + '-' + Date.now().toString(36);
+}
+
 // Game tags: lowercased, letters/numbers/dashes only, deduped, capped.
 // One column on `games`, so the gallery can filter and the "More like
 // this" shelf can match without a join. Shared by POST (create) and PUT
@@ -6388,7 +6402,7 @@ function sanitizeTags(raw) {
     const body = await readBody(req, 25 * 1024 * 1024); // projects can carry MB-scale file JSON, but bound it
     const { data, error } = await supabase.from('games').insert({
       owner_id: user.id,
-      slug: slugify(body.title || 'Untitled Game'),
+      slug: await freeGameSlug(body.title),
       title: String(body.title || 'Untitled Game').slice(0, 100),
       description: String(body.description || '').slice(0, 500),
       credits: String(body.credits || '').slice(0, 200),
@@ -6996,7 +7010,7 @@ function sanitizeTags(raw) {
     if (body.assets !== undefined) updates.assets = body.assets;
     if (body.published !== undefined) updates.published = body.published;
     if (body.published && body.slug === undefined && !(await supabase.from('games').select('slug').eq('id', id).single()).data?.slug) {
-      updates.slug = slugify(body.title ?? (await supabase.from('games').select('title').eq('id', id).single()).data?.title);
+      updates.slug = await freeGameSlug(body.title ?? (await supabase.from('games').select('title').eq('id', id).single()).data?.title, id);
     }
     // Thumbnails arrive as ≤1000px JPEG data URLs; reject anything else
     // instead of storing a multi-MB blob the view page would re-fetch.
@@ -7449,9 +7463,14 @@ function sanitizeTags(raw) {
     const isId = isUuid(raw);
     const query = supabase.from('games')
       .select('id, slug, title, description, thumbnail, published, users!games_owner_id_fkey(display_name)');
-    const { data: g } = isId
-      ? await query.eq('id', raw).single()
-      : await query.eq('slug', raw).single();
+    // Slugs come from titles and are not unique in older rows ("untitled-project"
+    // is claimed by nine games). .single() errors when a slug matches twice, and
+    // that 404 used to take the share page *and* the card art down with it, so
+    // take one published row deterministically instead.
+    const { data: hits } = isId
+      ? await query.eq('id', raw).limit(1)
+      : await query.eq('slug', raw).order('published', { ascending: false }).order('created_at', { ascending: true }).limit(1);
+    const g = hits && hits[0];
     if (!g || !g.published) {
       res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end('<!DOCTYPE html><meta charset="utf-8"><title>Game not found — Cudic</title><body style="font-family:sans-serif;background:#141414;color:#fff;display:grid;place-items:center;height:100vh;margin:0"><p>That game is not on Cudic. <a href="/games" style="color:#FF8C1A">Browse the gallery</a>.</p></body>');
