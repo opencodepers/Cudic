@@ -6156,6 +6156,64 @@ function sanitizeTags(raw) {
     return;
   }
 
+  // ── /api/games/:id/howto — the first-run controls line ────────
+  // Guessed from the game's own source so the cover can say how to play without
+  // the creator writing anything. A wrong guess is worse than a generic line,
+  // so only unambiguous tokens count.
+  const gamePath = url.pathname.startsWith('/api/games/') ? url.pathname.slice('/api/games/'.length).split('/') : null;
+  const gamePathId = gamePath && isUuid(gamePath[0]) ? gamePath[0] : null;
+  if (gamePathId && gamePath.length === 2 && gamePath[1] === 'howto' && req.method === 'GET') {
+    const { data: hg } = await supabase.from('games').select('files').eq('id', gamePathId).single();
+    let hfiles = hg && hg.files;
+    if (typeof hfiles === 'string') { try { hfiles = JSON.parse(hfiles); } catch (e) { hfiles = null; } }
+    const src = Object.keys(hfiles || {})
+      .filter((p) => /\.(js|mjs|ts|html)$/i.test(p))
+      .map((p) => String(hfiles[p] || ''))
+      .join('\n')
+      .slice(0, 400000);
+    const hints = [];
+    if (/ArrowLeft|ArrowRight/.test(src)) hints.push('arrow keys to move');
+    else if (/WASD|KeyW|KeyA/.test(src)) hints.push('WASD or the arrow keys');
+    if (/Space/.test(src)) hints.push('Space to jump or shoot');
+    if (/mousedown|pointerdown|touchstart/.test(src)) hints.push('tap or click to act');
+    if (/cudic-touch|dpad|joystick/i.test(src)) hints.push('on-screen buttons on a phone');
+    const text = hints.length
+      ? 'How to play: ' + hints.slice(0, 3).join(' · ') + '.'
+      : 'Tap or click to start. If on-screen buttons appear, they work with a thumb.';
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=600' });
+    res.end(JSON.stringify({ text, hints }));
+    return;
+  }
+
+  // ── /api/games/:id/export — one self-contained .html ─────────
+  // The files of a published game are already public to every player, so this
+  // needs no session; it only reassembles them into the single-file shape
+  // itch.io and CrazyGames take as an upload.
+  if (gamePathId && gamePath.length === 2 && gamePath[1] === 'export' && req.method === 'GET') {
+    const { data: eg } = await supabase.from('games')
+      .select('id, slug, title, credits, files, published, users!owner_id(display_name)')
+      .eq('id', gamePathId).single();
+    let efiles = eg && eg.files;
+    if (typeof efiles === 'string') { try { efiles = JSON.parse(efiles); } catch (e) { efiles = null; } }
+    if (!eg || !eg.published || !efiles || !Object.keys(efiles).length) {
+      res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Only a published game can be exported.' }));
+      return;
+    }
+    const html = singleFileBuild(efiles, {
+      title: eg.title,
+      author: eg.users && eg.users.display_name
+    });
+    const name = String(eg.slug || 'game').replace(/[^a-z0-9-]/gi, '-').toLowerCase() || 'game';
+    res.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Content-Disposition': 'attachment; filename="' + name + '.html"',
+      'Cache-Control': 'no-store'
+    });
+    res.end(html);
+    return;
+  }
+
   if (url.pathname.startsWith('/api/games/') && req.method === 'GET') {
     cors(res);
     const id = url.pathname.split('/')[3];
@@ -7335,6 +7393,50 @@ function sanitizeTags(raw) {
     return;
   }
 
+  // ── /api/daily, /daily, /five ────────────────────────────────
+  // The daily pick is a hash of the UTC date over the published games, so it
+  // needs no rotation table and every host agrees. /five names five games
+  // instead of showing a grid and hoping something catches.
+  if (url.pathname === '/api/daily' || url.pathname === '/daily' || url.pathname === '/daily.html'
+      || url.pathname === '/five' || url.pathname === '/five.html') {
+    const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+    const isLocal = /^(localhost|127\.)/.test(host);
+    const base = isLocal
+      ? (req.socket.encrypted ? 'https://' : 'http://') + host
+      : (process.env.PUBLIC_ORIGIN || 'https://cudic.vercel.app');
+    const { data } = await supabase.from('games')
+      .select('id, slug, title, description, tags, play_count, created_at, updated_at, thumbnail, users!owner_id(display_name)')
+      .eq('published', true)
+      .order('play_count', { ascending: false })
+      .limit(500);
+    const rows = (data || []).map((g) => ({
+      ...g,
+      author: g.users && g.users.display_name,
+      has_thumb: !!g.thumbnail
+    }));
+    if (url.pathname === '/api/daily') {
+      const pick = pickDaily(rows);
+      const game = pick.game ? {
+        id: pick.game.id,
+        slug: pick.game.slug || null,
+        title: pick.game.title || null,
+        description: pick.game.description || null,
+        url: '/g/' + encodeURIComponent(pick.game.slug || pick.game.id)
+      } : null;
+      res.writeHead(200, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'public, max-age=60',
+        'Access-Control-Allow-Origin': '*'
+      });
+      res.end(JSON.stringify({ date: dayKey(), number: pick.number, game }));
+      return;
+    }
+    const html = url.pathname.indexOf('/five') === 0 ? renderFive(rows, { base }) : renderDaily(rows, { base });
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
+    res.end(req.method === 'HEAD' ? undefined : html);
+    return;
+  }
+
   if (url.pathname.startsWith('/g/')) {
     const parts = url.pathname.slice(3).split('/');
     const raw = parts[0];
@@ -7459,6 +7561,41 @@ function sanitizeTags(raw) {
 // Share-card meta lives in lib/share-card.js; 60s cache stays per-process.
 const { decorateViewHead } = require('./lib/share-card')(supabase);
 const renderArcade = require('./lib/arcade');
+// Daily challenge and the curated five share one renderer (lib/daily.js).
+const { renderDaily, renderFive, pickDaily, dayKey } = require('./lib/daily');
+
+// One entry file for hosts that only accept a single HTML upload (itch.io,
+// CrazyGames). Local scripts and stylesheets are inlined in place; assets stay
+// absolute URLs because base64 would turn a 2MB game into a 3MB one.
+function singleFileBuild(files, meta) {
+  meta = meta || {};
+  const bodies = files || {};
+  const norm = (p) => String(p || '').replace(/^\.?\//, '').split('?')[0];
+  let entry = bodies['index.html'] || bodies['game.html'];
+  if (typeof entry !== 'string') {
+    const scripts = Object.keys(bodies).filter((p) => /\.js$/i.test(p));
+    entry = '<!DOCTYPE html><meta charset="utf-8"><title>' + String(meta.title || 'Game').replace(/[<>&]/g, '') + '</title>'
+      + '<canvas id="game"></canvas>'
+      + scripts.map((p) => '<script src="' + norm(p) + '"><\/script>').join('');
+  }
+  let out = String(entry);
+  out = out.replace(/<script\b([^>]*?)\bsrc\s*=\s*["']([^"']+)["']([^>]*)><\/script>/gi, (m, pre, src, post) => {
+    const key = norm(src);
+    if (!Object.prototype.hasOwnProperty.call(bodies, key)) return m;
+    return '<script' + pre + post + '>\n' + String(bodies[key]).replace(/<\/script>/gi, '<\\/script>') + '\n</script>';
+  });
+  out = out.replace(/<link\b([^>]*?)href\s*=\s*["']([^"']+)["']([^>]*)>/gi, (m, pre, href, post) => {
+    if (!/stylesheet/i.test(pre + post)) return m;
+    const key = norm(href);
+    if (!Object.prototype.hasOwnProperty.call(bodies, key)) return m;
+    return '<style>\n' + String(bodies[key]) + '\n</style>';
+  });
+  const credit = '<!-- ' + (meta.title || 'A game') + (meta.author ? ' by ' + meta.author : '')
+    + ' — built on Cudic (cudic.vercel.app). Keep this credit if you repost it. -->\n'
+    + '<meta name="generator" content="Cudic">\n';
+  out = out.replace(/<head([^>]*)>/i, (m) => m + '\n' + credit);
+  return out;
+}
 
 // ── WebSocket server ─────────────────────────────────────────────
 const wss = new WebSocketServer({ server });

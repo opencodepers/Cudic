@@ -287,6 +287,8 @@ const CORE = [
   ['/', 'daily', '1.0'],
   ['/games', 'daily', '0.9'],
   ['/arcade', 'daily', '0.9'],
+  ['/daily', 'daily', '0.9'],
+  ['/five', 'weekly', '0.8'],
   ['/studio', 'weekly', '0.9'],
   ['/cookbook/', 'weekly', '0.8'],
   ['/cookbook/platformer.html', 'monthly', '0.7'],

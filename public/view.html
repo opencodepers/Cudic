@@ -7,8 +7,11 @@
       gtag('js', new Date());
     </script>
 <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+<script>/* The install prompt must be captured before the browser offers it,
+   which is earlier than this page's own script runs at the end of the body. */
+window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__cudicInstall=e;});</script>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Cudic — Play</title>
   <meta name="description" content="Play this game instantly in your browser. Built with Cudic Studio — fork it and make your own version.">
   <meta property="og:type" content="website">
@@ -90,6 +93,56 @@
     .clip-row .hint { font-size: 0.76rem; color: var(--text-tertiary); flex: 1; min-width: 180px; }
     .clip-row .hint b { color: var(--text-primary); font-weight: 600; }
     .fb-input { width: 100%; box-sizing: border-box; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 0.83rem; font-family: inherit; padding: 9px 12px; margin: 8px 0; outline: none; resize: vertical; }
+    /* ── Phone mode ───────────────────────────────────────────────
+       On a phone the player is the page: full width, as tall as the
+       visible screen (dvh, so a collapsing URL bar cannot crop it), no
+       rubber-band scroll stealing taps. The controls live inside the
+       frame (cudic-touch.js); this shell only has to get out of the way. */
+    @media (pointer: coarse) {
+      body { display: block; overflow: auto; height: auto; }
+      .game-content { padding: 10px 10px calc(18px + env(safe-area-inset-bottom)); }
+      .game-head { gap: 8px; margin-bottom: 10px; }
+      .game-head h1 { font-size: 1.05rem; }
+      .game-head .btn { padding: 10px 13px; }
+      .player-card { height: 100dvh; min-height: 380px; border-radius: 0; border-left: 0; border-right: 0; margin: 0 -10px; overscroll-behavior: contain; touch-action: manipulation; }
+      .player-card iframe { touch-action: manipulation; }
+      .player-card.scrollable { touch-action: auto; }
+      .game-grid { grid-template-columns: 1fr; gap: 14px; }
+      .side-card { padding: 16px; }
+      #fsBtn, #clipBtn, #scrollBtn, #shareBtn { min-height: 42px; }
+    }
+    @media (pointer: coarse) and (orientation: landscape) and (max-height: 520px) {
+      /* Landscape phone: the game is the whole viewport, chrome is gone. */
+      .game-head, .side-card, #playerErr { display: none; }
+      .game-content { padding: 0; }
+      .player-card { height: 100dvh; min-height: 0; margin: 0; border: 0; border-radius: 0; }
+    }
+    /* ── First 30 seconds ─────────────────────────────────────────
+       People leave a new game before it explains itself, so the first
+       visit to each game gets a cover with the name, the controls and
+       one Play button. Shown once per game per browser. */
+    .first-run { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; background: radial-gradient(circle at 50% 32%, rgba(255,140,26,.18), rgba(0,0,0,.94) 72%); color: #fff; }
+    .first-run[hidden] { display: none; }
+    .fr-inner { max-width: 420px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .fr-kicker { font-family: var(--font-head); font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.55); margin: 0; }
+    .fr-title { font-family: var(--font-head); font-weight: 600; font-size: 1.35rem; margin: 0; }
+    .fr-how { font-size: .9rem; line-height: 1.5; color: rgba(255,255,255,.78); margin: 0; }
+    .fr-play { margin-top: 6px; min-width: 180px; padding: 14px 28px; border: 0; border-radius: 999px; background: var(--ember, #FF8C1A); color: #141414; font: inherit; font-weight: 600; font-size: 1rem; cursor: pointer; }
+    .fr-play:active { transform: scale(.98); }
+    .fr-note { font-size: .72rem; color: rgba(255,255,255,.45); margin: 4px 0 0; }
+    .fr-note a { color: rgba(255,255,255,.7); }
+    /* Guest identity: the name a score would be filed under if this were an
+       account. It is honest about the difference. */
+    .guest-badge { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .78rem; color: var(--text-secondary); }
+    .guest-badge[hidden] { display: none; }
+    .guest-badge b { color: var(--text-primary); font-weight: 600; }
+    .guest-badge a { color: var(--signal); text-decoration: none; }
+    .guest-badge a:hover { text-decoration: underline; }
+    /* Install nudge after the second play, once per device. */
+    .install-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 10000; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: calc(100vw - 24px); padding: 12px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; box-shadow: 0 12px 40px rgba(0,0,0,.45); font-size: .82rem; }
+    .install-bar[hidden] { display: none; }
+    .install-bar span { color: var(--text-secondary); }
+    .install-bar .btn { padding: 7px 14px; }
   </style><link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
 </head>
 <body data-page="games">
@@ -125,7 +178,19 @@
     </div>
     <div class="game-grid">
       <div class="player-col">
-        <div class="player-card" id="playerCard"><div class="player-overlay" id="overlay"><span id="overlayText">Loading…</span></div></div>
+        <div class="player-card" id="playerCard">
+          <div class="first-run" id="firstRun" hidden>
+            <div class="fr-inner">
+              <p class="fr-kicker">Your first go</p>
+              <h2 class="fr-title" id="frTitle">Loading…</h2>
+              <p class="fr-how" id="frHow">One tap and it starts — nothing to install.</p>
+              <button class="fr-play" id="frPlay" type="button">Play</button>
+              <p class="fr-note">Sound comes from the game itself. <a href="#" id="frSkip">Skip this next time</a></p>
+            </div>
+          </div>
+          <div class="player-overlay" id="overlay"><span id="overlayText">Loading…</span></div>
+        </div>
+        <div class="guest-badge" id="guestBadge" hidden></div>
         <div class="clip-panel" id="clipPanel" style="display:none">
           <video id="clipVideo" controls playsinline muted loop></video>
           <div class="clip-row">
@@ -278,6 +343,15 @@
             <button class="btn btn-secondary" id="copyFluidBtn" style="width:auto;flex-shrink:0">Copy</button>
           </div>
         </div>
+        <div id="exportWrap" style="margin-top:14px">
+          <label>Take it elsewhere <span class="dim" style="font-weight:400">— one self-contained .html for itch.io, CrazyGames or a USB stick</span></label>
+          <div class="share-row">
+            <input type="text" id="exportUrl" readonly>
+            <button class="btn btn-secondary" id="copyExportBtn" type="button" style="width:auto;flex-shrink:0">Copy</button>
+            <a class="btn btn-primary" id="exportDl" download style="width:auto;flex-shrink:0">Download</a>
+          </div>
+          <p class="dim" style="font-size:0.74rem;margin:-4px 0 0">Scripts, styles, the game's code and its assets are inlined; keep the creator's name and the Cudic credit if you repost it.</p>
+        </div>
         <p id="embedNote" class="dim" style="display:none;font-size:0.8rem">Publish this game to enable embedding.</p>
         <div class="modal-actions"><button class="btn btn-secondary" id="shareClose" style="width:auto">Done</button></div>
       </div>
@@ -298,6 +372,11 @@
       </div>
     </div>
   </div></div>
+  <div class="install-bar" id="installBar" hidden>
+    <span>Keep Cudic one tap away?</span>
+    <button class="btn btn-primary" id="installYes" type="button">Install</button>
+    <button class="btn btn-secondary" id="installNo" type="button">Not now</button>
+  </div>
   <script src="/config.js"></script>
   <script src="/auth.js"></script>
   <script src="/sidebar.js?v=26"></script>
@@ -535,6 +614,13 @@ setInterval(function () {
     document.getElementById('shareLink').value = pageUrl;
     document.getElementById('embedFixed').value = '<iframe src="' + embedUrl + '" width="485" height="402" frameborder="0" scrolling="no" allowfullscreen></iframe>';
     document.getElementById('embedFluid').value = '<iframe src="' + embedUrl + '" style="width:100%;height:400px;border:0" scrolling="no" allowfullscreen></iframe>';
+    // Single-file build: the export endpoint reassembles the project into one
+    // .html, which is the shape itch.io and CrazyGames accept as an upload.
+    var exportUrl = apiBase() + '/api/games/' + encodeURIComponent(id) + '/export';
+    var exportInput = document.getElementById('exportUrl');
+    if (exportInput) exportInput.value = exportUrl;
+    var exportDl = document.getElementById('exportDl');
+    if (exportDl) exportDl.href = exportUrl;
     function flashCopy(btn) {
       var old = btn.textContent;
       btn.textContent = 'Copied';
@@ -566,6 +652,7 @@ setInterval(function () {
       }
       var pub = game ? !!game.published : true;
       document.getElementById('embedWrap').style.display = pub === false ? 'none' : '';
+      document.getElementById('exportWrap').style.display = pub === false ? 'none' : '';
       document.getElementById('embedNote').style.display = pub === false ? 'block' : 'none';
       shareModal.classList.add('open');
     });
@@ -577,6 +664,9 @@ setInterval(function () {
     });
     document.getElementById('copyFluidBtn').addEventListener('click', function(){
       copyText(document.getElementById('embedFluid').value, this);
+    });
+    document.getElementById('copyExportBtn').addEventListener('click', function(){
+      copyText(document.getElementById('exportUrl').value, this);
     });
     document.getElementById('shareClose').addEventListener('click', function(){ shareModal.classList.remove('open'); });
     shareModal.addEventListener('click', function(e){ if (e.target === shareModal) shareModal.classList.remove('open'); });
@@ -1256,8 +1346,42 @@ setInterval(function () {
         f.setAttribute('sandbox', 'allow-scripts allow-pointer-lock'); // pointer-lock sandbox token is the grant; no allow-same-origin, so the frame never sees this page's origin/localStorage (auth token)
         f.setAttribute('allowfullscreen', 'true');
         f.setAttribute('scrolling', 'no');
-        f.src = '/run.html?v=9';
-        card.appendChild(f);
+        // Built now, navigated on Play. A cover sitting over an already-running
+        // game would burn the first thirty seconds behind itself, which is the
+        // exact thing the cover exists to prevent.
+        var playStarted = false;
+        function beginPlay() {
+          if (playStarted) return;
+          playStarted = true;
+          var cover = document.getElementById('firstRun');
+          if (cover) cover.hidden = true;
+          try { localStorage.setItem('cudic-seen:' + id, '1'); } catch (e) {}
+          f.src = '/run.html?v=9';
+          if (!f.isConnected) card.appendChild(f);
+          try { if (window.cudicTrack) window.cudicTrack('play_start', { game_id: id, surface: 'view' }); } catch (e) {}
+          setTimeout(function () {
+            if (!playerStarted) playerFail('Player did not start. Hard-refresh (Ctrl+Shift+R); if it persists, open the project in Studio and re-save.');
+          }, 6000);
+        }
+        // Per game, per browser: a returning visitor goes straight in.
+        var firstVisit = false;
+        try { firstVisit = !localStorage.getItem('cudic-seen:' + id); } catch (e) { firstVisit = false; }
+        var firstRunEl = document.getElementById('firstRun');
+        if (firstVisit && firstRunEl) {
+          var gameName = (document.getElementById('gameTitle').textContent || '').trim();
+          document.getElementById('frTitle').textContent = gameName || 'This game';
+          document.getElementById('frPlay').addEventListener('click', beginPlay);
+          document.getElementById('frSkip').addEventListener('click', function (e) { e.preventDefault(); beginPlay(); });
+          firstRunEl.hidden = false;
+          // Controls, guessed from the game's own source. The endpoint answers
+          // with a generic line when it cannot tell, so this never blocks play.
+          fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/howto')
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (d) { if (d && d.text) document.getElementById('frHow').textContent = d.text; })
+            .catch(function () {});
+        } else {
+          beginPlay();
+        }
         // Viewers can allow scrolling for website-style games; remembered per game
         var scrollKey = 'glox-scroll:' + id;
         function applyScroll(on) {
@@ -1726,12 +1850,60 @@ setInterval(function () {
             paintLive();
           }
         });
-        setTimeout(function(){
-          if (!playerStarted) playerFail('Player did not start. Hard-refresh (Ctrl+Shift+R); if it persists, open the project in Studio and re-save.');
-        }, 6000);
         document.getElementById('fsBtn').addEventListener('click', function(){
           if (card.requestFullscreen) card.requestFullscreen();
         });
+        // ── Install nudge ────────────────────────────────────────────
+        // After the second play, once per device. One play is not evidence
+        // that anybody wants this on their home screen.
+        (function () {
+          try {
+            var n = (parseInt(localStorage.getItem('cudic_plays'), 10) || 0) + 1;
+            localStorage.setItem('cudic_plays', String(n));
+            if (n < 2 || localStorage.getItem('cudic_install_asked') === '1') return;
+            if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return;
+            localStorage.setItem('cudic_install_asked', '1');
+            var bar = document.getElementById('installBar');
+            if (bar) bar.hidden = false;
+          } catch (e) {}
+        })();
+        (function () {
+          var bar = document.getElementById('installBar');
+          if (!bar) return;
+          document.getElementById('installNo').addEventListener('click', function () { bar.hidden = true; });
+          document.getElementById('installYes').addEventListener('click', function () {
+            var p = window.__cudicInstall;
+            bar.hidden = true;
+            if (p && p.prompt) {
+              try { p.prompt(); } catch (e) {}
+              window.__cudicInstall = null;
+              return;
+            }
+            // Safari has no install prompt: name the two taps that do exist.
+            alert('On iPhone or iPad: tap Share, then Add to Home Screen.');
+          });
+        })();
+        // ── Guest identity ───────────────────────────────────────────
+        // A stable name in this browser, shown where a score would be filed.
+        // It is not an account and does not pretend to be one: the score
+        // endpoint needs a session, so the badge says so and links to sign-in.
+        (function () {
+          var badge = document.getElementById('guestBadge');
+          if (!badge) return;
+          var name = null;
+          try { name = localStorage.getItem('cudic_guest_name'); } catch (e) {}
+          if (!name) {
+            var adj = ['Swift', 'Quiet', 'Bright', 'Lucky', 'Clever', 'Bold', 'Calm', 'Sharp'];
+            var noun = ['Otter', 'Comet', 'Pixel', 'Falcon', 'Lantern', 'Moth', 'Wave', 'Cipher'];
+            name = adj[Math.floor(Math.random() * adj.length)] + ' ' + noun[Math.floor(Math.random() * noun.length)];
+            try { localStorage.setItem('cudic_guest_name', name); } catch (e) {}
+          }
+          getSession().then(function (s) {
+            if (s) return; // signed in: the account is the identity
+            badge.hidden = false;
+            badge.innerHTML = 'Playing as <b>' + escapeHtml(name) + '</b><span>·</span><a href="/login?next=' + encodeURIComponent(location.pathname + location.search) + '">sign in to keep scores</a>';
+          }).catch(function () {});
+        })();
       })
       .catch(function(){ document.getElementById('overlayText').textContent = 'Could not load game'; });
   })();

@@ -9,6 +9,8 @@
     { "source": "/chat", "destination": "/chat.html" },
     { "source": "/games", "destination": "/games.html" },
     { "source": "/arcade", "destination": "/arcade.html" },
+    { "source": "/daily", "destination": "https://glox-o7rr.onrender.com/daily" },
+    { "source": "/five", "destination": "https://glox-o7rr.onrender.com/five" },
     { "source": "/forums", "destination": "/forums.html" },
     { "source": "/forums/:id", "destination": "/forums.html" },
     { "source": "/kit", "destination": "/kit.html" },
