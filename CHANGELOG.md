@@ -8,6 +8,13 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Get found**
+
+- **`/arcade` is the crawlable catalogue** (`lib/arcade.js`): every published game as real HTML with a real link on every card, plus `ItemList` structured data. `/games` builds its cards in JavaScript, so a crawler sees an empty page there; this is the page search engines can actually follow. It is written into `public/arcade.html` on every Vercel deploy by `tools/prerender-games.mjs` and served live from Render at `/arcade`, added to the sitemap and linked from every game page.
+- **Game pages share themselves** (`tools/prerender-games.mjs`): Share (native sheet), Post on X and Copy link, all pointing at `/g/<slug>` so an unfurl shows the game instead of a generic Cudic card. The `Make your own game` link carries `utm_source=gamepage`.
+- **The funnel is measurable** (`public/funnel.js`): GTM was on 41 pages and pushed no custom events. It now receives `cudic_page_view`, `game_view`, `play_start`, `share_click`, `signup_start` and `signup_complete`; `window.cudicTrack(name, params)` is exposed for `game_publish` from Studio.
+- **Embeds attribute back** (`public/embed.html`): the "Made in Cudic" chip points at the game's own `/g/<id>` page instead of the bare player, and the pre-play cover carries a `build your own` link.
+
 **Install Cudic**
 
 - **Cudic installs as an app**: every page now declares a web app manifest (`public/manifest.webmanifest`) with 192/512/maskable icons cut from the logo plus an `apple-touch-icon`, so Chrome, Edge and Safari offer *Install* / *Add to Home Screen* and launch Cudic in its own window on the ink background. The service worker still has no fetch handler, so the installed app is the live site — nothing is cached and a deploy can never serve a stale page.

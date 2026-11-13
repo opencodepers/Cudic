@@ -2,6 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://cudic.vercel.app/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
   <url><loc>https://cudic.vercel.app/games</loc><changefreq>daily</changefreq><priority>0.9</priority></url>
+  <url><loc>https://cudic.vercel.app/arcade</loc><changefreq>daily</changefreq><priority>0.9</priority></url>
   <url><loc>https://cudic.vercel.app/studio</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://cudic.vercel.app/cookbook/</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://cudic.vercel.app/cookbook/platformer.html</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
@@ -19,6 +20,9 @@
   <url><loc>https://cudic.vercel.app/privacy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
   <url><loc>https://cudic.vercel.app/terms</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
   <url><loc>https://cudic.vercel.app/profile</loc><changefreq>monthly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://cudic.vercel.app/game/94ef7f2e-226a-493f-a06a-37d529285a60/</loc><lastmod>2026-11-11</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://cudic.vercel.app/game/3fa6f520-ffd1-4122-88bc-afba52cba45d/</loc><lastmod>2026-11-10</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://cudic.vercel.app/game/f4fd3317-469a-4e55-be0c-be8db98e3eb9/</loc><lastmod>2026-11-04</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://cudic.vercel.app/game/04c06fca-89cc-4616-84f1-16744b626930/</loc><lastmod>2026-10-30</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://cudic.vercel.app/game/9cbf5827-56d9-4e57-b2e4-6916aa60ffbb/</loc><lastmod>2026-10-30</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://cudic.vercel.app/game/d9c82375-1612-4cf5-b1d8-0790cdd2b931/</loc><lastmod>2026-10-30</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
@@ -29,5 +33,4 @@
   <url><loc>https://cudic.vercel.app/game/5e25d364-6c8a-40f3-a528-ffb40d499ce8/</loc><lastmod>2026-10-30</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://cudic.vercel.app/game/c73f0895-04df-4147-abff-9974e64e1ddb/</loc><lastmod>2026-10-30</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://cudic.vercel.app/game/7f866d39-a530-4031-a896-3a7b25bae4dc/</loc><lastmod>2026-10-30</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://cudic.vercel.app/start</loc><lastmod>2026-11-08</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
 </urlset>

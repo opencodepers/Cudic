@@ -15,6 +15,7 @@
 
 import { readFileSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { createRequire } from 'node:module';
 
 const SITE = 'https://cudic.vercel.app';
 const RENDER = 'https://glox-o7rr.onrender.com';
@@ -22,6 +23,8 @@ const RENDER = 'https://glox-o7rr.onrender.com';
 const PUB = new URL('../public', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const GAME_DIR = join(PUB, 'game');
 const LIMIT = 400;
+// Shared with the Render server so /arcade is identical on both hosts.
+const renderArcade = createRequire(import.meta.url)('../lib/arcade');
 
 function log(m) { console.log('[prerender-games] ' + m); }
 
@@ -44,7 +47,7 @@ function escapeXml(s) {
 }
 
 async function fetchGames(cfg) {
-  const qs = '?select=id,title,description,credits,tags,play_count,updated_at,created_at&published=eq.true&order=updated_at.desc&limit=' + LIMIT;
+  const qs = '?select=id,slug,title,description,credits,tags,play_count,updated_at,created_at&published=eq.true&order=updated_at.desc&limit=' + LIMIT;
   const res = await fetch(cfg.url + '/rest/v1/games' + qs, {
     headers: { apikey: cfg.anon, Authorization: 'Bearer ' + cfg.anon },
     signal: AbortSignal.timeout(30000)
@@ -106,6 +109,7 @@ function gamePage(g, names, games, thumbIds) {
   const date = String(g.updated_at || g.created_at || '').slice(0, 10);
   const tags = Array.isArray(g.tags) ? g.tags.filter((t) => typeof t === 'string').slice(0, 6) : [];
   const play = '/view.html?id=' + encodeURIComponent(g.id);
+  const shareUrl = SITE + '/g/' + (g.slug || g.id);
   const playCount = Number(g.play_count) || 0;
   const jsonLd = JSON.stringify({
     '@context': 'https://schema.org',
@@ -146,6 +150,7 @@ function gamePage(g, names, games, thumbIds) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${esc(title)} — play free on Cudic</title>
 <meta name="description" content="${esc(metaDesc)}">
+<meta name="cudic-game-id" content="${g.id}">
 <link rel="canonical" href="${SITE}/game/${g.id}/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Cudic">
@@ -196,6 +201,11 @@ h1{margin:0;font-weight:500;font-size:clamp(38px,5.4vw,68px);line-height:1.02;le
 .shot{position:relative;background:var(--line);display:flex;align-items:center;justify-content:center;min-height:280px}
 .shot img{display:block;width:100%;height:100%;object-fit:cover}
 .shot.noimg:after{content:"";width:96px;height:96px;background:var(--mark) center/96px no-repeat;opacity:.5}
+.share{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+.sbtn{appearance:none;background:transparent;color:var(--ink);border:1px solid var(--line);padding:9px 14px;font-family:"Geist Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;text-decoration:none}
+.sbtn:hover{border-color:var(--ink)}
+.build{margin-top:2px;color:var(--mute);font-size:13px;text-decoration:none;border-bottom:1px solid var(--line)}
+.build:hover{color:var(--ink);border-color:var(--ink)}
 .related{flex:1}
 .sh{display:flex;justify-content:space-between;align-items:baseline;padding:20px 28px;border-bottom:1px solid var(--line)}
 .sh h2{margin:0;font-weight:500;font-size:22px;letter-spacing:-.02em}
@@ -234,6 +244,12 @@ footer .sp{flex:1}
       ${tags.length ? '<div class="tags">' + tags.map((t) => '<span>' + esc(t) + '</span>').join('') + '</div>' : ''}
       <a class="play" href="${play}" rel="nofollow">Play now</a>
       <p class="mono sub">Opens in the player · nothing to install</p>
+      <div class="share">
+        <button class="sbtn" id="nativeShare" type="button" data-share="native">Share</button>
+        <a class="sbtn" id="xShare" data-share="x" href="https://x.com/intent/tweet?text=${encodeURIComponent(title + ' — play free on Cudic')}&url=${encodeURIComponent(shareUrl)}" target="_blank" rel="noopener">Post on X</a>
+        <button class="sbtn" id="copyLink" type="button" data-share="copy">Copy link</button>
+      </div>
+      <a class="build" href="${SITE}/studio?utm_source=gamepage&utm_medium=cta&utm_campaign=build">Make your own game →</a>
     </div>
     <div class="shot${hasThumb ? '' : ' noimg'}">${shot}</div>
   </section>
@@ -241,9 +257,26 @@ footer .sp{flex:1}
   <footer>
     <span>Made in <a href="/studio">Cudic Studio</a> — fork this game and make it yours.</span>
     <span class="sp"></span>
-    <a href="/games">Browse all games</a>
+    <a href="/arcade">Browse all games</a>
   </footer>
 </main>
+<script src="/funnel.js?v=1" defer></script>
+<script>
+(function(){
+  var url = ${JSON.stringify(shareUrl)};
+  var copy = document.getElementById('copyLink');
+  if (copy) copy.addEventListener('click', function(){
+    var done = function(){ copy.textContent = 'Copied'; setTimeout(function(){ copy.textContent = 'Copy link'; }, 1600); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, function(){ window.prompt('Copy this link', url); });
+    else window.prompt('Copy this link', url);
+  });
+  var nat = document.getElementById('nativeShare');
+  if (nat) nat.addEventListener('click', function(){
+    if (navigator.share) navigator.share({ title: document.title, url: url }).catch(function(){});
+    else if (copy) copy.click();
+  });
+})();
+</script>
 <script src="/auth-nav.js?v=1"></script>
 </body>
 </html>
@@ -253,6 +286,7 @@ footer .sp{flex:1}
 const CORE = [
   ['/', 'daily', '1.0'],
   ['/games', 'daily', '0.9'],
+  ['/arcade', 'daily', '0.9'],
   ['/studio', 'weekly', '0.9'],
   ['/cookbook/', 'weekly', '0.8'],
   ['/cookbook/platformer.html', 'monthly', '0.7'],
@@ -311,7 +345,11 @@ try {
     writeFileSync(join(GAME_DIR, g.id, 'index.html'), gamePage(g, names, games, thumbIds));
   }
   writeFileSync(join(PUB, 'sitemap.xml'), sitemap(games));
-  log('wrote ' + games.length + ' game pages + sitemap (' + (CORE.length + games.length) + ' URLs)');
+  writeFileSync(join(PUB, 'arcade.html'), renderArcade(
+    games.map((g) => ({ ...g, author: names[g.id] || '', has_thumb: thumbIds.has(g.id) })),
+    { base: SITE }
+  ));
+  log('wrote ' + games.length + ' game pages + arcade + sitemap (' + (CORE.length + games.length) + ' URLs)');
 } catch (e) {
   log('SKIPPED — ' + (e && e.message ? e.message : e));
 }

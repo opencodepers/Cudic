@@ -8,6 +8,7 @@
     { "source": "/profile", "destination": "/profile.html" },
     { "source": "/chat", "destination": "/chat.html" },
     { "source": "/games", "destination": "/games.html" },
+    { "source": "/arcade", "destination": "/arcade.html" },
     { "source": "/forums", "destination": "/forums.html" },
     { "source": "/forums/:id", "destination": "/forums.html" },
     { "source": "/kit", "destination": "/kit.html" },

@@ -7310,6 +7310,31 @@ function sanitizeTags(raw) {
   // cannot vary its og tags per game. Humans get bounced to the player.
   // /g/:id/thumb is the same bytes as the thumbnail endpoint, at a stable
   // share-host URL (the Vercel rewrite proxies both paths to this server).
+  // ── /arcade — the crawlable index of every published game ────
+  // /games is a JS shell, so a crawler that lands there sees no games and no
+  // links. This page is plain HTML with one real link per card. It shares its
+  // renderer with the Vercel build (lib/arcade.js) so both hosts agree.
+  if (url.pathname === '/arcade' || url.pathname === '/arcade.html') {
+    const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+    const isLocal = /^(localhost|127\.)/.test(host);
+    const base = isLocal
+      ? (req.socket.encrypted ? 'https://' : 'http://') + host
+      : (process.env.PUBLIC_ORIGIN || 'https://cudic.vercel.app');
+    const { data } = await supabase.from('games')
+      .select('id, slug, title, description, tags, play_count, created_at, updated_at, thumbnail, users!owner_id(display_name)')
+      .eq('published', true)
+      .order('updated_at', { ascending: false })
+      .limit(200);
+    const html = renderArcade((data || []).map((g) => ({
+      ...g,
+      author: g.users && g.users.display_name,
+      has_thumb: !!g.thumbnail
+    })), { base });
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
+    res.end(req.method === 'HEAD' ? undefined : html);
+    return;
+  }
+
   if (url.pathname.startsWith('/g/')) {
     const parts = url.pathname.slice(3).split('/');
     const raw = parts[0];
@@ -7433,6 +7458,7 @@ function sanitizeTags(raw) {
 }
 // Share-card meta lives in lib/share-card.js; 60s cache stays per-process.
 const { decorateViewHead } = require('./lib/share-card')(supabase);
+const renderArcade = require('./lib/arcade');
 
 // ── WebSocket server ─────────────────────────────────────────────
 const wss = new WebSocketServer({ server });

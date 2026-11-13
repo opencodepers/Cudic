@@ -75,6 +75,12 @@
                         <div class="card"><span class="mono">RACE</span><h3>Creator race</h3><p>Every unique player who plays one of your games is a point, every week. Top three bank coins and titles at <a href="/race">/race</a>.</p></div>
                         <div class="card"><span class="mono">THEMES</span><h3>Theme packs</h3><p>Full app restyles: colours, fonts, rail icons, motion and a live background scene. The landing page keeps its own look. Try any pack for free before spending coins.</p></div>
                     </div>
+                    <h3>Getting found</h3>
+                    <div class="cards">
+                    <div class="card"><span class="mono">ARCADE</span><h3>Every game, one page</h3><p><a href="/arcade">/arcade</a> lists every published game as real HTML with a real link per card, so search engines can follow it. The <a href="/games">gallery</a> loads its cards in JavaScript and shows a crawler an empty page, which is why this one exists. It is rebuilt on every deploy, so nothing needs adding by hand.</p></div>
+                    <div class="card"><span class="mono">SHARE</span><h3>Share cards</h3><p>Every game page has Share, Post on X and Copy link. They point at <code>/g/&lt;slug&gt;</code>, which serves that game's own title, description and card art to Discord, Slack and X before a human clicks. An embedded game's "Made in Cudic" chip links back to the same page.</p></div>
+                    <div class="card"><span class="mono">MEASURE</span><h3>Funnel events</h3><p>GTM receives <code>cudic_page_view</code>, <code>game_view</code>, <code>play_start</code>, <code>share_click</code>, <code>signup_start</code> and <code>signup_complete</code>. After a publish, call <code>window.cudicTrack('game_publish', { game_id })</code> from Studio so publishing lands in the same funnel.</p></div>
+                    </div>
                     <div class="note"><p>Guests can play games and read chat. Progress isn't stored for a guest — the first time you play a game with saving, it offers a sign-in, and your bests attach to the account you pick.</p></div>
                 </section>
 
