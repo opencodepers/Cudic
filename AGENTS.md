@@ -66,6 +66,10 @@ theme packs, and a VS Code workbench shell at `/studio`.
 `design.md` v2 (asset-pack based, `public/cudic-assets/`) governs the classic pages;
 editor/studio stay dark IDE chrome (see §11). Both routes exist and are served.
 
+Three design docs, one per surface: **`design.md`** (brand + asset pack),
+**`cudic-landing-design.md`** (`/` and `public/brand.html`),
+**`cudic-pages-design.md`** (the rail pages' shell and components).
+
 ---
 
 ## 2b. Every file carries its own note
@@ -110,7 +114,10 @@ Rules:
   classic pages — vanilla script tags. Studio is the exception (Vite).
 - **Studio**: Vite 6 → `public/studio/` (gitignored, built locally/on Vercel),
   monaco-vscode-api 37.x, `esbuild` for ad-hoc bundling.
-- **Design system**: `design.md` is the single source of truth for color/type/spacing;
+- **Design system**: `design.md` is the single source of truth for the brand surface
+  (colour/type/spacing); **`cudic-landing-design.md`** specs `/` + `public/brand.html`,
+  **`cudic-pages-design.md`** specs the rail pages' shell — read that before styling
+  a tab. Palette names still come from here;
   the asset canon (`public/cudic-assets/` README + manifest.json) is the source for
   icons/emoji/cursors/logo recolors.
 
@@ -195,7 +202,10 @@ NEVER build bespoke page scaffolds: no separate full-page body layouts, no
 invented heroes/marquees/float columns, no missing rail, no page-side body
 scroll. Style INSIDE the shell freely (flat/brand-kit looks are fine — see
 shop.html + race.html), but the shell chrome is not optional and not
-customizable per page.
+customizable per page. The shell's measurements, components and states are specced
+in **`cudic-pages-design.md`** — read it before styling a tab. Its radii (6px
+controls, 12px cards, 16px panel) are the app surface; the ≤3px rule in §11 is the
+brand surface.
 
 ```
 server.js                 # ~4000 lines: HTTP + API + WS + AI proxy + email
@@ -239,7 +249,8 @@ studio/
                           # publish asks for ≤3 tags (showInputBox) and PUTs them
   src/activity-bar.ts     # owns the #cudic-activity-tabs strip + tab mounting (gotcha 20)
   src/icons.ts            # Lucide icons for Cudic's Studio chrome
-  src/projects.ts         # project picker dialog + save-before-switch flow
+  src/projects.ts         # project picker: switch, new template project, rename,
+                          # duplicate; every exit path saves first
   src/collab.ts           # collab editing panel: P2P co-edit, chat, names (see 7b)
   src/source-control.ts   # Cudic source-control panel (git state + commit UI)
   src/git-core.ts         # isomorphic-git plumbing (branch/commit/diff)
@@ -260,7 +271,9 @@ studio/
 supabase/
   schema.sql              # base schema
   migrations/             # 4 dated migrations
-design.md                 # design system source of truth
+design.md                 # design system source of truth — brand surface
+cudic-landing-design.md    # `/` + public/brand.html spec (dark, Geist, Geist Pixel)
+cudic-pages-design.md      # rail pages: shell, tokens, components, checklist
 PROJECT_MEMORY.md         # credentials index + user preferences
 vercel.json               # rewrites + cache headers + build command
 render.yaml               # Render service (PORT 10000)
@@ -1303,7 +1316,7 @@ list endpoints already supported it; **only Studio lacked a control**.
 
 ---
 
-## 11. Design system (`design.md`)
+## 11. Design system (`design.md`) — companions: `cudic-landing-design.md`, `cudic-pages-design.md`
 
 **v2 (2026-10-27), asset-pack based** — `public/cudic-assets/` is the asset canon
 (`README.md` = pack manual, `manifest.json` = machine-readable icon/cursor source,
