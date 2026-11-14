@@ -1,0 +1,34 @@
+name: Discord updates
+
+# Every push to main goes out to #updates as a sentence or two of plain English,
+# written from the commits in that push. Only main, because the same commit is
+# pushed to master as well and the channel should hear each change once.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  models: read
+
+# Two pushes close together should not race each other into the channel.
+concurrency:
+  group: discord-updates
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Write the update
+        env:
+          DISCORD_WEBHOOK_UPDATES: ${{ secrets.DISCORD_WEBHOOK_UPDATES }}
+          GITHUB_TOKEN: ${{ github.token }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: node tools/discord-update.mjs

@@ -93,6 +93,7 @@ to run on the host. Both variables are optional — unset means nothing is sent.
 |---|---|---|
 | `DISCORD_WEBHOOK_GAMES` | `#announcements` | `server.js` — one embed per game, on its first publish |
 | `DISCORD_WEBHOOK_STATUS` | `#website-status` | `.github/workflows/discord-status.yml` |
+| `DISCORD_WEBHOOK_UPDATES` | `#updates` | `.github/workflows/discord-updates.yml` |
 
 Announcements carry the game's blurb and its `/g/<slug>/thumb` cover (the shared
 default cover when it has no art) and link to the game page. Saving a game that
@@ -108,7 +109,21 @@ Run the reporter by hand:
     node tools/discord-status.mjs --dry     # print the message, post nothing
     node tools/discord-status.mjs --force   # post the current state even if unchanged
 
-Repository setup: add `DISCORD_STATUS_WEBHOOK` as an Actions **secret**, and
-`SITE_URL` as an Actions **variable** if the public origin is not
-`https://cudic.vercel.app`. On Render, add `DISCORD_WEBHOOK_GAMES` to the
-service's environment.
+### #updates
+
+Every push to `main` posts a headline and a sentence or two to `#updates`: what
+a player or builder will notice, not what the diff says. `tools/discord-update.mjs`
+reads the commits in that push and asks a model for plain English, then drops any
+sentence that names tooling — no commits, branches, GitHub, deploys, webhooks or
+bots — so the channel reads like a person typed it. If the model is unreachable
+or only talks about the plumbing, the cleaned commit subjects stand in. A push
+with no commits says nothing.
+
+Run it by hand:
+
+    node tools/discord-update.mjs --dry --range HEAD~3..HEAD
+
+Repository setup: add `DISCORD_STATUS_WEBHOOK` and `DISCORD_WEBHOOK_UPDATES` as
+Actions **secrets**, and `SITE_URL` as an Actions **variable** if the public
+origin is not `https://cudic.vercel.app`. On Render, add `DISCORD_WEBHOOK_GAMES`
+to the service's environment.

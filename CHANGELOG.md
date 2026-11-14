@@ -8,6 +8,10 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Updates in plain English**
+
+- **Every push says what changed** (`tools/discord-update.mjs`, `.github/workflows/discord-updates.yml`): a push to `main` posts two lines to `DISCORD_WEBHOOK_UPDATES` — a headline and a sentence about what a player or builder will notice, written from the commits in that push. Sentences that name commits, branches, GitHub, webhooks or bots are dropped, and the subjects stand in if nothing survives, so `#updates` never reads like a build log. `--dry` prints the message instead of sending it.
+
 **The server talks to Discord**
 
 - **First publish announces itself** (`lib/discord.js`, `server.js`): when a game flips from draft to published, the server posts one embed to `DISCORD_WEBHOOK_GAMES` — title, blurb, and the game's cover (the shared default cover when it has no art), linking `/g/<slug>`. Re-saving a live game stays quiet, and an unset or failing webhook changes nothing about the publish.
