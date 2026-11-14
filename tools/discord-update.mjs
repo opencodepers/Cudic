@@ -116,7 +116,20 @@ if (!text) {
   process.exit(0);
 }
 
-const payload = { username: 'Cudic', allowed_mentions: { parse: [] }, content: text };
+// #updates is a forum channel, so a post has to be named; Discord ignores the
+// field on an ordinary text channel. The first sentence doubles as the name.
+function threadName(value) {
+  const first = (value.split(/(?<=[.!?])\s+/)[0] || value).replace(/[.!?\s]+$/, '').trim();
+  if (first.length <= 90) return first || 'Update';
+  return first.slice(0, 87).replace(/[\s,;:]+$/, '') + '...';
+}
+
+const payload = {
+  username: 'Cudic',
+  allowed_mentions: { parse: [] },
+  content: text,
+  thread_name: threadName(text)
+};
 
 console.log(text);
 

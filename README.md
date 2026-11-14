@@ -124,6 +124,10 @@ Write the line at the end of a commit message:
 
     Updates: Games without artwork now get a cover instead of an empty box.
 
+`#updates` is a forum channel, so each push opens its own post, named after the
+first sentence of the note (a text channel ignores the name and just gets the
+message).
+
 Run it by hand:
 
     node tools/discord-update.mjs --dry --range HEAD~3..HEAD
