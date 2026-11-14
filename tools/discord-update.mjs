@@ -110,9 +110,15 @@ function scrub(text) {
     .trim();
 }
 
+// No model, or it only talked about the plumbing: turn the subjects into a
+// couple of sentences rather than a bullet list, so the channel still reads like
+// someone wrote it.
 function fallback(commits) {
-  const lines = commits.slice(0, 6).map((c) => '\u2022 ' + c.subject.replace(/[.\s]+$/, ''));
-  return { headline: 'What changed', body: lines.join('\n') };
+  const sentences = commits.slice(0, 3).map((c) => {
+    const s = c.subject.replace(/[.\s]+$/, '');
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  });
+  return { headline: 'What changed', body: sentences.join('. ') + '.' };
 }
 
 async function writeNotes(commits) {
