@@ -1,11 +1,5 @@
 ﻿<!DOCTYPE html><html lang="en"><head>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-PSGJNQWB"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-    </script>
+    <script src="/consent.js?v=1"></script>
 <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -290,6 +284,11 @@
           <div><div class="label">Reduce motion</div><div class="desc">Disables animations and transitions everywhere.</div></div>
           <label class="switch"><input type="checkbox" id="reduceMotion"><span class="track"></span></label>
         </div>
+        <div class="pref-row" style="margin-top:14px">
+          <div><div class="label">Your data</div><div class="desc">Download everything Cudic stores about this account as JSON — profile, games, posts, messages, coins.</div></div>
+          <button type="button" class="btn btn-secondary" id="exportData" style="padding:6px 12px;font-size:0.78rem">Download</button>
+        </div>
+        <div class="status-msg" id="exportMsg"></div>
         <div style="margin-top:18px"><button class="btn btn-danger" id="signOutBtn">Sign out</button></div>
       </div>
       <div class="profile-card" id="sec-pack">
@@ -1499,4 +1498,38 @@
     await load();
   })();
   </script>
+<script>
+/* Account export (right of access / portability) — one JSON file. */
+(function(){
+  var b = document.getElementById('exportData');
+  var m = document.getElementById('exportMsg');
+  if (!b) return;
+  function apiHost(){
+    if (typeof WS_URL !== 'undefined' && WS_URL) return WS_URL.replace(/^wss?:\/\//, 'https://');
+    return (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? '' : 'https://glox-o7rr.onrender.com';
+  }
+  b.addEventListener('click', async function(){
+    b.disabled = true;
+    if (m) { m.textContent = 'Preparing your export…'; m.className = 'status-msg'; }
+    try {
+      var tok = (typeof window.getAuthToken === 'function') ? await window.getAuthToken() : null;
+      if (!tok) throw new Error('no session');
+      var r = await fetch(apiHost() + '/api/account/export', { headers: { 'Authorization': 'Bearer ' + tok } });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      var blob = await r.blob();
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'cudic-account-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000);
+      if (m) { m.textContent = 'Saved to your downloads.'; m.className = 'status-msg ok'; }
+    } catch (e) {
+      if (m) { m.textContent = 'Could not export right now — try again.'; m.className = 'status-msg err'; }
+    }
+    b.disabled = false;
+  });
+})();
+</script>
 <script src="/cudic-modals.js?v=3"></script></body></html>

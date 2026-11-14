@@ -2,13 +2,7 @@
 <html lang="en">
 <head>
 <script src="/config.js"></script>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-PSGJNQWB"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-    </script>
+    <script src="/consent.js?v=1"></script>
 
 <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
     <meta charset="UTF-8">
@@ -586,11 +580,11 @@
             });
         })();
     </script>
-    <div id="cookieBanner" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:2147483640;background:var(--panel,#14161b);border-top:1px solid var(--line,#262a33);padding:14px 20px;font:400 13px/1.5 'Geist',system-ui,sans-serif;color:var(--ink,#f7f5ec)">
+    <div id="cookieBanner" data-cudic-consent-bar style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:2147483640;background:var(--panel,#14161b);border-top:1px solid var(--line,#262a33);padding:14px 20px;font:400 13px/1.5 'Geist',system-ui,sans-serif;color:var(--ink,#f7f5ec)">
         <div style="max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
             <p style="margin:0;flex:1;min-width:240px;color:var(--mute,#9a9a94)">We use cookies for sign-in, preferences, and (with your consent) advertising. See the <a href="/privacy" style="color:var(--blue,#3f7cff)">privacy policy</a>.</p>
             <div style="display:flex;gap:8px">
-                <button id="cookieReject" style="padding:8px 14px;border:1px solid var(--line,#262a33);background:transparent;color:var(--ink,#f7f5ec);cursor:pointer;font:500 12px 'Geist Mono',monospace;letter-spacing:.06em;text-transform:uppercase">Reject</button>
+                <button id="cookieReject" style="padding:8px 14px;border:1px solid var(--line,#262a33);background:var(--panel-raised,#1e1b4d);color:var(--ink,#f7f5ec);cursor:pointer;font:500 12px 'Geist Mono',monospace;letter-spacing:.06em;text-transform:uppercase">Reject all</button>
                 <button id="cookieAccept" style="padding:8px 14px;border:1px solid var(--lime,#b8f23a);background:var(--lime,#b8f23a);color:#0d0e10;cursor:pointer;font:500 12px 'Geist Mono',monospace;letter-spacing:.06em;text-transform:uppercase">Accept</button>
             </div>
         </div>
@@ -605,8 +599,8 @@
             else if(!c){
                 var b=document.getElementById('cookieBanner');
                 if(b) b.style.display='block';
-                document.getElementById('cookieAccept').addEventListener('click',function(){ setConsent({advertising:true}); if(b)b.style.display='none'; if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',loadAds); else loadAds(); window.dispatchEvent(new Event('cudic-consent')); });
-                document.getElementById('cookieReject').addEventListener('click',function(){ setConsent({advertising:false}); if(b)b.style.display='none'; });
+                document.getElementById('cookieAccept').addEventListener('click',function(){ setConsent({advertising:true,analytics:true}); if(b)b.style.display='none'; if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',loadAds); else loadAds(); window.dispatchEvent(new Event('cudic-consent')); });
+                document.getElementById('cookieReject').addEventListener('click',function(){ setConsent({advertising:false,analytics:false}); if(b)b.style.display='none'; window.dispatchEvent(new Event('cudic-consent')); });
             }
             window.addEventListener('cudic-consent',loadAds);
         })();

@@ -2,13 +2,7 @@
 <html lang="en">
 
 <head>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-PSGJNQWB"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-    </script>
+    <script src="/consent.js?v=1"></script>
 <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -316,10 +310,12 @@ confetti({ particleCount: 120 })</pre>
                 <section id="publish" data-group="Ship">
                     <h2>Publishing &amp; the gallery</h2>
                     <ul>
+                        <li><strong>Your stats live on your own creator page</strong> (<code>/creator?id=&lt;you&gt;</code>): all-time plays, signed-in players, players in the last seven days, likes, comments and forks, plus your five best-performing games. Only you see the card. A daily history and an average session are not recorded yet, so they are not shown — the numbers there are measured, not estimated.</li>
                         <li><strong>Publish</strong> makes your project playable at its own page and lists it in the <a href="/games">gallery</a>. <strong>Unpublish</strong> keeps the project but hides it — absolutely no one else can load an unpublished game.</li>
                         <li><strong>Publishing a release, not a switch.</strong> Each publish snapshots the files into a release (<code>v1</code>, <code>v2</code>, …) with the notes you typed, and the game page serves that snapshot — so saving afterwards edits a draft and players stay on the build you shipped. The page shows the version, when it updated and the notes. Studio's <strong>Ship</strong> does save, publish and hand you the link in one step; <strong>Publish project</strong> stays available when you only want to ship. Games published before releases existed keep serving their saved files until their next publish. Publishing runs the project's tests first: a failing test, or a test file that will not load, stops the release and says which ones, and the server refuses a publish that reports failures. A project with no tests publishes as before, and each release records the counts it shipped with.</li>
                         <li>Set a title, a description, up to 3 <strong>tags</strong>, and a thumbnail. Tags (platformer, puzzle, horror…) put your game in the gallery's tag filter and on the "More like this" shelf of similar games — editors show one-tap suggestion chips. Upload an image, or capture the preview with one click — usually the fastest route to a decent card. Images are shrunk to fit the gallery, so any reasonable size works. Skip it and the game shows the shared Cudic cover until you upload your own.</li>
                         <li>Gallery cards show the thumbnail, title, author, playing-now count and comment count; comments are open on each game's page.</li>
+                        <li><strong>Comments thread now:</strong> hit <em>Reply</em> under a comment and your answer nests directly beneath it, one level deep — so a maker can answer "how does the double jump work?" in place instead of leaving it in the wall. The person you replied to gets a notification, deleting a comment takes its replies with it, and a reply to a reply stays under the same top comment so the thread never marches off the right edge.</li>
                         <li>The top of a game page shows a <strong>live strip</strong> with how many people are in the game's multiplayer rooms right now.</li>
                         <li>Games play in a sandboxed frame, so nothing in your game can reach your Cudic session. That's why saved progress is handled by Cudic rather than the game (see <a href="#saves">Cloud saves</a>).</li>
                     </ul>
@@ -332,6 +328,7 @@ confetti({ particleCount: 120 })</pre>
                     <h3>Finding games</h3>
                     <ul>
                         <li>The <strong>search box</strong> matches names and descriptions, and the filter lives in the page address so a search can be shared. The <strong>sort menu</strong> flips between newest, trending, oldest and A–Z.</li>
+                        <li><strong>Keyboard browsing:</strong> on the gallery, <code>j</code> and <code>k</code> (or the arrow keys) move a visible selection through the cards, <code>Enter</code> opens the one you are on, <code>/</code> jumps to the search box and <code>Escape</code> drops the selection. Each card is a Tab stop too, and keys are never stolen while you are typing in search.</li>
                         <li><strong>Trending</strong> sorts by how many times games have actually been played. One play per person per game per hour, so refreshing doesn't inflate it.</li>
                         <li>The <strong>heart</strong> on a card or a game page saves it to your account. Liked games collect on your profile.</li>
                         <li>Tags are set when you publish (the publish modal in the editor, or the prompt when Studio publishes) and can be changed later — the gallery's tag chips and the "More like this" shelf both read them.</li>

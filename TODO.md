@@ -51,10 +51,17 @@ list:
       signup code was requested and arrived, so the hostname list on the
       Turnstile widget covers the Vercel origin. Re-check with a tokenless POST
       to `/auth/send-code`, which must answer 400 `code: turnstile`.
-- [ ] **Adsterra ad slots.** Paused when AdSense verification shipped
-      ("Adsterra slots paused meanwhile"); `public/ads.js` still documents the
-      `.ad-frame` slots. Decide whether they come back — AdSense is the live ad
-      path today.
+- [ ] **Adsterra is the only live ad revenue until AdSense is verified.**
+      The slots stay on every page they were on; AdSense (`ca-pub-…`) is still
+      in review, so pulling Adsterra would zero income. The zones have served a
+      gambling creative (MELBET), which is what AdSense policy dislikes — but
+      that risk only starts when AdSense actually serves. Mitigate in the
+      Adsterra dashboard (block gambling/dating categories) rather than by
+      deleting the slot, and revisit the mix once AdSense is approved.
+- [ ] **UK ICO data protection fee (owner action, not code).** If Cudic is
+      UK-established it is a controller and the tier-1 fee (~£52/yr) is
+      payable and renews yearly at ico.org.uk/registration. Only the account
+      holder can register.
 - [ ] **Tipping and paid games.** The coin anti-abuse caps cover pack buys for
       now and say their "tipping/paid-game rules arrive with those features", so
       those rules are still unwritten.

@@ -1,10 +1,11 @@
 // ── Cudic ads ─────────────────────────────────────────────
-// Companion to the inline Adsterra snippets inside `.ad-frame`
-// slots. The snippets themselves are pasted inline (Adsterra
-// banner scripts document.write, which only works parser-inserted
-// — never inject them dynamically). This file only collapses
-// slots that stay empty (ad-blocker, localhost domain-lock,
-// network fail), so blocked ads leave no holes in the layout.
+// The `.ad-frame` slots are AdSense-only now: the Adsterra zones
+// (which filled them with gambling creatives next to AdSense
+// inventory) were removed. This file only collapses slots that
+// stay empty (ad-blocker, localhost domain-lock, network fail),
+// so an unfilled ad leaves no hole in the layout. Consent is
+// handled in /consent.js, which no longer lets GTM load before
+// the visitor agrees.
 (function(){
   if(window._cudicAds)return;window._cudicAds=true;
   function check(){

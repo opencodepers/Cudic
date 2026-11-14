@@ -1,11 +1,5 @@
 ﻿<!DOCTYPE html><html lang="en"><head>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-PSGJNQWB"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-    </script>
+    <script src="/consent.js?v=1"></script>
 <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
 <script>/* The install prompt must be captured before the browser offers it,
    which is earlier than this page's own script runs at the end of the body. */
@@ -85,6 +79,12 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();win
     .comment-del { margin-left: auto; background: none; border: none; color: var(--text-tertiary); cursor: pointer; font-size: 0.72rem; font-family: inherit; }
     .comment-del:hover { color: var(--danger); }
     .comment-body { font-size: 0.85rem; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+    /* A reply sits under the comment it answers, one level deep: the thread
+       reads like a conversation without walking off the right edge. */
+    .comment.reply { margin-left: 22px; border-top-style: dashed; }
+    .comment.reply .comment-body { font-size: 0.83rem; color: var(--text-secondary); }
+    .comment-reply { background: none; border: none; color: var(--text-tertiary); cursor: pointer; font-size: 0.72rem; font-family: inherit; padding: 0; }
+    .comment-reply:hover { color: var(--signal); }
     #commentBox { width: 100%; box-sizing: border-box; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 0.83rem; font-family: inherit; padding: 9px 12px; margin: 12px 0 8px; outline: none; resize: vertical; }
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 9999; align-items: center; justify-content: center; }
     .modal-overlay.open { display: flex; }
@@ -262,6 +262,10 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();win
       <h2>Comments <span id="commentCount" class="dim" style="font-weight:400"></span></h2>
       <div id="commentList"><p class="dim">Loading…</p></div>
       <div id="commentForm" style="display:none">
+        <div id="replyBar" hidden style="display:flex;align-items:center;gap:8px;font-size:0.78rem;color:var(--text-secondary);margin-top:10px">
+          <span>Replying to <b id="replyName"></b></span>
+          <button class="btn btn-secondary" id="replyCancel" type="button" style="padding:3px 10px;font-size:0.72rem">Cancel</button>
+        </div>
         <textarea id="commentBox" rows="2" maxlength="2000" placeholder="Say something…"></textarea>
         <button class="btn btn-primary" id="commentPost">Post</button>
       </div>
@@ -806,6 +810,26 @@ setInterval(function () {
     }
     function escapeHtml(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
     function commentDate(t) { try { return new Date(t).toLocaleString(); } catch (e) { return ''; } }
+    // Reply state for the comment box: which comment, and whose name to say.
+    // Cleared on cancel and after a successful post, so the next comment does
+    // not silently land in the previous thread.
+    var commentReplyTo = null;
+    function startReply(cid, name) {
+      commentReplyTo = { id: cid, name: name };
+      var bar = document.getElementById('replyBar');
+      var nm = document.getElementById('replyName');
+      if (nm) nm.textContent = name;
+      if (bar) bar.hidden = false;
+      var ta = document.getElementById('commentBox');
+      if (ta) { ta.placeholder = 'Reply to ' + name + '…'; ta.focus(); }
+    }
+    function clearReply() {
+      commentReplyTo = null;
+      var bar = document.getElementById('replyBar');
+      if (bar) bar.hidden = true;
+      var ta = document.getElementById('commentBox');
+      if (ta) ta.placeholder = 'Say something…';
+    }
     function initComments(game) {
       function loadComments() {
         fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/comments')
@@ -817,14 +841,39 @@ setInterval(function () {
             if (!list.length) { box.innerHTML = '<p class="dim">No comments yet.</p>'; return; }
             getSession().then(function(s){
               var uid = s && s.uid;
-              box.innerHTML = list.map(function(c){
+              var byId = {};
+              list.forEach(function(c){ byId[c.id] = c; });
+              // Nest one level: a reply to a reply still hangs under the first
+              // comment of its thread, and an orphaned parent renders flat.
+              function rootId(c) {
+                var seen = {};
+                while (c && c.parent_id && byId[c.parent_id] && !seen[c.id]) { seen[c.id] = 1; c = byId[c.parent_id]; }
+                return c ? c.id : null;
+              }
+              var kids = {};
+              var roots = list.filter(function(c){ return !c.parent_id; });
+              list.forEach(function(c){
+                if (!c.parent_id) return;
+                var r = rootId(c);
+                if (r === c.id) { roots.push(c); return; } // parent is not in this list
+                (kids[r] = kids[r] || []).push(c);
+              });
+              function rowHtml(c, isReply) {
                 var canDel = uid && (c.user_id === uid || game.owner_id === uid);
-                return '<div class="comment"><div class="comment-head"><strong>' + escapeHtml(c.display_name) + '</strong><span>' + escapeHtml(commentDate(c.created_at)) + '</span>' +
+                var canReply = !!uid;
+                return '<div class="comment' + (isReply ? ' reply' : '') + '"><div class="comment-head"><strong>' + escapeHtml(c.display_name) + '</strong><span>' + escapeHtml(commentDate(c.created_at)) + '</span>' +
                   (canDel ? '<button class="comment-del" data-cid="' + c.id + '">Delete</button>' : '') +
+                  (canReply ? '<button class="comment-reply" data-cid="' + c.id + '" data-name="' + escapeHtml(c.display_name) + '">Reply</button>' : '') +
                   '</div><div class="comment-body">' + escapeHtml(c.text) + '</div></div>';
+              }
+              box.innerHTML = roots.map(function(c){
+                return rowHtml(c, false) + (kids[c.id] || []).map(function(k){ return rowHtml(k, true); }).join('');
               }).join('');
               box.querySelectorAll('.comment-del').forEach(function(b){
                 b.addEventListener('click', function(){ deleteComment(b.getAttribute('data-cid')); });
+              });
+              box.querySelectorAll('.comment-reply').forEach(function(b){
+                b.addEventListener('click', function(){ startReply(b.getAttribute('data-cid'), b.getAttribute('data-name')); });
               });
             });
           })
@@ -839,9 +888,9 @@ setInterval(function () {
           fetch(apiBase() + '/api/games/' + encodeURIComponent(id) + '/comments', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + s.token },
-            body: JSON.stringify({ text: text.substring(0, 2000) })
+            body: JSON.stringify({ text: text.substring(0, 2000), parentId: commentReplyTo && commentReplyTo.id })
           }).then(function(r){ return r.json(); }).then(function(d){
-            if (d.comment) { ta.value = ''; loadComments(); }
+            if (d.comment) { ta.value = ''; clearReply(); loadComments(); }
             else { alert('Could not post comment: ' + (d.error || 'server did not accept it')); }
           }).catch(function(){ alert('Could not post comment: server unreachable or feature not deployed yet.'); });
         });
@@ -863,6 +912,8 @@ setInterval(function () {
         }
         document.getElementById('commentForm').style.display = 'block';
         document.getElementById('commentPost').addEventListener('click', postComment);
+        var rc = document.getElementById('replyCancel');
+        if (rc) rc.addEventListener('click', clearReply);
       });
     }
     // Author follow button: same toggle as the creator page, right where

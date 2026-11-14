@@ -29,6 +29,7 @@
     { "source": "/parents", "destination": "/parents.html" },
     { "source": "/teachers", "destination": "/parents.html" },
     { "source": "/terms", "destination": "/terms.html" },
+    { "source": "/accessibility", "destination": "/accessibility.html" },
     { "source": "/embed", "destination": "/embed.html" },
     { "source": "/view", "destination": "/view.html" },
     { "source": "/editor", "destination": "/editor.html" },
@@ -48,6 +49,15 @@
     { "source": "/lobbies", "destination": "/chat", "permanent": false }
   ],
   "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy-Report-Only",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' https: wss:; frame-src 'self' https:; media-src 'self' data: blob: https:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; report-uri https://glox-o7rr.onrender.com/api/csp-report"
+        }
+      ]
+    },
     {
       "source": "/(.*)\\.html",
       "headers": [

@@ -1,13 +1,7 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-PSGJNQWB"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-    </script>
+    <script src="/consent.js?v=1"></script>
 
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -51,6 +45,12 @@ input:focus{border-color:var(--blue)}
       <input id="semail" type="email" placeholder="you@example.com" autocomplete="email" required>
       <label for="spw">Password</label>
       <input id="spw" type="password" placeholder="At least 8 characters" autocomplete="new-password" required>
+      <fieldset style="border:0;padding:0;margin:4px 0 12px">
+        <legend style="font-size:13px;color:#a6a6a6;padding:0;margin-bottom:6px">How old are you?</legend>
+        <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:6px;cursor:pointer;color:#a6a6a6"><input type="radio" name="sage" value="13plus" required style="width:16px;height:16px;margin:0"> I am 13 or older.</label>
+        <label style="display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer;color:#a6a6a6"><input type="radio" name="sage" value="minor" required style="width:16px;height:16px;margin:0"> I am under 13, and a parent or guardian says I can use Cudic.</label>
+        <p style="font-size:12px;line-height:1.5;color:#8a8a8a;margin:8px 0 0">Under-13 accounts are welcome: a grown-up agrees to the terms on your behalf, and can ask us to delete the account at any time.</p>
+      </fieldset>
       <button type="submit" class="btn">Create account →</button>
       <div id="smsg" class="info"></div>
     </form>
@@ -59,7 +59,7 @@ input:focus{border-color:var(--blue)}
 <div class="toast" id="t">Account created.</div>
 <script src="/auth.js"></script>
 <script>
-async function doSignUp(e){e.preventDefault();document.getElementById('smsg').textContent='';try{await signUpWithEmail(document.getElementById('semail').value.trim(),document.getElementById('spw').value,document.getElementById('sname').value.trim());var t=document.getElementById('t');t.classList.add('on');t.textContent='Account created — check email.';setTimeout(function(){t.classList.remove('on');window.location.href='/chat';},1800);}catch(err){document.getElementById('smsg').textContent=(err&&err.message)?err.message:'Could not create account.';}}
+async function doSignUp(e){e.preventDefault();var msg=document.getElementById('smsg');msg.textContent='';var picked=document.querySelector('input[name="sage"]:checked');if(!picked){msg.textContent='Pick the age line that applies so the account is set up right.';return;}try{await signUpWithEmail(document.getElementById('semail').value.trim(),document.getElementById('spw').value,document.getElementById('sname').value.trim(),{age_group:picked.value});var t=document.getElementById('t');t.classList.add('on');t.textContent='Account created — check email.';setTimeout(function(){t.classList.remove('on');window.location.href='/chat';},1800);}catch(err){document.getElementById('smsg').textContent=(err&&err.message)?err.message:'Could not create account.';}}
 </script>
 <script src="/auth-nav.js?v=1"></script>
 </body>

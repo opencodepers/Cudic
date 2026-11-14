@@ -78,13 +78,16 @@ async function signInWithEmail(email, password) {
 }
 
 // ── Email sign up ────────────────────────────────────────────────
-async function signUpWithEmail(email, password, displayName) {
+// extra lands in the account's user metadata (age_group today): the server
+// never sees the signup form, so anything other features need to key off has
+// to be stored here at creation time.
+async function signUpWithEmail(email, password, displayName, extra) {
   const db = await getSupabase();
   if (!db) { alert('Supabase not configured'); return; }
   const { data, error } = await db.auth.signUp({
     email,
     password,
-    options: { data: { full_name: displayName } },
+    options: { data: Object.assign({ full_name: displayName }, extra || {}) },
   });
   if (error) throw error;
 

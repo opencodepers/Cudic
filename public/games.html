@@ -2,13 +2,7 @@
 <html lang="en">
 
 <head>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-PSGJNQWB"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-    </script>
+    <script src="/consent.js?v=1"></script>
 <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -616,7 +610,7 @@
   : '<div class="game-foot"><a class="btn btn-primary" href="/view.html?id=' + g.id + '" onclick="event.stopPropagation()" style="text-decoration:none">Play</a><button class="btn btn-secondary" onclick="event.stopPropagation();forkGame(\'' + g.id + '\')">Fork</button>' +
         '<button class="btn btn-secondary likebtn' + (g.liked ? ' btn-primary' : '') + '" onclick="event.stopPropagation();toggleLike(\'' + g.id + '\',this)"><svg viewBox="0 0 24 24" width="14" height="14" fill="' + (g.liked ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="1.8" style="vertical-align:-2px"><path d="M12 20s-7-4.6-7-9.3A4.2 4.2 0 0 1 12 8a4.2 4.2 0 0 1 7 2.7C19 15.4 12 20 12 20Z"/></svg><span class="likecount">' + (g.likes || 0) + '</span></button>' +
         (g.play_count ? '<span class="plays">' + g.play_count + (g.play_count === 1 ? ' play' : ' plays') + '</span>' : '') +
-        '</div>'; return '<div class="game-card" onclick="window.location.href=\'' + dest + '\'">' + '<div class="game-thumb">' + thumb + (g.playing > 0 ? '<span class="livebadge"><i></i>' + g.playing + ' playing</span>' : '') + '</div>' + '<div class="game-body">' + '<div class="game-top"><div class="game-title">' + escapeHtml(g.title) + badge + rbadge + '</div><div class="game-date">' + gameDate(g) + '</div></div>' + creator + (g.description ? '<div class="game-desc">' + escapeHtml(g.description) + '</div>' : '') + '</div>' + foot + '</div>'; } function showGrid(list, mine, append) { window._lastList = list; window._lastMine = mine; var html = sortGames(list).map(function (g) { return cardHtml(g, mine) }).join(''); grid.innerHTML = append ? grid.innerHTML + html : html; grid.style.display = ''; empty.style.display = 'none'; content.style.overflowY = 'auto'; } function showEmpty(title, text) { emptyTitle.textContent = title; emptyText.textContent = text; grid.style.display = 'none'; empty.style.display = 'flex'; content.style.overflowY = 'hidden'; } // Browse state: search + tag + sort all live in the URL the server sees, so
+        '</div>'; return '<div class="game-card" tabindex="0" role="link" onclick="window.location.href=\'' + dest + '\'">' + '<div class="game-thumb">' + thumb + (g.playing > 0 ? '<span class="livebadge"><i></i>' + g.playing + ' playing</span>' : '') + '</div>' + '<div class="game-body">' + '<div class="game-top"><div class="game-title">' + escapeHtml(g.title) + badge + rbadge + '</div><div class="game-date">' + gameDate(g) + '</div></div>' + creator + (g.description ? '<div class="game-desc">' + escapeHtml(g.description) + '</div>' : '') + '</div>' + foot + '</div>'; } function showGrid(list, mine, append) { window._lastList = list; window._lastMine = mine; var html = sortGames(list).map(function (g) { return cardHtml(g, mine) }).join(''); grid.innerHTML = append ? grid.innerHTML + html : html; grid.style.display = ''; empty.style.display = 'none'; content.style.overflowY = 'auto'; } function showEmpty(title, text) { emptyTitle.textContent = title; emptyText.textContent = text; grid.style.display = 'none'; empty.style.display = 'flex'; content.style.overflowY = 'hidden'; } // Browse state: search + tag + sort all live in the URL the server sees, so
 // filtering isn't limited to the 50 rows we happened to load.
     var galQuery = '', galTag = '', galLiked = {}, galOffset = 0;
     function galUrl() { return apiBase + '/api/games?sort=' + encodeURIComponent(sortMode) + (galQuery ? '&q=' + encodeURIComponent(galQuery) : '') + (galTag ? '&tag=' + encodeURIComponent(galTag) : '') + (galOffset ? '&offset=' + galOffset : ''); }
@@ -916,6 +910,12 @@ async function loadMine() { var token = await getToken(); if (!token) { showEmpt
         document.getElementById('tabBrowse').addEventListener('click', function () { if (filled) shelf.hidden = false; });
     })();
     </script>
+<style>
+    /* Keyboard browsing: the card you are on has to be visible, not just
+       focusable. outline (not border) so the grid never shifts by 2px. */
+    .game-card:focus-visible, .game-card.kb { outline: 2px solid var(--signal); outline-offset: 3px; }
+</style>
+<script src="/gallery-keys.js?v=1"></script>
 <script src="/cudic-modals.js?v=3"></script></body>
 
 </html>

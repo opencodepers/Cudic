@@ -403,12 +403,39 @@ const server = http.createServer((req, res) => {
     } catch (e2) { /* socket already gone */ }
   });
 });
+// Report-Only CSP. Inline scripts and inline handlers are still the norm on
+// these pages, so nothing here is enforced: the header collects violations
+// (POSTed to /api/csp-report) and a strict policy gets written from evidence.
+// Vercel sends the same header from vercel.json, since headers set here never
+// reach the static pages.
+const CSP_REPORT_ONLY = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:",
+  "style-src 'self' 'unsafe-inline' https:",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data: https:",
+  "connect-src 'self' https: wss:",
+  "frame-src 'self' https:",
+  "media-src 'self' data: blob: https:",
+  "worker-src 'self' blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "report-uri /api/csp-report"
+].join('; ');
+
 async function handleRequest(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
   // Baseline security headers (no dep). SAMEORIGIN keeps the sandboxed preview working.
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  // Report-Only on purpose: the app still has inline scripts and inline
+  // handlers on most pages, so an enforced policy would break it today. This
+  // collects the violations (see /api/csp-report) so a strict policy can be
+  // written from evidence instead of guesses. Vercel serves the same header
+  // from vercel.json, because these headers only apply to Render-served pages.
+  res.setHeader('Content-Security-Policy-Report-Only', CSP_REPORT_ONLY);
   // /embed.html is MEANT to be framed by other sites — framing it is the
   // feature, so it keeps no X-Frame-Options (checked pre-rewrite too).
   if (url.pathname !== '/embed.html' && url.pathname !== '/embed') {
@@ -417,6 +444,26 @@ async function handleRequest(req, res) {
 
   if (req.method === 'OPTIONS') {
     cors(res);
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  // ── CSP violation reports (Report-Only: nothing is blocked yet) ─
+  // Browsers POST these cross-origin, so no CORS body is needed and the
+  // answer is always an empty 204. Logged once per minute per sender: a
+  // noisy page must not turn the log into a firehose.
+  if (url.pathname === '/api/csp-report' && req.method === 'POST') {
+    try {
+      const body = await readBody(req, 16 * 1024).catch(() => ({}));
+      const r = (body && (body['csp-report'] || body)) || {};
+      if (rateLimit('csp:' + (req.socket.remoteAddress || 'x'), 20, 60000)) {
+        const directive = String(r['violated-directive'] || r['effective-directive'] || '').slice(0, 120);
+        const blocked = String(r['blocked-uri'] || '').slice(0, 160);
+        const doc = String(r['document-uri'] || '').slice(0, 160);
+        console.warn('CSP report:', directive, '|', blocked, '|', doc);
+      }
+    } catch {}
     res.writeHead(204);
     res.end();
     return;
@@ -2759,6 +2806,51 @@ async function handleRequest(req, res) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Could not update the profile.' }));
     }
+    return;
+  }
+
+  // ── API: export my account data ─────────────────────────────────
+  // GDPR / UK GDPR right of access and portability without an inbox
+  // round-trip: everything keyed to this account as one JSON file. A table
+  // that is missing (unmigrated clone) is skipped and named in `omitted` — an
+  // export must never 500 because a migration lags behind the code.
+  if (url.pathname === '/api/account/export' && req.method === 'GET') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    const uid = user.id;
+    const out = {};
+    const omitted = [];
+    const dump = async (name, build) => {
+      try {
+        const { data, error } = await build();
+        if (error) { omitted.push(name); return; }
+        out[name] = data == null ? [] : data;
+      } catch { omitted.push(name); }
+    };
+    await dump('profile', () => supabase.from('users').select('*').eq('id', uid).maybeSingle());
+    await dump('games', () => supabase.from('games').select('id, title, description, scene, files, tags, published, created_at, updated_at, play_count, forked_from, forked_from_title').eq('owner_id', uid).order('created_at'));
+    await dump('theme_packs', () => supabase.from('theme_packs').select('id, slug, name, description, manifest, price, published, downloads, created_at, updated_at').eq('owner_id', uid).order('created_at'));
+    await dump('messages', () => supabase.from('messages').select('id, lobby_id, text, created_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(5000));
+    await dump('forum_threads', () => supabase.from('forum_threads').select('id, title, body, category, created_at, last_at').eq('user_id', uid).order('created_at'));
+    await dump('forum_comments', () => supabase.from('forum_comments').select('id, thread_id, body, created_at').eq('user_id', uid).order('created_at'));
+    await dump('game_comments', () => supabase.from('game_comments').select('id, game_id, body, created_at').eq('user_id', uid).order('created_at'));
+    await dump('creator_comments', () => supabase.from('creator_comments').select('id, body, created_at').eq('author_id', uid).order('created_at'));
+    await dump('game_ratings', () => supabase.from('game_ratings').select('game_id, rating, created_at').eq('user_id', uid));
+    await dump('game_likes', () => supabase.from('game_likes').select('game_id, created_at').eq('user_id', uid));
+    await dump('game_saves', () => supabase.from('game_saves').select('game_id, state, updated_at').eq('user_id', uid));
+    await dump('collections', () => supabase.from('collections').select('id, name, description, created_at').eq('owner_id', uid).order('created_at'));
+    await dump('notifications', () => supabase.from('notifications').select('id, kind, body, created_at, read_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(2000));
+    await dump('follows', () => supabase.from('follows').select('followed_id, created_at').eq('follower_id', uid));
+    await dump('badges', () => supabase.from('user_badges').select('code, created_at').eq('user_id', uid));
+    await dump('achievements', () => supabase.from('game_achievements').select('code, awarded_at, game_id').eq('user_id', uid).order('awarded_at', { ascending: false }));
+    await dump('coins', () => supabase.from('coin_ledger').select('id, amount, reason, created_at').eq('user_id', uid).order('created_at'));
+    const body = JSON.stringify({ exported_at: new Date().toISOString(), user_id: uid, omitted, data: out }, null, 2);
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Content-Disposition': 'attachment; filename="cudic-account-export.json"',
+      'Cache-Control': 'no-store',
+    });
+    res.end(body);
     return;
   }
 
@@ -5600,11 +5692,74 @@ function sanitizeTags(raw) {
     return;
   }
 
+  // ── API: creator stats ───────────────────────────────────────
+  // What a maker can honestly know today. game_plays keeps one row per account
+  // per game and overwrites played_at on every return, so this can count
+  // players and how many of them played in the last week — it cannot draw a
+  // daily history or an average session, because neither is stored. Those two
+  // numbers are left out rather than estimated; adding them means logging each
+  // play, which is a table and a write, not a query.
+  if (url.pathname === '/api/creator/stats' && req.method === 'GET') {
+    cors(res);
+    const user = await userOf(req);
+    if (!user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+    const { data: gameRows } = await supabase.from('games')
+      .select('id, title, play_count')
+      .eq('owner_id', user.id)
+      .limit(200);
+    const rows = gameRows || [];
+    const ids = rows.map(g => g.id);
+    if (!ids.length) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ totals: { plays: 0, players: 0, week: 0, likes: 0, comments: 0, forks: 0 }, top: [] }));
+      return;
+    }
+    const [playsRes, likeRes, commentRes, forkRes] = await Promise.all([
+      supabase.from('game_plays').select('game_id, played_at').in('game_id', ids).limit(5000),
+      supabase.from('game_likes').select('game_id').in('game_id', ids).limit(5000),
+      supabase.from('game_comments').select('game_id').in('game_id', ids).limit(5000),
+      supabase.from('games').select('forked_from').in('forked_from', ids).limit(5000),
+    ]);
+    const plays = playsRes.error ? [] : (playsRes.data || []);
+    const weekAgo = Date.now() - 7 * 86400000;
+    const per = {};
+    for (const p of plays) {
+      const k = p.game_id;
+      if (!per[k]) per[k] = { players: 0, week: 0 };
+      per[k].players++;
+      if (Date.parse(p.played_at) >= weekAgo) per[k].week++;
+    }
+    const totals = {
+      plays: rows.reduce((s, g) => s + (g.play_count || 0), 0),
+      players: plays.length,
+      week: Object.keys(per).reduce((s, k) => s + per[k].week, 0),
+      likes: (likeRes.data || []).length,
+      comments: (commentRes.data || []).length,
+      forks: (forkRes.data || []).length,
+    };
+    const top = rows
+      .map(g => ({ id: g.id, title: g.title || 'Untitled game', plays: g.play_count || 0, players: (per[g.id] || {}).players || 0 }))
+      .sort((a, b) => b.plays - a.plays)
+      .slice(0, 5);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ totals, top }));
+    return;
+  }
+
   // ── API: list game comments ──────────────────────────────────
   if (/^\/api\/games\/[^/]+\/comments$/.test(url.pathname) && req.method === 'GET') {
     cors(res);
     const id = url.pathname.split('/')[3];
-    const { data } = await supabase.from('game_comments').select('id, text, created_at, user_id, display_name').eq('game_id', id).order('created_at', { ascending: true }).limit(100);
+    // parent_id arrived with the replies migration; a database that has not run
+    // it yet still serves flat comments instead of an error or an empty list.
+    let { data, error } = await supabase.from('game_comments')
+      .select('id, text, created_at, user_id, display_name, parent_id')
+      .eq('game_id', id).order('created_at', { ascending: true }).limit(200);
+    if (error) {
+      ({ data } = await supabase.from('game_comments')
+        .select('id, text, created_at, user_id, display_name')
+        .eq('game_id', id).order('created_at', { ascending: true }).limit(200));
+    }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ comments: data || [] }));
     return;
@@ -5626,25 +5781,36 @@ function sanitizeTags(raw) {
     const cban = await activeBan(user.id, 'chat');
     if (cban) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'You are muted from commenting until ' + new Date(cban.banned_until).toLocaleString() + (cban.reason ? ' — ' + cban.reason : '') + '.' })); return; }
     const { data: prof } = await supabase.from('users').select('display_name').eq('id', user.id).single();
-    const { data, error } = await supabase.from('game_comments').insert({
-      game_id: id,
-      user_id: user.id,
-      display_name: (prof && prof.display_name) || 'Unknown',
-      text
-    }).select().single();
+    const name = (prof && prof.display_name) || 'Unknown';
+    // A reply names the comment it answers, but only after checking that the
+    // comment belongs to this same game: a parent id from another thread is
+    // dropped and the comment posts at the top level instead of being trusted.
+    const rawParent = String(body.parentId || '').trim();
+    let parent = null;
+    if (isUuid(rawParent)) {
+      const { data: p } = await supabase.from('game_comments')
+        .select('id, user_id, game_id')
+        .eq('id', rawParent).maybeSingle();
+      if (p && p.game_id === id) parent = p;
+    }
+    const row = { game_id: id, user_id: user.id, display_name: name, text };
+    if (parent) row.parent_id = parent.id;
+    let { data, error } = await supabase.from('game_comments').insert(row).select().single();
+    if (error && parent) {
+      // No parent_id column yet: keep the comment, lose only the nesting.
+      delete row.parent_id;
+      ({ data, error } = await supabase.from('game_comments').insert(row).select().single());
+    }
     if (error) console.error('comment insert error:', error.message);
-    // Notify the game owner (if they're not the commenter).
     if (data && data.id) {
+      if (parent && parent.user_id && parent.user_id !== user.id) {
+        await notify(parent.user_id, 'reply', 'New reply to your comment',
+          name + ' replied: ' + text.substring(0, 100), 'game', id);
+      }
       const { data: game } = await supabase.from('games').select('owner_id').eq('id', id).single();
       if (game && game.owner_id && game.owner_id !== user.id) {
-        try { await supabase.from('notifications').insert({
-          user_id: game.owner_id,
-          kind: 'comment',
-          title: 'New comment on your game',
-          body: (prof && prof.display_name || 'Someone') + ' commented: ' + text.substring(0, 100),
-          ref_type: 'game',
-          ref_id: id
-        }); } catch (e) {}
+        await notify(game.owner_id, 'comment', 'New comment on your game',
+          name + ' commented: ' + text.substring(0, 100), 'game', id);
       }
     }
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -7429,6 +7595,11 @@ function sanitizeTags(raw) {
   // ── Redirect /privacy to /privacy.html ─────────────────────────
   if (url.pathname === '/privacy') {
     url.pathname = '/privacy.html';
+  }
+
+  // ── Redirect /accessibility to /accessibility.html ─────────────
+  if (url.pathname === '/accessibility') {
+    url.pathname = '/accessibility.html';
   }
 
   // ── Redirect /faq to /faq.html ─────────────────────────────────

@@ -1,69 +1,81 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <script src="/config.js"></script>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-PSGJNQWB"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-    </script>
-
+<script src="/consent.js?v=1"></script>
 <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Profile — Cudic</title>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
+<meta name="description" content="A Cudic creator: their published games, theme packs and profile.">
+<link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="/sidebar.css?v=25">
 <style>
-:root{--bg:#0d0e10;--panel:#14161b;--panel-raised:#1a1e26;--line:#262a33;--ink:#f7f5ec;--mute:#9a9a94;--signal:#b8f23a;--blue:#3f7cff;--danger:#d9381e;--radius:3px;--font-head:"Geist",system-ui,sans-serif;--font-body:"Geist",system-ui,sans-serif;--font-mono:"Geist Mono",ui-monospace,monospace}
-@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#f7f5ec;--panel:#fffdf6;--panel-raised:#fff;--line:#d6d2c2;--ink:#0d0e10;--mute:#6b6a63}}
-:root[data-theme="light"]{--bg:#f7f5ec;--panel:#fffdf6;--panel-raised:#fff;--line:#d6d2c2;--ink:#0d0e10;--mute:#6b6a63}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--ink);font:400 16px/1.5 var(--font-body);display:flex;flex-direction:column;min-height:100vh}
-.wrap{max-width:920px;margin:0 auto;padding:40px 24px 64px;width:100%}
-a{color:var(--blue);text-decoration:none}
-a:hover{text-decoration:underline}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:28px;position:relative;overflow:hidden}
-.card>*:not(#creatorBanner){position:relative;z-index:1}
-#creatorBanner{border-radius:0}
-#creatorBanner.cx-bn::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(4,6,10,0) 30%,rgba(4,6,10,.6))}
-.card:has(#creatorBanner.cx-bn) .head{padding-top:96px}
-.head{display:flex;gap:20px;align-items:center;margin-bottom:28px}
-.avatar{width:72px;height:72px;border-radius:50%;background:var(--panel-raised);color:var(--signal);display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-weight:600;font-size:1.6rem;flex-shrink:0;overflow:hidden;border:1px solid var(--line)}
-.avatar img{width:100%;height:100%;object-fit:cover;display:block}
-h1{font-family:var(--font-head);font-weight:600;font-size:1.6rem;letter-spacing:-.02em;line-height:1.1}
-.idline{color:var(--mute);font-family:var(--font-mono);font-size:.8rem;margin-top:4px}
-.bio{color:var(--ink);white-space:pre-wrap;margin-top:12px;font-size:.95rem}
-.interests{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
-.tag{border:1px solid var(--line);border-radius:999px;padding:3px 12px;font-size:.78rem;color:var(--mute);font-family:var(--font-mono)}
-.sec-title{font-family:var(--font-head);font-weight:600;font-size:1rem;margin:28px 0 12px;display:flex;align-items:baseline;gap:8px}
-.sec-title .n{color:var(--mute);font-family:var(--font-mono);font-size:.75rem}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
-.game{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--panel);display:block;color:var(--ink);transition:border-color .15s}
-.game:hover{border-color:var(--signal);text-decoration:none}
-.thumb{height:120px;background:var(--panel-raised);display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--mute);overflow:hidden}
-.thumb img{width:100%;height:100%;object-fit:cover}
-.gbody{padding:12px 14px}
-.gbody b{display:block;font-family:var(--font-head);font-weight:600;font-size:.95rem;margin-bottom:2px}
-.gbody span{color:var(--mute);font-size:.78rem}
-.empty{color:var(--mute);font-size:.9rem;padding:8px 0}
-.err{color:var(--danger);margin-top:16px}
-.back{display:inline-block;margin-bottom:24px;font-size:.85rem}
-.packs{margin-top:8px}
-.packs a{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:3px 14px;font-size:.8rem;margin:0 8px 8px 0;color:var(--ink)}
-footer{padding:24px;text-align:center;color:var(--mute);font-size:.78rem;border-top:1px solid var(--line);font-family:var(--font-mono)}
+  /* Same shell as /games and /view: the shared rail on the left, one scrolling
+     content column. A creator page is part of the site, not a microsite. */
+  body { display: flex; overflow: hidden; height: 100%; }
+  .game-layout { flex: 1; width: 0; display: flex; flex-direction: column; overflow: hidden; min-width: 0; background: var(--panel); }
+  .game-content { flex: 1; overflow-y: auto; padding: 28px 32px; }
+  .back { display: inline-block; margin-bottom: 18px; font-size: 0.85rem; color: var(--text-secondary); text-decoration: none; }
+  .back:hover { color: var(--signal); }
+  .card { background: var(--panel-raised); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 24px; position: relative; overflow: hidden; }
+  .card > *:not(#creatorBanner) { position: relative; z-index: 1; }
+  #creatorBanner { position: absolute; top: 0; left: 0; right: 0; height: 190px; pointer-events: none; border-radius: 0; }
+  #creatorBanner.cx-bn::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(4,6,10,0) 30%, rgba(4,6,10,.6)); }
+  .card:has(#creatorBanner.cx-bn) .head { padding-top: 96px; }
+  .head { display: flex; gap: 18px; align-items: center; }
+  .avatar { width: 72px; height: 72px; border-radius: 50%; background: var(--signal-tint); color: var(--signal); display: flex; align-items: center; justify-content: center; font-family: var(--font-head); font-weight: 600; font-size: 1.6rem; flex-shrink: 0; overflow: hidden; border: 1px solid var(--line); }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  h1 { font-family: var(--font-head); font-weight: 600; font-size: 1.4rem; letter-spacing: -0.02em; line-height: 1.15; }
+  .idline { color: var(--text-tertiary); font-family: var(--font-mono, ui-monospace); font-size: 0.78rem; margin-top: 4px; }
+  .bio { color: var(--text-primary); white-space: pre-wrap; margin-top: 14px; font-size: 0.92rem; }
+  .interests { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+  .tag { border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px; font-size: 0.76rem; color: var(--text-secondary); font-family: var(--font-mono, ui-monospace); }
+  .sec-title { font-family: var(--font-head); font-weight: 600; font-size: 1rem; margin: 28px 0 12px; display: flex; align-items: baseline; gap: 8px; }
+  .sec-title .n { color: var(--text-tertiary); font-family: var(--font-mono, ui-monospace); font-size: 0.75rem; font-weight: 400; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .game { border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; background: var(--panel-raised); display: block; color: var(--text-primary); text-decoration: none; }
+  .game:hover { border-color: var(--signal); text-decoration: none; }
+  .thumb { height: 120px; background: var(--panel); display: flex; align-items: center; justify-content: center; font-size: 2rem; color: var(--text-tertiary); overflow: hidden; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .gbody { padding: 12px 14px; }
+  .gbody b { display: block; font-family: var(--font-head); font-weight: 600; font-size: 0.92rem; margin-bottom: 2px; }
+  .gbody span { color: var(--text-tertiary); font-size: 0.76rem; }
+  .empty { color: var(--text-secondary); font-size: 0.88rem; padding: 8px 0; }
+  .err { color: var(--danger); margin-top: 16px; }
+  .packs a { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 3px 14px; font-size: 0.78rem; margin: 0 8px 8px 0; color: var(--text-primary); text-decoration: none; }
+  .packs a:hover { border-color: var(--signal); }
+  /* Creator stats: tiles for the counts, one row per game for the top five.
+     Nothing here is a chart — see the note above the tiles for why. */
+  .stat-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+  .stat-tile { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+  .stat-num { font-family: var(--font-head); font-weight: 700; font-size: 1.15rem; color: var(--text-primary); }
+  .stat-lab { font-size: 0.72rem; color: var(--text-tertiary); }
+  .stat-note { font-size: 0.76rem; color: var(--text-secondary); line-height: 1.55; margin-top: 12px; }
+  .stat-row { display: flex; gap: 10px; justify-content: space-between; font-size: 0.84rem; padding: 6px 0; border-top: 1px solid var(--line); }
+  .stat-row b { font-weight: 600; }
+  .stat-row span { color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+  .comment-row { padding: 10px 0; border-top: 1px solid var(--line); font-size: 0.9rem; }
+  .comment-row:first-child { border-top: none; }
+  .comment-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 0.76rem; color: var(--text-tertiary); }
+  .comment-head b { color: var(--text-primary); font-size: 0.8rem; }
+  .comment-head .del { margin-left: auto; background: none; border: 0; color: var(--danger); cursor: pointer; font-size: 0.74rem; font-family: inherit; }
+  .comment-row .body { white-space: pre-wrap; word-break: break-word; }
+  #commentInput { width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text-primary); font: inherit; font-size: 0.88rem; padding: 10px 12px; resize: vertical; margin-bottom: 10px; }
+  #commentInput:focus { border-color: var(--signal); outline: none; }
+  #commentSend { background: var(--signal); color: var(--on-signal, #141414); border: 0; border-radius: var(--radius-sm); padding: 9px 16px; cursor: pointer; font: inherit; font-weight: 600; }
+  @media (max-width: 720px) { .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } }
+  @media (pointer: coarse) { body { display: block; overflow: auto; height: auto; } .game-content { padding: 16px 14px calc(40px + env(safe-area-inset-bottom)); } }
 </style>
-  <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 </head>
-<body>
-<main class="wrap">
+<body data-page="games">
+<div class="game-layout page-panel"><div class="game-content" id="content">
   <a class="back" href="/games">&larr; Gallery</a>
+
   <div class="card" id="creatorCard">
-    <div id="creatorBanner" style="position:absolute;top:0;left:0;right:0;height:190px;pointer-events:none" aria-hidden="true"></div>
+    <div id="creatorBanner" aria-hidden="true"></div>
     <div class="head">
       <div class="avatar" id="avatar">?</div>
       <div>
@@ -74,11 +86,20 @@ footer{padding:24px;text-align:center;color:var(--mute);font-size:.78rem;border-
     </div>
     <div id="creatorAwards" style="display:none;margin-top:12px"></div>
     <div id="followWrap" hidden style="margin-top:14px">
-      <button id="followBtn" style="border:1px solid var(--line);background:var(--panel-raised);color:var(--ink);font:inherit;font-weight:500;font-size:.8rem;padding:7px 14px;border-radius:var(--radius);cursor:pointer">Follow</button>
-      <span id="followerCount" style="font-size:.78rem;color:var(--mute);margin-left:10px"></span>
+      <button id="followBtn" type="button" style="border:1px solid var(--line);background:var(--panel);color:var(--text-primary);font:inherit;font-weight:500;font-size:0.8rem;padding:7px 14px;border-radius:var(--radius-sm);cursor:pointer">Follow</button>
+      <span id="followerCount" style="font-size:0.78rem;color:var(--text-tertiary);margin-left:10px"></span>
     </div>
     <div id="bio" class="bio" hidden></div>
     <div id="interests" class="interests" hidden></div>
+  </div>
+
+  <div id="statsSec" hidden>
+    <div class="sec-title">Your stats <span class="n">only you can see this</span></div>
+    <div class="card">
+      <div class="stat-tiles" id="statTiles"></div>
+      <p class="stat-note">Plays are all-time; players are signed-in accounts that opened one of your games, and &ldquo;this week&rdquo; is the last seven days. A daily history and an average session length are not stored yet, so they are left out rather than guessed.</p>
+      <div id="statTop"></div>
+    </div>
   </div>
 
   <div id="packsSec" hidden>
@@ -93,14 +114,14 @@ footer{padding:24px;text-align:center;color:var(--mute);font-size:.78rem;border-
   <div class="sec-title" id="commentsTitle" style="margin-top:36px">Comments <span class="n" id="commentsCount"></span></div>
   <div class="card" id="commentsCard">
     <div id="commentForm" hidden>
-      <textarea id="commentInput" maxlength="500" rows="3" placeholder="Say something constructive…" style="width:100%;background:var(--panel-raised);border:1px solid var(--line);border-radius:var(--radius);color:var(--ink);font:inherit;padding:10px 12px;resize:vertical;margin-bottom:10px"></textarea>
-      <button class="btn" id="commentSend" style="background:var(--signal);color:#0d0e10;font-weight:600;border:0;border-radius:var(--radius);padding:8px 16px;cursor:pointer">Post comment</button>
+      <textarea id="commentInput" maxlength="500" rows="3" placeholder="Say something constructive…"></textarea>
+      <button id="commentSend" type="button">Post comment</button>
       <span id="commentMsg" class="err" style="margin-left:10px" hidden></span>
     </div>
     <div id="commentList"></div>
   </div>
-</main>
-<footer>Made with Cudic · <a href="/">cudic.vercel.app</a> · <a href="/privacy">privacy</a> · <a href="/terms">terms</a></footer>
+</div></div>
+<script src="/sidebar.js?v=26"></script>
 <script src="/cudic-cosmetics.js?v=1"></script>
 <script src="/theme-toggle.js?v=2"></script>
 <script>
@@ -136,6 +157,37 @@ footer{padding:24px;text-align:center;color:var(--mute);font-size:.78rem;border-
         .catch(function(){ fb.disabled = false; });
     });
   });
+
+  /* Your stats. Only the owner sees this, and only the numbers this schema can
+     actually answer — see the comment on GET /api/creator/stats. */
+  function paintStats() {
+    authToken().then(function(t){
+      if (!t) return;
+      fetch(apiHost() + '/api/creator/stats', { headers: { 'Authorization': 'Bearer ' + t } })
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(d){
+          if (!d || !d.totals) return;
+          var t2 = d.totals;
+          var tiles = [
+            ['plays', t2.plays], ['players', t2.players], ['played this week', t2.week],
+            ['likes', t2.likes], ['comments', t2.comments], ['forks', t2.forks]
+          ];
+          document.getElementById('statTiles').innerHTML = tiles.map(function(x){
+            return '<div class="stat-tile"><div class="stat-num">' + Number(x[1] || 0).toLocaleString() + '</div><div class="stat-lab">' + x[0] + '</div></div>';
+          }).join('');
+          var top = d.top || [];
+          if (top.length) {
+            document.getElementById('statTop').innerHTML = '<div class="stat-lab" style="margin:16px 0 4px">Best performing</div>' +
+              top.map(function(g){
+                return '<div class="stat-row"><b>' + esc(g.title) + '</b><span>' + g.plays + ' plays · ' + g.players + ' players</span></div>';
+              }).join('');
+          }
+          document.getElementById('statsSec').hidden = false;
+        })
+        .catch(function(){});
+    });
+  }
+
   fetch(apiHost() + '/api/user?id=' + encodeURIComponent(urlId))
     .then(function(r){ return r.json(); })
     .then(function(d){
@@ -192,7 +244,7 @@ footer{padding:24px;text-align:center;color:var(--mute);font-size:.78rem;border-
         document.documentElement.style.setProperty('--signal', pg.accent);
       }
       if (pg.banner_url) {
-        var hero = document.querySelector('.card');
+        var hero = document.getElementById('creatorCard');
         hero.style.backgroundImage = 'linear-gradient(rgba(13,14,16,.55), rgba(13,14,16,.55)), url("' + esc(String(pg.banner_url).replace(/"/g,'')) + '")';
         hero.style.backgroundSize = 'cover';
         hero.style.backgroundPosition = 'center';
@@ -204,7 +256,7 @@ footer{padding:24px;text-align:center;color:var(--mute);font-size:.78rem;border-
           var a = document.createElement('a');
           a.href = l.url; a.target = '_blank'; a.rel = 'noopener';
           a.textContent = l.label;
-          a.style.cssText = 'display:inline-block;border:1px solid var(--line);border-radius:999px;padding:3px 14px;font-size:.8rem;color:var(--ink);text-decoration:none';
+          a.style.cssText = 'display:inline-block;border:1px solid var(--line);border-radius:999px;padding:3px 14px;font-size:.8rem;color:var(--text-primary);text-decoration:none';
           linksEl.appendChild(a);
         });
         document.getElementById('interests').after(linksEl);
@@ -229,6 +281,7 @@ footer{padding:24px;text-align:center;color:var(--mute);font-size:.78rem;border-
         var t = document.createElement('div'); t.className = 'thumb';
         var img = document.createElement('img');
         img.src = '/g/' + encodeURIComponent(g.slug || g.id) + '/thumb';
+        img.alt = '';
         img.onerror = function(){ img.remove(); };
         t.appendChild(img);
         var b = document.createElement('div'); b.className = 'gbody';
@@ -244,9 +297,6 @@ footer{padding:24px;text-align:center;color:var(--mute);font-size:.78rem;border-
       var e = document.getElementById('err'); e.hidden = false; e.textContent = 'Could not load creator.';
     });
 
-  function esc(s){ var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
-  function initials(name){ return name.split(' ').map(function(w){ return w[0]; }).join('').substring(0,2).toUpperCase(); }
-  function apiHost(){ return (typeof WS_URL !== 'undefined' && WS_URL) ? WS_URL.replace(/^wss?:\/\//, 'https://') : ''; }
   function authToken(){
     try {
       if (window.getAuthToken) return window.getAuthToken().then(function(a){ return a || null; });
@@ -270,20 +320,20 @@ footer{padding:24px;text-align:center;color:var(--mute);font-size:.78rem;border-
         if (!comments.length) { commentList.innerHTML = '<div class="empty">No comments yet.</div>'; return; }
         comments.forEach(function(c){
           var row = document.createElement('div');
-          row.style.cssText = 'padding:10px 0;border-top:1px solid var(--line);font-size:.9rem';
+          row.className = 'comment-row';
           var head = document.createElement('div');
-          head.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:.78rem;color:var(--mute)';
+          head.className = 'comment-head';
           var av = document.createElement('span');
-          av.style.cssText = 'width:22px;height:22px;border-radius:50%;background:var(--panel-raised);color:var(--signal);display:inline-flex;align-items:center;justify-content:center;font-size:.65rem;overflow:hidden;flex-shrink:0';
-          if (c.users && c.users.avatar_url) av.innerHTML = '<img src="' + esc(String(c.users.avatar_url).replace(/"/g,'')) + '" style="width:100%;height:100%;object-fit:cover">';
+          av.style.cssText = 'width:22px;height:22px;border-radius:50%;background:var(--panel);color:var(--signal);display:inline-flex;align-items:center;justify-content:center;font-size:.65rem;overflow:hidden;flex-shrink:0';
+          if (c.users && c.users.avatar_url) av.innerHTML = '<img src="' + esc(String(c.users.avatar_url).replace(/"/g,'')) + '" style="width:100%;height:100%;object-fit:cover" alt="">';
           else av.textContent = initials((c.users && c.users.display_name) || '?');
-          var nm = document.createElement('b'); nm.textContent = (c.users && c.users.display_name) || 'Unknown'; nm.style.color = 'var(--ink)';
+          var nm = document.createElement('b'); nm.textContent = (c.users && c.users.display_name) || 'Unknown';
           var dt = document.createElement('span'); dt.textContent = new Date(c.created_at).toLocaleDateString();
           head.appendChild(av); head.appendChild(nm); head.appendChild(dt);
           if (ME && c.author_id === ME) {
             var del = document.createElement('button');
             del.textContent = 'delete';
-            del.style.cssText = 'margin-left:auto;background:none;border:0;color:var(--danger);cursor:pointer;font-size:.75rem';
+            del.className = 'del';
             del.onclick = function(){
               authToken().then(function(t){
                 fetch(apiHost() + '/api/creators/' + encodeURIComponent(urlId) + '/comments/' + c.id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + (t || '') } })
@@ -293,7 +343,7 @@ footer{padding:24px;text-align:center;color:var(--mute);font-size:.78rem;border-
             };
             head.appendChild(del);
           }
-          var body = document.createElement('div'); body.textContent = c.body;
+          var body = document.createElement('div'); body.className = 'body'; body.textContent = c.body;
           row.appendChild(head); row.appendChild(body);
           commentList.appendChild(row);
         });
@@ -306,7 +356,7 @@ footer{padding:24px;text-align:center;color:var(--mute);font-size:.78rem;border-
       fetch(apiHost() + '/api/profile', { headers: { 'Authorization': 'Bearer ' + t } })
         .then(function(r){ return r.json(); })
         .then(function(d){
-          if (d.profile && d.profile.id === urlId) { isSelf = true; paintFollow(); return; } // can't comment on own page
+          if (d.profile && d.profile.id === urlId) { isSelf = true; paintFollow(); paintStats(); return; } // can't comment on own page
           ME = d.profile && d.profile.id;
           commentForm.hidden = false;
         });
