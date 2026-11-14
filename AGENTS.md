@@ -58,6 +58,9 @@ append the next one instead of quietly fixing it and moving on.
    still reports success and prints "Nothing in this push to talk about", so a
    silent #updates is the tool working, not a broken channel. Write the
    player-facing sentence when you compose the commit, never after the push.
+   A line missed anyway is posted with `node tools/discord-update.mjs --note
+   "<one sentence>"` (`.env`'s `DISCORD_WEBHOOK_UPDATES`), which beats
+   force-pushing a branch Render has already built.
 3. **Fixed the message after pushing.** Adding that line meant rewriting a
    branch Render had already built (`--force-with-lease` on `master`). The
    message is part of the change: get it right before the first push.

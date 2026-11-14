@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /* file: tools/discord-update.mjs
- * what: posts the hand-written `Updates:` line from each commit in a push into
- *       the Discord #updates channel, as one short message.
+ * what: posts the hand-written `Updates:` line from each commit in a push (or a
+ *       `--note` line given on the command line) into the Discord #updates
+ *       channel, as one short message.
  * why: a channel that reads like a person needs a person's words. The line is
  *       written when the change is committed, so there is no model, no API key
  *       and nothing to rewrite — and the message cannot drift into build-log
@@ -27,6 +28,12 @@ const FALLBACK = argv.includes('--fallback');
 const RANGE = (() => {
   const i = argv.indexOf('--range');
   return i >= 0 ? String(argv[i + 1] || '') : '';
+})();
+// For the push that went out without its `Updates:` line: the sentences are
+// still written by a person, so the channel hears them now instead of never.
+const NOTE_ARG = (() => {
+  const i = argv.indexOf('--note');
+  return i >= 0 ? String(argv[i + 1] || '').trim() : '';
 })();
 
 const BEFORE = String(process.env.BEFORE || '').trim();
@@ -101,7 +108,10 @@ function readCommits() {
 }
 
 function compose({ notes, subjects }) {
-  const said = [...new Set(notes.map(scrub).filter(Boolean))].slice(0, MAX_NOTES);
+  // A hand-written --note wins over what the commits say; it is the same rule
+  // (one person's sentence), applied to the push that forgot its line.
+  const written = NOTE_ARG ? [NOTE_ARG] : notes;
+  const said = [...new Set(written.map(scrub).filter(Boolean))].slice(0, MAX_NOTES);
   if (said.length) return said.join(' ');
   // Nothing was written for this push, so there is nothing worth saying. A chore
   // commit should not announce itself in a channel people read for features.

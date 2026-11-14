@@ -425,6 +425,29 @@ function topAction(
   return b;
 }
 
+// The workbench's own layout cluster lands in the same title bar as Cudic's
+// Save, and it reads as a second, broken save button: the primary-sidebar icon
+// is a blue square, the panel/secondary toggles are unlabelled squares, and
+// Customize Layout offers a layout this build does not use. Cudic's own
+// Projects / Preview / Save / Exit are the only actions that belong there. The
+// commands stay reachable from the View menu and their shortcuts (Ctrl+B,
+// Ctrl+J), and a renamed upstream label simply stops matching rather than
+// hiding something else.
+const VSCODE_LAYOUT_ACTION =
+  /^(Customize Layout|Toggle Primary Side Bar|Toggle Panel|Toggle Secondary Side Bar)\b/;
+
+function hideWorkbenchLayoutControls(titleBar: HTMLElement): void {
+  for (const item of Array.from(titleBar.querySelectorAll('.action-item'))) {
+    const label = item.querySelector('.action-label');
+    const name = label?.getAttribute('aria-label') ?? '';
+    if (VSCODE_LAYOUT_ACTION.test(name)) (item as HTMLElement).style.display = 'none';
+  }
+  // The window app icon is an empty 35px square in a browser build — it sat
+  // beside the Cudic wordmark as a second blue logo/save-looking button.
+  const appIcon = titleBar.querySelector('.window-appicon') as HTMLElement | null;
+  if (appIcon != null) appIcon.style.display = 'none';
+}
+
 async function mountTitleBarActions(): Promise<void> {
   const deadline = Date.now() + 8000;
   while (Date.now() < deadline) {
@@ -513,6 +536,14 @@ async function mountTitleBarActions(): Promise<void> {
         bar.style.right = '8px';
       }
       right.append(bar);
+      // Hide the built-in cluster now and whenever the bar re-renders (toggling
+      // a part rebuilds these items). The observer only watches childList, so
+      // setting display:none cannot feed itself.
+      hideWorkbenchLayoutControls(titleBar);
+      new MutationObserver(() => hideWorkbenchLayoutControls(titleBar)).observe(titleBar, {
+        childList: true,
+        subtree: true
+      });
       return;
     }
     await new Promise((r) => setTimeout(r, 200));
