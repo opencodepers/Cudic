@@ -6189,6 +6189,9 @@ function sanitizeTags(raw) {
   const gamePath = url.pathname.startsWith('/api/games/') ? url.pathname.slice('/api/games/'.length).split('/') : null;
   const gamePathId = gamePath && isUuid(gamePath[0]) ? gamePath[0] : null;
   if (gamePathId && gamePath.length === 2 && gamePath[1] === 'howto' && req.method === 'GET') {
+    // The first-run cover reads this from cudic.vercel.app, so without the
+    // header the browser blocks it and every cover falls back to generic text.
+    cors(res);
     const { data: hg } = await supabase.from('games').select('files').eq('id', gamePathId).single();
     let hfiles = hg && hg.files;
     if (typeof hfiles === 'string') { try { hfiles = JSON.parse(hfiles); } catch (e) { hfiles = null; } }
