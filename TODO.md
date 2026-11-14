@@ -43,13 +43,14 @@ list:
 
 ## Still open inside `CHANGELOG.md` → `## Unreleased`
 
-- [ ] **Cloudflare Turnstile is keyed but unproven in a browser.** Keys are in
-      `.env` and in Render's environment for `glox`, and the server-side gate is
-      live: code sends, signup confirm, password reset and account deletion all
-      verify a token first, and the delete flow keeps its typed code and hold.
-      What has never been exercised is the widget itself passing a real
-      challenge on `cudic.vercel.app` — no browser harness here. Next: sign up
-      and delete a throwaway account from a browser and watch the network tab.
+- [x] **Cloudflare Turnstile works in a browser.** Keys are in `.env` and in
+      Render's environment for `glox`, the server-side gate is live (code sends,
+      signup confirm, password reset and account deletion all verify a token
+      first, and the delete flow keeps its typed code and hold), and the widget
+      itself passed a real challenge on `cudic.vercel.app` on 2026-11-14: a
+      signup code was requested and arrived, so the hostname list on the
+      Turnstile widget covers the Vercel origin. Re-check with a tokenless POST
+      to `/auth/send-code`, which must answer 400 `code: turnstile`.
 - [ ] **Adsterra ad slots.** Paused when AdSense verification shipped
       ("Adsterra slots paused meanwhile"); `public/ads.js` still documents the
       `.ad-frame` slots. Decide whether they come back — AdSense is the live ad

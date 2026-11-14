@@ -1,0 +1,13 @@
+-- New accounts start on the plain default look.
+--
+-- users.pack_slug was declared with DEFAULT 'anime-city-night'
+-- (migration/new-schema.sql, migration/new-schema-v2.sql), and
+-- handle_new_user() inserts only id/user_id/display_name/avatar_url. So every
+-- fresh signup silently inherited the Anime City Night pack: the chat page
+-- booted with the neon scene and /profile reported a pack the user never
+-- installed.
+--
+-- Dropping the default leaves existing choices untouched (rows that chose a
+-- pack keep it; rows that never did can be cleared from /themes or the
+-- profile's Theme pack card) and makes a new row NULL until someone installs.
+ALTER TABLE public.users ALTER COLUMN pack_slug DROP DEFAULT;

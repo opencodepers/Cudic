@@ -295,7 +295,7 @@
       <div class="profile-card" id="sec-pack">
         <h2>Theme pack</h2>
         <p class="sub">Your installed theme pack — applies to Studio, themes, and profile preview.</p>
-        <div class="pref-row" id="packRow"><div><b id="packName">—</b><span class="sub" id="packSlug" style="font-family:'Geist Mono',monospace;font-size:0.78rem"></span></div><a href="/themes" class="btn btn-secondary" style="padding:6px 12px;font-size:0.78rem">Edit →</a></div>
+        <div class="pref-row" id="packRow"><div><b id="packName">—</b><span class="sub" id="packSlug" style="font-family:'Geist Mono',monospace;font-size:0.78rem"></span></div><div style="display:flex;gap:8px;align-items:center"><button type="button" class="btn btn-danger" id="packClear" style="padding:6px 12px;font-size:0.78rem;display:none">Remove</button><a href="/themes" class="btn btn-secondary" style="padding:6px 12px;font-size:0.78rem">Edit →</a></div></div>
       </div>
       <div class="profile-card" id="sec-creatorpage">
         <h2>Profile page</h2>
@@ -491,9 +491,27 @@
         (function(p){
           var pn = document.getElementById('packName');
           var ps = document.getElementById('packSlug');
+          var pc = document.getElementById('packClear');
           if(pn&&ps){
             if(p && p.pack_slug){ pn.textContent = p.pack_slug; ps.textContent = p.pack_slug; ps.style.display='inline'; }
             else { pn.textContent = 'Default'; ps.textContent = 'No pack installed'; ps.style.display='inline'; }
+          }
+          // Removing a pack is reachable here, not only from /themes: the card
+          // already names the pack, and a pack overrides the light/dark toggle
+          // above, so "Theme: light" looked broken while one was installed.
+          if(pc){
+            if(p && p.pack_slug) pc.style.display='inline-block';
+            pc.addEventListener('click', async function(){
+              pc.disabled = true; pc.textContent = 'Removing…';
+              try { if(window.CudicTheme) CudicTheme.clearPack(); } catch(e){}
+              try {
+                await fetch(apiHost() + '/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + t }, body: JSON.stringify({ pack_slug: null }) });
+              } catch(e){}
+              if(pn) pn.textContent = 'Default';
+              if(ps) ps.textContent = 'No pack installed';
+              pc.style.display='none'; pc.disabled = false; pc.textContent = 'Remove';
+              msg(document.getElementById('themeMsg'), 'Theme pack removed — back to the default look.', true);
+            });
           }
           var lc = document.getElementById('likedCount');
           if(lc && d.games){ lc.textContent = (d.games || []).length; }

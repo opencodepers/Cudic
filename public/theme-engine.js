@@ -391,6 +391,9 @@ function apiHost() {
     var tok = tokRaw ? (function () { try { var s = JSON.parse(tokRaw); return s && s.access_token ? s.access_token : tokRaw; } catch (e) { return tokRaw; } })() : '';
     if (tok && typeof fetch !== 'undefined') {
       fetch(apiHost() + '/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: JSON.stringify({ pack_slug: slug || null }) })
+        // A failed save used to be invisible: the page dropped the pack and the
+        // next reload booted it straight back from the account row.
+        .then(function (r) { if (r && !r.ok) console.warn('CudicTheme: pack preference not saved (' + r.status + ')'); })
         .catch(function (e) { console.warn('CudicTheme: pack preference not saved to your account', e && e.message); });
     }
   }
