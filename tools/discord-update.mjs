@@ -7,8 +7,8 @@
  *       and nothing to rewrite — and the message cannot drift into build-log
  *       speak, because nobody wrote that in the first place.
  * invariants: the message never mentions tooling (git, commits, branches, GitHub,
- *       deploys, webhooks, bots, AI) — offending sentences are dropped, and a
- *       commit without the line falls back to its subject reworded as a sentence;
+ *       deploys, webhooks, bots, AI) — offending sentences are dropped; a push
+ *       with no line says nothing unless --fallback is passed;
  *       a push with no commits posts nothing; a missing or failing webhook never
  *       fails the run; mentions stay disabled and the URL is validated by
  *       lib/discord.js.
@@ -23,6 +23,7 @@ const discord = require('../lib/discord');
 
 const argv = process.argv.slice(2);
 const DRY = argv.includes('--dry');
+const FALLBACK = argv.includes('--fallback');
 const RANGE = (() => {
   const i = argv.indexOf('--range');
   return i >= 0 ? String(argv[i + 1] || '') : '';
@@ -102,8 +103,11 @@ function readCommits() {
 function compose({ notes, subjects }) {
   const said = [...new Set(notes.map(scrub).filter(Boolean))].slice(0, MAX_NOTES);
   if (said.length) return said.join(' ');
-  // Nothing hand-written in this push: reword the subjects as sentences rather
-  // than a bullet list, so the channel still reads like a line of text.
+  // Nothing was written for this push, so there is nothing worth saying. A chore
+  // commit should not announce itself in a channel people read for features.
+  if (!FALLBACK) return '';
+  // --fallback: reword the subjects as sentences rather than a bullet list, so the
+  // channel still reads like a line of text.
   const sentences = [...new Set(subjects.map(scrub).filter(Boolean))]
     .slice(0, MAX_SUBJECTS)
     .map((s) => s.charAt(0).toUpperCase() + s.slice(1));

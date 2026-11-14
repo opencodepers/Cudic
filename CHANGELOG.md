@@ -10,12 +10,12 @@ fixed. Commits are referenced by short hash.
 
 **Updates in plain English**
 
-- **Every push says what changed** (`tools/discord-update.mjs`, `.github/workflows/discord-updates.yml`): a push to `main` posts the `Updates:` line from each of its commits to `DISCORD_WEBHOOK_UPDATES` — the words written when the change was made, sent as they are, with any sentence that names git, commits, branches, GitHub, deploys, webhooks or bots dropped, so `#updates` never reads like a build log. No model and no key: a commit without the line falls back to its subject reworded as a sentence. `--dry` prints the message instead of sending it. `#updates` is a forum, so each push opens a post named after the note's first sentence.
+- **Every push says what changed** (`tools/discord-update.mjs`, `.github/workflows/discord-updates.yml`): a push to `main` posts the `Updates:` line from each of its commits to `DISCORD_WEBHOOK_UPDATES` — the words written when the change was made, sent as they are, with any sentence that names git, commits, branches, GitHub, deploys, webhooks or bots dropped, so `#updates` never reads like a build log. No model and no key: a push with no `Updates:` line stays quiet rather than announcing a chore, and `--fallback` posts the subjects as sentences instead. `--dry` prints the message instead of sending it. `#updates` is a forum, so each push opens a post named after the note's first sentence.
 
 **The server talks to Discord**
 
 - **First publish announces itself** (`lib/discord.js`, `server.js`): when a game flips from draft to published, the server posts one embed to `DISCORD_WEBHOOK_GAMES` — title, blurb, and the game's cover (the shared default cover when it has no art), linking `/g/<slug>`. Re-saving a live game stays quiet, and an unset or failing webhook changes nothing about the publish.
-- **Uptime is reported, not spammed** (`tools/discord-status.mjs`, `.github/workflows/discord-status.yml`): a ten-minute cron probes `/arcade` and `/` from outside, records the result, and posts to `DISCORD_WEBHOOK_STATUS` only when the state changes — down, degraded, or back up with the minutes it was out. `--dry` prints the message instead of sending it. `#updates` is a forum, so each push opens a post named after the note's first sentence.
+- **Uptime is reported, not spammed** (`tools/discord-status.mjs`, `.github/workflows/discord-status.yml`): a ten-minute cron probes `/arcade` and `/` from outside, records the result, and posts to `DISCORD_WEBHOOK_STATUS` only when the state changes — down, degraded, or back up with the minutes it was out. `--dry` prints the message instead of sending it.
 
 **Cards that go where they point**
 

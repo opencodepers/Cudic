@@ -116,9 +116,9 @@ Every push to `main` posts the `Updates:` line from each of its commits to
 There is no model, no API key and nothing to keep running: `tools/discord-update.mjs`
 reads the commits in that push, takes their `Updates:` lines as they are, and
 drops any sentence that names tooling (git, commits, branches, GitHub, deploys,
-webhooks, bots) so the channel never reads like a build log. A commit without the
-line falls back to its subject reworded as a sentence, and a push with no commits
-says nothing.
+webhooks, bots) so the channel never reads like a build log. A push with no `Updates:` line stays quiet
+rather than announcing a chore; `--fallback` posts the commits' subjects as
+sentences instead.
 
 Write the line at the end of a commit message:
 
