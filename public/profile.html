@@ -249,6 +249,7 @@
           <p class="sub">To prove it's really you (and not a bot), type this code:</p>
           <div class="del-code" id="delCode"></div>
           <div class="field"><label>Type the code above</label><input type="text" id="delCodeInput" autocomplete="off" maxlength="8" style="letter-spacing:4px"></div>
+          <div id="tsDel" style="margin:8px 0"></div>
           <div class="status-msg" id="delMsg"></div>
           <div style="display:flex;gap:8px;justify-content:flex-end">
             <button class="btn btn-secondary" id="delCancel">Keep my account</button>
@@ -380,6 +381,7 @@
   </div></div>
   <script src="/config.js"></script>
   <script src="/auth.js"></script>
+  <script src="/turnstile.js"></script>
   <script src="/sidebar.js?v=26"></script>
   <script src="/cudic-cosmetics.js?v=1"></script>
   <script src="/theme-toggle.js?v=2"></script>
@@ -506,14 +508,23 @@
         .then(function(d){ if (!d.verified) card.style.display = 'block'; })
         .catch(function(){});
       function myEmail(){ var e = document.getElementById('emailField'); return e ? e.value.trim() : ''; }
-      document.getElementById('verifySend').addEventListener('click', function(){
+      document.getElementById('verifySend').addEventListener('click', async function(){
         var btn = this, m = document.getElementById('verifyMsg'), em = myEmail();
         if (!em) { msg(m, 'No email on this account.', false); return; }
         btn.disabled = true;
-        fetch(apiHost() + '/auth/send-code', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: em }) })
+        // Bot check on the resend. The container is created here rather than
+        // in markup because this card only appears for unconfirmed accounts;
+        // with no server keys it stays empty and the payload is unchanged.
+        var vts = document.getElementById('tsVerify');
+        if (!vts) {
+          vts = document.createElement('div'); vts.id = 'tsVerify'; vts.style.margin = '8px 0';
+          btn.parentNode.insertBefore(vts, btn);
+        }
+        var ts = await CudicTurnstile.token(vts);
+        fetch(apiHost() + '/auth/send-code', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ts ? { email: em, turnstileToken: ts } : { email: em }) })
           .then(function(r){ return r.json().then(function(dd){ return { ok: r.ok, d: dd }; }); })
-          .then(function(res){ btn.disabled = false; msg(m, res.ok ? 'Code sent! Check your inbox.' : (res.d.error || 'Could not send.'), res.ok); })
-          .catch(function(){ btn.disabled = false; msg(m, 'Could not send.', false); });
+          .then(function(res){ CudicTurnstile.reset(vts); btn.disabled = false; msg(m, res.ok ? 'Code sent! Check your inbox.' : (res.d.error || 'Could not send.'), res.ok); })
+          .catch(function(){ CudicTurnstile.reset(vts); btn.disabled = false; msg(m, 'Could not send.', false); });
       });
       document.getElementById('verifyGo').addEventListener('click', function(){
         var btn = this, m = document.getElementById('verifyMsg'), em = myEmail();
@@ -1205,9 +1216,9 @@
 
     document.getElementById('signOutBtn').addEventListener('click', function(){ signOut(); });
 
-    /* Delete account: leaving message + type-the-code + press-and-hold.
-       All three are human-trivial and bot-hostile, with no captcha
-       provider needed. Server does the real enforcement. */
+    /* Delete account: leaving message + type-the-code + press-and-hold,
+       plus the Turnstile widget when the server has keys (invisible
+       otherwise). The server does the real enforcement. */
     var delCode = '';
     function newDelCode() {
       var chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789', out = '';
@@ -1260,6 +1271,8 @@
       try {
         var headers = { 'Authorization': 'Bearer ' + t };
         try { var s = localStorage.getItem('cudic_seat'); if (s) headers['X-Seat'] = s; } catch (e) {}
+        var ts = await CudicTurnstile.token(document.getElementById('tsDel'));
+        if (ts) headers['cf-turnstile-response'] = ts;
         var r = await fetch(apiHost() + '/api/account', { method: 'DELETE', headers: headers });
         var d = await r.json().catch(function(){ return {}; });
         if (!r.ok) throw new Error((d && d.error) || 'Delete failed.');

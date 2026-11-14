@@ -8,6 +8,10 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**A bot check where it costs something**
+
+- **Signup codes, password resets and account deletion now prove they are human** (`server.js`, `public/turnstile.js`, `public/login.html`, `public/profile.html`): Cloudflare Turnstile guards the three paths a script would abuse — `/auth/send-code`, the deferred `/api/auth/confirm-signup` and `/api/auth/reset-password` — plus `DELETE /api/account`, which keeps its typed code and hold. The widget renders `interaction-only`, so it stays invisible unless Cloudflare wants a click, and tokens are single-use: the widget is reset after each send and re-requests one before a delete. No keys means no gate — with `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` unset every route answers exactly as it did before, which is how local dev and the test suite run. The public site key is served at `/api/turnstile` so no page hardcodes it, the secret never leaves the server, and a Cloudflare error fails closed: a blocked signup beats an open mail relay. Delete still answers 401 before the gate, so anonymous callers learn nothing new.
+
 **Clips that actually record**
 
 - **The Clip button no longer films a black screen** (`public/cudic-clip.js`, `public/run.html`): the recorder composited the game's canvas with `drawImage`, and a WebGL canvas created without `preserveDrawingBuffer` is cleared the moment the browser composites it — so the clip came back black, or frozen on the one frame that survived. The canvas is now tapped with its own `captureStream` into a hidden `<video>`, and frames are drawn from that, so what was recorded is what the player saw, for 2D and WebGL alike. The tap's tracks and element are torn down when the clip finishes, recording waits (max 1.5s) for a real frame before it starts, and the script tag is versioned (`?v=2`) so browsers fetch the fix instead of the cached clip script.

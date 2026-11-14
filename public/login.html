@@ -91,6 +91,7 @@ input:focus{border-color:var(--blue)}
       <input id="pwUp" type="password" placeholder="At least 8 characters" autocomplete="new-password" required>
       <label for="dnUp">Display name</label>
       <input id="dnUp" type="text" placeholder="What should people call you?" autocomplete="name" required>
+      <div id="tsUp" style="margin-top:12px"></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">
         <button type="submit" class="btn b2">Create account →</button>
       </div>
@@ -131,6 +132,7 @@ input:focus{border-color:var(--blue)}
 <div class="toast" id="t">Done.</div>
 <script src="/config.js"></script>
 <script src="/auth.js"></script>
+<script src="/turnstile.js"></script>
 <script>
 function setTab(k){
   document.querySelectorAll('.tab').forEach(el=>{el.classList.remove('active');el.setAttribute('aria-selected','false');});
@@ -198,7 +200,19 @@ function guestLogin(){ window.location.href='/'; }
 var lastEmail='', lastPw='', lastUid='';
 async function resendCode(){
   if(!lastEmail)return;
-  try{await fetch((typeof WS_URL!=='undefined'&&WS_URL?WS_URL.replace(/^wss?:\/\//,'https://'):'')+'/auth/send-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:lastEmail})});document.getElementById('codeSub').textContent='Code sent. Wait a moment before confirming.';showToast('Code sent — check inbox.');}catch(e){showToast('Resend failed.');}
+  var el=document.getElementById('tsUp'), sub=document.getElementById('codeSub');
+  try{
+    // Bot check: '' when the deploy has no keys, so nothing changes there.
+    var payload={email:lastEmail};
+    var ts=await CudicTurnstile.token(el);
+    if(ts)payload.turnstileToken=ts;
+    var res=await fetch((typeof WS_URL!=='undefined'&&WS_URL?WS_URL.replace(/^wss?:\/\//,'https://'):'')+'/auth/send-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    CudicTurnstile.reset(el); // tokens are single-use
+    var d=null; try{d=await res.json();}catch(e){}
+    if(!res.ok){sub.textContent=(d&&d.error)||'Could not send the code.';return;}
+    sub.textContent='Code sent. Wait a moment before confirming.';
+    showToast('Code sent — check inbox.');
+  }catch(e){showToast('Resend failed.');}
 }
 async function verifyCode(){
   var c=document.getElementById('code').value.trim();

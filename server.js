@@ -65,6 +65,35 @@ function clientIp(req) {
   }
   return (req.socket && req.socket.remoteAddress) || 'unknown';
 }
+
+// ── Bot gate (Cloudflare Turnstile) ────────────────────────────
+// A solved widget proves a human filled the form; the server verifies the
+// token before anything expensive happens — sending mail, creating an
+// account, deleting one. Unset TURNSTILE_SECRET_KEY means every check
+// passes, so local dev, the test suite and any deploy without Cloudflare
+// keys behave exactly as before. Cloudflare errors fail closed: a blocked
+// signup beats an open mail relay.
+const TURNSTILE_SITE_KEY = (process.env.TURNSTILE_SITE_KEY || '').trim();
+const TURNSTILE_SECRET = (process.env.TURNSTILE_SECRET_KEY || '').trim();
+async function turnstileOk(req, body) {
+  if (!TURNSTILE_SECRET) return true; // no keys = no gate
+  // Body field for JSON posts; header for DELETE, which carries no body.
+  const raw = (body && body.turnstileToken) || req.headers['cf-turnstile-response'] || '';
+  const token = String(raw).trim().substring(0, 4096); // CF tokens are ~2KB
+  if (!token) return false;
+  try {
+    const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ secret: TURNSTILE_SECRET, response: token, remoteip: clientIp(req) }),
+    });
+    const j = await r.json().catch(() => ({}));
+    return !!(j && j.success === true);
+  } catch (e) {
+    console.error('turnstile verify error:', (e && e.message) || e);
+    return false;
+  }
+}
 // URL path segments are decoded in several pack/saves routes; a raw '%'
 // would throw a URIError and kill the process (no global handler catches it).
 function safeDecode(s) {
@@ -393,6 +422,16 @@ async function handleRequest(req, res) {
     return;
   }
 
+  // ── API: public bot-check config ───────────────────────────────
+  // Pages need the site key to render the widget; the secret never leaves
+  // the server. siteKey:'' = no keys configured = no widget, no gate.
+  if (url.pathname === '/api/turnstile' && req.method === 'GET') {
+    cors(res);
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify({ siteKey: TURNSTILE_SITE_KEY }));
+    return;
+  }
+
     // ── API: magic codes (send + verify) ─────────────────────────
   // 6-digit codes over our own mail stack (Gmail API → Resend → Brevo).
   // Supabase's built-in mail caps at 2/hour site-wide, so it can't
@@ -463,6 +502,14 @@ async function handleRequest(req, res) {
     if (!rateLimit('code:ip:' + ip, 5, 10 * 60 * 1000) || !rateLimit('code:to:' + email, 3, 60 * 60 * 1000)) {
       res.writeHead(429, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Too many requests. Try again later.' }));
+      return;
+    }
+    // Bot gate sits after the cheap validation/rate checks (a blank form
+    // costs nothing) and before the code is minted, so no mail is ever
+    // sent for a script that never solved the widget.
+    if (!(await turnstileOk(req, body))) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Bot check failed. Reload the page and try again.', code: 'turnstile' }));
       return;
     }
     const code = String(Math.floor(100000 + Math.random() * 900000));
@@ -567,6 +614,11 @@ async function handleRequest(req, res) {
     if (url.pathname === '/api/auth/confirm-signup' && req.method === 'POST') {
     cors(res);
     const body = await readBody(req).catch(() => ({}));
+    if (!(await turnstileOk(req, body))) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Bot check failed. Reload the page and try again.', code: 'turnstile' }));
+      return;
+    }
     const email = String(body.email || '').toLowerCase().trim();
     const code = String(body.code || '').replace(/\D/g, '').substring(0, 6);
     const npw = String(body.password || '');
@@ -641,6 +693,11 @@ async function handleRequest(req, res) {
   if (url.pathname === '/api/auth/reset-password' && req.method === 'POST') {
     cors(res);
     const body = await readBody(req).catch(() => ({}));
+    if (!(await turnstileOk(req, body))) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Bot check failed. Reload the page and try again.', code: 'turnstile' }));
+      return;
+    }
     const email = String(body.email || '').toLowerCase().trim();
     const code = String(body.code || '').replace(/\D/g, '').substring(0, 6);
     const npw = String(body.newPassword || '');
@@ -2714,6 +2771,14 @@ async function handleRequest(req, res) {
     cors(res);
     const user = await requireUser(req, res); if (!user) return;
     if (!(await seatAlive(user.id, seatFromReq(req)))) { seatDead(res); return; }
+    // Bot gate after auth: anonymous callers still get 401, never a hint
+    // that their account question is even reachable. Token rides a header
+    // because DELETE has no body.
+    if (!(await turnstileOk(req, {}))) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Bot check failed. Reload the page and try again.', code: 'turnstile' }));
+      return;
+    }
     try {
       const { data: prof } = await supabase.from('users').select('user_id').eq('id', user.id).single();
       const { data: games } = await supabase.from('games').select('id').eq('owner_id', user.id).limit(200);
