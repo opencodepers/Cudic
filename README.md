@@ -111,13 +111,18 @@ Run the reporter by hand:
 
 ### #updates
 
-Every push to `main` posts a headline and a sentence or two to `#updates`: what
-a player or builder will notice, not what the diff says. `tools/discord-update.mjs`
-reads the commits in that push and asks a model for plain English, then drops any
-sentence that names tooling — no commits, branches, GitHub, deploys, webhooks or
-bots — so the channel reads like a person typed it. If the model is unreachable
-or only talks about the plumbing, the cleaned commit subjects stand in. A push
-with no commits says nothing.
+Every push to `main` posts the `Updates:` line from each of its commits to
+`#updates` — one short message, in the words written when the change was made.
+There is no model, no API key and nothing to keep running: `tools/discord-update.mjs`
+reads the commits in that push, takes their `Updates:` lines as they are, and
+drops any sentence that names tooling (git, commits, branches, GitHub, deploys,
+webhooks, bots) so the channel never reads like a build log. A commit without the
+line falls back to its subject reworded as a sentence, and a push with no commits
+says nothing.
+
+Write the line at the end of a commit message:
+
+    Updates: Games without artwork now get a cover instead of an empty box.
 
 Run it by hand:
 

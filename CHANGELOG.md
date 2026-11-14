@@ -10,7 +10,7 @@ fixed. Commits are referenced by short hash.
 
 **Updates in plain English**
 
-- **Every push says what changed** (`tools/discord-update.mjs`, `.github/workflows/discord-updates.yml`): a push to `main` posts two lines to `DISCORD_WEBHOOK_UPDATES` — a headline and a sentence about what a player or builder will notice, written from the commits in that push. Sentences that name commits, branches, GitHub, webhooks or bots are dropped, and the subjects stand in if nothing survives, so `#updates` never reads like a build log. `--dry` prints the message instead of sending it.
+- **Every push says what changed** (`tools/discord-update.mjs`, `.github/workflows/discord-updates.yml`): a push to `main` posts the `Updates:` line from each of its commits to `DISCORD_WEBHOOK_UPDATES` — the words written when the change was made, sent as they are, with any sentence that names git, commits, branches, GitHub, deploys, webhooks or bots dropped, so `#updates` never reads like a build log. No model and no key: a commit without the line falls back to its subject reworded as a sentence. `--dry` prints the message instead of sending it.
 
 **The server talks to Discord**
 

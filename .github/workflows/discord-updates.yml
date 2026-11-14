@@ -1,8 +1,9 @@
 name: Discord updates
 
-# Every push to main goes out to #updates as a sentence or two of plain English,
-# written from the commits in that push. Only main, because the same commit is
-# pushed to master as well and the channel should hear each change once.
+# Every push to main goes out to #updates using the `Updates:` line written in
+# the commit — a hand-written sentence, no model and no key. Only main, because
+# the same commit is pushed to master as well and the channel should hear each
+# change once.
 on:
   push:
     branches: [main]
@@ -10,7 +11,6 @@ on:
 
 permissions:
   contents: read
-  models: read
 
 # Two pushes close together should not race each other into the channel.
 concurrency:
@@ -25,10 +25,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Write the update
+      - name: Say what changed
         env:
           DISCORD_WEBHOOK_UPDATES: ${{ secrets.DISCORD_WEBHOOK_UPDATES }}
-          GITHUB_TOKEN: ${{ github.token }}
           BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.sha }}
         run: node tools/discord-update.mjs
