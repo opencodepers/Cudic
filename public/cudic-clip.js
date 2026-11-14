@@ -6,21 +6,21 @@
  * the game page asks for a clip over postMessage and gets the finished file
  * back as a Blob (structured-cloneable across the sandbox boundary).
  *
- * Protocol (view.html <-> player frame), bump `v` on any change:
+ * Protocol (view.html <-> player frame), bump `v` on any change (now 2):
  *   frame  -> {type:'cudic-clip-ready', v, can}            once at boot
  *   parent -> {type:'cudic-clip-start', seconds, title, by, score}
  *   frame  -> {type:'cudic-clip-done', v, blob, mime}
  *   frame  -> {type:'cudic-clip-error', v, error}
  *
- * Everything is drawn onto one composite canvas (the game canvas is a live
- * source, not something we can write to), and the recorder captures that —
+ * Frames come from the game canvas tapped with captureStream into a <video>,
+ * then drawn onto one composite canvas, and the recorder captures that —
  * so the overlay costs the game nothing and works for 2D, WebGL and mixed
  * projects alike. No audio track: a canvas stream has none, and pulling the
  * game's <audio> in would need a destination node per element.
  */
 (function () {
   if (window.CudicClip) return;
-  var V = 1;
+  var V = 2;
   var LONG_EDGE = 1280;      // cap the long edge: keeps an 8s clip a few MB
   var LIME = '#b8f23a';
   var INK = '#f7f5ec';
@@ -80,18 +80,18 @@
     return t + '…';
   }
 
-  function drawFrame(ctx, src, w, h, opts, elapsed, dur) {
+  function drawFrame(ctx, source, w, h, opts, elapsed, dur) {
     var u = Math.max(1, Math.round(h / 40)); // one design unit, scales with the clip
 
     ctx.fillStyle = '#0d0e10';
     ctx.fillRect(0, 0, w, h);
 
     // Contain the game, never crop it: a cut-off player looks worse than bars.
-    var sw = src.width || w, sh = src.height || h;
+    var sw = source.videoWidth || source.width || w, sh = source.videoHeight || source.height || h;
     var s = Math.min(w / sw, h / sh);
     var dw = Math.round(sw * s), dh = Math.round(sh * s);
     var dx = Math.round((w - dw) / 2), dy = Math.round((h - dh) / 2);
-    try { ctx.drawImage(src, dx, dy, dw, dh); } catch (e) { /* WebGL context loss mid-clip */ }
+    try { ctx.drawImage(source, dx, dy, dw, dh); } catch (e) { /* context loss mid-clip */ }
 
     // Vignette so the overlay text stays readable over bright games.
     var g = ctx.createLinearGradient(0, h * 0.55, 0, h);
@@ -189,40 +189,93 @@
 
     var dur = Math.min(Math.max(Number(opts.seconds) || 8, 3), 15);
     var chunks = [];
-    var raf = 0, stopped = false;
+    var raf = 0, stopped = false, t0 = 0;
     active = true;
+
+    // The game canvas is the source, but drawing it directly records a black
+    // video: a WebGL canvas without preserveDrawingBuffer is cleared as soon as
+    // the browser composites it, so drawImage() reads an empty buffer. Tapping
+    // the canvas with its own captureStream and drawing from that <video>
+    // captures the frames the player actually saw — 2D and WebGL alike.
+    var tap = null, tapStream = null;
+    try {
+      if (typeof src.captureStream === 'function') {
+        tapStream = src.captureStream(30);
+        tap = document.createElement('video');
+        tap.muted = true;
+        tap.autoplay = true;
+        tap.setAttribute('playsinline', '');
+        tap.srcObject = tapStream;
+        tap.style.cssText = 'position:fixed;left:-4px;top:-4px;width:2px;height:2px;opacity:0;pointer-events:none';
+        (document.body || document.documentElement).appendChild(tap);
+        var playing = tap.play();
+        if (playing && playing.catch) playing.catch(function () {});
+      }
+    } catch (e) { tap = null; tapStream = null; }
+
+    function teardown() {
+      try { if (raf) cancelAnimationFrame(raf); } catch (e) {}
+      raf = 0;
+      try { stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+      try { if (tapStream) tapStream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+      try {
+        if (tap) {
+          tap.pause();
+          tap.srcObject = null;
+          if (tap.parentNode) tap.parentNode.removeChild(tap);
+        }
+      } catch (e) {}
+      tap = null; tapStream = null;
+    }
 
     rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
     rec.onstop = function () {
       active = false;
-      try { stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+      teardown();
       if (!chunks.length) return fail('empty');
       var type = (rec.mimeType || mime || 'video/webm').split(';')[0];
       var blob = new Blob(chunks, { type: type });
       var m = /mp4/.test(type) ? 'mp4' : 'webm';
       post({ type: 'cudic-clip-done', blob: blob, mime: type, ext: m });
     };
-    rec.onerror = function () { fail('record-failed'); };
+    rec.onerror = function () { active = false; teardown(); fail('record-failed'); };
 
-    var t0 = performance.now();
+    function source() { return (tap && tap.videoWidth && tap.videoHeight) ? tap : src; }
+
     function loop(now) {
       if (stopped) return;
       var elapsed = (now - t0) / 1000;
-      drawFrame(ctx, src, w, h, opts, elapsed, dur);
+      drawFrame(ctx, source(), w, h, opts, elapsed, dur);
       if (elapsed >= dur) {
         stopped = true;
-        try { rec.stop(); } catch (e) { fail('record-failed'); }
+        try { rec.stop(); } catch (e) { active = false; teardown(); fail('record-failed'); }
         return;
       }
       raf = requestAnimationFrame(loop);
     }
 
-    // One frame before recording so the first encoded frame isn't black.
-    drawFrame(ctx, src, w, h, opts, 0, dur);
-    try {
-      rec.start(250);
-      raf = requestAnimationFrame(loop);
-    } catch (e) { stopped = true; cancelAnimationFrame(raf); return fail('record-failed'); }
+    function begin() {
+      if (stopped) return;
+      // One frame before recording so the first encoded frame isn't black.
+      drawFrame(ctx, source(), w, h, opts, 0, dur);
+      try {
+        rec.start(250);
+        t0 = performance.now();
+        raf = requestAnimationFrame(loop);
+      } catch (e) { stopped = true; active = false; teardown(); fail('record-failed'); }
+    }
+
+    // Wait for the tap to present a frame: recording immediately would encode
+    // the empty canvas first. If it never presents one, draw the canvas live.
+    if (!tap) return begin();
+    var waited = 0;
+    (function waitForTap() {
+      if (stopped) return;
+      if (tap && tap.videoWidth && tap.readyState >= 2) return begin();
+      if (waited >= 1500) return begin();
+      waited += 50;
+      setTimeout(waitForTap, 50);
+    })();
   }
 
   window.addEventListener('message', function (e) {

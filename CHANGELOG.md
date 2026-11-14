@@ -8,6 +8,14 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Clips that actually record**
+
+- **The Clip button no longer films a black screen** (`public/cudic-clip.js`, `public/run.html`): the recorder composited the game's canvas with `drawImage`, and a WebGL canvas created without `preserveDrawingBuffer` is cleared the moment the browser composites it — so the clip came back black, or frozen on the one frame that survived. The canvas is now tapped with its own `captureStream` into a hidden `<video>`, and frames are drawn from that, so what was recorded is what the player saw, for 2D and WebGL alike. The tap's tracks and element are torn down when the clip finishes, recording waits (max 1.5s) for a real frame before it starts, and the script tag is versioned (`?v=2`) so browsers fetch the fix instead of the cached clip script.
+
+**More like this, ranked**
+
+- **One shelf engine instead of two rules** (`lib/related.js`, `server.js`, `tools/prerender-games.mjs`): "More like this" now scores candidates by shared tags first, then wording that describes the mechanics, then remix kinship, with most played as the floor — so a game nobody tagged still gets a strip instead of an empty card. The live API and the crawlable `/game/<id>/` pages run the same engine and agree on the order (score, then plays, then id), and the static pages went from a four-pick tag filter to six ranked picks. A game never recommends itself, unpublished rows never rank, and another creator's games stay on the "More from this creator" shelf. Both shelves draw as project cards — cover art from `/g/<id>/thumb`, title, creator and plays — instead of a text link list, and the art is a URL rather than the base64 thumbnail this route deliberately avoids shipping.
+
 **Updates in plain English**
 
 - **Every push says what changed** (`tools/discord-update.mjs`, `.github/workflows/discord-updates.yml`): a push to `main` posts the `Updates:` line from each of its commits to `DISCORD_WEBHOOK_UPDATES` — the words written when the change was made, sent as they are, with any sentence that names git, commits, branches, GitHub, deploys, webhooks or bots dropped, so `#updates` never reads like a build log. No model and no key: a push with no `Updates:` line stays quiet rather than announcing a chore, and `--fallback` posts the subjects as sentences instead. `--dry` prints the message instead of sending it. `#updates` is a forum, so each push opens a post named after the note's first sentence.

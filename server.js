@@ -5825,26 +5825,33 @@ function sanitizeTags(raw) {
     cors(res);
     const rid = url.pathname.split('/')[3];
     if (!isUuid(rid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
-    const { data: g } = await supabase.from('games').select('published, owner_id, tags').eq('id', rid).single();
+    const { data: g } = await supabase.from('games').select('published, owner_id, tags, description').eq('id', rid).single();
     if (!g || !g.published) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
     const shelf = 'id, title, play_count, users!owner_id(display_name, user_id)';
-    const [creatorRes, similarRes] = await Promise.all([
+    const [creatorRes, poolRes] = await Promise.all([
       supabase.from('games').select(shelf)
         .eq('published', true).eq('owner_id', g.owner_id).neq('id', rid)
         .order('updated_at', { ascending: false }).limit(6),
-      Array.isArray(g.tags) && g.tags.length
-        ? supabase.from('games').select(shelf)
-            .eq('published', true).neq('id', rid).neq('owner_id', g.owner_id)
-            .overlaps('tags', g.tags.map(t => String(t).toLowerCase()))
-            .order('play_count', { ascending: false }).limit(6)
-        : Promise.resolve({ data: [] })
+      // Ranked in memory instead of one `overlaps` filter: shared tags first,
+      // then wording that describes the mechanics, then most played as the
+      // floor — so a game nobody tagged still gets a shelf. Bounded pool keeps
+      // the round trip cheap.
+      supabase.from('games')
+        .select('id, title, description, tags, play_count, owner_id, forked_from, users!owner_id(display_name, user_id)')
+        .eq('published', true).neq('id', rid)
+        .order('play_count', { ascending: false }).limit(200)
     ]);
+    // The card needs art, and /g/<id>/thumb always answers with one (the shared
+    // default cover when the game has none), so the shelf ships a URL instead of
+    // the ~40KB base64 thumbnail this route deliberately avoids.
     const shape = (rows) => (rows || []).map((r) => ({
       id: r.id, title: r.title, play_count: r.play_count || 0,
-      name: (r.users && r.users.display_name) || 'Unknown', user_id: (r.users && r.users.user_id) || null
+      name: (r.users && r.users.display_name) || 'Unknown', user_id: (r.users && r.users.user_id) || null,
+      thumb: '/g/' + encodeURIComponent(r.id) + '/thumb'
     }));
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    res.end(JSON.stringify({ by_creator: shape(creatorRes.data), similar: shape(similarRes.data) }));
+    const similar = rankRelated({ id: rid, owner_id: g.owner_id, description: g.description, tags: g.tags }, poolRes.data, { limit: 6 });
+    res.end(JSON.stringify({ by_creator: shape(creatorRes.data), similar: shape(similar.map((r) => r.game)) }));
     return;
   }
 
@@ -7592,6 +7599,8 @@ function sanitizeTags(raw) {
 // Share-card meta lives in lib/share-card.js; 60s cache stays per-process.
 const { decorateViewHead } = require('./lib/share-card')(supabase);
 const renderArcade = require('./lib/arcade');
+// "More like this" ranking, shared with tools/prerender-games.mjs.
+const { rankRelated } = require('./lib/related');
 // Daily challenge and the curated five share one renderer (lib/daily.js).
 const { renderDaily, renderFive, pickDaily, dayKey } = require('./lib/daily');
 

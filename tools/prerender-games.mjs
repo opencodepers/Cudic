@@ -23,6 +23,10 @@ const RENDER = 'https://glox-o7rr.onrender.com';
 const PUB = new URL('../public', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const GAME_DIR = join(PUB, 'game');
 const LIMIT = 400;
+// Same shelf engine as the live API (lib/related.js), so a static page and the
+// player page recommend the same neighbours.
+const requireLocal = createRequire(import.meta.url);
+const { rankRelated } = requireLocal('../lib/related.js');
 // Shared with the Render server so /arcade is identical on both hosts.
 
 function log(m) { console.log('[prerender-games] ' + m); }
@@ -46,7 +50,7 @@ function escapeXml(s) {
 }
 
 async function fetchGames(cfg) {
-  const qs = '?select=id,slug,title,description,credits,tags,play_count,updated_at,created_at&published=eq.true&order=updated_at.desc&limit=' + LIMIT;
+  const qs = '?select=id,slug,title,description,credits,tags,play_count,updated_at,created_at,owner_id&published=eq.true&order=updated_at.desc&limit=' + LIMIT;
   const res = await fetch(cfg.url + '/rest/v1/games' + qs, {
     headers: { apikey: cfg.anon, Authorization: 'Bearer ' + cfg.anon },
     signal: AbortSignal.timeout(30000)
@@ -84,20 +88,10 @@ function sharedSlugs(games) {
 }
 
 function relatedFor(g, games) {
-  // Same tag first, newest others to fill — an internal link trail that
-  // crawlers can follow between game pages.
-  const pool = games.filter((x) => x && x.id && x.id !== g.id && /^[0-9a-f-]{36}$/i.test(x.id || ''));
-  const tags = new Set((g.tags || []).filter((t) => typeof t === 'string'));
-  const tagged = pool.filter((x) => (x.tags || []).some((t) => tags.has(t)));
-  const rel = [];
-  const seen = new Set();
-  for (const x of [...tagged, ...pool]) {
-    if (rel.length >= 4) break;
-    if (seen.has(x.id)) continue;
-    seen.add(x.id);
-    rel.push(x);
-  }
-  return rel;
+  // One engine with the live shelf: shared tags, then wording, then most played
+  // as the floor. Six picks make a full strip under the game.
+  const pool = games.filter((x) => x && x.id && /^[0-9a-f-]{36}$/i.test(x.id || ''));
+  return rankRelated(g, pool, { limit: 6, fill: true }).map((r) => r.game);
 }
 
 function gamePage(g, names, games) {
@@ -136,7 +130,7 @@ function gamePage(g, names, games) {
       + '<div class="tb"><b>' + esc(t) + '</b><span class="mono">BY ' + esc(a2).toUpperCase() + '</span></div></a>';
   }).join('');
   const relBlock = relHtml
-    ? '<section class="related"><div class="sh"><h2>More games</h2><span class="mono">' + related.length + ' PICKS</span></div>'
+    ? '<section class="related"><div class="sh"><h2>More like this</h2><span class="mono">' + related.length + ' PICKS</span></div>'
       + '<div class="grid">' + relHtml + '</div></section>'
     : '';
   return `<!DOCTYPE html>
