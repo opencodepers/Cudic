@@ -25,7 +25,8 @@ Most wasted hours in this repo are one of these ten, skipped:
 5. **Nothing in a VS Code workbench is a normal DOM.** Never append to VS Code's
    own lists — build your own strip as a *sibling* (gotcha 20).
 6. **Code ships with tests, docs and CHANGELOG** — `python tests/run_tests.py`
-   (345), `public/docs.html`, `CHANGELOG.md`. A feature without them is unfinished.
+   (the whole folder), `public/docs.html`, `CHANGELOG.md`. A feature without
+   them is unfinished.
    On a page or chrome change, `node tools/check-console.mjs` runs that suite,
    boots Cudic on a spare port and walks **every** top-level page (`public/*.html`
    plus Studio — 38 pages, ~2 min) in headless Chrome: it fails on console
@@ -170,25 +171,50 @@ npm run build        # vite build (lib IIFE) → ../public/islands/  (~5s, 657KB
   — pages cache CSS aggressively. Same for `sidebar.js?v=26` /
   `client.js?v=16` after editing those. New shared scripts take `?v=1`
   (`ctheme.js`, `csel.js`).
-- **Test suite exists**: `python tests/run_tests.py` (345 stdlib tests; boots
-  server.js itself on :3000, appends machine-readable history to
-  `tests/results.json`). Run it after every server/page/library change —
-  regression pins in `tests/test_regressions.py` re-read source files, so
+- **Test suite exists**: `python tests/run_tests.py` (stdlib `unittest`, every
+  `test_*.py` in `tests/`; boots `server.js` itself on :3000, appends
+  machine-readable history to `tests/results.json`). Run it after every
+  server/page/library change — regression pins in `tests/test_regressions.py`
+  re-read source files, so
   doc claims in AGENTS.md/CHANGELOG are load-bearing. `CUDIC_TEST_TOKEN` adds
   signed-in e2e. Playwright MCP is **disabled**; the browser tools that
   work here are `chrome-devtools` (screenshots return media inline when no
   `filePath` is given) and `public-browser`. Headless Chrome `--screenshot` is
   unreliable in this environment — do not use it to verify visuals.
-- **Ship ritual — docs travel with the code**: every user-visible feature
-  updates, in this order, before the work counts as done:
-  1. the public help pages users actually read (mostly `public/docs.html`
-     bullets, or a `public/cookbook/*.html` note when a code helper gains
-     something — e.g. CudicScores under the clicker guide),
-  2. `CHANGELOG.md` (Unreleased, user-facing wording),
-  3. `AGENTS.md` §5 API rows + §6 table rows when server surface changes.
-  A feature without docs is an unfinished feature — same bar as tests.
-  (Internal-only changes still get CHANGELOG + AGENTS.md when they alter
-  behavior an agent must not quietly re-break.)
+- **Ship ritual — the whole suite, tests for the big thing, docs, then the
+  owner's local run. Nothing is committed until all five hold, in order:**
+  1. **The whole suite, not the relevant file.** `python tests/run_tests.py`
+     discovers every `test_*.py` in `tests/` and boots `server.js` on :3000
+     itself. A subset is not a run: green files beside an unrun file is a red
+     suite you have not seen yet. Quote the pass/fail line in the handover.
+  2. **The largest new features get their own tests** in `tests/` — a
+     `test_<area>.py` using stdlib `unittest`, exercising the real code (the
+     module, the tool, the route), not grepping source in a way that passes
+     either way. Aim the test at what breaks if the feature is reverted.
+     `tests/` is gitignored on purpose: tests are local proof, never pushed.
+  3. **Docs travel with the code**: the public help pages users actually read
+     (mostly `public/docs.html` bullets, or a `public/cookbook/*.html` note when
+     a code helper gains something — e.g. CudicScores under the clicker guide),
+     then `CHANGELOG.md` (Unreleased, user-facing wording), then `AGENTS.md` §5
+     API rows + §6 table rows when the server surface changes. A feature without
+     docs is unfinished — same bar as tests. Internal-only changes still get
+     CHANGELOG + AGENTS.md when they alter behaviour an agent must not quietly
+     re-break.
+  4. **The owner tests it locally before it is committed.** Anything a person can
+     see — page, route, game flow, bot message — stops at "ready to test": say
+     exactly what to open and what should happen, and commit only after they
+     confirm. A green suite cannot see the page you just moved. Chores (typo,
+     comment, docs-only) may go in on a green suite without that wait.
+  5. **Push both deploy targets, and only the right files.**
+     `git push origin master master:main` — Render builds `master`, Vercel
+     builds `main`. Read `git status` first: `tests/`, `.env*`, `public/studio/`,
+     `public/game/` + `public/arcade.html` (generated at deploy time),
+     `.freebuff/`, `.agents/`, `.mcp.json`, runtime state (`weekly.json`,
+     `.discord-status.json`, `*.db*`) and scratch images (`banner-*.png`,
+     `icontest.png`, `digest.json`) never ship. `public/islands/` is the
+     exception — built output that IS committed. Commit and push only when
+     asked, and the message says what changed for a player, with no tool, agent
+     or team attribution and no attribution trailers.
 
 ---
 
