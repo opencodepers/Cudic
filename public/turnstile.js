@@ -8,9 +8,19 @@
 (function () {
   var siteKey = null, loading = null, widgets = {}, tokens = {}, waiters = {};
 
+  // Pages and API are different hosts in production (Vercel serves this file,
+  // Render verifies tokens), so the key has to come from the host the pages
+  // post to. WS_URL is the site-wide convention for that; '' means same-origin,
+  // which is what localhost wants.
+  function apiBase() {
+    try {
+      return (typeof WS_URL !== 'undefined' && WS_URL) ? WS_URL.replace(/^wss?:\/\//, 'https://') : '';
+    } catch (e) { return ''; }
+  }
+
   function config() {
     if (siteKey !== null) return Promise.resolve(siteKey);
-    return fetch('/api/turnstile', { cache: 'no-store' })
+    return fetch(apiBase() + '/api/turnstile', { cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(function (d) { siteKey = (d && d.siteKey) || ''; return siteKey; })
       .catch(function () { siteKey = ''; return siteKey; });
