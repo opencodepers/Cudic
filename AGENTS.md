@@ -42,6 +42,35 @@ Most wasted hours in this repo are one of these ten, skipped:
    builds `master`, Vercel builds `main`. Commit and push only when asked.
 10. **Every commit hash and Section 16 here is a snapshot.** `git log -5` wins.
 
+### Mistakes already made here — don't repeat these
+
+Newest last. Each one is a rule that only exists because someone got it wrong;
+append the next one instead of quietly fixing it and moving on.
+
+1. **Pushed `master` alone and called it shipped.** The push reached
+   `refs/heads/master` only, so `main` stayed on the previous commit: Vercel
+   never rebuilt and the `Discord updates` workflow (triggers on `main` alone)
+   never ran, while Render rebuilding `master` made the change look live.
+   Push `git push origin master master:main` in one command, then read
+   `git ls-remote --heads origin main master` back and see the same sha twice.
+2. **Committed without the `Updates:` line.** `tools/discord-update.mjs` posts
+   only a hand-written `Updates:` sentence from the commit body. The workflow
+   still reports success and prints "Nothing in this push to talk about", so a
+   silent #updates is the tool working, not a broken channel. Write the
+   player-facing sentence when you compose the commit, never after the push.
+3. **Fixed the message after pushing.** Adding that line meant rewriting a
+   branch Render had already built (`--force-with-lease` on `master`). The
+   message is part of the change: get it right before the first push.
+4. **Clicked before the page had wired the button.** A script that clicked a
+   fixed 3 s after load hit `#frPlay` before the first-run cover existed, and
+   "nothing happened" was reported as a broken player frame. Wait for the
+   element's state (visible, attached, handler bound), never a sleep, and look
+   at a screenshot before calling any UI dead.
+5. **Trusted a pixel hash as proof of animation.** Two canvas samples 2 s apart
+   that hash the same can be a static scene, a too-sparse sample or a throttled
+   `requestAnimationFrame`. Measure the tick count too, and say which one you
+   actually measured instead of claiming the loop runs.
+
 ---
 
 ## 1. What this is
