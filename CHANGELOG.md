@@ -8,6 +8,10 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**The platformer starter stops dropping you through the floor** (`public/studio-templates/platformer.json`)
+
+- The starter platformer's landing test added the fall speed twice: it compared the position the player had already moved to against a second prediction of where they were going, so the only landing it would accept was inside a window `s.y .. s.y + 2 - vy` — empty once gravity passes 2px a frame. Every run sailed through the floor and reset, and no platform ever caught anyone. It now compares against the position the player actually came from, so the floor and all four raised platforms catch a fall at any speed, and jumping up through a platform still works.
+
 **Terms say what they actually mean**
 
 - **A takedown and appeals address exists** (`public/terms.html`, `public/privacy.html`, `public/accessibility.html`): `nathen.t2023@gmail.com` is now the rights-holder, defamation, appeals and data-request contact in the Copyright section, the reports section, the new user-content section, the general provisions and the privacy policy — previously the site told people to ask "through the site chat", which is not a takedown channel.
