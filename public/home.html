@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="/consent.js?v=1"></script>
+  <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Home — Cudic</title>
+  <meta name="description" content="Your Cudic home: what is unread, what is coming up, your servers, your games and what your friends are making.">
+  <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
+  <link rel="stylesheet" href="/sidebar.css?v=25">
+  <link rel="stylesheet" href="/hub.css?v=1">
+</head>
+<body data-page="home">
+<div class="page-panel"><div class="hub-layout"><main class="hub-scroll">
+  <div class="hub-head">
+    <div>
+      <p class="hm-hello" id="hmHello">Welcome back</p>
+      <h1>Home</h1>
+      <p>Unread, upcoming and yours, in one screen.</p>
+    </div>
+    <div class="hub-tools">
+      <button class="hub-btn quiet" id="hmReset" hidden>Show all cards</button>
+    </div>
+  </div>
+  <p class="hub-err" id="hmErr" role="status" aria-live="polite"></p>
+  <div class="hm-grid" id="hmGrid"></div>
+</main></div></div>
+<script src="/config.js"></script>
+<script src="/auth.js"></script>
+<script src="/sidebar.js?v=31"></script>
+<script src="/hub-common.js?v=1"></script>
+<script>
+(function () {
+  var esc = hub.esc;
+  var grid = document.getElementById('hmGrid');
+  var err = document.getElementById('hmErr');
+  var reset = document.getElementById('hmReset');
+  var state = { hidden: [], data: null };
+
+  function card(id, title, count, bodyHtml, link) {
+    if (state.hidden.indexOf(id) !== -1) return '';
+    return '<section class="hub-card">'
+      + '<div class="hub-card-head hm-card-head"><h2>' + esc(title) + '</h2>'
+      + '<div style="display:flex;gap:10px;align-items:center">'
+      + (count ? '<span class="hub-count">' + esc(count) + '</span>' : '')
+      + (link ? '<a class="hub-link" href="' + esc(link.href) + '">' + esc(link.label) + '</a>' : '')
+      + '<button class="hm-hide" data-hide="' + esc(id) + '" aria-label="Hide ' + esc(title) + ' card">Hide</button>'
+      + '</div></div>'
+      + '<div class="hub-card-body">' + bodyHtml + '</div></section>';
+  }
+
+  function rows(items, render) {
+    return items.length ? items.map(render).join('') : '<p class="hub-empty">Nothing yet.</p>';
+  }
+
+  function render() {
+    var d = state.data;
+    if (!d) return;
+    document.getElementById('hmHello').textContent = hub.hour() + ', ' + d.me.display_name;
+    var unread = (d.dm_items || []).map(function (m) {
+      return '<div class="hm-row"><a href="' + esc(m.href) + '">' + esc(m.title) + ' · ' + esc(m.body) + '</a>'
+        + '<span class="hm-side">' + esc(hub.when(m.when)) + '</span></div>';
+    }).concat((d.notices || []).map(function (n) {
+      return '<div class="hm-row"><a href="' + esc(n.href || '/inbox') + '">' + esc(n.title) + '</a>'
+        + '<span class="hm-side">' + esc(hub.when(n.when)) + '</span></div>';
+    }));
+    var inboxBody = (d.unread.total
+      ? '<p class="hm-note">' + d.unread.dms + ' unread message' + (d.unread.dms === 1 ? '' : 's') + ', ' + d.unread.notifications + ' unread notice' + (d.unread.notifications === 1 ? '' : 's') + '.</p>'
+        + rows(unread.slice(0, 4), function (x) { return x; })
+      : '<p class="hub-empty">Nothing unread. A quiet inbox is a good inbox.</p>');
+
+    var servers = rows(d.servers, function (s) {
+      return '<div class="hm-row"><a href="' + esc(s.href) + '">' + esc(s.name) + '</a>'
+        + '<span class="hm-side">' + (s.owner ? 'Owner' : 'Member') + '</span></div>';
+    });
+
+    var events = rows(d.events, function (e) {
+      return '<div class="hm-row"><a href="' + esc(e.href) + '">' + esc(e.title) + '</a>'
+        + '<span class="hm-side">' + esc(hub.date(e.starts_at)) + '</span></div>';
+    });
+
+    var games = rows(d.games, function (g) {
+      return '<div class="hm-row"><a href="' + esc(g.href) + '">' + esc(g.title) + '</a>'
+        + '<span class="hm-side">' + (g.published ? (g.play_count || 0) + ' plays' : 'Draft') + '</span></div>';
+    });
+
+    var activity = rows(d.activity, function (a) {
+      return '<div class="hm-row"><a href="/creator?id=' + encodeURIComponent(a.user_id || '') + '">' + esc(a.display_name) + '</a>'
+        + '<span class="hm-side">' + esc(hub.when(a.created_at)) + '</span></div>'
+        + '<p class="hm-note" style="margin:-4px 0 6px">' + esc(a.text) + '</p>';
+    });
+
+    grid.innerHTML = [
+      card('inbox', 'Inbox', d.unread.total ? d.unread.total + ' unread' : '', inboxBody, d.unread.total ? { href: '/inbox', label: 'Open inbox' } : null),
+      card('servers', 'Your servers', d.servers.length ? d.servers.length + '' : '', servers, { href: '/servers', label: 'All servers' }),
+      card('events', 'Coming up', d.events.length ? d.events.length + '' : '', events, { href: '/servers', label: 'Find events' }),
+      card('games', 'Your games', d.games.length ? d.games.length + '' : '', games, { href: '/games', label: 'Your library' }),
+      card('activity', 'Friends', d.activity.length ? d.activity.length + '' : '', activity, { href: '/friends', label: 'Friends' }),
+    ].join('');
+    reset.hidden = !state.hidden.length;
+  }
+
+  function load() {
+    err.textContent = '';
+    hub.api('/api/home').then(function (d) {
+      state.data = d;
+      state.hidden = Array.isArray(d.hidden) ? d.hidden : [];
+      render();
+    }).catch(function (e) {
+      if (e.message === 'Signed out') return;
+      err.textContent = e.message;
+      grid.innerHTML = '<section class="hub-card"><div class="hub-card-body"><p class="hub-empty">Could not load your dashboard.</p></div></section>';
+    });
+  }
+
+  function save(hidden) {
+    state.hidden = hidden;
+    render();
+    hub.api('/api/home/cards', { method: 'POST', body: { hidden: hidden } })
+      .catch(function (e) { err.textContent = e.message; });
+  }
+
+  grid.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('[data-hide]');
+    if (!btn) return;
+    save(state.hidden.concat([btn.getAttribute('data-hide')]));
+  });
+  reset.addEventListener('click', function () { save([]); });
+
+  load();
+})();
+</script>
+</body>
+</html>

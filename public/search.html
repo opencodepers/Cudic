@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="/consent.js?v=1"></script>
+  <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Search — Cudic</title>
+  <meta name="description" content="Search every Cudic conversation and server you can open: messages, people, servers and games in one place.">
+  <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
+  <link rel="stylesheet" href="/sidebar.css?v=25">
+  <link rel="stylesheet" href="/hub.css?v=1">
+</head>
+<body data-page="search">
+<div class="page-panel"><div class="hub-layout"><main class="hub-scroll">
+  <div class="hub-head">
+    <div>
+      <h1>Search</h1>
+      <p>Only what you can already open: your DMs, your channels, public servers and published games.</p>
+    </div>
+  </div>
+  <form class="sr-box" id="srForm" role="search">
+    <input type="search" id="srInput" placeholder="Search messages, people, servers, games" aria-label="Search Cudic" autocomplete="off" maxlength="60" autofocus>
+    <button class="hub-btn primary" type="submit">Search</button>
+  </form>
+  <div class="sr-tabs" role="tablist" aria-label="Result type">
+    <button class="sr-tab" data-kind="all" aria-selected="true" role="tab">All</button>
+    <button class="sr-tab" data-kind="messages" aria-selected="false" role="tab">Messages</button>
+    <button class="sr-tab" data-kind="people" aria-selected="false" role="tab">People</button>
+    <button class="sr-tab" data-kind="servers" aria-selected="false" role="tab">Servers</button>
+    <button class="sr-tab" data-kind="games" aria-selected="false" role="tab">Games</button>
+  </div>
+  <p class="hub-err" id="srErr" role="status" aria-live="polite"></p>
+  <div id="srResults"><p class="hub-empty">Type two characters or more.</p></div>
+</main></div></div>
+<script src="/config.js"></script>
+<script src="/auth.js"></script>
+<script src="/sidebar.js?v=31"></script>
+<script src="/hub-common.js?v=1"></script>
+<script>
+(function () {
+  var esc = hub.esc;
+  var input = document.getElementById('srInput');
+  var out = document.getElementById('srResults');
+  var err = document.getElementById('srErr');
+  var state = { q: '', kind: 'all', seq: 0 };
+  var timer = null;
+
+  function hit(href, title, body, meta) {
+    return '<a class="sr-hit" href="' + esc(href) + '"><b>' + esc(title) + '</b>'
+      + (body ? '<span>' + esc(body) + '</span>' : '')
+      + (meta ? '<em>' + esc(meta) + '</em>' : '') + '</a>';
+  }
+
+  function render(data) {
+    var r = (data && data.results) || {};
+    var groups = [];
+    if ((r.messages || []).length) {
+      groups.push('<div class="sr-group"><h2>Messages · ' + r.messages.length + '</h2>'
+        + r.messages.map(function (m) {
+          return hit(m.href, m.display_name, m.text, (m.kind === 'dm' ? 'Direct message' : 'Channel') + ' · ' + hub.when(m.created_at));
+        }).join('') + '</div>');
+    }
+    if ((r.people || []).length) {
+      groups.push('<div class="sr-group"><h2>People · ' + r.people.length + '</h2>'
+        + r.people.map(function (p) {
+          return hit(p.href, p.display_name, p.bio || '', p.user_id ? '#' + p.user_id : '');
+        }).join('') + '</div>');
+    }
+    if ((r.servers || []).length) {
+      groups.push('<div class="sr-group"><h2>Servers · ' + r.servers.length + '</h2>'
+        + r.servers.map(function (s) {
+          return hit(s.href, s.name, s.description || '', s.visibility === 'private' ? 'Private' : 'Public server');
+        }).join('') + '</div>');
+    }
+    if ((r.games || []).length) {
+      groups.push('<div class="sr-group"><h2>Games · ' + r.games.length + '</h2>'
+        + r.games.map(function (g) {
+          return hit(g.href, g.title, g.blurb || '', g.creator + ' · ' + (g.play_count || 0) + ' plays');
+        }).join('') + '</div>');
+    }
+    out.innerHTML = groups.length ? groups.join('') : '<p class="hub-empty">Nothing matched “' + esc(data.q) + '”.</p>';
+  }
+
+  function run() {
+    var q = input.value.trim();
+    if (q.length < 2) { out.innerHTML = '<p class="hub-empty">Type two characters or more.</p>'; err.textContent = ''; return; }
+    var seq = ++state.seq;
+    err.textContent = '';
+    var url = '/api/search/all?q=' + encodeURIComponent(q) + (state.kind === 'all' ? '' : '&kind=' + encodeURIComponent(state.kind));
+    hub.api(url).then(function (data) {
+      if (seq !== state.seq) return;
+      render(data);
+      try { history.replaceState(null, '', '/search?q=' + encodeURIComponent(q)); } catch (e) {}
+    }).catch(function (e) {
+      if (seq !== state.seq || e.message === 'Signed out') return;
+      err.textContent = e.message;
+      out.innerHTML = '<p class="hub-empty">Could not search right now.</p>';
+    });
+  }
+
+  input.addEventListener('input', function () {
+    clearTimeout(timer);
+    timer = setTimeout(run, 280);
+  });
+  document.getElementById('srForm').addEventListener('submit', function (ev) { ev.preventDefault(); run(); });
+
+  document.querySelectorAll('[data-kind]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      state.kind = btn.getAttribute('data-kind');
+      document.querySelectorAll('[data-kind]').forEach(function (b) { b.setAttribute('aria-selected', String(b === btn)); });
+      run();
+    });
+  });
+
+  var initial = new URLSearchParams(location.search).get('q');
+  if (initial && initial.trim().length >= 2) { input.value = initial.trim(); run(); }
+})();
+</script>
+</body>
+</html>

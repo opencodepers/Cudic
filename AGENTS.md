@@ -207,7 +207,7 @@ npm run build        # vite build (lib IIFE) → ../public/islands/  (~5s, 657KB
   then commit the bundle. Bump `islands.js?v=8` + `cudic-islands.css?v=8`
   on the pages that use it after rebuilding.
 - Bump `sidebar.css?v=25` across all pages when editing `public/sidebar.css`
-  — pages cache CSS aggressively. Same for `sidebar.js?v=29` /
+  — pages cache CSS aggressively. Same for `sidebar.js?v=31` /
   `client.js?v=18` after editing those. New shared scripts take `?v=1`
   (`ctheme.js`, `csel.js`).
 - **Test suite exists**: `python tests/run_tests.py` (stdlib `unittest`, every
@@ -1491,7 +1491,7 @@ grid-led, Geist everywhere. Read it before building any public surface. Headline
 9. **Bash, not PowerShell** — `&&`, `$(...)` and POSIX paths work. A note here
   saying otherwise is stale (section 0.2).
 10. **CSS/JS cache** — bump the `?v=` on every page after editing a shared file.
-  Current: `sidebar.css?v=25`, `sidebar.js?v=29`, `client.js?v=18`,
+  Current: `sidebar.css?v=25`, `sidebar.js?v=31`, `client.js?v=18`,
   `islands.js?v=8`, `docpage.css?v=7` (new shared scripts start at `?v=1`).
   `tools/check-docs.py` fails when this line and the pages disagree.
 11. **Restart the server** after any `server.js` edit; **rebuild Studio** after any

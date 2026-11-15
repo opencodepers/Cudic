@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="/consent.js?v=1"></script>
+  <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inbox — Cudic</title>
+  <meta name="description" content="Every Cudic notification in one place: direct messages, mentions, replies, invites, events and moderation notices.">
+  <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
+  <link rel="stylesheet" href="/sidebar.css?v=25">
+  <link rel="stylesheet" href="/hub.css?v=1">
+</head>
+<body data-page="inbox">
+<div class="page-panel"><div class="hub-layout"><main class="hub-scroll">
+  <div class="hub-head">
+    <div>
+      <h1>Inbox</h1>
+      <p>DMs, mentions, replies, invites and event reminders, newest first.</p>
+    </div>
+    <div class="hub-tools">
+      <button class="hub-btn" id="ibReadAll">Mark all read</button>
+    </div>
+  </div>
+  <div class="hub-tools" style="margin-bottom:14px" role="tablist" aria-label="Filter inbox">
+    <button class="sr-tab" data-filter="all" aria-selected="true" role="tab">All</button>
+    <button class="sr-tab" data-filter="unread" aria-selected="false" role="tab">Unread</button>
+    <button class="sr-tab" data-filter="messages" aria-selected="false" role="tab">Messages</button>
+    <button class="sr-tab" data-filter="notices" aria-selected="false" role="tab">Notices</button>
+  </div>
+  <p class="hub-err" id="ibErr" role="status" aria-live="polite"></p>
+  <div class="hub-card">
+    <div class="hub-card-head">
+      <h2>Everything</h2>
+      <span class="hub-count" id="ibCount"></span>
+    </div>
+    <div class="hub-card-body" id="ibList">
+      <p class="hub-empty">Loading…</p>
+    </div>
+  </div>
+  <p class="hm-note" style="margin-top:14px">A DM is unread until you open it in chat. Notices stay here after being read.</p>
+</main></div></div>
+<script src="/config.js"></script>
+<script src="/auth.js"></script>
+<script src="/sidebar.js?v=31"></script>
+<script src="/hub-common.js?v=1"></script>
+<script>
+(function () {
+  var esc = hub.esc;
+  var list = document.getElementById('ibList');
+  var count = document.getElementById('ibCount');
+  var err = document.getElementById('ibErr');
+  var state = { filter: 'all', items: [], unread: 0 };
+
+  var LABELS = {
+    dm: 'Message', mention: 'Mention', reply: 'Reply', friend: 'Friend',
+    event: 'Event', invite: 'Invite', award: 'Award', mod: 'Mod', notice: 'Notice',
+  };
+
+  function visible() {
+    return state.items.filter(function (it) {
+      if (state.filter === 'unread') return it.unread !== false;
+      if (state.filter === 'messages') return it.kind === 'dm';
+      if (state.filter === 'notices') return it.kind !== 'dm';
+      return true;
+    });
+  }
+
+  function render() {
+    var items = visible();
+    count.textContent = state.unread ? state.unread + ' unread' : 'All read';
+    if (!items.length) {
+      list.innerHTML = '<p class="hub-empty">' + (state.items.length ? 'Nothing in this filter.' : 'Nothing here yet. Mentions, replies and DMs land in this list.') + '</p>';
+      return;
+    }
+    list.innerHTML = items.map(function (it) {
+      var unread = it.unread !== false;
+      return '<div class="ib-row' + (unread ? '' : ' read') + '">'
+        + '<div class="ib-type">' + esc(LABELS[it.kind] || 'Notice') + '</div>'
+        + '<div class="ib-main"><b>' + esc(it.title) + '</b>'
+        + (it.body ? '<span>' + esc(it.body) + '</span>' : '')
+        + '<div class="ib-meta">' + esc(hub.when(it.when))
+        + (it.count ? ' <span class="ib-count" title="unread messages">' + esc(it.count) + '</span>' : '')
+        + '</div></div>'
+        + '<div class="ib-actions">'
+        + (it.href ? '<a class="hub-btn quiet" href="' + esc(it.href) + '">Open</a>' : '')
+        + (unread ? '<button class="hub-btn" data-read="' + esc(it.id) + '">Mark read</button>' : '')
+        + '</div></div>';
+    }).join('');
+  }
+
+  function load() {
+    err.textContent = '';
+    hub.api('/api/inbox').then(function (d) {
+      state.items = d.items || [];
+      state.unread = d.unread || 0;
+      render();
+    }).catch(function (e) {
+      if (e.message === 'Signed out') return;
+      err.textContent = e.message;
+      list.innerHTML = '<p class="hub-empty">Could not load the inbox.</p>';
+    });
+  }
+
+  document.querySelectorAll('[data-filter]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      state.filter = btn.getAttribute('data-filter');
+      document.querySelectorAll('[data-filter]').forEach(function (b) {
+        b.setAttribute('aria-selected', String(b === btn));
+      });
+      render();
+    });
+  });
+
+  list.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('[data-read]');
+    if (!btn) return;
+    btn.disabled = true;
+    hub.api('/api/inbox/read', { method: 'POST', body: { id: btn.getAttribute('data-read') } })
+      .then(load)
+      .catch(function (e) { btn.disabled = false; err.textContent = e.message; });
+  });
+
+  document.getElementById('ibReadAll').addEventListener('click', function (ev) {
+    var btn = ev.currentTarget;
+    btn.disabled = true;
+    hub.api('/api/inbox/read-all', { method: 'POST', body: {} })
+      .then(load)
+      .catch(function (e) { err.textContent = e.message; })
+      .then(function () { btn.disabled = false; });
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>

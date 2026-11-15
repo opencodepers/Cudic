@@ -205,7 +205,7 @@ async function activeBan(userId, kind) {
 // Route modules are instantiated at the bottom, after every helper and
 // map they close over exists (they still run inside handleRequest).
 let messageRoutes = null, serverRoutes = null, chatRoutes = null;
-let githubRoutes = null, gamesRoutes = null, modRoutes = null, extrasRoutes = null, communityRoutes = null, plannerRoutes = null, customizeRoutes = null, hqRoutes = null;
+let githubRoutes = null, gamesRoutes = null, modRoutes = null, extrasRoutes = null, communityRoutes = null, plannerRoutes = null, customizeRoutes = null, hqRoutes = null, hubRoutes = null;
 
 const PORT = process.env.PORT || 3000;
 
@@ -2466,6 +2466,13 @@ async function handleRequest(req, res) {
     await hqRoutes.handle(req, res, url);
     if (res.headersSent) return;
   }
+  // ── hub routes: lib/routes/hub.js ─────────────────────────────
+  // The path names are their own namespace (/api/inbox, /api/search,
+  // /api/home), so they sit here rather than inside the chat module.
+  if (hubRoutes && hubRoutes.matches(url.pathname)) {
+    await hubRoutes.handle(req, res, url);
+    if (res.headersSent) return;
+  }
   if (communityRoutes && communityRoutes.matches(url.pathname)) {
     await communityRoutes.handle(req, res, url);
     if (res.headersSent) return;
@@ -4486,6 +4493,17 @@ function slugify(s) {
     url.pathname = '/notifications.html';
   }
 
+  // ── The cross-Cudic pages: inbox, search and home ─────────────
+  if (url.pathname === '/inbox') {
+    url.pathname = '/inbox.html';
+  }
+  if (url.pathname === '/search') {
+    url.pathname = '/search.html';
+  }
+  if (url.pathname === '/home') {
+    url.pathname = '/home.html';
+  }
+
   // ── Redirect /collections to /collections.html ────────────────
   if (url.pathname === '/collections') {
     url.pathname = '/collections.html';
@@ -5869,6 +5887,9 @@ extrasRoutes = require('./lib/routes/extras')({
 hqRoutes = require('./lib/routes/hq')({
   supabase, cors, requireUser, needVerified, readBody, isUuid, serverRole,
   sendConversationsDirty,
+});
+hubRoutes = require('./lib/routes/hub')({
+  supabase, cors, requireUser, readBody, isUuid, canSeeLobby, serverRole, rateLimit,
 });
 chatRoutes = require('./lib/routes/chat')({
   supabase, cors, requireUser, needVerified, readBody, isUuid, dmRoomName,

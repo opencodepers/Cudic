@@ -8,6 +8,14 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**One inbox, one search, one home** (`lib/routes/hub.js`, `public/inbox.html`, `public/search.html`, `public/home.html`, `supabase/migrations/20261115170000_inbox_search_home.sql`)
+
+- **Universal inbox** at `/inbox` puts unread DMs and every notification kind in one list, newest first, with filters for unread, messages and notices. A DM counts as unread until you open it in chat; notices keep their place after being read. **Mark all read** clears the notification rows and the DM read state in one request.
+- **Cross-server search** at `/search` searches messages across the conversations you belong to and the public channels of your servers, plus people, public servers and published games. The lobby list comes from membership rows, never from the client, so search cannot be pointed at a channel you cannot open. A trigram index keeps the contains-match affordable on the free tier.
+- **Home dashboard** at `/home` is five cards — unread, servers, upcoming events, your games and friends' activity — built from rows that already exist. Cards can be hidden and the choice is stored per account; **Show all cards** restores them.
+- The sidebar gained Home, Inbox and Search, both deploy targets rewrote the three new paths, and the whole batch degrades to a hidden section before the migration runs.
+
+
 **Ten chat and server tools land together** (`lib/routes/hq.js`, `public/server-hq.js`, `public/server.html`, `public/client.js`, `public/cudic-menu.js`, `public/cudic-palette.js`, `supabase/migrations/20261115160000_chat_hq.sql`)
 
 - **Server HQ** gives every member one panel for the room's pulse: members, channels, messages in the last seven days, active channels and a 30-day leaderboard. It reads existing messages rather than adding a second activity store, so the numbers are honest about their sample.
