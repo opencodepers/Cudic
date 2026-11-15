@@ -128,7 +128,7 @@
   // Theme packs engine (real feature — loads on every page)
   // Theme packs restyle the app pages only. The landing page has its own art
   // and layout, so don't even load the engine there (it also hits /api/profile).
-  if (!document.querySelector('.landing')) (function(){var s=document.createElement('script');s.src='/theme-engine.js?v=5';document.head.appendChild(s);})();
+  if (!document.querySelector('.landing')) (function(){var s=document.createElement('script');s.src='/theme-engine.js?v=6';document.head.appendChild(s);})();
 
   // Account customisation: one CSS file and one runtime on every rail page.
   // The runtime reads prefs from cache immediately, then refreshes from API.

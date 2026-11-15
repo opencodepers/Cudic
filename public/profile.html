@@ -387,7 +387,7 @@
   <script src="/config.js"></script>
   <script src="/auth.js"></script>
   <script src="/turnstile.js"></script>
-  <script src="/sidebar.js?v=26"></script>
+  <script src="/sidebar.js?v=27"></script>
   <script src="/cudic-cosmetics.js?v=1"></script>
   <script src="/theme-toggle.js?v=2"></script>
   <script>
@@ -515,14 +515,16 @@
             if(p && p.pack_slug) pc.style.display='inline-block';
             pc.addEventListener('click', async function(){
               pc.disabled = true; pc.textContent = 'Removing…';
-              try { if(window.CudicTheme) CudicTheme.clearPack(); } catch(e){}
+              var saved = true;
               try {
-                await fetch(apiHost() + '/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + t }, body: JSON.stringify({ pack_slug: null }) });
-              } catch(e){}
+                var r = await fetch(apiHost() + '/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + t }, body: JSON.stringify({ pack_slug: null }) });
+                saved = !!(r && r.ok);
+              } catch(e){ saved = false; }
+              try { if(window.CudicTheme) await CudicTheme.clearPack(); } catch(e){}
               if(pn) pn.textContent = 'Default';
-              if(ps) ps.textContent = 'No pack installed';
+              if(ps) ps.textContent = saved ? 'No pack installed' : 'No pack installed (account save failed)';
               pc.style.display='none'; pc.disabled = false; pc.textContent = 'Remove';
-              msg(document.getElementById('themeMsg'), 'Theme pack removed — back to the default look.', true);
+              msg(document.getElementById('themeMsg'), saved ? 'Theme pack removed — back to the default look.' : 'Pack removed in this browser, but the account save failed — it may return on another device.', saved);
             });
           }
           var lc = document.getElementById('likedCount');

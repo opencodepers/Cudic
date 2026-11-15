@@ -8,6 +8,10 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Anime City Night stops coming back after removal** (`public/theme-engine.js`, `public/profile.html`, `public/themes.html`, `migration/theme-pack-clear-seeded.sql`)
+
+- Every account created before the pack default was dropped still carried `pack_slug = 'anime-city-night'`, so the engine repainted the neon scene from the account row on every reload even after **Remove** or **Uninstall** — the removal only cleared the current tab. The stored value is cleared live for those rows, and removal now writes the tombstone locally before touching the account: if the save fails, that browser keeps the plain look instead of obeying the stale slug, and the marker is dropped as soon as the clear is accepted. Both removal buttons now await the account write and say when it failed instead of claiming success.
+
 **Customization batch: layout, density, fonts, themes, folders, widgets, badges and commands** (`supabase/migrations/20261115150000_customization.sql`, `lib/routes/customize.js`)
 
 - New **Customization Studio** at `/customize`: interface font, text size and line height, compact density, icon/expanded/floating rail, glass panels, reduced motion, channel list layout, a named chat-layout editor, per-type notification tones, private DM/channel accent themes, and a theme-pack creator with publish. Profile extras add up to twelve public widgets, a banner focal point, animated banners and a profile-only pack. Server owners get `/server-customize`: accent/banner, nested channel folders, custom member badges, a three-step welcome flow, and declarative `/commands` with cooldowns. Public widgets and badges render on `/creator`; channel descriptions now support safe bold, code and https links. Migration applied live.

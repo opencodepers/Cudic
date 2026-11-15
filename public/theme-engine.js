@@ -5,6 +5,9 @@
 (function () {
   if (window.CudicTheme) return;
   var PACK_KEY = null, MANIFEST_KEY = null;
+  // A removed pack stays removed even when the account row still names it: a
+  // dropped save used to repaint the pack from the server on every reload.
+  var REMOVED_KEY = 'cudic_pack_removed';
   var root = document.documentElement;
   var reduced = function () {
     return (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) ||
@@ -386,28 +389,36 @@ function apiHost() {
     // as null and show "Install" while the pack is visibly active.
     try { document.dispatchEvent(new CustomEvent('cudic:theme-changed')); } catch (e) {}
   }
-  function persist(slug, manifest) {
+  function persist(slug) {
     var tokRaw = (typeof localStorage !== 'undefined') ? localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token') : '';
     var tok = tokRaw ? (function () { try { var s = JSON.parse(tokRaw); return s && s.access_token ? s.access_token : tokRaw; } catch (e) { return tokRaw; } })() : '';
-    if (tok && typeof fetch !== 'undefined') {
-      fetch(apiHost() + '/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: JSON.stringify({ pack_slug: slug || null }) })
-        // A failed save used to be invisible: the page dropped the pack and the
-        // next reload booted it straight back from the account row.
-        .then(function (r) { if (r && !r.ok) console.warn('CudicTheme: pack preference not saved (' + r.status + ')'); })
-        .catch(function (e) { console.warn('CudicTheme: pack preference not saved to your account', e && e.message); });
-    }
+    if (!tok || typeof fetch === 'undefined') return Promise.resolve(false);
+    return fetch(apiHost() + '/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: JSON.stringify({ pack_slug: slug || null }) })
+      // A failed save used to be invisible: the page dropped the pack and the
+      // next reload booted it straight back from the account row.
+      .then(function (r) {
+        if (r && !r.ok) { console.warn('CudicTheme: pack preference not saved (' + r.status + ')'); return false; }
+        return true;
+      })
+      .catch(function (e) { console.warn('CudicTheme: pack preference not saved to your account', e && e.message); return false; });
   }
   function installPack(manifest, slug) {
     currentSlug = slug || manifest.slug;
-    persist(currentSlug, manifest);
+    try { localStorage.removeItem(REMOVED_KEY); } catch (e) {}
+    persist(currentSlug);
     applyPack(manifest, slug);
   }
   function clearPack() {
+    var gone = currentSlug || state.slug;
     state.manifest = null; state.slug = null;
     currentSlug = null;
-    persist(null);
+    // Remember the removal locally first: if the account save fails, the next
+    // reload must not obey a stale pack_slug from the server.
+    try { if (gone) localStorage.setItem(REMOVED_KEY, gone); } catch (e) {}
+    var saved = persist(null);
     clearVars(); teardownBg(); teardownCustom(); mountSidebar();
     try { document.dispatchEvent(new CustomEvent('cudic:theme-changed')); } catch (e) {}
+    return saved;
   }
   function storedSlug() {
     return currentSlug;
@@ -424,6 +435,18 @@ function apiHost() {
       } catch (e) {}
     }
     var slug = profileSlug || storedSlug();
+    var removed = null;
+    try { removed = localStorage.getItem(REMOVED_KEY); } catch (e) {}
+    if (slug && removed === slug) {
+      // The account row still names a pack this browser removed. Clear the
+      // account copy and leave the plain look rather than repainting it; drop
+      // the marker once the server accepts the clear, so installing the pack
+      // again (here or on another device) is never blocked.
+      var cleared = await persist(null);
+      if (cleared) { try { localStorage.removeItem(REMOVED_KEY); } catch (e) {} }
+      return;
+    }
+    if (removed && slug !== removed) { try { localStorage.removeItem(REMOVED_KEY); } catch (e) {} }
     if (!slug) return;
     try {
       var res = await fetch('/packs/' + encodeURIComponent(slug) + '/manifest.json', { cache: 'no-store' });

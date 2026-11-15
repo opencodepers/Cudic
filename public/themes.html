@@ -362,7 +362,7 @@
     <script src="/auth.js"></script>
     <script src="/ctheme.js?v=1"></script>
     <script src="/csel.js?v=1"></script>
-    <script src="/sidebar.js?v=26"></script>
+    <script src="/sidebar.js?v=27"></script>
     <script>
     (function () {
       var grid = document.getElementById('packGrid'), resetBtn = document.getElementById('resetPack'), toastEl = document.getElementById('packToast');
@@ -543,16 +543,21 @@
         if (!b || b.disabled || !window.CudicTheme) return;
         if (b.getAttribute('data-action') === 'buy') { openBuy(b.getAttribute('data-slug')); return; }
         if (b.getAttribute('data-action') === 'uninstall') {
-          CudicTheme.clearPack();
-          renderPacks();
-          // Clear saved theme slug
           (async function () {
+            CudicTheme.clearPack();
+            renderPacks();
+            // Clear the saved theme slug and say so only when the account
+            // accepted it; otherwise the pack returns on the next reload.
+            var saved = false;
             try {
               var t = await token();
-              if (t) await fetch(apiHost() + '/api/profile', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' }, body: JSON.stringify({ pack_slug: null }) });
+              if (t) {
+                var r = await fetch(apiHost() + '/api/profile', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' }, body: JSON.stringify({ pack_slug: null }) });
+                saved = !!(r && r.ok);
+              }
             } catch (e) {}
+            toast(saved ? 'Pack uninstalled — back to the default look.' : 'Pack uninstalled in this browser, but the account save failed.');
           })();
-          toast('Pack uninstalled — back to the default look.');
           return;
         }
         installSlug(b.getAttribute('data-slug'));
