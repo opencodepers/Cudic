@@ -140,7 +140,14 @@ Rules:
 ## 2. Stack
 
 - **Node + `server.js`** — one hand-rolled HTTP server: static files, REST API,
-  WebSocket, email verification, AI proxy. No Express; routes are `if (url.pathname === ...)`.
+  WebSocket, email verification, AI proxy. No Express; most routes are still
+  `if (url.pathname === ...)`. The extracted groups live in `lib/routes/`:
+  `chat.js` (conversations, friends, DMs), `messages.js` (history, reactions,
+  pins, search), `servers.js` (servers, channels, members, roles, bans),
+  `games.js` (gallery, detail, revisions, scores, devlog, play/edit),
+  `github.js` (connection, repos, push, tree/file, webhook) and `mod.js`
+  (moderation, reports, changelog). Shared helpers stay in `server.js` and are
+  injected by each factory; add routes there and wire the dispatcher.
 - **`ws`** for realtime; **`@supabase/supabase-js`** for auth + DB + storage;
   **`nodemailer` / `resend`** for verification mail; **`dotenv`**.
 - **Frontend**: plain HTML/CSS/JS in `public/`. No framework, no bundler for the

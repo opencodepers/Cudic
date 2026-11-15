@@ -1,8 +1,12 @@
 /* file: server.js
- * what: The whole backend in one hand-rolled HTTP server — static files, REST,
- *   WebSocket, email verification, AI proxy. No framework; routes are one if-chain.
- *   Leaf concerns live in lib/: push, storage budget, share cards, awards and
- *   the cosmetic shop, the daily streak. Routes and ordering stay here.
+ * what: The backend HTTP server — static files, auth, games, WebSocket, email,
+ *   AI proxy. No framework; the remaining routes are one if-chain. The chat
+ *   surface lives in lib/routes/: chat (conversations, friends, DMs), messages
+ *   (history, reactions, pins, search), servers (servers, channels, roles),
+ *   games (gallery through edits), github (connection through webhook) and mod
+ *   (moderation, reports, changelog). Leaf concerns live in lib/ too: push,
+ *   storage budget, share cards, awards, the cosmetic shop, the daily streak.
+ *   Dispatch order still lives here.
  * invariants: specific paths sit ABOVE generic ones (/api/games/mine before :id);
  *   every authenticated write calls needVerified(user, res); a write that changes
  *   the gallery calls gamesListCacheClear(); a new AI host goes in AI_HOSTS.
@@ -194,6 +198,11 @@ async function activeBan(userId, kind) {
     return row;
   } catch { return null; }
 }
+
+// Route modules are instantiated at the bottom, after every helper and
+// map they close over exists (they still run inside handleRequest).
+let messageRoutes = null, serverRoutes = null, chatRoutes = null;
+let githubRoutes = null, gamesRoutes = null, modRoutes = null;
 
 const PORT = process.env.PORT || 3000;
 
@@ -423,6 +432,374 @@ const CSP_REPORT_ONLY = [
   "form-action 'self'",
   "report-uri /api/csp-report"
 ].join('; ');
+
+// ── Shared request helpers (hoisted from handleRequest for route modules) ──
+    async function requireUser(req, res) {
+      const t = (req.headers.authorization || '').replace('Bearer ', '');
+      // Malformed tokens (e.g. ?token=undefined leaking into a header) die
+      // here instead of burning a Supabase lookup and noisy 403s.
+      if (!t || t.split('.').length !== 3) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Sign in required.' })); return null; }
+      const { data: { user }, error } = await supabase.auth.getUser(t);
+      if (error || !user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Sign in required.' })); return null; }
+      return user;
+    }
+
+    async function isModerator(uid) {
+      if (!uid) return false;
+      try {
+        const { data } = await supabase.from('moderators').select('user_id').eq('user_id', uid).single();
+        return !!data;
+      } catch { return false; }
+    }
+
+    function readBody(req, cap) {
+      const limit = cap || 1024 * 1024;
+      return new Promise((resolve, reject) => {
+        let body = '', size = 0, over = false;
+        req.on('data', c => {
+          if (over) return;
+          size += c.length;
+          if (size > limit) {
+            over = true;
+            const err = new Error('Payload too large.');
+            err.code = 'too_large';
+            reject(err);
+            return;
+          }
+          body += c;
+        });
+        req.on('end', () => { if (!over) { try { resolve(JSON.parse(body)); } catch { reject(new Error('Invalid JSON')); } } });
+        req.on('error', () => { if (!over) reject(new Error('Request stream failed.')); });
+      });
+    }
+
+    function dmRoomName(a, b) { return 'dm:' + [a, b].sort().join('-'); }
+
+    function chanRoomName(serverId, slug) { return 'chan:' + serverId + ':' + slug; }
+
+    function chanSlug(s) { return String(s || '').toLowerCase().trim().replace(/[^a-z0-9-_]/g, '').substring(0, 30); }
+
+    function chanDisplay(name) { var p = String(name || '').split(':'); return '#' + (p[p.length - 1] || name); }
+
+    function isUuid(s) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(s || '')); }
+
+
+// ── Shared route helpers ────────────────────────────────────────
+// Used by more than one route module (GitHub, games, mod): GitHub tokens and
+// repo reads, revision snapshots/releases, and the browser-or-API-key auth
+// resolver. Kept here so the modules never own competing copies.
+const GH_SCOPES_OK = ['repo', 'public_repo'];
+
+function ghKey() {
+  const raw = process.env.GITHUB_TOKEN_KEY || '';
+  if (!raw) return null;
+  // Any passphrase is fine: stretch it to a 32-byte key.
+  return crypto.createHash('sha256').update('cudic-github:' + raw).digest();
+}
+
+function ghSeal(text, key) {
+  const iv = crypto.randomBytes(12);
+  const c = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const body = Buffer.concat([c.update(text, 'utf8'), c.final()]);
+  // v1.<base64(iv | auth tag | ciphertext)> — the prefix leaves room to
+  // rotate the scheme without guessing at old rows.
+  return 'v1.' + Buffer.concat([iv, c.getAuthTag(), body]).toString('base64');
+}
+
+function ghNoTable(err) {
+  const code = String((err && err.code) || '');
+  const msg = String((err && err.message) || '');
+  return code === 'PGRST205' || code === '42P01' || /does not exist|schema cache/i.test(msg);
+}
+
+const GH_SETUP_TEXT = 'GitHub connections are not set up on this server yet.';
+
+function ghOpen(sealed, key) {
+  const s = String(sealed || '');
+  if (!s.startsWith('v1.')) return null;
+  const buf = Buffer.from(s.slice(3), 'base64');
+  if (buf.length < 29) return null; // iv(12) + tag(16) + at least 1 byte
+  const d = crypto.createDecipheriv('aes-256-gcm', key, buf.subarray(0, 12));
+  d.setAuthTag(buf.subarray(12, 28));
+  return Buffer.concat([d.update(buf.subarray(28)), d.final()]).toString('utf8');
+}
+
+async function ghToken(user) {
+  const key = ghKey();
+  if (!key) return { error: 'github_not_configured' };
+  const { data, error } = await supabase.from('github_connections')
+    .select('login, token_enc').eq('user_id', user.id).maybeSingle();
+  if (error) return { error: ghNoTable(error) ? 'github_not_configured' : 'github_read_failed' };
+  if (!data) return { error: 'github_not_connected' };
+  let token = null;
+  try { token = ghOpen(data.token_enc, key); } catch (e) { token = null; }
+  if (!token) return { error: 'github_reconnect' };
+  supabase.from('github_connections').update({ last_used_at: new Date().toISOString() })
+    .eq('user_id', user.id).then(() => {}, () => {});
+  return { token, login: data.login || '' };
+}
+
+let ghDeployWarned = false;
+
+const DEPLOY_MAX_FILES = 200;
+
+const DEPLOY_MAX_FILE = 300 * 1024;
+
+const DEPLOY_MAX_BYTES = 4 * 1024 * 1024;
+
+async function repoTreeFiles(fullName, sha, token) {
+  if (!/^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(fullName)) return null;
+  if (!/^[0-9a-f]{7,40}$/.test(String(sha || ''))) return null;
+  let tree = null;
+  try {
+    const r = await ghApi('/repos/' + fullName + '/git/trees/' + sha + '?recursive=1', token);
+    if (!r.ok) return null;
+    tree = await r.json();
+  } catch (e) {
+    return null;
+  }
+  const nodes = (tree && Array.isArray(tree.tree) ? tree.tree : [])
+    .filter((n) => n && n.type === 'blob' && typeof n.path === 'string' &&
+      GH_PATH.test(n.path) && !n.path.includes('..') && !n.path.startsWith('.') &&
+      Number(n.size || 0) <= DEPLOY_MAX_FILE)
+    .slice(0, DEPLOY_MAX_FILES);
+  const out = {};
+  let total = 0;
+  for (const node of nodes) {
+    try {
+      const r = await ghApi('/repos/' + fullName + '/git/blobs/' + node.sha, token, 'application/vnd.github.raw');
+      if (!r.ok) continue;
+      const text = await r.text();
+      if (text.indexOf('\u0000') === 0) continue; // binary — releases are text
+      total += text.length;
+      if (total > DEPLOY_MAX_BYTES) break;
+      out[node.path] = text;
+    } catch (e) {
+      /* one unreadable blob must not sink the deploy */
+    }
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+const GH_ERR_TEXT = {
+  github_not_configured: 'GitHub connections are not set up on this server yet.',
+  github_not_connected: 'Connect GitHub in Profile → Connections first.',
+  github_reconnect: 'That GitHub token can no longer be read — reconnect GitHub in Profile → Connections.',
+  github_read_failed: 'Could not read your GitHub connection.',
+};
+
+const GH_NAME = /^[A-Za-z0-9._-]{1,100}$/;
+
+const GH_PATH = /^[A-Za-z0-9._\-/ ]{1,400}$/;
+
+function ghApi(path, token, accept) {
+  return fetch('https://api.github.com' + path, {
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Accept': accept || 'application/vnd.github+json',
+      'User-Agent': 'cudic',
+    },
+  });
+}
+
+function ghFail(res, status, error, text) {
+  res.writeHead(status, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error, text: text || GH_ERR_TEXT[error] || 'GitHub request failed.' }));
+}
+
+async function ghGate(req, res, bucket, limit) {
+  cors(res);
+  const user = await requireUser(req, res); if (!user) return null;
+  const got = await ghToken(user);
+  if (got.error) {
+    ghFail(res, got.error === 'github_not_connected' ? 409 : got.error === 'github_reconnect' ? 401 : 503, got.error);
+    return null;
+  }
+  if (!rateLimit('github:' + bucket + ':' + user.id, limit, 60 * 60 * 1000)) {
+    ghFail(res, 429, 'slow_down', 'Too many GitHub requests just now. Try again in a few minutes.');
+    return null;
+  }
+  return { ...got, user };
+}
+
+function ghSend(path, token, method, payload) {
+  return fetch('https://api.github.com' + path, {
+    method,
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json',
+      'User-Agent': 'cudic',
+    },
+    body: payload === undefined ? undefined : JSON.stringify(payload),
+  });
+}
+
+const GIT_SNAP_PATH = /^(?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+$/;
+
+const GIT_SNAP_CAP = 8 * 1024 * 1024;
+
+function weekStartISO(d) {
+  // Monday 00:00 of the week containing d — the week boundary.
+  const t = d ? new Date(d) : new Date();
+  const day = (t.getDay() + 6) % 7;
+  t.setDate(t.getDate() - day);
+  t.setHours(0, 0, 0, 0);
+  return t.toISOString().slice(0, 10);
+}
+
+async function revisionFilesOf(row) {
+  if (!row) return {};
+  if (!row.manifest) return row.files || {};
+  const hashes = [...new Set(Object.values(row.manifest))];
+  if (!hashes.length) return {};
+  const { data: rows } = await supabase.from('revision_blobs')
+    .select('hash, content').eq('game_id', row.game_id).in('hash', hashes);
+  const byHash = new Map((rows || []).map((b) => [b.hash, b.content]));
+  const out = {};
+  for (const [path, h] of Object.entries(row.manifest)) {
+    if (byHash.has(h)) out[path] = byHash.get(h);
+  }
+  return out;
+}
+
+const RELEASE_PREFIX = 'release v';
+
+const RELEASE_FILE = '_release.json';
+
+async function latestRelease(gameId) {
+  const { data: rows } = await supabase.from('project_revisions')
+    // game_id is not optional: revisionFilesOf filters revision_blobs by
+    // row.game_id, and a select that omits it reads zero blobs — every
+    // release then ships an empty file set to players. Caught in prod.
+    .select('id, game_id, label, files, manifest, created_at')
+    .eq('game_id', gameId).like('label', RELEASE_PREFIX + '%')
+    .order('created_at', { ascending: false }).limit(1);
+  const row = rows && rows[0];
+  if (!row) return null;
+  const files = await revisionFilesOf(row);
+  let meta = {};
+  try { meta = JSON.parse(files[RELEASE_FILE] || '{}'); } catch (e) { meta = {}; }
+  delete files[RELEASE_FILE];
+  const n = Number(String(row.label).replace(RELEASE_PREFIX, '')) || 1;
+  return {
+    version: Number(meta.version) || n,
+    notes: String(meta.notes || ''),
+    source: String(meta.source || 'studio'),
+    commit: String(meta.commit || ''),
+    tests: meta.tests || null,
+    at: row.created_at || meta.at || null,
+    revision: row.id,
+    files,
+  };
+}
+
+async function createRelease(gameId, ownerId, files, notes, source, commit, tests) {
+  const prev = await latestRelease(gameId);
+  const version = (prev ? prev.version : 0) + 1;
+  const all = {};
+  for (const [k, v] of Object.entries(files || {})) if (typeof v === 'string') all[k] = v;
+  all[RELEASE_FILE] = JSON.stringify({
+    version, notes: String(notes || '').slice(0, 500), source: source || 'studio',
+    commit: String(commit || ''), at: new Date().toISOString(),
+    tests: tests && typeof tests === 'object' ? { passed: Number(tests.passed) || 0, failed: Number(tests.failed) || 0 } : null,
+  });
+  const manifest = {};
+  const fresh = new Map();
+  for (const [path, text] of Object.entries(all)) {
+    const hash = crypto.createHash('sha256').update(String(text)).digest('hex').slice(0, 32);
+    manifest[path] = hash;
+    if (!fresh.has(hash)) fresh.set(hash, text);
+  }
+  let addressed = false;
+  if (fresh.size) {
+    const up = await supabase.from('revision_blobs').upsert(
+      [...fresh].map(([hash, content]) => ({ game_id: gameId, hash, content })),
+      { onConflict: 'game_id,hash', ignoreDuplicates: true }
+    );
+    addressed = !up.error; // no blob table yet -> fall back to a plain copy
+  }
+  const { data, error } = await supabase.from('project_revisions').insert({
+    game_id: gameId, owner_id: ownerId, label: RELEASE_PREFIX + version,
+    files: addressed ? {} : all, manifest: addressed ? manifest : null,
+  }).select('id, label, created_at').single();
+  if (error) return null;
+  return {
+    version, notes: String(notes || ''), source: source || 'studio', commit: String(commit || ''),
+    at: data.created_at, revision: data.id, files: all,
+  };
+}
+
+async function userOf(req) {
+  const bearer = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+  const headerKey = String(req.headers['x-api-key'] || '').trim();
+  const key = headerKey || (bearer.startsWith('cudic_') ? bearer : '');
+  if (key) return await userFromApiKey(key);
+  if (!bearer || bearer.split('.').length !== 3) return null;
+  const { data: { user }, error } = await supabase.auth.getUser(bearer);
+  return error ? null : (user || null);
+}
+
+async function userFromApiKey(raw) {
+  const hash = crypto.createHash('sha256').update(String(raw)).digest('hex');
+  const { data, error } = await supabase.from('api_keys')
+    .select('id, user_id, scopes, revoked_at').eq('key_hash', hash).maybeSingle();
+  if (error || !data || data.revoked_at) return null;
+  // Usage telemetry must never fail the request.
+  supabase.from('api_keys').update({ last_used_at: new Date().toISOString() }).eq('id', data.id)
+    .then(() => {}, () => {});
+  const { data: got } = await supabase.auth.admin.getUserById(data.user_id);
+  const keyUser = got && got.user;
+  if (!keyUser) return null;
+  keyUser._scopes = Array.isArray(data.scopes) ? data.scopes : [];
+  keyUser._viaKey = data.id;
+  return keyUser;
+}
+
+function hasScope(user, scope) {
+  if (!user || !user._viaKey) return true;
+  const s = user._scopes || [];
+  return s.includes('*') || s.includes(scope);
+}
+
+function scopeDenied(res, scope) {
+  res.writeHead(403, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: 'This API key is missing the "' + scope + '" scope.' }));
+}
+
+async function freeGameSlug(title, keepId) {
+const base = slugify(title || 'Untitled Game');
+for (let n = 1; n < 100; n++) {
+  const suffix = n === 1 ? '' : '-' + n;
+  const candidate = base.slice(0, 40 - suffix.length) + suffix;
+  const { data } = await supabase.from('games').select('id').eq('slug', candidate);
+  if (!data || !data.some((row) => row.id !== keepId)) return candidate;
+}
+return base.slice(0, 31) + '-' + Date.now().toString(36);
+}
+
+function sanitizeTags(raw) {
+const list = (Array.isArray(raw) ? raw : String(raw || '').split(','))
+  .map((t) => String(t).toLowerCase().trim().replace(/[^a-z0-9-]/g, '').slice(0, 24))
+  .filter(Boolean);
+return [...new Set(list)].slice(0, 8);
+}
+
+var RESERVED_PACK_SLUGS = ['anime-city-night'];
+
+try {
+  const idx = JSON.parse(fs.readFileSync('public/packs/index.json', 'utf8'));
+  (idx.packs || []).forEach(p => { if (p.slug) RESERVED_PACK_SLUGS.push(p.slug); });
+} catch {}
+
+async function packByKey(key) {
+  const sel = 'id, slug, name, description, manifest, price, downloads, featured, published, owner_id, created_at';
+  const q = isUuid(key)
+    ? supabase.from('theme_packs').select(sel).eq('id', key)
+    : supabase.from('theme_packs').select(sel).eq('slug', key);
+  const { data } = await q.single();
+  return data || null;
+}
 
 async function handleRequest(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
@@ -970,540 +1347,63 @@ async function handleRequest(req, res) {
   // GitHub, then sealed with AES-256-GCM under GITHUB_TOKEN_KEY. No route
   // ever returns the token — only the GitHub login and granted scopes — so
   // the encrypted row has exactly one consumer: the server itself.
-  const GH_SCOPES_OK = ['repo', 'public_repo'];
-  function ghKey() {
-    const raw = process.env.GITHUB_TOKEN_KEY || '';
-    if (!raw) return null;
-    // Any passphrase is fine: stretch it to a 32-byte key.
-    return crypto.createHash('sha256').update('cudic-github:' + raw).digest();
-  }
-  function ghSeal(text, key) {
-    const iv = crypto.randomBytes(12);
-    const c = crypto.createCipheriv('aes-256-gcm', key, iv);
-    const body = Buffer.concat([c.update(text, 'utf8'), c.final()]);
-    // v1.<base64(iv | auth tag | ciphertext)> — the prefix leaves room to
-    // rotate the scheme without guessing at old rows.
-    return 'v1.' + Buffer.concat([iv, c.getAuthTag(), body]).toString('base64');
-  }
+
+
+
   // A missing table/column is a PostgREST error, not a SQL one. Server and
   // DB deploy separately, so the feature has to degrade, never 500.
-  function ghNoTable(err) {
-    const code = String((err && err.code) || '');
-    const msg = String((err && err.message) || '');
-    return code === 'PGRST205' || code === '42P01' || /does not exist|schema cache/i.test(msg);
-  }
-  const GH_SETUP_TEXT = 'GitHub connections are not set up on this server yet.';
 
-  if (url.pathname === '/api/github/connection' && req.method === 'GET') {
-    cors(res);
-    const user = await userOf(req);
-    if (!user) {
-      res.writeHead(401, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Sign in required.' }));
-      return;
-    }
-    if (!ghKey()) {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ enabled: false, connected: false, text: GH_SETUP_TEXT }));
-      return;
-    }
-    const { data, error } = await supabase.from('github_connections')
-      .select('login, scopes, connected_at').eq('user_id', user.id).maybeSingle();
-    if (error && !ghNoTable(error)) {
-      console.error('github connection read:', error.message || error);
-    }
-    const row = error ? null : data;
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      enabled: true,
-      connected: !!row,
-      login: (row && row.login) || '',
-      scopes: String((row && row.scopes) || '').split(',').map((s) => s.trim()).filter(Boolean),
-      connected_at: (row && row.connected_at) || null,
-    }));
-    return;
+
+
+
+  // ── github routes: lib/routes/github.js ─────────────────────────
+  if (githubRoutes && githubRoutes.matches(url.pathname)) {
+    await githubRoutes.handle(req, res, url);
+    if (res.headersSent) return;
   }
 
-  if (url.pathname === '/api/github/connect' && req.method === 'POST') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await needVerified(user, res))) return;
-    const key = ghKey();
-    if (!key) {
-      res.writeHead(503, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'github_not_configured', text: GH_SETUP_TEXT }));
-      return;
-    }
-    if (!rateLimit('github:connect:' + user.id, 10, 60 * 60 * 1000)) {
-      res.writeHead(429, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Too many attempts. Try again later.' }));
-      return;
-    }
-    const body = await readBody(req).catch(() => ({}));
-    const token = String(body.token || '').trim();
-    // GitHub OAuth tokens are 40+ chars, no whitespace. Reject obvious junk
-    // before spending a call on it.
-    if (token.length < 20 || token.length > 255 || /\s/.test(token)) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'github_bad_token', text: 'That does not look like a GitHub token.' }));
-      return;
-    }
-    let gh;
-    try {
-      gh = await fetch('https://api.github.com/user', {
-        headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json', 'User-Agent': 'cudic' },
-      });
-    } catch (e) {
-      res.writeHead(502, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'github_unreachable', text: 'Could not reach GitHub. Try again.' }));
-      return;
-    }
-    if (!gh.ok) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        error: 'github_rejected',
-        text: gh.status === 401 ? 'GitHub rejected that token — reconnect and approve repo access.' : 'GitHub answered ' + gh.status + '.',
-      }));
-      return;
-    }
-    // GitHub reports what the token may do in a header, not the body. A token
-    // from a plain sign-in has no repo scope, which is exactly the case this
-    // check exists to catch.
-    const scopes = String(gh.headers.get('x-oauth-scopes') || '')
-      .split(',').map((s) => s.trim()).filter(Boolean);
-    if (!GH_SCOPES_OK.some((s) => scopes.includes(s))) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        error: 'github_scope',
-        text: 'Cudic needs repo access — reconnect and allow access to your repositories.',
-      }));
-      return;
-    }
-    const me = await gh.json().catch(() => null);
-    const login = String((me && me.login) || '').replace(/[^A-Za-z0-9._-]/g, '').slice(0, 100);
-    const { error: saveErr } = await supabase.from('github_connections').upsert({
-      user_id: user.id,
-      login,
-      scopes: scopes.join(','),
-      token_enc: ghSeal(token, key),
-      connected_at: new Date().toISOString(),
-      last_used_at: null,
-    }, { onConflict: 'user_id' });
-    if (saveErr) {
-      console.error('github connection save:', saveErr.message || saveErr);
-      res.writeHead(ghNoTable(saveErr) ? 503 : 500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        error: ghNoTable(saveErr) ? 'github_not_configured' : 'github_save_failed',
-        text: ghNoTable(saveErr) ? GH_SETUP_TEXT : 'Could not save the connection.',
-      }));
-      return;
-    }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, login, scopes }));
-    return;
-  }
 
-  if (url.pathname === '/api/github/connection' && req.method === 'DELETE') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await needVerified(user, res))) return;
-    const { error } = await supabase.from('github_connections').delete().eq('user_id', user.id);
-    if (error && !ghNoTable(error)) {
-      console.error('github connection delete:', error.message || error);
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Could not disconnect.' }));
-      return;
-    }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true }));
-    return;
-  }
+
+
+
 
   // ── Connected GitHub: what the sealed token is actually for ────────
   // Studio cannot read a private repo: jsDelivr only sees public code and
   // api.github.com allows 60 requests/hour per IP, an IP every visitor shares
   // on Render. So the work moves here, where the user's own token pays the
   // quota (5000/hour) and never leaves this process.
-  function ghOpen(sealed, key) {
-    const s = String(sealed || '');
-    if (!s.startsWith('v1.')) return null;
-    const buf = Buffer.from(s.slice(3), 'base64');
-    if (buf.length < 29) return null; // iv(12) + tag(16) + at least 1 byte
-    const d = crypto.createDecipheriv('aes-256-gcm', key, buf.subarray(0, 12));
-    d.setAuthTag(buf.subarray(12, 28));
-    return Buffer.concat([d.update(buf.subarray(28)), d.final()]).toString('utf8');
-  }
+
   // Encrypted row → token. A rotated key or an edited row throws, and that has
   // to read as "reconnect", never as a 500 with no way forward.
-  async function ghToken(user) {
-    const key = ghKey();
-    if (!key) return { error: 'github_not_configured' };
-    const { data, error } = await supabase.from('github_connections')
-      .select('login, token_enc').eq('user_id', user.id).maybeSingle();
-    if (error) return { error: ghNoTable(error) ? 'github_not_configured' : 'github_read_failed' };
-    if (!data) return { error: 'github_not_connected' };
-    let token = null;
-    try { token = ghOpen(data.token_enc, key); } catch (e) { token = null; }
-    if (!token) return { error: 'github_reconnect' };
-    supabase.from('github_connections').update({ last_used_at: new Date().toISOString() })
-      .eq('user_id', user.id).then(() => {}, () => {});
-    return { token, login: data.login || '' };
-  }
+
   // ── Push to deploy ──────────────────────────────────────────────
   // Warned once when the deploy columns have not been migrated yet, so a
   // missing column reads as one line of logs instead of noise on every push.
-  let ghDeployWarned = false;
+
   // The files of one commit, path → text, read through the git-data API. This
   // is what a webhook deploys: the tree names the blobs, each blob is fetched
   // raw. Text only — a release snapshot stores strings, and a game's images
   // already live in the asset bucket.
-  const DEPLOY_MAX_FILES = 200;
-  const DEPLOY_MAX_FILE = 300 * 1024;
-  const DEPLOY_MAX_BYTES = 4 * 1024 * 1024;
-  async function repoTreeFiles(fullName, sha, token) {
-    if (!/^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(fullName)) return null;
-    if (!/^[0-9a-f]{7,40}$/.test(String(sha || ''))) return null;
-    let tree = null;
-    try {
-      const r = await ghApi('/repos/' + fullName + '/git/trees/' + sha + '?recursive=1', token);
-      if (!r.ok) return null;
-      tree = await r.json();
-    } catch (e) {
-      return null;
-    }
-    const nodes = (tree && Array.isArray(tree.tree) ? tree.tree : [])
-      .filter((n) => n && n.type === 'blob' && typeof n.path === 'string' &&
-        GH_PATH.test(n.path) && !n.path.includes('..') && !n.path.startsWith('.') &&
-        Number(n.size || 0) <= DEPLOY_MAX_FILE)
-      .slice(0, DEPLOY_MAX_FILES);
-    const out = {};
-    let total = 0;
-    for (const node of nodes) {
-      try {
-        const r = await ghApi('/repos/' + fullName + '/git/blobs/' + node.sha, token, 'application/vnd.github.raw');
-        if (!r.ok) continue;
-        const text = await r.text();
-        if (text.indexOf('\u0000') === 0) continue; // binary — releases are text
-        total += text.length;
-        if (total > DEPLOY_MAX_BYTES) break;
-        out[node.path] = text;
-      } catch (e) {
-        /* one unreadable blob must not sink the deploy */
-      }
-    }
-    return Object.keys(out).length > 0 ? out : null;
-  }
-  const GH_ERR_TEXT = {
-    github_not_configured: 'GitHub connections are not set up on this server yet.',
-    github_not_connected: 'Connect GitHub in Profile → Connections first.',
-    github_reconnect: 'That GitHub token can no longer be read — reconnect GitHub in Profile → Connections.',
-    github_read_failed: 'Could not read your GitHub connection.',
-  };
-  const GH_NAME = /^[A-Za-z0-9._-]{1,100}$/;
-  const GH_PATH = /^[A-Za-z0-9._\-/ ]{1,400}$/;
-  function ghApi(path, token, accept) {
-    return fetch('https://api.github.com' + path, {
-      headers: {
-        'Authorization': 'Bearer ' + token,
-        'Accept': accept || 'application/vnd.github+json',
-        'User-Agent': 'cudic',
-      },
-    });
-  }
-  function ghFail(res, status, error, text) {
-    res.writeHead(status, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error, text: text || GH_ERR_TEXT[error] || 'GitHub request failed.' }));
-  }
-  async function ghGate(req, res, bucket, limit) {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return null;
-    const got = await ghToken(user);
-    if (got.error) {
-      ghFail(res, got.error === 'github_not_connected' ? 409 : got.error === 'github_reconnect' ? 401 : 503, got.error);
-      return null;
-    }
-    if (!rateLimit('github:' + bucket + ':' + user.id, limit, 60 * 60 * 1000)) {
-      ghFail(res, 429, 'slow_down', 'Too many GitHub requests just now. Try again in a few minutes.');
-      return null;
-    }
-    return { ...got, user };
-  }
 
-  if (url.pathname === '/api/github/repos' && req.method === 'GET') {
-    const got = await ghGate(req, res, 'repos', 120); if (!got) return;
-    let r;
-    try {
-      r = await ghApi('/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator', got.token);
-    } catch (e) { return ghFail(res, 502, 'github_unreachable', 'Could not reach GitHub. Try again.'); }
-    if (r.status === 401) return ghFail(res, 401, 'github_reconnect');
-    if (r.status === 403) return ghFail(res, 429, 'github_rate_limited', 'GitHub is rate-limiting that account right now.');
-    if (!r.ok) return ghFail(res, 502, 'github_error', 'GitHub answered ' + r.status + '.');
-    const list = await r.json().catch(() => null);
-    const repos = (Array.isArray(list) ? list : []).map((x) => ({
-      full_name: String((x && x.full_name) || '').slice(0, 200),
-      owner: String((x && x.owner && x.owner.login) || '').slice(0, 100),
-      name: String((x && x.name) || '').slice(0, 100),
-      private: !!(x && x.private),
-      fork: !!(x && x.fork),
-      archived: !!(x && x.archived),
-      default_branch: String((x && x.default_branch) || 'main').slice(0, 200),
-      size_kb: Number(x && x.size) || 0,
-      updated_at: (x && x.updated_at) || null,
-      description: typeof (x && x.description) === 'string' ? x.description.slice(0, 140) : '',
-    }));
-    // Private first — those are the ones no public path can reach.
-    repos.sort((a, b) =>
-      (Number(b.private) - Number(a.private)) ||
-      String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ login: got.login, repos }));
-    return;
-  }
+
+
+
+
+
+
+
+
+
+
+
 
   // POST — anything with a body needs a method GitHub accepts, and ghApi is
   // GET-only on purpose so a read path can never write by accident.
-  function ghSend(path, token, method, payload) {
-    return fetch('https://api.github.com' + path, {
-      method,
-      headers: {
-        'Authorization': 'Bearer ' + token,
-        'Accept': 'application/vnd.github+json',
-        'Content-Type': 'application/json',
-        'User-Agent': 'cudic',
-      },
-      body: payload === undefined ? undefined : JSON.stringify(payload),
-    });
-  }
 
-  // POST /api/github/repos — create a repository on the connected account.
-  // Studio's Source Control needs a remote before it can push; this is that
-  // step, on the user's own account, with the user's own token.
-  if (url.pathname === '/api/github/repos' && req.method === 'POST') {
-    const got = await ghGate(req, res, 'repo-create', 10); if (!got) return;
-    const body = await readBody(req, 16 * 1024).catch(() => ({}));
-    const name = String(body.name || '').trim();
-    if (!/^[A-Za-z0-9._-]{1,100}$/.test(name)) {
-      return ghFail(res, 400, 'bad_name', 'Repository names use letters, digits, dot, dash or underscore.');
-    }
-    let r;
-    try {
-      r = await ghSend('/user/repos', got.token, 'POST', {
-        name,
-        description: String(body.description || '').slice(0, 200),
-        private: body.private === true,
-        auto_init: false,
-      });
-    } catch (e) {
-      return ghFail(res, 502, 'github_unreachable', 'Could not reach GitHub. Try again.');
-    }
-    if (r.status === 401) return ghFail(res, 401, 'github_reconnect');
-    if (r.status === 403) return ghFail(res, 429, 'github_rate_limited');
-    if (r.status === 422) return ghFail(res, 409, 'repo_exists', 'A repository with that name already exists on your account.');
-    if (!r.ok) return ghFail(res, 502, 'github_error', 'GitHub answered ' + r.status + '.');
-    const j = await r.json().catch(() => null);
-    res.writeHead(201, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      repo: {
-        full_name: String((j && j.full_name) || ''),
-        owner: String((j && j.owner && j.owner.login) || ''),
-        name: String((j && j.name) || ''),
-        default_branch: String((j && j.default_branch) || 'main'),
-        html_url: String((j && j.html_url) || ''),
-        private: !!(j && j.private),
-      },
-    }));
-    return;
-  }
 
-  // POST /api/github/push — write the project's files as a real commit on a
-  // real branch: blobs, a tree, a commit with the branch tip as its parent, then
-  // the ref. Fast-forward only: if the branch moved since the client last read
-  // it, the push is refused instead of overwriting someone else's commit.
-  if (url.pathname === '/api/github/push' && req.method === 'POST') {
-    const got = await ghGate(req, res, 'push', 30); if (!got) return;
-    const body = await readBody(req, 24 * 1024 * 1024).catch(() => ({}));
-    const owner = String(body.owner || '').replace(/[^A-Za-z0-9._-]/g, '');
-    const repoName = String(body.repo || '').replace(/[^A-Za-z0-9._-]/g, '');
-    const branch = String(body.branch || 'main').replace(/[^A-Za-z0-9._/-]/g, '');
-    const message = String(body.message || '').trim().slice(0, 2000) || 'Push from Cudic';
-    if (!owner || !repoName) return ghFail(res, 400, 'bad_repo', 'Which repository should this push to?');
-    if (!branch || branch.includes('..') || branch.startsWith('/')) {
-      return ghFail(res, 400, 'bad_branch', 'That branch name is not usable.');
-    }
-    const entries = Array.isArray(body.files) ? body.files.slice(0, 500) : [];
-    const usable = entries.filter((e) => {
-      const p = String(e && e.path || '');
-      return GH_PATH.test(p) && !p.includes('..') && typeof e.base64 === 'string' && e.base64 !== '';
-    });
-    if (usable.length === 0) return ghFail(res, 400, 'empty', 'Nothing to push — the project has no files.');
 
-    const base = '/repos/' + owner + '/' + repoName;
-    const guard = (r, what) => {
-      if (r.status === 401) { ghFail(res, 401, 'github_reconnect'); return false; }
-      if (r.status === 403) { ghFail(res, 429, 'github_rate_limited'); return false; }
-      if (r.status === 404) { ghFail(res, 404, 'repo_missing', 'GitHub could not find ' + owner + '/' + repoName + '.'); return false; }
-      if (r.status === 409) { ghFail(res, 409, 'github_conflict', 'GitHub refused a write to ' + owner + '/' + repoName + ' (' + what + '). If that repository has no commits yet, open it on GitHub once and push again.'); return false; }
-      if (!r.ok) { ghFail(res, 502, 'github_error', 'GitHub answered ' + r.status + ' while ' + what + '.'); return false; }
-      return true;
-    };
 
-    let parentSha = null;
-    let parentTree = null;
-    let refRes;
-    try {
-      refRes = await ghApi(base + '/git/ref/heads/' + branch, got.token);
-    } catch (e) {
-      return ghFail(res, 502, 'github_unreachable', 'Could not reach GitHub. Try again.');
-    }
-    if (refRes.status === 200) {
-      const rj = await refRes.json().catch(() => null);
-      parentSha = String((rj && rj.object && rj.object.sha) || '') || null;
-    } else if (refRes.status !== 404 && refRes.status !== 409) {
-      // 404 = no such ref; 409 = GitHub's answer for a repository with no
-      // commits yet ("Git Repository is empty"). Both mean the same thing:
-      // this is the first push, so the commit has no parent and the branch ref
-      // is created below instead of updated.
-      if (!guard(refRes, 'reading the branch')) return;
-    }
-    if (parentSha) {
-      const cRes = await ghApi(base + '/git/commits/' + parentSha, got.token).catch(() => null);
-      if (cRes && cRes.ok) {
-        const cj = await cRes.json().catch(() => null);
-        parentTree = String((cj && cj.tree && cj.tree.sha) || '') || null;
-      }
-    }
 
-    // GitHub's git-data endpoints answer 409 ("Git Repository is empty.") while
-    // a repository has no commits at all — there is no object database to write
-    // blobs and trees into yet. Reading the ref already treats 409 as "no
-    // parent", but the first blob still fails, which is exactly what "GitHub
-    // answered 409 while uploading index.html" was. The Contents API does work
-    // on an empty repository, so the first push seeds one real file through it
-    // and then builds the rest of the project into a normal commit.
-    if (!parentSha) {
-      const probe = await ghApi(base + '/commits?per_page=1', got.token).catch(() => null);
-      const seed = usable[0];
-      if (probe != null && probe.status === 409 && seed) {
-        const seedPath = String(seed.path).split('/').map(encodeURIComponent).join('/');
-        const seedRes = await ghSend(base + '/contents/' + seedPath, got.token, 'PUT', {
-          message: 'Initial commit from Cudic',
-          content: seed.base64,
-        }).catch(() => null);
-        const sj = seedRes && seedRes.ok ? await seedRes.json().catch(() => null) : null;
-        const seedSha = String((sj && sj.commit && sj.commit.sha) || '');
-        if (seedSha) {
-          parentSha = seedSha;
-          parentTree = String((sj && sj.commit && sj.commit.tree && sj.commit.tree.sha) || '') || null;
-          // The Contents API writes to the repository's default branch; a
-          // project pushing to any other name needs that ref to exist before
-          // the final step updates it.
-          const seedRef = await ghApi(base + '/git/ref/heads/' + branch, got.token).catch(() => null);
-          if (seedRef != null && seedRef.status === 404) {
-            await ghSend(base + '/git/refs', got.token, 'POST', { ref: 'refs/heads/' + branch, sha: seedSha }).catch(() => null);
-          }
-        } else if (seedRes && seedRes.status === 401) {
-          return ghFail(res, 401, 'github_reconnect');
-        } else if (seedRes && seedRes.status === 403) {
-          return ghFail(res, 429, 'github_rate_limited');
-        }
-      }
-    }
-
-    const treeEntries = [];
-    for (const e of usable) {
-      let bRes;
-      try {
-        bRes = await ghSend(base + '/git/blobs', got.token, 'POST', {
-          content: e.base64,
-          encoding: 'base64',
-        });
-      } catch (err) {
-        return ghFail(res, 502, 'github_unreachable', 'Could not reach GitHub. Try again.');
-      }
-      if (!guard(bRes, 'uploading ' + e.path)) return;
-      const bj = await bRes.json().catch(() => null);
-      const sha = String((bj && bj.sha) || '');
-      if (!sha) return ghFail(res, 502, 'github_error', 'GitHub returned no blob for ' + e.path + '.');
-      treeEntries.push({ path: String(e.path), mode: '100644', type: 'blob', sha });
-    }
-
-    // base_tree keeps files this project does not carry (an imported subfolder
-    // must never wipe the rest of the repository). Deleting on push is a
-    // separate decision, and not one this route makes silently.
-    const treePayload = { tree: treeEntries };
-    if (parentTree) treePayload.base_tree = parentTree;
-    let tRes;
-    try {
-      tRes = await ghSend(base + '/git/trees', got.token, 'POST', treePayload);
-    } catch (err) {
-      return ghFail(res, 502, 'github_unreachable', 'Could not reach GitHub. Try again.');
-    }
-    if (!guard(tRes, 'building the tree')) return;
-    const tj = await tRes.json().catch(() => null);
-    const treeSha = String((tj && tj.sha) || '');
-    if (!treeSha) return ghFail(res, 502, 'github_error', 'GitHub returned no tree.');
-
-    let commitRes;
-    try {
-      commitRes = await ghSend(base + '/git/commits', got.token, 'POST', {
-        message,
-        tree: treeSha,
-        parents: parentSha ? [parentSha] : [],
-      });
-    } catch (err) {
-      return ghFail(res, 502, 'github_unreachable', 'Could not reach GitHub. Try again.');
-    }
-    if (!guard(commitRes, 'creating the commit')) return;
-    const cj = await commitRes.json().catch(() => null);
-    const commitSha = String((cj && cj.sha) || '');
-    if (!commitSha) return ghFail(res, 502, 'github_error', 'GitHub returned no commit.');
-
-    let refWrite;
-    try {
-      refWrite = parentSha
-        ? await ghSend(base + '/git/refs/heads/' + branch, got.token, 'PATCH', { sha: commitSha, force: false })
-        : await ghSend(base + '/git/refs', got.token, 'POST', { ref: 'refs/heads/' + branch, sha: commitSha });
-    } catch (err) {
-      return ghFail(res, 502, 'github_unreachable', 'Could not reach GitHub. Try again.');
-    }
-    if (refWrite.status === 422) {
-      return ghFail(res, 409, 'remote_moved', 'The branch moved on GitHub since this project last read it — pull or fetch before pushing again.');
-    }
-    if (!guard(refWrite, 'updating the branch')) return;
-
-    // Remember which project this repository belongs to. Without it a push is
-    // an anonymous contribution: the server holds the repo, the token and the
-    // code, but nothing that says which game it is, so a later commit to the
-    // repo cannot deploy anything. Columns are additive (see the
-    // game_github_deploy migration); until it is applied this update fails
-    // harmlessly and the push still succeeds.
-    const pushProject = /^[0-9a-fA-F-]{8,64}$/.test(String(body.game_id || '')) ? String(body.game_id) : '';
-    if (pushProject !== '' && got.login) {
-      const mapped = await supabase.from('games').update({
-        github_repo: owner + '/' + repoName,
-        github_branch: branch,
-        github_login: got.login,
-      }).eq('id', pushProject).eq('owner_id', got.user.id).select('id').maybeSingle();
-      if (mapped.error != null) {
-        // Say it once per process instead of failing every push ever made.
-        if (!ghDeployWarned) {
-          ghDeployWarned = true;
-          console.warn('github deploy: games.github_repo not writable (' + mapped.error.message + ') — apply supabase/migrations/20261108120000_game_github_deploy.sql');
-        }
-      }
-    }
-
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      commit: commitSha,
-      tree: treeSha,
-      parent: parentSha,
-      branch,
-      url: 'https://github.com/' + owner + '/' + repoName + '/commit/' + commitSha,
-      files: treeEntries.length,
-    }));
-    return;
-  }
 
   // ── API: the project's Git repository, stored with the project ──
   // The browser keeps a real repository in IndexedDB, which is per browser and
@@ -1512,178 +1412,14 @@ async function handleRequest(req, res) {
   // project lets Source Control follow the account instead of the machine.
   // One JSON snapshot per project under game-git/<id>.json in the bucket the
   // assets already use keeps this additive: no schema change, no migration.
-  const GIT_SNAP_PATH = /^(?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+$/;
-  const GIT_SNAP_CAP = 8 * 1024 * 1024;
 
-  if (url.pathname === '/api/git/repo' && (req.method === 'POST' || req.method === 'GET')) {
-    cors(res);
-    const user = await userOf(req);
-    if (!user) {
-      res.writeHead(401, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Sign in required.' }));
-      return;
-    }
-    const body = req.method === 'POST'
-      ? await readBody(req, 12 * 1024 * 1024).catch(() => null)
-      : null;
-    const id = String((req.method === 'POST' ? body && body.id : url.searchParams.get('id')) || '');
-    if (!/^[0-9a-fA-F-]{8,64}$/.test(id)) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Unknown project.' }));
-      return;
-    }
-    // The repository names the project's files, so it is exactly as private as
-    // the project: owner only, never the published-games path.
-    const { data: row } = await supabase.from('games').select('owner_id').eq('id', id).maybeSingle();
-    if (!row) {
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Project not found.' }));
-      return;
-    }
-    if (row.owner_id !== user.id) {
-      res.writeHead(403, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Only the project owner can store its repository.' }));
-      return;
-    }
-    const snapPath = 'game-git/' + id + '.json';
-    const bucket = supabase.storage.from('game-assets');
 
-    if (req.method === 'GET') {
-      let text = '';
-      try {
-        const { data: blob, error } = await bucket.download(snapPath);
-        if (error || !blob) throw error || new Error('empty');
-        text = await blob.text();
-      } catch {
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'No stored repository for this project.' }));
-        return;
-      }
-      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-      res.end(text);
-      return;
-    }
 
-    const list = Array.isArray(body && body.files) ? body.files : [];
-    if (list.length === 0 || list.length > 6000) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'That repository snapshot looks wrong.' }));
-      return;
-    }
-    const files = [];
-    let bytes = 0;
-    for (const f of list) {
-      const path = typeof (f && f.path) === 'string' ? f.path : '';
-      const b64 = typeof (f && f.base64) === 'string' ? f.base64 : '';
-      if (!GIT_SNAP_PATH.test(path) || path === '.' || path.includes('..')) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'A path in that repository snapshot is not allowed.' }));
-        return;
-      }
-      bytes += b64.length;
-      if (bytes > GIT_SNAP_CAP) {
-        res.writeHead(413, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'This repository is too large to store with the project yet.' }));
-        return;
-      }
-      files.push({ path, base64: b64 });
-    }
-    if (!rateLimit('git-repo:' + user.id, 120, 60 * 60 * 1000)) {
-      res.writeHead(429, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Too many repository saves just now. Try again in a few minutes.' }));
-      return;
-    }
-    const json = JSON.stringify({ version: 1, project: id, saved_at: new Date().toISOString(), files });
-    try {
-      const { error } = await bucket.upload(snapPath, new Blob([json], { type: 'application/json' }), {
-        upsert: true,
-        contentType: 'application/json',
-      });
-      if (error) throw error;
-    } catch (e) {
-      console.error('git snapshot upload failed:', e && e.message);
-      res.writeHead(503, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Could not store the repository.' }));
-      return;
-    }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, files: files.length }));
-    return;
-  }
 
-  if (url.pathname === '/api/github/tree' && req.method === 'GET') {
-    const got = await ghGate(req, res, 'tree', 300); if (!got) return;
-    const owner = String(url.searchParams.get('owner') || '');
-    const repo = String(url.searchParams.get('repo') || '');
-    const wantRef = String(url.searchParams.get('ref') || '');
-    if (!GH_NAME.test(owner) || !GH_NAME.test(repo)) return ghFail(res, 400, 'github_bad_repo', 'That is not a repo name.');
-    if (wantRef !== '' && !GH_PATH.test(wantRef)) return ghFail(res, 400, 'github_bad_ref', 'That is not a branch name.');
-    try {
-      let ref = wantRef;
-      if (ref === '') {
-        const info = await ghApi('/repos/' + owner + '/' + repo, got.token);
-        if (info.status === 401) return ghFail(res, 401, 'github_reconnect');
-        if (info.status === 404) return ghFail(res, 404, 'github_not_found', 'No repo at ' + owner + '/' + repo + ' that this account can read.');
-        if (!info.ok) return ghFail(res, 502, 'github_error', 'GitHub answered ' + info.status + '.');
-        const j = await info.json().catch(() => null);
-        ref = String((j && j.default_branch) || 'main');
-      }
-      const t = await ghApi('/repos/' + owner + '/' + repo + '/git/trees/' + encodeURIComponent(ref) + '?recursive=1', got.token);
-      if (t.status === 401) return ghFail(res, 401, 'github_reconnect');
-      if (t.status === 403) return ghFail(res, 409, 'github_scope', 'Cudic cannot read that repo — reconnect GitHub and allow access to it.');
-      if (t.status === 404) return ghFail(res, 404, 'github_not_found', 'No branch ' + ref + ' in ' + owner + '/' + repo + '.');
-      if (t.status === 409) return ghFail(res, 409, 'github_empty', 'That repository is empty.');
-      if (!t.ok) return ghFail(res, 502, 'github_error', 'GitHub answered ' + t.status + '.');
-      const j = await t.json().catch(() => null);
-      const files = [];
-      for (const n of (j && j.tree) || []) {
-        if (!n || n.type !== 'blob') continue;
-        files.push({ path: String(n.path || '').slice(0, 400), size: Number(n.size) || 0 });
-        if (files.length >= 5000) break;
-      }
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ owner, repo, ref, truncated: !!(j && j.truncated), files }));
-    } catch (e) {
-      return ghFail(res, 502, 'github_unreachable', 'Could not reach GitHub. Try again.');
-    }
-    return;
-  }
 
-  if (url.pathname === '/api/github/file' && req.method === 'GET') {
-    const got = await ghGate(req, res, 'file', 2000); if (!got) return;
-    const owner = String(url.searchParams.get('owner') || '');
-    const repo = String(url.searchParams.get('repo') || '');
-    const ref = String(url.searchParams.get('ref') || '');
-    const filePath = String(url.searchParams.get('path') || '');
-    if (!GH_NAME.test(owner) || !GH_NAME.test(repo) || ref === '' || !GH_PATH.test(filePath)) {
-      return ghFail(res, 400, 'github_bad_path', 'That is not a repo path.');
-    }
-    let r;
-    try {
-      r = await ghApi(
-        '/repos/' + owner + '/' + repo + '/contents/' +
-          filePath.split('/').map(encodeURIComponent).join('/') +
-          '?ref=' + encodeURIComponent(ref),
-        got.token,
-        'application/vnd.github.raw'
-      );
-    } catch (e) { return ghFail(res, 502, 'github_unreachable', 'Could not reach GitHub. Try again.'); }
-    if (r.status === 401) return ghFail(res, 401, 'github_reconnect');
-    if (r.status === 403) return ghFail(res, 409, 'github_scope', 'Cudic cannot read that file — reconnect GitHub and allow access.');
-    if (r.status === 404) return ghFail(res, 404, 'github_not_found', 'No file ' + filePath + ' on ' + ref + '.');
-    if (!r.ok) return ghFail(res, 502, 'github_error', 'GitHub answered ' + r.status + '.');
-    let buf;
-    try { buf = Buffer.from(await r.arrayBuffer()); }
-    catch (e) { return ghFail(res, 502, 'github_error', 'Could not download that file.'); }
-    if (buf.length > 8 * 1024 * 1024) return ghFail(res, 413, 'github_too_big', 'That file is over 8MB.');
-    res.writeHead(200, {
-      'Content-Type': 'application/octet-stream',
-      'Content-Length': String(buf.length),
-      'Cache-Control': 'no-store',
-    });
-    res.end(buf);
-    return;
-  }
+
+
+
 
   if (url.pathname === '/api/user' && req.method === 'GET') {
     try {
@@ -1848,22 +1584,13 @@ async function handleRequest(req, res) {
     return;
   }
 
-  // ── API: moderator feature/unfeature a game ─────────────────────
-  if (/^\/api\/games\/[^/]+\/feature$/.test(url.pathname) && req.method === 'POST') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await isModerator(user.id))) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Moderators only.' })); return; }
-    const gid = url.pathname.split('/')[3];
-    const { data: g } = await supabase.from('games').select('featured').eq('id', gid).single();
-    if (!g) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    const next = !g.featured;
-    const { data, error } = await supabase.from('games').update({ featured: next, featured_until: next ? new Date(Date.now() + 7 * 864e5).toISOString() : null }).eq('id', gid).select('featured').single();
-    if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not update.' })); return; }
-    gamesListCacheClear(); // featured ordering just changed
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ featured: data.featured }));
-    return;
+
+  // ── games routes: lib/routes/games.js ─────────────────────────
+  if (gamesRoutes && gamesRoutes.matches(url.pathname)) {
+    await gamesRoutes.handle(req, res, url);
+    if (res.headersSent) return;
   }
+
 
   // ── Weekly build theme (mods set one; otherwise auto-picked) ─────
   // State lives in a small JSON file next to the server. Ephemeral disk on
@@ -1876,14 +1603,7 @@ async function handleRequest(req, res) {
     'ice', 'jungle', 'fruit', 'maze', 'ninjas', 'gems', 'weather', 'tiny',
     'cozy', 'speedrun', 'pirates', 'farm'
   ];
-  function weekStartISO(d) {
-    // Monday 00:00 of the week containing d — the week boundary.
-    const t = d ? new Date(d) : new Date();
-    const day = (t.getDay() + 6) % 7;
-    t.setDate(t.getDate() - day);
-    t.setHours(0, 0, 0, 0);
-    return t.toISOString().slice(0, 10);
-  }
+
   function loadWeekly() {
     const thisWeek = weekStartISO();
     let state = null;
@@ -2084,17 +1804,7 @@ async function handleRequest(req, res) {
     return;
   }
 
-  if (url.pathname === '/api/games/featured' && req.method === 'GET') {
-    cors(res);
-    const { data, error } = await supabase.from('games')
-      .select('id, title, slug, play_count, featured_until, users!owner_id(display_name, user_id)')
-      .eq('published', true).eq('featured', true)
-      .order('featured_until', { ascending: false }).limit(8);
-    if (error) console.error('featured list error:', error.message);
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify({ games: data || [], error: error ? 'Could not load featured games.' : undefined }));
-    return;
-  }
+
 
   // ── API: follow feed shelf for the homepage ──────────────────
   // Recently published games from creators this viewer follows. Distinct
@@ -2413,268 +2123,25 @@ async function handleRequest(req, res) {
   // Snapshots are content-addressed now: `manifest` maps path → blob hash and
   // each unique file body lives once in revision_blobs. Legacy rows still
   // carry `files`, so both shapes hydrate to the same map for clients.
-  async function revisionFilesOf(row) {
-    if (!row) return {};
-    if (!row.manifest) return row.files || {};
-    const hashes = [...new Set(Object.values(row.manifest))];
-    if (!hashes.length) return {};
-    const { data: rows } = await supabase.from('revision_blobs')
-      .select('hash, content').eq('game_id', row.game_id).in('hash', hashes);
-    const byHash = new Map((rows || []).map((b) => [b.hash, b.content]));
-    const out = {};
-    for (const [path, h] of Object.entries(row.manifest)) {
-      if (byHash.has(h)) out[path] = byHash.get(h);
-    }
-    return out;
-  }
+
   // ── Releases ─────────────────────────────────────────────────────
   // Publishing used to be a boolean on the live row, so every save changed what
   // players got and there was no way to say what version they played. A publish
   // now snapshots the files into project_revisions labeled `release vN`, with a
   // synthetic _release.json carrying the notes and source. The play page serves
   // that snapshot; the row keeps being the working draft. No schema change.
-  const RELEASE_PREFIX = 'release v';
-  const RELEASE_FILE = '_release.json';
-  async function latestRelease(gameId) {
-    const { data: rows } = await supabase.from('project_revisions')
-      // game_id is not optional: revisionFilesOf filters revision_blobs by
-      // row.game_id, and a select that omits it reads zero blobs — every
-      // release then ships an empty file set to players. Caught in prod.
-      .select('id, game_id, label, files, manifest, created_at')
-      .eq('game_id', gameId).like('label', RELEASE_PREFIX + '%')
-      .order('created_at', { ascending: false }).limit(1);
-    const row = rows && rows[0];
-    if (!row) return null;
-    const files = await revisionFilesOf(row);
-    let meta = {};
-    try { meta = JSON.parse(files[RELEASE_FILE] || '{}'); } catch (e) { meta = {}; }
-    delete files[RELEASE_FILE];
-    const n = Number(String(row.label).replace(RELEASE_PREFIX, '')) || 1;
-    return {
-      version: Number(meta.version) || n,
-      notes: String(meta.notes || ''),
-      source: String(meta.source || 'studio'),
-      commit: String(meta.commit || ''),
-      tests: meta.tests || null,
-      at: row.created_at || meta.at || null,
-      revision: row.id,
-      files,
-    };
-  }
-  async function createRelease(gameId, ownerId, files, notes, source, commit, tests) {
-    const prev = await latestRelease(gameId);
-    const version = (prev ? prev.version : 0) + 1;
-    const all = {};
-    for (const [k, v] of Object.entries(files || {})) if (typeof v === 'string') all[k] = v;
-    all[RELEASE_FILE] = JSON.stringify({
-      version, notes: String(notes || '').slice(0, 500), source: source || 'studio',
-      commit: String(commit || ''), at: new Date().toISOString(),
-      tests: tests && typeof tests === 'object' ? { passed: Number(tests.passed) || 0, failed: Number(tests.failed) || 0 } : null,
-    });
-    const manifest = {};
-    const fresh = new Map();
-    for (const [path, text] of Object.entries(all)) {
-      const hash = crypto.createHash('sha256').update(String(text)).digest('hex').slice(0, 32);
-      manifest[path] = hash;
-      if (!fresh.has(hash)) fresh.set(hash, text);
-    }
-    let addressed = false;
-    if (fresh.size) {
-      const up = await supabase.from('revision_blobs').upsert(
-        [...fresh].map(([hash, content]) => ({ game_id: gameId, hash, content })),
-        { onConflict: 'game_id,hash', ignoreDuplicates: true }
-      );
-      addressed = !up.error; // no blob table yet -> fall back to a plain copy
-    }
-    const { data, error } = await supabase.from('project_revisions').insert({
-      game_id: gameId, owner_id: ownerId, label: RELEASE_PREFIX + version,
-      files: addressed ? {} : all, manifest: addressed ? manifest : null,
-    }).select('id, label, created_at').single();
-    if (error) return null;
-    return {
-      version, notes: String(notes || ''), source: source || 'studio', commit: String(commit || ''),
-      at: data.created_at, revision: data.id, files: all,
-    };
-  }
-  const revList = url.pathname.match(/^\/api\/games\/([^/]+)\/revisions$/);
-  const revOne = url.pathname.match(/^\/api\/games\/([^/]+)\/revisions\/([^/]+)(?:\/restore)?$/);
-  if (revList && req.method === 'POST') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await seatAlive(user.id, seatFromReq(req)))) { seatDead(res); return; }
-    const gid = revList[1];
-    const { data: g } = await supabase.from('games').select('owner_id, files').eq('id', gid).single();
-    if (!g || g.owner_id !== user.id) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    const body = await readBody(req, 4 * 1024 * 1024).catch(() => ({}));
-    const label = String(body.label || '').trim().substring(0, 80);
-    // Staged snapshot (Studio's Save-snapshot checklist): the owner may POST a
-    // full files map — staged files at working-tree content, unstaged ones at
-    // the previous snapshot's content, so restoring replays "last snapshot +
-    // what was staged". Absent or invalid body.files keeps the old behavior:
-    // snapshot the saved project row (g.files). Owner-only route, values must
-    // be strings, path lengths capped — same shape the client already held.
-    let files = g.files || {};
-    if (body.files && typeof body.files === 'object' && !Array.isArray(body.files)) {
-      const staged = {};
-      let ok = true;
-      for (const [k, v] of Object.entries(body.files)) {
-        if (!k || typeof v !== 'string' || k.length > 300) { ok = false; break; }
-        staged[k] = v;
-      }
-      if (ok) files = staged;
-    }
-    if (Object.keys(files).length > 500) { res.writeHead(413, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Project too large to snapshot.' })); return; }
-    // Store each distinct file body once and keep path → hash on the revision,
-    // so a one-line edit costs one small blob instead of a whole project copy.
-    const manifest = {};
-    const fresh = new Map();
-    for (const [path, text] of Object.entries(files || {})) {
-      const hash = crypto.createHash('sha256').update(String(text)).digest('hex').slice(0, 32);
-      manifest[path] = hash;
-      if (!fresh.has(hash)) fresh.set(hash, text);
-    }
-    let addressed = false;
-    if (fresh.size) {
-      const up = await supabase.from('revision_blobs').upsert(
-        [...fresh].map(([hash, content]) => ({ game_id: gid, hash, content })),
-        { onConflict: 'game_id,hash', ignoreDuplicates: true }
-      );
-      addressed = !up.error; // no blob table yet -> fall back to a plain copy
-    }
-    const { data: countRow } = await supabase.from('project_revisions').select('id', { count: 'exact', head: true }).eq('game_id', gid);
-    const total = (countRow && countRow.count) || 0;
-    const REVISION_CAP = 100; // deep history is cheap now that blobs dedupe
-    if (total >= REVISION_CAP) {
-      const excess = total - REVISION_CAP + 1;
-      const { data: oldestRows } = await supabase.from('project_revisions').select('id')
-        .eq('game_id', gid).order('created_at', { ascending: true }).limit(excess);
-      for (const row of oldestRows || []) await supabase.from('project_revisions').delete().eq('id', row.id);
-    }
-    const { data, error } = await supabase.from('project_revisions').insert({
-      game_id: gid,
-      owner_id: user.id,
-      label: label || 'Snapshot ' + new Date().toLocaleString(),
-      // `files` is NOT NULL in the original schema: manifest rows carry an empty
-      // map there and the real content in revision_blobs + `manifest`.
-      files: addressed ? {} : files,
-      manifest: addressed ? manifest : null,
-    }).select('id, label, created_at').single();
-    if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not snapshot.' })); return; }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ revision: data }));
-    return;
-  }
-  if (revList && req.method === 'GET') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    const gid = revList[1];
-    const { data: g } = await supabase.from('games').select('owner_id').eq('id', gid).single();
-    if (!g || g.owner_id !== user.id) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    const { data: rows } = await supabase.from('project_revisions').select('id, label, created_at').eq('game_id', gid).order('created_at', { ascending: false }).limit(50);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ revisions: rows || [] }));
-    return;
-  }
-  // GET /api/games/:id/revisions/:revId/diff?against=current|prev|<revId>
-  // File-level summary for the owner; ?file=<path> returns both bodies so a
-  // client can render a real diff without downloading every snapshot.
-  const revDiffMatch = /^\/api\/games\/([^/]+)\/revisions\/([^/]+)\/diff$/.exec(url.pathname);
-  if (revDiffMatch && req.method === 'GET') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    const gid = revDiffMatch[1], revId = revDiffMatch[2];
-    const { data: g } = await supabase.from('games').select('owner_id, files').eq('id', gid).single();
-    if (!g || g.owner_id !== user.id) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    const { data: target } = await supabase.from('project_revisions').select('*').eq('id', revId).single();
-    if (!target || target.owner_id !== user.id) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    const against = String(url.searchParams.get('against') || 'current');
-    let baseFiles = null;
-    if (against === 'current') {
-      baseFiles = g.files || {};
-    } else {
-      let baseRow = null;
-      if (against === 'prev') {
-        const { data: rows } = await supabase.from('project_revisions').select('*')
-          .eq('game_id', gid).lt('created_at', target.created_at)
-          .order('created_at', { ascending: false }).limit(1);
-        baseRow = rows && rows[0];
-      } else {
-        const { data: row } = await supabase.from('project_revisions').select('*')
-          .eq('id', against).eq('game_id', gid).single();
-        baseRow = row;
-      }
-      if (!baseRow) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Nothing to compare against.' })); return; }
-      baseFiles = await revisionFilesOf(baseRow);
-    }
-    const nextFiles = await revisionFilesOf(target);
-    const file = url.searchParams.get('file');
-    if (file) {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ path: file, before: baseFiles[file] == null ? null : baseFiles[file], after: nextFiles[file] == null ? null : nextFiles[file] }));
-      return;
-    }
-    const paths = [...new Set([...Object.keys(baseFiles || {}), ...Object.keys(nextFiles || {})])].sort();
-    const changes = [];
-    for (const p of paths) {
-      const a = baseFiles[p], b = nextFiles[p];
-      if (a === b) continue;
-      changes.push({
-        path: p,
-        status: a == null ? 'added' : b == null ? 'removed' : 'changed',
-        before_bytes: a == null ? 0 : Buffer.byteLength(a),
-        after_bytes: b == null ? 0 : Buffer.byteLength(b),
-      });
-    }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      from: against,
-      to: revId,
-      files: changes,
-      counts: {
-        added: changes.filter((c) => c.status === 'added').length,
-        removed: changes.filter((c) => c.status === 'removed').length,
-        changed: changes.filter((c) => c.status === 'changed').length,
-      },
-    }));
-    return;
-  }
 
-  if (revOne) {
-    const gid = revOne[1], revId = revOne[2];
-    const restore = /\/restore$/.test(url.pathname);
-    if (req.method === 'GET' || (req.method === 'POST' && restore)) {
-      cors(res);
-      const user = await requireUser(req, res); if (!user) return;
-      const { data: rev } = await supabase.from('project_revisions').select('*').eq('id', revId).single();
-      // Both ids are attacker-controlled: the revision has to belong to this
-      // user AND to the game in the path. Checking only the revision let a
-      // user restore their own snapshot into somebody else's project.
-      if (!rev || rev.owner_id !== user.id || rev.game_id !== gid) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-      if (restore) {
-        const { data: own } = await supabase.from('games').select('owner_id').eq('id', gid).single();
-        if (!own || own.owner_id !== user.id) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-        const restored = await revisionFilesOf(rev);
-        await supabase.from('games').update({ files: restored, updated_at: new Date().toISOString() }).eq('id', gid).eq('owner_id', user.id);
-        gamesListCacheClear(); // updated_at shifts the gallery ordering
-        res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true })); return;
-      }
-      const full = await revisionFilesOf(rev);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ revision: { ...rev, files: full } }));
-      return;
-    }
-    if (req.method === 'DELETE') {
-      cors(res);
-      const user = await requireUser(req, res); if (!user) return;
-      // A revision id is not permission: without this check anyone signed in
-      // could delete another creator's history, including a live release.
-      const { data: rev } = await supabase.from('project_revisions').select('id, owner_id').eq('id', revId).single();
-      if (!rev || rev.owner_id !== user.id) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-      await supabase.from('project_revisions').delete().eq('id', revId).eq('owner_id', user.id);
-      res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true }));
-      return;
-    }
-  }
+
+
+
+
+
+
+
+
+
+
+
 
   // ── API: update display name ───────────────────────────────────
   if (url.pathname === '/api/profile' && req.method === 'PUT') {
@@ -2902,482 +2369,19 @@ async function handleRequest(req, res) {
   }
 
   // ── API: get message history ───────────────────────────────────
-  if (url.pathname === '/api/messages') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    const lobbyName = url.searchParams.get('lobby');
-    if (!lobbyName) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'lobby param required' }));
-      return;
-    }
-    if (!validName(lobbyName)) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Invalid lobby name.' }));
-      return;
-    }
-
-    // No creation here: conversations are opened via /api/dm or channel create.
-    const { data: lobby } = await supabase
-      .from('lobbies')
-      .select('id, name, kind, server_id, is_private')
-      .eq('name', lobbyName)
-      .single();
-
-    // Deliberately 404 (not 403) so room names can't be probed.
-    if (!lobby || !(await canSeeLobby(user.id, lobby))) {
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Not found.' }));
-      return;
-    }
-
-    // Newest 100, then flipped back to oldest-first for the client.
-    // Optional `before` cursor (ISO timestamp) loads the 100 messages
-    // older than it, for pagination.
-    const before = url.searchParams.get('before');
-    let q = supabase
-      .from('messages')
-      .select('id, display_name, text, created_at, user_id, pinned, users!messages_user_id_fkey(avatar_url)')
-      .eq('lobby_id', lobby.id)
-      .order('created_at', { ascending: false })
-      .limit(100);
-    if (before) q = q.lt('created_at', before);
-    // ?pinned=1 powers the pinned shelf on the client — same room gate
-    // above, so it can't leak pins from a channel you can't open.
-    if (url.searchParams.get('pinned') === '1') q = q.eq('pinned', true);
-    const { data: recent } = await q;
-    const messages = (recent || []).reverse();
-
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ messages: messages, persistent: true }));
-    return;
-  }
-
-  // ── API: reactions summary for a room ────────────────────────
-  // GET /api/messages/reactions?lobby=<name> — aggregates the room's recent
-  // reactions so an opened chat paints existing emoji without waiting for a
-  // broadcast. Same visibility gate as history; capped at the newest 200
-  // messages so a huge room can't make this endpoint heavy.
-  if (url.pathname === '/api/messages/reactions' && req.method === 'GET') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    const lobbyName = String(url.searchParams.get('lobby') || '');
-    if (!validName(lobbyName)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid lobby name.' })); return; }
-    const { data: lob } = await supabase.from('lobbies').select('id, name, kind, server_id, is_private').eq('name', lobbyName).single();
-    if (!lob || !(await canSeeLobby(user.id, lob))) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found.' })); return; }
-    const { data: recent } = await supabase.from('messages').select('id').eq('lobby_id', lob.id).order('created_at', { ascending: false }).limit(200);
-    const ids = (recent || []).map(m => m.id);
-    var reactions = {};
-    if (ids.length) {
-      const { data: rows } = await supabase.from('message_reactions').select('message_id, emoji').in('message_id', ids);
-      for (const r of rows || []) {
-        if (!reactions[r.message_id]) reactions[r.message_id] = {};
-        reactions[r.message_id][r.emoji] = (reactions[r.message_id][r.emoji] || 0) + 1;
-      }
-    }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ reactions }));
-    return;
-  }
-
-  // ── API: search messages in one conversation ──────────────────
-  // Same gate as reading a room (canSeeLobby), so search can't be used to
-  // read channels you can't open. 3+ chars, newest first.
-  // ── API: pin / unpin a message (author or the channel's owner/mod) ─
-  // POST /api/messages/:mid/pin { pin: true|false } — toggles the flag.
-  // Pinned rows ride the normal ?pinned=1 history fetch; a live WS event
-  // lets the open room re-render its pinned shelf without a reload.
-  const msgMid = /^\/api\/messages\/([^/]+)\/(pin|react)$/.exec(url.pathname);
-  if (msgMid && req.method === 'POST' && msgMid[2] === 'pin') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await needVerified(user, res))) return;
-    const mid = msgMid[1];
-    if (!isUuid(mid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid message.' })); return; }
-    const { data: msg } = await supabase.from('messages').select('id, user_id, lobby_id, lobbies!messages_lobby_id_fkey(id, name, kind, server_id)').eq('id', mid).single();
-    if (!msg) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found.' })); return; }
-    let allowed = msg.user_id === user.id;
-    if (!allowed && msg.lobbies && msg.lobbies.server_id) {
-      const { role } = await serverRole(user.id, msg.lobbies.server_id);
-      allowed = role === 'owner' || role === 'mod';
-    }
-    if (!allowed) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not your message or channel.' })); return; }
-    const body = await readBody(req).catch(() => ({}));
-    const pinned = !!(body && body.pin);
-    const { error } = await supabase.from('messages').update({ pinned }).eq('id', mid);
-    if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not pin.' })); return; }
-    if (msg.lobbies && msg.lobbies.name) broadcast(msg.lobbies.name, { type: 'pin', lobby: msg.lobbies.name, id: mid, pinned });
-    res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true, pinned }));
-    return;
-  }
-  // ── API: reactions on a message ─────────────────────────────────
-  // One row per (message, user, emoji) — reacting twice with the same
-  // emoji upserts, never double-counts. Visible only if you can see the
-  // conversation (same rule as history); a live WS event updates open rooms.
-  if (msgMid && msgMid[2] === 'react' && (req.method === 'POST' || req.method === 'DELETE')) {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await needVerified(user, res))) return;
-    if (!rateLimit('react:' + user.id, 30, 60 * 1000)) { res.writeHead(429, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Slow down.' })); return; }
-    const mid = msgMid[1];
-    if (!isUuid(mid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid message.' })); return; }
-    const { data: msg } = await supabase.from('messages').select('id, lobby_id, lobbies!messages_lobby_id_fkey(id, name)').eq('id', mid).single();
-    if (!msg) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found.' })); return; }
-    const { data: lob } = await supabase.from('lobbies').select('id, kind, server_id, is_private').eq('id', msg.lobby_id).single();
-    if (!lob || !(await canSeeLobby(user.id, { ...lob, name: (msg.lobbies && msg.lobbies.name) || '' }))) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found.' })); return; }
-    const body = await readBody(req).catch(() => ({}));
-    const emoji = String((body && body.emoji) || '').trim();
-    if (!emoji || emoji.length > 8 || /[<>"'`\\]/.test(emoji)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid emoji.' })); return; }
-    if (req.method === 'POST') {
-      const { error } = await supabase.from('message_reactions').upsert({ message_id: mid, user_id: user.id, emoji });
-      if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not react.' })); return; }
-    } else {
-      await supabase.from('message_reactions').delete().eq('message_id', mid).eq('user_id', user.id).eq('emoji', emoji);
-    }
-    const { data: rows } = await supabase.from('message_reactions').select('emoji, user_id').eq('message_id', mid);
-    const counts = {};
-    for (const r of rows || []) counts[r.emoji] = (counts[r.emoji] || 0) + 1;
-    if (msg.lobbies && msg.lobbies.name) broadcast(msg.lobbies.name, { type: 'react', lobby: msg.lobbies.name, id: mid, counts });
-    res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true, counts }));
-    return;
-  }
-
-  if (url.pathname === '/api/messages/search') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    const lobbyName = url.searchParams.get('lobby') || '';
-    const q = String(url.searchParams.get('q') || '').trim();
-    if (!validName(lobbyName) || q.length < 3) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'lobby param and 3+ characters required' }));
-      return;
-    }
-    const { data: lobby } = await supabase
-      .from('lobbies')
-      .select('id, name, kind, server_id, is_private')
-      .eq('name', lobbyName)
-      .single();
-    if (!lobby || !(await canSeeLobby(user.id, lobby))) {
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Not found.' }));
-      return;
-    }
-    const { data: hits } = await supabase
-      .from('messages')
-      .select('id, display_name, text, created_at, user_id')
-      .eq('lobby_id', lobby.id)
-      .ilike('text', '%' + q.slice(0, 60).replace(/[%_\\]/g, '') + '%')
-      .order('created_at', { ascending: false })
-      .limit(50);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ results: hits || [] }));
-    return;
+  // ── messages routes: lib/routes/messages.js ─────────────────────────
+  if (messageRoutes && messageRoutes.matches(url.pathname)) {
+    await messageRoutes.handle(req, res, url);
+    if (res.headersSent) return;
   }
 
   // ── Servers API ──────────────────────────────────────────────
 
   // List servers: public + owned/private where member
-  if (url.pathname === '/api/servers' && req.method === 'GET') {
-    cors(res);
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    let userId = null;
-    if (token) {
-      const { data: { user } } = await supabase.auth.getUser(token);
-      if (user) userId = user.id;
-    }
-    let query = supabase.from('servers').select('id, name, description, icon_url, visibility, invite_code, owner_id, rules, created_at, users!owner_id(display_name)').order('created_at', { ascending: false });
-    const { data, error } = await query.limit(50);
-    // Filter: show public or owned/member
-    let filtered = (data || []).filter(s => s.visibility === 'public');
-    if (userId) {
-      const { data: memberServers } = await supabase.from('server_members').select('server_id').eq('user_id', userId);
-      const memberIds = new Set((memberServers || []).map(m => m.server_id));
-      const mine = (data || []).filter(s => s.owner_id === userId || memberIds.has(s.id));
-      // A private server older than the newest-50 window is missing from
-      // page one — fetch just those and merge them in.
-      const known = new Set((data || []).map(s => s.id));
-      const absent = [...memberIds].filter(id => !known.has(id));
-      if (absent.length) {
-        const { data: extraRows } = await supabase.from('servers').select('id, name, description, icon_url, visibility, invite_code, owner_id, rules, created_at, users!owner_id(display_name)').in('id', absent);
-        mine.push(...(extraRows || []));
-      }
-      filtered = [...mine, ...filtered];
-    }
-    // Liveness per server: member counts (one query) + online now
-    // (sum of live sockets across the server's channels, same process).
-    const sids = filtered.map(s => s.id);
-    var memberCount = {};
-    if (sids.length) {
-      const { data: mems } = await supabase.from('server_members').select('server_id').in('server_id', sids);
-      (mems || []).forEach(m => { memberCount[m.server_id] = (memberCount[m.server_id] || 0) + 1; });
-    }
-    const withLive = filtered.map(s => {
-      var online = 0;
-      try {
-        for (const entry of lobbies) {
-          if (typeof entry[0] === 'string' && entry[0].startsWith('chan:' + s.id + ':')) online += entry[1].size;
-        }
-      } catch (e) {}
-      return Object.assign({}, s, { member_count: memberCount[s.id] || 0, online });
-    });
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ servers: withLive }));
-    return;
-  }
-
-  // Get my servers (owned)
-  if (url.pathname === '/api/servers/mine' && req.method === 'GET') {
-    cors(res);
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(401); res.end(); return; }
-    const { data: { user } } = await supabase.auth.getUser(token);
-    if (!user) { res.writeHead(401); res.end(); return; }
-    const { data } = await supabase.from('servers').select('id, name, description, icon_url, visibility, invite_code, rules, created_at').eq('owner_id', user.id).order('created_at', { ascending: true });
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ servers: data || [] }));
-    return;
-  }
-
-  // ── Server templates: preset channel bundles picked at creation ──
-  // (Discord-style: Gaming, School, Study, Friends, Local Community).
-  // Single source of truth — the create-server picker reads these.
-  const SERVER_TEMPLATES = {
-    blank: { name: 'Blank', description: 'Just the basics.', channels: [
-      { slug: 'general', topic: '' },
-      { slug: 'random', topic: '' } ] },
-    gaming: { name: 'Gaming', description: 'Coordinate sessions and share clips.', channels: [
-      { slug: 'general', topic: 'Home base' },
-      { slug: 'clips', topic: 'Screenshots and clips' },
-      { slug: 'lfg', topic: 'Find players' },
-      { slug: 'off-topic', topic: '' } ] },
-    school: { name: 'School', description: 'Classes, homework help, resources.', channels: [
-      { slug: 'general', topic: 'Home base' },
-      { slug: 'homework-help', topic: 'Ask and answer' },
-      { slug: 'resources', topic: 'Notes and links' },
-      { slug: 'off-topic', topic: '' } ] },
-    study: { name: 'Study Group', description: 'Goals, questions, shared resources.', channels: [
-      { slug: 'general', topic: 'Home base' },
-      { slug: 'goals', topic: 'Daily goals' },
-      { slug: 'questions', topic: 'Ask anything' },
-      { slug: 'resources', topic: 'Shared notes and links' } ] },
-    friends: { name: 'Friends', description: 'Your circle, nothing formal.', channels: [
-      { slug: 'general', topic: 'Home base' },
-      { slug: 'plans', topic: 'Make plans' },
-      { slug: 'media', topic: 'Photos and clips' },
-      { slug: 'random', topic: '' } ] },
-    community: { name: 'Local Community', description: 'Neighborhood hub: events and tips.', channels: [
-      { slug: 'general', topic: 'Home base' },
-      { slug: 'announcements', topic: 'Official updates' },
-      { slug: 'events', topic: 'What is happening' },
-      { slug: 'recommendations', topic: 'Tips and finds' } ] },
-  };
-  const STARTER_RULES = [
-    'Be kind — no harassment, hate speech, or slurs.',
-    'No spam, ads, or NSFW.',
-    'Keep channels on topic.',
-    'Respect other members and their DMs.',
-    'Follow community guidelines.',
-  ].join('\n');
-
-  // ── API: list server templates (public, static data) ────────────
-  if (url.pathname === '/api/server-templates' && req.method === 'GET') {
-    cors(res);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      templates: Object.keys(SERVER_TEMPLATES).map(k => ({
-        slug: k, name: SERVER_TEMPLATES[k].name,
-        description: SERVER_TEMPLATES[k].description,
-        channels: SERVER_TEMPLATES[k].channels,
-      })),
-      starterRules: STARTER_RULES,
-    }));
-    return;
-  }
-
-  // Create server (max 3 per user)
-  if (url.pathname === '/api/servers' && req.method === 'POST') {
-    cors(res);
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    if (!(await needVerified(user, res))) return;
-    // Check limit
-    const { count } = await supabase.from('servers').select('id', { count: 'exact', head: true }).eq('owner_id', user.id);
-    if (count !== null && count >= 50) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'You can own at most 50 servers.' })); return; }
-    const body = await readBody(req);
-    const name = (body.name || '').trim().replace(/[^a-zA-Z0-9-_]/g, '').substring(0, 20);
-    if (!name || name.length < 2) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Server name 2-20 chars (letters, numbers, -,_)' })); return; }
-    const invite = crypto.randomBytes(4).toString('hex');
-    const { data, error } = await supabase.from('servers').insert({
-      name,
-      description: (body.description || '').substring(0, 200),
-      icon_url: safeIconUrl(body.icon_url),
-      visibility: body.visibility === 'private' ? 'private' : 'public',
-      invite_code: invite,
-      owner_id: user.id,
-      rules: String(body.rules || '').substring(0, 2000),
-    }).select().single();
-    if (error) { console.error('servers insert error:', error.message); res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not create the server.' })); return; }
-    // Add owner as member with the owner role
-    await supabase.from('server_members').insert({ server_id: data.id, user_id: user.id, role: 'owner' });
-    await awardUser(user.id, 'host');
-    // Channels from the picked template (blank = general + random)
-    const tpl = SERVER_TEMPLATES[body.template] || SERVER_TEMPLATES.blank;
-    await supabase.from('lobbies').insert(tpl.channels.map(c => ({
-      name: 'chan:' + data.id + ':' + c.slug, kind: 'channel',
-      server_id: data.id, topic: c.topic || '', created_by: user.id,
-    })));
-    sendConversationsDirty();
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ server: data }));
-    return;
-  }
-
-  // Update server (owner only)
-  if (url.pathname.startsWith('/api/servers/') && req.method === 'PUT') {
-    cors(res);
-    const id = url.pathname.split('/')[3];
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(401); res.end(); return; }
-    const { data: { user } } = await supabase.auth.getUser(token);
-    if (!user) { res.writeHead(401); res.end(); return; }
-    if (!(await needVerified(user, res))) return;
-    const body = await readBody(req);
-    const updates = {};
-    if (body.name !== undefined) {
-      const n = body.name.trim().replace(/[^a-zA-Z0-9-_]/g, '').substring(0, 20);
-      if (n.length >= 2) updates.name = n;
-    }
-    if (body.description !== undefined) updates.description = body.description.substring(0, 200);
-    if (body.icon_url !== undefined) updates.icon_url = safeIconUrl(body.icon_url);
-    if (body.visibility !== undefined && ['public','private'].includes(body.visibility)) updates.visibility = body.visibility;
-    if (body.rules !== undefined) updates.rules = String(body.rules || '').substring(0, 2000);
-    if (Object.keys(updates).length === 0) { res.writeHead(400); res.end(); return; }
-    const { data, error } = await supabase.from('servers').update(updates).eq('id', id).eq('owner_id', user.id).select().single();
-    if (error) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: error.message })); return; }
-    sendConversationsDirty();
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ server: data }));
-    return;
-  }
-
-  // Delete server
-  if (url.pathname.startsWith('/api/servers/') && req.method === 'DELETE') {
-    cors(res);
-    const id = url.pathname.split('/')[3];
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(401); res.end(); return; }
-    const { data: { user } } = await supabase.auth.getUser(token);
-    if (!user) { res.writeHead(401); res.end(); return; }
-    if (!(await needVerified(user, res))) return;
-    await supabase.from('servers').delete().eq('id', id).eq('owner_id', user.id);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true }));
-    return;
-  }
-
-  // Join server (by invite code or public)
-  if (url.pathname.endsWith('/join') && req.method === 'POST') {
-    cors(res);
-    const parts = url.pathname.split('/');
-    const id = parts[3];
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(401); res.end(); return; }
-    const { data: { user } } = await supabase.auth.getUser(token);
-    if (!user) { res.writeHead(401); res.end(); return; }
-    if (!(await needVerified(user, res))) return;
-    const body = await readBody(req).catch(() => ({}));
-    const { data: server } = await supabase.from('servers').select('id, visibility, invite_code').eq('id', id).single();
-    if (!server) { res.writeHead(404); res.end(); return; }
-    if (server.visibility === 'private' && body.invite_code !== server.invite_code) {
-      res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid invite code' })); return;
-    }
-    // Banned people stay out, invite code or not.
-    const { data: banRow } = await supabase.from('server_bans').select('reason, created_at').eq('server_id', server.id).eq('user_id', user.id).single();
-    if (banRow) {
-      res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'You are banned from this server.' + (banRow.reason ? ' Reason: ' + banRow.reason : '') })); return;
-    }
-    await supabase.from('server_members').upsert({ server_id: server.id, user_id: user.id }, { onConflict: 'server_id,user_id' });
-    sendConversationsDirty();
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true }));
-    return;
-  }
-
-  // Leave server
-  if (url.pathname.endsWith('/leave') && req.method === 'POST') {
-    cors(res);
-    const id = url.pathname.split('/')[3];
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(401); res.end(); return; }
-    const { data: { user } } = await supabase.auth.getUser(token);
-    if (!user) { res.writeHead(401); res.end(); return; }
-    await supabase.from('server_members').delete().eq('server_id', id).eq('user_id', user.id);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true }));
-    return;
-  }
-
-  // Regenerate invite code
-  if (url.pathname.endsWith('/regenerate-invite') && req.method === 'POST') {
-    cors(res);
-    const id = url.pathname.split('/')[3];
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(401); res.end(); return; }
-    const { data: { user } } = await supabase.auth.getUser(token);
-    if (!user) { res.writeHead(401); res.end(); return; }
-    if (!(await needVerified(user, res))) return;
-    const newCode = crypto.randomBytes(4).toString('hex');
-    const { data } = await supabase.from('servers').update({ invite_code: newCode }).eq('id', id).eq('owner_id', user.id).select().single();
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ server: data }));
-    return;
-  }
-
-  // My membership in a server (role + rules acceptance)
-  if (url.pathname.startsWith('/api/servers/') && url.pathname.endsWith('/membership') && req.method === 'GET') {
-    cors(res);
-    const id = url.pathname.split('/')[3];
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(401); res.end(); return; }
-    const { data: { user } } = await supabase.auth.getUser(token);
-    if (!user) { res.writeHead(401); res.end(); return; }
-    if (!isUuid(id)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid server.' })); return; }
-    const { data: m } = await supabase.from('server_members').select('role, rules_accepted_at').eq('server_id', id).eq('user_id', user.id).single();
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ member: !!m, role: m ? m.role : null, accepted: !!(m && m.rules_accepted_at) }));
-    return;
-  }
-
-  // Accept a server's rules (must already be a member)
-  if (url.pathname.startsWith('/api/servers/') && url.pathname.endsWith('/rules/accept') && req.method === 'POST') {
-    cors(res);
-    const id = url.pathname.split('/')[3];
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(401); res.end(); return; }
-    const { data: { user } } = await supabase.auth.getUser(token);
-    if (!user) { res.writeHead(401); res.end(); return; }
-    if (!isUuid(id)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid server.' })); return; }
-    const { data: m } = await supabase.from('server_members').select('server_id').eq('server_id', id).eq('user_id', user.id).single();
-    if (!m) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Join this server first.' })); return; }
-    if (!(await needVerified(user, res))) return;
-    if (!m) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Join this server first.' })); return; }
-    await supabase.from('server_members').update({ rules_accepted_at: new Date().toISOString() }).eq('server_id', id).eq('user_id', user.id);
-    sendConversationsDirty();
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true }));
-    return;
+  // ── servers routes: lib/routes/servers.js ─────────────────────────
+  if (serverRoutes && serverRoutes.matches(url.pathname)) {
+    await serverRoutes.handle(req, res, url);
+    if (res.headersSent) return;
   }
 
   // ── API: single-seat session claim / heartbeat / release ────
@@ -3428,55 +2432,17 @@ async function handleRequest(req, res) {
   // ── Chat rebuild: conversations, DMs, friends, channels ─────────
   // Every endpoint here requires a signed-in user. The WS layer below
   // enforces the same membership rules on join.
-  async function requireUser(req, res) {
-    const t = (req.headers.authorization || '').replace('Bearer ', '');
-    // Malformed tokens (e.g. ?token=undefined leaking into a header) die
-    // here instead of burning a Supabase lookup and noisy 403s.
-    if (!t || t.split('.').length !== 3) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Sign in required.' })); return null; }
-    const { data: { user }, error } = await supabase.auth.getUser(t);
-    if (error || !user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Sign in required.' })); return null; }
-    return user;
-  }
 
   // ── Account auth for browser sessions AND API keys ──────────────────
   // Browsers send a Supabase JWT. Agents (CLI, MCP, scripts) send a scoped
   // `cudic_...` key instead; it is hashed at rest in api_keys and resolved to
   // the owning account here, so every route that calls userOf() works for
   // both without a second code path.
-  async function userOf(req) {
-    const bearer = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
-    const headerKey = String(req.headers['x-api-key'] || '').trim();
-    const key = headerKey || (bearer.startsWith('cudic_') ? bearer : '');
-    if (key) return await userFromApiKey(key);
-    if (!bearer || bearer.split('.').length !== 3) return null;
-    const { data: { user }, error } = await supabase.auth.getUser(bearer);
-    return error ? null : (user || null);
-  }
-  async function userFromApiKey(raw) {
-    const hash = crypto.createHash('sha256').update(String(raw)).digest('hex');
-    const { data, error } = await supabase.from('api_keys')
-      .select('id, user_id, scopes, revoked_at').eq('key_hash', hash).maybeSingle();
-    if (error || !data || data.revoked_at) return null;
-    // Usage telemetry must never fail the request.
-    supabase.from('api_keys').update({ last_used_at: new Date().toISOString() }).eq('id', data.id)
-      .then(() => {}, () => {});
-    const { data: got } = await supabase.auth.admin.getUserById(data.user_id);
-    const keyUser = got && got.user;
-    if (!keyUser) return null;
-    keyUser._scopes = Array.isArray(data.scopes) ? data.scopes : [];
-    keyUser._viaKey = data.id;
-    return keyUser;
-  }
+
+
   // Browser sessions keep full access; a key only gets what it was granted.
-  function hasScope(user, scope) {
-    if (!user || !user._viaKey) return true;
-    const s = user._scopes || [];
-    return s.includes('*') || s.includes(scope);
-  }
-  function scopeDenied(res, scope) {
-    res.writeHead(403, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'This API key is missing the "' + scope + '" scope.' }));
-  }
+
+
 
   // ── API keys: list / create / revoke (browser session only) ─────────
   // A key is shown once and stored as sha256. Keys can never mint keys.
@@ -3538,11 +2504,6 @@ async function handleRequest(req, res) {
     return;
   }
 
-  function dmRoomName(a, b) { return 'dm:' + [a, b].sort().join('-'); }
-  function chanRoomName(serverId, slug) { return 'chan:' + serverId + ':' + slug; }
-  function chanSlug(s) { return String(s || '').toLowerCase().trim().replace(/[^a-z0-9-_]/g, '').substring(0, 30); }
-  function chanDisplay(name) { var p = String(name || '').split(':'); return '#' + (p[p.length - 1] || name); }
-  function isUuid(s) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(s || '')); }
 function slugify(s) {
   return String(s || '').toLowerCase()
     .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
@@ -3554,177 +2515,19 @@ function slugify(s) {
 // Public game URLs are /g/<slug>, but titles are not unique: two games called
 // "Untitled Project" both slugify to "untitled-project" and one of them becomes
 // unreachable. Claim the first free slug — appending -2, -3 … — instead.
-async function freeGameSlug(title, keepId) {
-  const base = slugify(title || 'Untitled Game');
-  for (let n = 1; n < 100; n++) {
-    const suffix = n === 1 ? '' : '-' + n;
-    const candidate = base.slice(0, 40 - suffix.length) + suffix;
-    const { data } = await supabase.from('games').select('id').eq('slug', candidate);
-    if (!data || !data.some((row) => row.id !== keepId)) return candidate;
-  }
-  return base.slice(0, 31) + '-' + Date.now().toString(36);
-}
+
 
 // Game tags: lowercased, letters/numbers/dashes only, deduped, capped.
 // One column on `games`, so the gallery can filter and the "More like
 // this" shelf can match without a join. Shared by POST (create) and PUT
 // (edit) so the two can never drift apart.
-function sanitizeTags(raw) {
-  const list = (Array.isArray(raw) ? raw : String(raw || '').split(','))
-    .map((t) => String(t).toLowerCase().trim().replace(/[^a-z0-9-]/g, '').slice(0, 24))
-    .filter(Boolean);
-  return [...new Set(list)].slice(0, 8);
-}
+
 
   // ── API: my conversations (chat sidebar) ───────────────────────
-  if (url.pathname === '/api/conversations' && req.method === 'GET') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    const me = user.id;
-    const { data: memberRows } = await supabase.from('server_members').select('server_id').eq('user_id', me);
-    const serverIds = [...new Set((memberRows || []).map(r => r.server_id))];
-    const { data: ownedRows } = await supabase.from('servers').select('id').eq('owner_id', me);
-    const ownedIds = (ownedRows || []).map(r => r.id);
-    ownedIds.forEach(id => { if (!serverIds.includes(id)) serverIds.push(id); });
-    const { data: myRows } = await supabase.from('conversation_members').select('lobby_id').eq('user_id', me);
-    const myIds = (myRows || []).map(r => r.lobby_id);
-    var lobbyRows = [];
-    if (myIds.length) {
-      const { data } = await supabase.from('lobbies').select('id, name, kind, server_id, topic, is_private, slow_seconds, created_at').in('id', myIds);
-      (data || []).forEach(r => lobbyRows.push(r));
-    }
-    if (serverIds.length) {
-      const { data } = await supabase.from('lobbies').select('id, name, kind, server_id, topic, is_private, slow_seconds, created_at').eq('kind', 'channel').in('server_id', serverIds).eq('is_private', false);
-      (data || []).forEach(r => { if (!lobbyRows.some(x => x.id === r.id)) lobbyRows.push(r); });
-    }
-    if (ownedIds.length) {
-      const { data } = await supabase.from('lobbies').select('id, name, kind, server_id, topic, is_private, slow_seconds, created_at').eq('kind', 'channel').in('server_id', ownedIds);
-      (data || []).forEach(r => { if (!lobbyRows.some(x => x.id === r.id)) lobbyRows.push(r); });
-    }
-    if (!lobbyRows.length) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ conversations: [] })); return; }
-    const lobbyIds = lobbyRows.map(r => r.id);
-    const srvIds = [...new Set(lobbyRows.map(r => r.server_id).filter(Boolean))];
-    var srvById = {};
-    if (srvIds.length) {
-      const { data: srvs } = await supabase.from('servers').select('id, name').in('id', srvIds);
-      (srvs || []).forEach(s => { srvById[s.id] = s.name; });
-    }
-    const dmIds = lobbyRows.filter(r => r.kind === 'dm').map(r => r.id);
-    var peerByLobby = {};
-    if (dmIds.length) {
-      const { data: parts } = await supabase.from('conversation_members').select('lobby_id, user_id').in('lobby_id', dmIds).neq('user_id', me);
-      const peerIds = [...new Set((parts || []).map(p => p.user_id))];
-      var peerById = {};
-      if (peerIds.length) {
-        const { data: peers } = await supabase.from('users').select('id, display_name, avatar_url, user_id').in('id', peerIds);
-        (peers || []).forEach(p => { peerById[p.id] = p; });
-      }
-      (parts || []).forEach(p => { if (!peerByLobby[p.lobby_id] && peerById[p.user_id]) peerByLobby[p.lobby_id] = peerById[p.user_id]; });
-    }
-    const { data: stateRows } = await supabase.from('conversation_state').select('lobby_id, last_read_at').eq('user_id', me).in('lobby_id', lobbyIds);
-    var readByLobby = {};
-    (stateRows || []).forEach(s => { readByLobby[s.lobby_id] = s.last_read_at; });
-    var out = await Promise.all(lobbyRows.map(async (row) => {
-      const { data: lastRows } = await supabase.from('messages').select('text, display_name, created_at, user_id').eq('lobby_id', row.id).order('created_at', { ascending: false }).limit(1);
-      const last = (lastRows && lastRows[0]) || null;
-      var unread = 0;
-      if (last) {
-        var uq = supabase.from('messages').select('id', { count: 'exact', head: true }).eq('lobby_id', row.id).neq('user_id', me);
-        if (readByLobby[row.id]) uq = uq.gt('created_at', readByLobby[row.id]);
-        const { count } = await uq;
-        unread = count || 0;
-      }
-      var online = 0;
-      try { const rm = lobbies.get(row.name); if (rm) online = rm.size; } catch (e) {}
-      const item = { id: row.id, name: row.name, kind: row.kind, topic: row.topic || '', is_private: !!row.is_private, slow_seconds: row.slow_seconds || 0, last, unread, online };
-      if (row.kind === 'dm') {
-        const peer = peerByLobby[row.id] || null;
-        item.display = peer ? peer.display_name : 'Direct message';
-        item.peer = peer;
-      } else {
-        item.server_id = row.server_id;
-        item.server_name = srvById[row.server_id] || '';
-        item.display = chanDisplay(row.name);
-      }
-      item.sortKey = (last && last.created_at) || row.created_at;
-      return item;
-    }));
-    // Rows resolve in parallel: two queries per conversation were serial, so a
-    // long sidebar waited on 2N round-trips back to back.
-    out.sort((a, b) => (a.sortKey < b.sortKey ? 1 : -1));
-    out.forEach(o => delete o.sortKey);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ conversations: out }));
-    return;
-  }
-
-  // ── API: find people (start a DM) ──────────────────────────────
-  if (url.pathname === '/api/people' && req.method === 'GET') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    const me = user.id;
-    const q = (url.searchParams.get('q') || '').trim();
-    if (q.length < 2) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ people: [] })); return; }
-    var pq = supabase.from('users').select('id, display_name, avatar_url, user_id').neq('id', me).limit(20);
-    if (/^\d+$/.test(q)) pq = pq.eq('user_id', parseInt(q, 10));
-    else pq = pq.ilike('display_name', '%' + q.replace(/[%_\\]/g, '') + '%');
-    const { data: people } = await pq;
-    const { data: myFr } = await supabase.from('friendships').select('user_id, friend_id, status').or('user_id.eq.' + me + ',friend_id.eq.' + me);
-    var fmap = {};
-    (myFr || []).forEach(f => {
-      const other = f.user_id === me ? f.friend_id : f.user_id;
-      if (f.status === 'accepted') fmap[other] = 'accepted';
-      else if (!fmap[other]) fmap[other] = (f.user_id === me ? 'pending_out' : 'pending_in');
-    });
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ people: (people || []).map(p => ({ id: p.id, display_name: p.display_name, avatar_url: p.avatar_url, user_id: p.user_id, friendship: fmap[p.id] || 'none' })) }));
-    return;
-  }
-
-  // ── API: friends (accepted + pending both ways) ────────────────
-  if (url.pathname === '/api/friends' && req.method === 'GET') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    const me = user.id;
-    const [fRes, outF, inF] = await Promise.all([
-      supabase.from('friendships').select('user_id, friend_id, status, created_at').or('user_id.eq.' + me + ',friend_id.eq.' + me),
-      supabase.from('follows').select('followed_id, created_at').eq('follower_id', me),
-      supabase.from('follows').select('follower_id, created_at').eq('followed_id', me)
-    ]);
-    const rows = fRes.data;
-    const ids = [...new Set([
-      ...((rows || []).map(f => (f.user_id === me ? f.friend_id : f.user_id))),
-      ...((outF.data || []).map(r => r.followed_id)),
-      ...((inF.data || []).map(r => r.follower_id))
-    ])];
-    var byId = {};
-    if (ids.length) {
-      const { data: us } = await supabase.from('users').select('id, display_name, avatar_url, user_id').in('id', ids);
-      (us || []).forEach(u => { byId[u.id] = u; });
-    }
-    var friends = [], incoming = [], outgoing = [];
-    var seen = {};
-    (rows || []).forEach(f => {
-      const other = f.user_id === me ? f.friend_id : f.user_id;
-      const u = byId[other];
-      if (!u) return;
-      const entry = { id: u.id, display_name: u.display_name, avatar_url: u.avatar_url, user_id: u.user_id, since: f.created_at };
-      if (f.status === 'accepted') { if (!seen[other]) { seen[other] = 1; friends.push(entry); } }
-      else if (f.user_id === me) outgoing.push(entry);
-      else incoming.push(entry);
-    });
-    var following = [], followers = [];
-    (outF.data || []).forEach(r => {
-      const u = byId[r.followed_id];
-      if (u) following.push({ id: u.id, display_name: u.display_name, avatar_url: u.avatar_url, user_id: u.user_id, since: r.created_at });
-    });
-    (inF.data || []).forEach(r => {
-      const u = byId[r.follower_id];
-      if (u) followers.push({ id: u.id, display_name: u.display_name, avatar_url: u.avatar_url, user_id: u.user_id, since: r.created_at });
-    });
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ friends, incoming, outgoing, following, followers }));
-    return;
+  // ── chat routes: lib/routes/chat.js ─────────────────────────
+  if (chatRoutes && chatRoutes.matches(url.pathname)) {
+    await chatRoutes.handle(req, res, url);
+    if (res.headersSent) return;
   }
 
   // ── API: follow a creator ──────────────────────────────────────
@@ -3782,666 +2585,39 @@ function sanitizeTags(raw) {
     return;
   }
 
-  // ── API: request a friend ──────────────────────────────────────
-  // ── API: mod user search (moderators only) ─────────────────────
-  // Search by display name or cudic id #. Returns up to 20 rows.
-  if (url.pathname === '/api/mod/users' && req.method === 'GET') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await needVerified(user, res))) return;
-    if (!(await isModerator(user.id))) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Moderators only.' })); return; }
-    const q = (new URL(req.url, 'http://localhost').searchParams.get('q') || '').trim().slice(0, 60);
-    var query = supabase.from('users').select('id, user_id, display_name, avatar_url, created_at').order('created_at', { ascending: false }).limit(20);
-    if (q) {
-      const num = /^\d+$/.test(q) ? parseInt(q, 10) : null;
-      if (num !== null) query = query.eq('user_id', num);
-      else query = query.ilike('display_name', '%' + q.replace(/[%_\\]/g, '') + '%');
-    }
-    const { data } = await query;
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ users: data || [] }));
-    return;
+
+  // ── mod routes: lib/routes/mod.js ─────────────────────────
+  if (modRoutes && modRoutes.matches(url.pathname)) {
+    await modRoutes.handle(req, res, url);
+    if (res.headersSent) return;
   }
 
-  // ── API: mod — a user's awards + equips ───────────────────────
-  if (url.pathname === '/api/mod/user-awards' && req.method === 'GET') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await needVerified(user, res))) return;
-    if (!(await isModerator(user.id))) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Moderators only.' })); return; }
-    const uid = (new URL(req.url, 'http://localhost').searchParams.get('id') || '').trim();
-    if (!isUuid(uid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid user.' })); return; }
-    const [bRes, pRes] = await Promise.all([
-      supabase.from('user_badges').select('code, awarded_at').eq('user_id', uid),
-      supabase.from('users').select('equips, display_name, user_id').eq('id', uid).single()
-    ]);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ awards: bRes.data || [], equips: (pRes.data && pRes.data.equips) || { b: [], f: [], t: [] }, profile: pRes.data || null }));
-    return;
-  }
 
-  // ── API: mod — grant or revoke an award for a player ──────────
-  if (url.pathname === '/api/mod/grant' && req.method === 'POST') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await needVerified(user, res))) return;
-    if (!(await isModerator(user.id))) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Moderators only.' })); return; }
-    const body = await readBody(req).catch(() => ({}));
-    const targetId = String(body.userId || '').trim();
-    const code = String(body.code || '').trim();
-    const action = body.action === 'revoke' ? 'revoke' : 'grant';
-    if (!isUuid(targetId)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid user.' })); return; }
-    if (!AWARDS[code]) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unknown award code.' })); return; }
-    if (action === 'grant') {
-      const ok = await awardUser(targetId, code);
-      notify(targetId, 'award', 'You received ' + (AWARDS[code].kind === 'title' ? 'the title ' : AWARDS[code].kind === 'badge' ? 'the badge ' : 'the flair ') + AWARDS[code].label,
-        'Granted by a moderator.', null, null);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, granted: ok, alreadyOwned: !ok }));
-      return;
-    }
-    // revoke
-    await supabase.from('user_badges').delete().eq('user_id', targetId).eq('code', code);
-    const { data: p } = await supabase.from('users').select('equips').eq('id', targetId).single();
-    const eq = (p && p.equips && typeof p.equips === 'object') ? p.equips : { b: [], f: [], t: [] };
-    const slot = AWARDS[code].kind === 'title' ? 't' : AWARDS[code].kind === 'flair' ? 'f' : 'b';
-    if (Array.isArray(eq[slot])) eq[slot] = eq[slot].filter(c => c !== code);
-    await supabase.from('users').update({ equips: eq }).eq('id', targetId);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, revoked: true }));
-    return;
-  }
 
-  // ── API: mod — pull recent commits from GitHub (fallback) ─────
-  if (url.pathname === '/api/mod/changelog/sync' && req.method === 'POST') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await needVerified(user, res))) return;
-    if (!(await isModerator(user.id))) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Moderators only.' })); return; }
-    // A public repo syncs with no token at all; an env token or the moderator's
-    // connected account only raises GitHub's 60/hour anonymous limit. The old
-    // code required GITHUB_TOKEN, which this project never sets, so the button
-    // was dead for every moderator — including ones with no GitHub connection.
-    let token = process.env.GITHUB_TOKEN || process.env.GITHUB_PAT || '';
-    if (!token) {
-      const conn = await ghToken(user);
-      if (conn && conn.token) token = conn.token;
-    }
-    // The repo moved from nathent2023-glitch to opencodepers; the old owner
-    // 404s even with a valid token. GITHUB_REPO lets a fork point elsewhere.
-    const repo = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(process.env.GITHUB_REPO || '') ? process.env.GITHUB_REPO : 'opencodepers/Cudic';
-    const ghHeaders = { 'Accept': 'application/vnd.github+json', 'User-Agent': 'Cudic' };
-    if (token) ghHeaders.Authorization = 'Bearer ' + token;
-    let ghRes;
-    try { ghRes = await fetch('https://api.github.com/repos/' + repo + '/commits?per_page=100', { headers: ghHeaders }); }
-    catch (e) { res.writeHead(502, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'GitHub unreachable.' })); return; }
-    if (!ghRes.ok) { res.writeHead(502, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'GitHub ' + ghRes.status })); return; }
-    const commits = await ghRes.json();
-    let inserted = 0;
-    for (const c of (Array.isArray(commits) ? commits : [])) {
-      const subject = String((c.commit && c.commit.message) || '').split('\n')[0].slice(0, 140);
-      if (!subject) continue;
-      let kind = 'change';
-      const m = subject.match(/^(\w+)(\(.+\))?!?:/);
-      const prefix = m ? m[1].toLowerCase() : '';
-      if (prefix === 'feat' || prefix === 'feature' || prefix === 'add') kind = 'feature';
-      else if (prefix === 'fix') kind = 'fix';
-      else if (prefix === 'perf' || prefix === 'improve') kind = 'improvement';
-      const body = String((c.commit && c.commit.message) || '').split('\n').slice(1).join('\n').trim().slice(0, 2000);
-      const authorName = String((c.commit && c.commit.author && c.commit.author.name) || 'unknown').slice(0, 80);
-      const { error } = await supabase.from('changelog').insert({ kind, title: subject, body, author_name: authorName, commit_sha: c.sha, created_at: (c.commit && c.commit.author && c.commit.author.date) || new Date().toISOString(), author_id: null });
-      if (!error) inserted++;
-    }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, inserted, fetched: Array.isArray(commits) ? commits.length : 0 }));
-    return;
-  }
 
-  // ── API: mod — send a message to a player's inbox ────────────
-  if (url.pathname === '/api/mod/message' && req.method === 'POST') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await needVerified(user, res))) return;
-    if (!(await isModerator(user.id))) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Moderators only.' })); return; }
-    const body = await readBody(req).catch(() => ({}));
-    const targetId = String(body.userId || '').trim();
-    const title = String(body.title || '').trim().slice(0, 120);
-    const text = String(body.body || '').trim().slice(0, 500);
-    if (!isUuid(targetId)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid user.' })); return; }
-    if (!title) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Give the message a subject.' })); return; }
-    if (!text) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Say something.' })); return; }
-    await supabase.from('notifications').insert({ user_id: targetId, kind: 'mod_message', title, body: text, ref_type: null, ref_id: null });
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true }));
-    return;
-  }
 
-  // ── API: mod — ban a player from chat (and comments) ─────────
-  if (url.pathname === '/api/mod/ban' && req.method === 'POST') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await needVerified(user, res))) return;
-    if (!(await isModerator(user.id))) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Moderators only.' })); return; }
-    const body = await readBody(req).catch(() => ({}));
-    const targetId = String(body.userId || '').trim();
-    const kind = String(body.kind || 'chat').trim().slice(0, 24) || 'chat';
-    const hours = Math.max(1, Math.min(8760, parseInt(body.hours, 10) || 24));
-    const reason = String(body.reason || '').trim().slice(0, 200);
-    if (!isUuid(targetId)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid user.' })); return; }
-    const until = new Date(Date.now() + hours * 3600000).toISOString();
-    await supabase.from('user_bans').insert({ user_id: targetId, kind, banned_until: until, reason, created_by: user.id });
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, banned_until: until }));
-    return;
-  }
 
-  // ── API: mod — lift a ban ─────────────────────────────────────
-  if (url.pathname === '/api/mod/unban' && req.method === 'POST') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await needVerified(user, res))) return;
-    if (!(await isModerator(user.id))) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Moderators only.' })); return; }
-    const body = await readBody(req).catch(() => ({}));
-    const targetId = String(body.userId || '').trim();
-    const kind = String(body.kind || 'chat').trim().slice(0, 24) || 'chat';
-    if (!isUuid(targetId)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid user.' })); return; }
-    await supabase.from('user_bans').delete().eq('user_id', targetId).eq('kind', kind);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true }));
-    return;
-  }
 
-  // ── API: mod — list active bans for a user ───────────────────
-  if (url.pathname === '/api/mod/bans' && req.method === 'GET') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await needVerified(user, res))) return;
-    if (!(await isModerator(user.id))) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Moderators only.' })); return; }
-    const uid = (new URL(req.url, 'http://localhost').searchParams.get('userId') || '').trim();
-    if (!isUuid(uid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid user.' })); return; }
-    const { data } = await supabase.from('user_bans').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(20);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ bans: data || [] }));
-    return;
-  }
 
-  // ── API: changelog (public read, mod write) ───────────────────
-  if (url.pathname === '/api/changelog' && req.method === 'GET') {
-    cors(res);
-    const { data } = await supabase.from('changelog')
-      .select('id, kind, title, body, author_name, created_at, users!changelog_author_id_fkey(display_name)')
-      .order('created_at', { ascending: false }).limit(50);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ entries: data || [] }));
-    return;
-  }
 
-  // ── Update log RSS (public, cached five minutes) ──────────────
-  if (url.pathname === '/updlog.xml' && (req.method === 'GET' || req.method === 'HEAD')) {
-    const { data } = await supabase.from('changelog')
-      .select('id, title, body, created_at')
-      .order('created_at', { ascending: false }).limit(50);
-    const base = (process.env.SITE_URL || 'https://cudic.vercel.app').replace(/\/$/, '');
-    const xml = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]));
-    const items = (data || []).map((e) => '<item><title>' + xml(e.title) + '</title><link>' + base + '/updlog#e-' + encodeURIComponent(e.id) + '</link><guid isPermaLink="false">' + xml(e.id) + '</guid><pubDate>' + new Date(e.created_at).toUTCString() + '</pubDate><description>' + xml(e.body || '') + '</description></item>').join('');
-    res.writeHead(200, { 'Content-Type': 'application/rss+xml; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
-    const rss = '<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Cudic — Update log</title><link>' + base + '/updlog</link><description>What is new in Cudic.</description><language>en</language>' + items + '</channel></rss>';
-    res.end(req.method === 'HEAD' ? undefined : rss);
-    return;
-  }
-  if (url.pathname === '/api/changelog' && req.method === 'POST') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await needVerified(user, res))) return;
-    if (!(await isModerator(user.id))) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Moderators only.' })); return; }
-    const body = await readBody(req).catch(() => ({}));
-    const kind = String(body.kind || 'feature').trim().slice(0, 24) || 'feature';
-    const title = String(body.title || '').trim().slice(0, 140);
-    const text = String(body.body || '').trim().slice(0, 2000);
-    if (!title) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Give the entry a title.' })); return; }
-    const { data, error } = await supabase.from('changelog').insert({ kind, title, body: text, author_id: user.id }).select().single();
-    if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not post.' })); return; }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, entry: data }));
-    return;
-  }
 
-  // ── API: GitHub webhook — auto-post commits to the changelog ──
-  if (url.pathname === '/api/webhooks/github' && req.method === 'POST') {
-    cors(res);
-    const secret = process.env.GITHUB_WEBHOOK_SECRET;
-    let raw = '';
-    try {
-      raw = await new Promise((resolve, reject) => {
-        const chunks = []; let size = 0;
-        req.on('data', c => { chunks.push(c); size += c.length; if (size > 2 * 1024 * 1024) reject(new Error('too_large')); });
-        req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-        req.on('error', reject);
-      });
-    } catch (e) { res.writeHead(413, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Payload too large.' })); return; }
-    if (secret) {
-      const sig = req.headers['x-hub-signature-256'];
-      if (!sig) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Missing signature.' })); return; }
-      const hmac = crypto.createHmac('sha256', secret).update(raw).digest('hex');
-      const expected = 'sha256=' + hmac;
-      let ok = false;
-      try { ok = crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected)); } catch (e) { ok = false; }
-      if (!ok) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Bad signature.' })); return; }
-    } else {
-      res.writeHead(503, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Webhook secret not configured (set GITHUB_WEBHOOK_SECRET).' }));
-      return;
-    }
-    if (req.headers['x-github-event'] === 'ping') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true, pong: true })); return; }
-    if (req.headers['x-github-event'] !== 'push') { res.writeHead(204); res.end(); return; }
-    let payload; try { payload = JSON.parse(raw); } catch (e) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid JSON.' })); return; }
-    const commits = Array.isArray(payload.commits) ? payload.commits : [];
-    let inserted = 0;
-    for (const c of commits) {
-      const subject = String(c.message || '').split('\n')[0].slice(0, 140);
-      if (!subject) continue;
-      let kind = 'change';
-      const m = subject.match(/^(\w+)(\(.+\))?!?:/);
-      const prefix = m ? m[1].toLowerCase() : '';
-      if (prefix === 'feat' || prefix === 'feature' || prefix === 'add') kind = 'feature';
-      else if (prefix === 'fix') kind = 'fix';
-      else if (prefix === 'perf' || prefix === 'improve') kind = 'improvement';
-      const body = String(c.message || '').split('\n').slice(1).join('\n').trim().slice(0, 2000);
-      const authorName = String((c.author && c.author.name) || 'unknown').slice(0, 80);
-      const { error } = await supabase.from('changelog').insert({ kind, title: subject, body, author_name: authorName, commit_sha: c.id, created_at: c.timestamp || new Date().toISOString(), author_id: null });
-      if (!error) inserted++;
-    }
-    // ── Deploy a release ────────────────────────────────────────
-    // The point of the mapping: a push to the repository a project publishes
-    // from becomes the next release. Guarded three ways, because a webhook is
-    // unauthenticated apart from its signature — only the publish branch, only
-    // while the game is published, and only for a push by the GitHub login
-    // that pushed from that project. Anyone else's commit is just a changelog
-    // line, which is also why a fork or a PR cannot ship under your name.
-    let deployed = null;
-    const repoFull = String((payload.repository && payload.repository.full_name) || '');
-    const pushedRef = String(payload.ref || '');
-    if (repoFull !== '' && pushedRef.indexOf('refs/heads/') === 0 && commits.length > 0) {
-      const pushedBranch = pushedRef.slice('refs/heads/'.length);
-      const pusher = String(
-        (payload.sender && payload.sender.login) || (payload.pusher && payload.pusher.name) || ''
-      );
-      const { data: mappedRows, error: mapError } = await supabase.from('games')
-        .select('id, owner_id, published, github_branch, github_login')
-        .ilike('github_repo', repoFull).limit(1);
-      const game = !mapError && mappedRows && mappedRows[0];
-      if (game) {
-        const wantBranch = String(game.github_branch || (payload.repository && payload.repository.default_branch) || 'main');
-        const ownerLogin = String(game.github_login || '').toLowerCase();
-        if (!game.published) deployed = { skipped: 'not-published' };
-        else if (pushedBranch !== wantBranch) deployed = { skipped: 'other-branch' };
-        else if (ownerLogin !== '' && pusher !== '' && ownerLogin !== pusher.toLowerCase()) deployed = { skipped: 'not-the-owner' };
-        else {
-          const ownerToken = await ghToken({ id: game.owner_id });
-          if (ownerToken.error) deployed = { skipped: ownerToken.error };
-          else {
-            const files = await repoTreeFiles(repoFull, String(payload.after || ''), ownerToken.token);
-            if (files == null) deployed = { skipped: 'no-readable-files' };
-            else {
-              const headCommit = commits[commits.length - 1] || {};
-              const notes = String(headCommit.message || '').split('\n')[0].slice(0, 200);
-              const rel = await createRelease(
-                game.id, game.owner_id, files, notes, 'github', String(payload.after || '').slice(0, 7)
-              );
-              deployed = rel ? { game: game.id, version: rel.version } : { skipped: 'release-failed' };
-            }
-          }
-        }
-      }
-    }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, inserted, ref: payload.ref || '', deployed }));
-    return;
-  }
 
-  if (url.pathname === '/api/friends' && req.method === 'POST') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    const me = user.id;
-    const body = await readBody(req).catch(() => ({}));
-    const targetId = String(body.userId || '').trim();
-    if (!isUuid(targetId) || targetId === me) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid user.' })); return; }
-    const { data: target } = await supabase.from('users').select('id').eq('id', targetId).single();
-    if (!target) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'User not found.' })); return; }
-    if (!(await needVerified(user, res))) return;
-    const { data: mine } = await supabase.from('friendships').select('status').eq('user_id', me).eq('friend_id', targetId).single();
-    const { data: theirs } = await supabase.from('friendships').select('status').eq('user_id', targetId).eq('friend_id', me).single();
-    if (mine || theirs) {
-      if (theirs && theirs.status === 'pending' && !mine) {
-        // They already asked: accept on the spot instead of deadlocking.
-        await supabase.from('friendships').update({ status: 'accepted' }).eq('user_id', targetId).eq('friend_id', me);
-        await supabase.from('friendships').upsert({ user_id: me, friend_id: targetId, status: 'accepted' }, { onConflict: 'user_id,friend_id' });
-        res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ status: 'accepted' })); return;
-      }
-      res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Already friends or requested.' })); return;
-    }
-    await supabase.from('friendships').insert({ user_id: me, friend_id: targetId, status: 'pending' });
-    const { data: rn } = await supabase.from('users').select('display_name').eq('id', me).single();
-    notify(targetId, 'friend', 'Friend request from ' + (rn ? rn.display_name : 'someone'), 'Open your Friends page to accept or decline.', 'user', me);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'pending' }));
-    return;
-  }
 
-  // ── API: accept / decline a friend request ─────────────────────
-  if (url.pathname.startsWith('/api/friends/') && (req.method === 'POST') && (url.pathname.endsWith('/accept') || url.pathname.endsWith('/decline'))) {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    const me = user.id;
-    const parts = url.pathname.split('/');
-    const otherId = parts[3];
-    if (!(await needVerified(user, res))) return;
-    const accept = url.pathname.endsWith('/accept');
-    if (!isUuid(otherId)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid user.' })); return; }
-    const { data: req1 } = await supabase.from('friendships').select('user_id').eq('user_id', otherId).eq('friend_id', me).eq('status', 'pending').single();
-    if (!req1) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'No pending request.' })); return; }
-    if (accept) {
-      await supabase.from('friendships').update({ status: 'accepted' }).eq('user_id', otherId).eq('friend_id', me);
-      await supabase.from('friendships').upsert({ user_id: me, friend_id: otherId, status: 'accepted' }, { onConflict: 'user_id,friend_id' });
-      // Notify the requester that their request was accepted.
-      try { await supabase.from('notifications').insert({
-        user_id: otherId,
-        kind: 'friend',
-        title: 'Friend request accepted',
-        body: 'You are now friends.',
-        ref_type: 'user',
-        ref_id: me
-      }); } catch (e) {}
-    } else {
-      await supabase.from('friendships').delete().eq('user_id', otherId).eq('friend_id', me);
-    }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true }));
-    return;
-  }
 
-  // ── API: remove a friend ───────────────────────────────────────
-  if (url.pathname.startsWith('/api/friends/') && req.method === 'DELETE') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    const me = user.id;
-    const otherId = url.pathname.split('/')[3];
-    if (!(await needVerified(user, res))) return;
-    if (!isUuid(otherId)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid user.' })); return; }
-    await supabase.from('friendships').delete().eq('user_id', me).eq('friend_id', otherId);
-    await supabase.from('friendships').delete().eq('user_id', otherId).eq('friend_id', me);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true }));
-    return;
-  }
 
-  // ── API: open a DM (any signed-in user) ────────────────────────
-  if (url.pathname === '/api/dm' && req.method === 'POST') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    const me = user.id;
-    const body = await readBody(req).catch(() => ({}));
-    const targetId = String(body.userId || '').trim();
-    if (!isUuid(targetId) || targetId === me) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid user.' })); return; }
-    const { data: target } = await supabase.from('users').select('id').eq('id', targetId).single();
-    if (!target) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'User not found.' })); return; }
-    if (!(await needVerified(user, res))) return;
-    // Open DMs: any signed-in user can message anyone. (Friendship is
-    // social, not a gate. Block/mute is the follow-up for abuse.)
-    const name = dmRoomName(me, targetId);
-    let { data: lobby } = await supabase.from('lobbies').select('id, name').eq('name', name).single();
-    if (!lobby) {
-      const { data: created } = await supabase.from('lobbies').insert({ name, kind: 'dm', is_private: true, created_by: me }).select('id, name').single();
-      lobby = created;
-    }
-    if (!lobby) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not open conversation.' })); return; }
-    await supabase.from('conversation_members').upsert([{ user_id: me, lobby_id: lobby.id }, { user_id: targetId, lobby_id: lobby.id }], { onConflict: 'user_id,lobby_id' });
-    sendConversationsDirty();
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ id: lobby.id, name: lobby.name }));
-    return;
-  }
+
+
+
+
+
+
+
+
+
 
   // ── API: list a server's channels ──────────────────────────────
-  if (url.pathname.startsWith('/api/servers/') && url.pathname.endsWith('/channels') && (req.method === 'GET' || req.method === 'POST')) {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    const me = user.id;
-    const sid = url.pathname.split('/')[3];
-    if (!isUuid(sid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid server.' })); return; }
-    const { server, role } = await serverRole(me, sid);
-    if (!server) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Server not found.' })); return; }
-    if (req.method === 'GET') {
-      if (server.visibility !== 'public' && !role) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Join this server first.' })); return; }
-      let q = supabase.from('lobbies').select('id, name, topic, is_private, slow_seconds, created_at').eq('kind', 'channel').eq('server_id', sid).order('created_at', { ascending: true });
-      const { data, error: chanErr } = await q;
-      // A select error (e.g. a migration column not applied yet) used to be
-      // discarded and rendered as `{channels: []}` — a template server looked
-      // empty with no trace. Fail loudly so the cause is visible.
-      if (chanErr) { console.error('channels select failed:', chanErr.message); res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not load channels.' })); return; }
-      var chans = data || [];
-      if (role !== 'owner') {
-        const { data: mine } = await supabase.from('conversation_members').select('lobby_id').eq('user_id', me);
-        var mineSet = {};
-        (mine || []).forEach(r => { mineSet[r.lobby_id] = 1; });
-        chans = chans.filter(c => !c.is_private || mineSet[c.id]);
-      }
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ channels: chans.map(c => ({ id: c.id, name: c.name, slug: c.name.split(':').pop(), display: chanDisplay(c.name), topic: c.topic || '', is_private: !!c.is_private, slow_seconds: c.slow_seconds || 0, created_at: c.created_at })) }));
-      return;
-    }
-    // POST: create channel (owner only)
-    if (role !== 'owner') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Only the server owner can add channels.' })); return; }
-    if (!(await needVerified(user, res))) return;
-    const body = await readBody(req).catch(() => ({}));
-    const slug = chanSlug(body.name);
-    if (slug.length < 2) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Channel name 2-30 chars (letters, numbers, -, _).' })); return; }
-    const { data, error } = await supabase.from('lobbies').insert({ name: chanRoomName(sid, slug), kind: 'channel', server_id: sid, topic: String(body.topic || '').substring(0, 200), is_private: !!body.is_private, created_by: me }).select('id, name').single();
-    if (error) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Channel exists.' })); return; }
-    sendConversationsDirty();
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ channel: data }));
-    return;
-  }
-
-  // ── API: edit a channel (owner only) ───────────────────────────
-  if (url.pathname.startsWith('/api/channels/') && req.method === 'PATCH' && url.pathname.split('/').length === 4) {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    const me = user.id;
-    if (!(await needVerified(user, res))) return;
-    const cid = url.pathname.split('/')[3];
-    if (!isUuid(cid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid channel.' })); return; }
-    const { data: lobby } = await supabase.from('lobbies').select('id, name, kind, server_id').eq('id', cid).single();
-    if (!lobby || lobby.kind !== 'channel') { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Channel not found.' })); return; }
-    const { role } = await serverRole(me, lobby.server_id);
-    if (role !== 'owner') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Only the server owner can edit channels.' })); return; }
-    const body = await readBody(req).catch(() => ({}));
-    var updates = {};
-    if (body.name !== undefined) {
-      const slug = chanSlug(body.name);
-      if (slug.length < 2) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Channel name 2-30 chars (letters, numbers, -, _).' })); return; }
-      updates.name = chanRoomName(lobby.server_id, slug);
-    }
-    if (body.topic !== undefined) updates.topic = String(body.topic || '').substring(0, 200);
-    if (body.is_private !== undefined) updates.is_private = !!body.is_private;
-    if (body.slow_seconds !== undefined) {
-      const s = parseInt(body.slow_seconds, 10);
-      updates.slow_seconds = (isNaN(s) || s < 0 || s > 600) ? 0 : s;
-    }
-    if (!Object.keys(updates).length) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Nothing to update.' })); return; }
-    const { data, error } = await supabase.from('lobbies').update(updates).eq('id', cid).select('id, name').single();
-    if (error) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Channel exists.' })); return; }
-    sendConversationsDirty();
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ channel: data }));
-    return;
-  }
-
-  // ── API: server member roster (owner/mod view) ───────────────
-  // GET /api/servers/:sid/members — powers the in-chat moderation panel.
-  // Owner or mods only; owner/mods never appear actionable (server calls
-  // them out and the UI hides the buttons).
-  if (url.pathname.startsWith('/api/servers/') && url.pathname.endsWith('/members') && req.method === 'GET') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    const sid = url.pathname.split('/')[3];
-    if (!isUuid(sid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid server.' })); return; }
-    const { role } = await serverRole(user.id, sid);
-    if (role !== 'owner' && role !== 'mod') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Owner or mods only.' })); return; }
-    const [mRes, bRes] = await Promise.all([
-      supabase.from('server_members').select('role, user_id').eq('server_id', sid).limit(500),
-      supabase.from('server_bans').select('user_id, reason, created_at').eq('server_id', sid).limit(500)
-    ]);
-    const ids = [...new Set([...(mRes.data || []).map(m => m.user_id), ...(bRes.data || []).map(b => b.user_id)])];
-    var byId = {};
-    if (ids.length) {
-      const { data: us } = await supabase.from('users').select('id, display_name, user_id').in('id', ids);
-      (us || []).forEach(u => { byId[u.id] = u; });
-    }
-    const members = (mRes.data || []).map(m => ({ user_id: m.user_id, display_name: (byId[m.user_id] && byId[m.user_id].display_name) || 'Unknown', num_id: (byId[m.user_id] && byId[m.user_id].user_id) || null, role: m.role }))
-      .sort((a, b) => (a.role === 'owner' ? -1 : b.role === 'owner' ? 1 : 0) || String(a.display_name).localeCompare(b.display_name));
-    const bans = (bRes.data || []).map(b => ({ user_id: b.user_id, reason: b.reason || null, name: (byId[b.user_id] && byId[b.user_id].display_name) || 'Unknown' }));
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ members, bans }));
-    return;
-  }
-
-  // ── API: per-server roles + kicks + bans (owner/mod) ─────────────
-  // PUT    /api/servers/:sid/members/:uid { role: 'mod'|'member' } — owner
-  //        promotes/demotes. The owner row never changes hands.
-  // DELETE /api/servers/:sid/members/:uid — owner or mod kicks (mods can't
-  //        kick their peers). Same-hour rules gate stays untouched.
-  // POST   /api/servers/:sid/bans/:uid { reason } — owner or mod bans:
-  //        membership row + ban row together, and JOIN refuses a banned id.
-  // DELETE /api/servers/:sid/bans/:uid — owner or mod unbans.
-  const srvMm = /^\/api\/servers\/([^/]+)\/(members|bans)\/([^/]+)$/.exec(url.pathname);
-  if (srvMm && (req.method === 'PUT' || req.method === 'POST' || req.method === 'DELETE')) {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await needVerified(user, res))) return;
-    const sid = srvMm[1], list = srvMm[2], target = srvMm[3];
-    if (!isUuid(sid) || !isUuid(target)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid server or user.' })); return; }
-    const { role: myRole } = await serverRole(user.id, sid);
-    if (!myRole) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Join this server first.' })); return; }
-    const { data: tRole0 } = await supabase.from('server_members').select('role').eq('server_id', sid).eq('user_id', target).single();
-    const tRole = (tRole0 && tRole0.role) || null;
-    if (tRole === 'owner') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'That is the owner.' })); return; }
-    if (user.id === target) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'No self-actions — leave the server instead.' })); return; }
-    if (list === 'members' && req.method === 'PUT') {
-      if (myRole !== 'owner') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Only the owner sets roles.' })); return; }
-      const body = await readBody(req).catch(() => ({}));
-      const r = body.role === 'mod' ? 'mod' : 'member';
-      const { error } = await supabase.from('server_members').update({ role: r }).eq('server_id', sid).eq('user_id', target);
-      if (error && !/no rows/.test(String(error.message))) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'They are not a member.' })); return; }
-      sendConversationsDirty();
-      res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true, role: r }));
-      return;
-    }
-    if (list === 'members' && req.method === 'DELETE') {
-      if (myRole !== 'owner' && myRole !== 'mod') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Owner or mods only.' })); return; }
-      if (tRole === 'mod' && myRole !== 'owner') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Only the owner kicks a mod.' })); return; }
-      await supabase.from('server_members').delete().eq('server_id', sid).eq('user_id', target);
-      sendConversationsDirty();
-      res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true }));
-      return;
-    }
-    if (list === 'bans') {
-      if (myRole !== 'owner' && myRole !== 'mod') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Owner or mods only.' })); return; }
-      if (tRole === 'mod' && myRole !== 'owner') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Only the owner bans a mod.' })); return; }
-      if (req.method === 'POST') {
-        const body = await readBody(req).catch(() => ({}));
-        await supabase.from('server_members').delete().eq('server_id', sid).eq('user_id', target);
-        const { error } = await supabase.from('server_bans').upsert({
-          server_id: sid, user_id: target, banned_by: user.id,
-          reason: String((body && body.reason) || '').substring(0, 240) || null
-        }, { onConflict: 'server_id,user_id' });
-        if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not ban.' })); return; }
-        sendConversationsDirty();
-        res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true }));
-      } else {
-        await supabase.from('server_bans').delete().eq('server_id', sid).eq('user_id', target);
-        res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true }));
-      }
-      return;
-    }
-  }
-
-  // ── API: private-channel membership (owner only) ────────────────
-  if (url.pathname.startsWith('/api/channels/') && url.pathname.split('/')[4] === 'members' && (req.method === 'POST' || req.method === 'DELETE')) {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    const me = user.id;
-    const parts = url.pathname.split('/');
-    const cid = parts[3];
-    if (!(await needVerified(user, res))) return;
-    if (!isUuid(cid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid channel.' })); return; }
-    const { data: lobby } = await supabase.from('lobbies').select('id, kind, server_id').eq('id', cid).single();
-    if (!lobby || lobby.kind !== 'channel') { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Channel not found.' })); return; }
-    const { role } = await serverRole(me, lobby.server_id);
-    if (role !== 'owner') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Only the server owner can manage members.' })); return; }
-    var targetId;
-    if (req.method === 'POST') {
-      const body = await readBody(req).catch(() => ({}));
-      targetId = String(body.userId || '').trim();
-    } else {
-      targetId = String(parts[5] || '').trim();
-    }
-    if (!isUuid(targetId)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid user.' })); return; }
-    if (req.method === 'POST') {
-      const { role: tr } = await serverRole(targetId, lobby.server_id);
-      if (!tr) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'They must join the server first.' })); return; }
-      await supabase.from('conversation_members').upsert({ user_id: targetId, lobby_id: cid }, { onConflict: 'user_id,lobby_id' });
-    } else {
-      await supabase.from('conversation_members').delete().eq('user_id', targetId).eq('lobby_id', cid);
-    }
-    sendConversationsDirty();
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true }));
-    return;
-  }
 
   // ── API: mark a conversation read ─────────────────────────────
-  if (url.pathname.startsWith('/api/conversations/') && url.pathname.endsWith('/read') && req.method === 'POST') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    const me = user.id;
-    const cid = url.pathname.split('/')[3];
-    if (!isUuid(cid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid conversation.' })); return; }
-    const { data: lobby } = await supabase.from('lobbies').select('id, name, kind, server_id, is_private').eq('id', cid).single();
-    if (!lobby || !(await canSeeLobby(me, lobby))) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found.' })); return; }
-    await supabase.from('conversation_state').upsert({ user_id: me, lobby_id: cid, last_read_at: new Date().toISOString() }, { onConflict: 'user_id,lobby_id' });
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true }));
-    return;
-  }
-
-  // ── API: peer read state (DMs only) ──────────────────────────
-  // Returns the other participant's last_read_at so own messages can
-  // render sent (✓) vs seen (✓✓). Only visible to DM participants.
-  if (url.pathname.startsWith('/api/conversations/') && url.pathname.endsWith('/peer') && req.method === 'GET') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    const me = user.id;
-    const cid = url.pathname.split('/')[3];
-    if (!isUuid(cid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid conversation.' })); return; }
-    const { data: lobby } = await supabase.from('lobbies').select('id, name, kind').eq('id', cid).single();
-    if (!lobby || lobby.kind !== 'dm' || !(await canSeeLobby(me, lobby))) {
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Not found.' }));
-      return;
-    }
-    const { data: parts } = await supabase.from('conversation_members').select('user_id').eq('lobby_id', cid).neq('user_id', me).limit(1);
-    const peerId = parts && parts[0] && parts[0].user_id;
-    var lastRead = null;
-    if (peerId) {
-      const { data: st } = await supabase.from('conversation_state').select('last_read_at').eq('user_id', peerId).eq('lobby_id', cid).single();
-      if (st) lastRead = st.last_read_at;
-    }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ last_read_at: lastRead }));
-    return;
-  }
 
   // ── Virtual coins: balance, quests, daily, trickle ─────────────
   // Play money only (no cash-out). Every movement lands in coin_ledger
@@ -4879,11 +3055,8 @@ function sanitizeTags(raw) {
   var PACK_FONTS = ['Satoshi', 'Epilogue', 'Inter', 'Space Grotesk', 'Sora', 'Manrope', 'Outfit', 'DM Sans', 'JetBrains Mono'];
   var PACK_SCENES = ['city-night', 'ember-field'];
   var PACK_COLOR_KEYS = ['ink', 'panel', 'raised', 'line', 'signal', 'tp', 'ts', 'tt'];
-  var RESERVED_PACK_SLUGS = ['anime-city-night'];
-  try {
-    const idx = JSON.parse(fs.readFileSync('public/packs/index.json', 'utf8'));
-    (idx.packs || []).forEach(p => { if (p.slug) RESERVED_PACK_SLUGS.push(p.slug); });
-  } catch {}
+
+
   function validatePack(name, description, price, m) {
     if (!name || String(name).trim().length < 2 || String(name).trim().length > 40) return 'Pack name must be 2–40 characters.';
     if (String(description || '').length > 500) return 'Description is too long (500 max).';
@@ -4943,14 +3116,7 @@ function sanitizeTags(raw) {
     const base = String(name).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').substring(0, 24) || 'pack';
     return base + '-' + Math.random().toString(36).slice(2, 6);
   }
-  async function packByKey(key) {
-    const sel = 'id, slug, name, description, manifest, price, downloads, featured, published, owner_id, created_at';
-    const q = isUuid(key)
-      ? supabase.from('theme_packs').select(sel).eq('id', key)
-      : supabase.from('theme_packs').select(sel).eq('slug', key);
-    const { data } = await q.single();
-    return data || null;
-  }
+
   async function ownsPack(me, packId) {
     if (!me) return false;
     const { data } = await supabase.from('pack_ownership').select('pack_id').eq('user_id', me).eq('pack_id', packId).single();
@@ -5144,368 +3310,32 @@ function sanitizeTags(raw) {
     return;
   }
 
-  // ── API: file a report (reason required, picture optional) ────
-  // Evidence uploads go to the private report-evidence bucket; the client
-  // sends the storage path (not a URL) and review happens in the dashboard.
-  var REPORT_REASONS = ['inappropriate', 'stolen', 'broken', 'spam', 'other'];
-  var REPORT_TYPES = ['pack', 'game', 'message', 'user', 'thread', 'comment'];
-  if (url.pathname === '/api/reports' && req.method === 'POST') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await needVerified(user, res))) return;
-    const body = await readBody(req).catch(() => ({}));
-    if (!rateLimit('report:' + user.id, 20, 3600000)) { res.writeHead(429, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Too many reports, slow down.' })); return; }
-    if (!REPORT_TYPES.includes(body.content_type)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unknown content.' })); return; }
-    if (!REPORT_REASONS.includes(body.reason)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Pick a reason.' })); return; }
-    const details = String(body.details || '').trim().substring(0, 1000);
-    var contentId = null, contentSlug = null;
-    if (body.content_type === 'game') {
-      // Game reports (plan.md 2.1): target a published game by id. Owners
-      // may also flag their own draft; nobody else can see it to report it.
-      const gid = body.content_id;
-      if (typeof gid !== 'string' || !isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unknown game.' })); return; }
-      const { data: repGame } = await supabase.from('games').select('id, published, owner_id').eq('id', gid).single();
-      if (!repGame || (!repGame.published && repGame.owner_id !== user.id)) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Game not found.' })); return; }
-      contentId = repGame.id;
-    } else if (body.content_type === 'message') {
-      // Message reports (plan.md 2.1): the reporter must be able to see the
-      // room the message lives in, so ids can't be used to probe rooms.
-      const mid = body.content_id;
-      if (typeof mid !== 'string' || !isUuid(mid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unknown message.' })); return; }
-      const { data: rm } = await supabase.from('messages').select('id, lobby_id, user_id').eq('id', mid).single();
-      if (!rm) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Message not found.' })); return; }
-      const { data: rl } = await supabase.from('lobbies').select('id, name, kind, server_id').eq('id', rm.lobby_id).single();
-      if (!rl || !(await canSeeLobby(user.id, rl))) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Message not found.' })); return; }
-      contentId = rm.id;
-    } else if (body.content_type === 'user') {
-      // User reports: no self-reports, target must be a real profile.
-      const uid = body.content_id;
-      if (typeof uid !== 'string' || !isUuid(uid) || uid === user.id) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid user.' })); return; }
-      const { data: ru } = await supabase.from('users').select('id').eq('id', uid).single();
-      if (!ru) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'User not found.' })); return; }
-      contentId = ru.id;
-    } else if (body.content_type === 'thread' || body.content_type === 'comment') {
-      // Forum posts are public to read, so any signed-in reader can report
-      // one. The row must exist — no reporting made-up ids.
-      const pid = body.content_id;
-      if (typeof pid !== 'string' || !isUuid(pid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unknown post.' })); return; }
-      const { data: post } = await supabase.from(body.content_type === 'thread' ? 'forum_threads' : 'forum_comments').select('id').eq('id', pid).single();
-      if (!post) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Post not found.' })); return; }
-      contentId = post.id;
-    } else if (body.content_id && isUuid(body.content_id)) {
-      const pack = await packByKey(body.content_id);
-      if (!pack || !pack.published) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Pack not found.' })); return; }
-      contentId = pack.id;
-    } else if (body.content_slug && typeof body.content_slug === 'string') {
-      const slug = body.content_slug.substring(0, 60);
-      const known = RESERVED_PACK_SLUGS.includes(slug) || await packByKey(slug);
-      if (!known) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Pack not found.' })); return; }
-      contentSlug = slug;
-    } else {
-      res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unknown pack.' })); return;
-    }
-    var evidencePath = null;
-    if (body.evidence_path) {
-      if (typeof body.evidence_path !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9/_.-]{0,199}$/.test(body.evidence_path)) {
-        res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Bad evidence file.' })); return;
-      }
-      evidencePath = body.evidence_path;
-    }
-    const { error } = await supabase.from('reports').insert({
-      reporter_id: user.id, content_type: body.content_type,
-      content_id: contentId, content_slug: contentSlug,
-      reason: body.reason, details, evidence_url: evidencePath, status: 'open',
-    });
-    if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Report failed.' })); return; }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true }));
-    return;
-  }
+
+
+
 
   // ── Moderation (plan.md 2.2): allowlisted moderators only ──────
   // Membership lives in the moderators table (service-role reads); never
   // inferred from coins, purchases, or profile fields. Missing table (pre-
   // migration) reads as "no moderators", so this is deploy-safe.
-  async function isModerator(uid) {
-    if (!uid) return false;
-    try {
-      const { data } = await supabase.from('moderators').select('user_id').eq('user_id', uid).single();
-      return !!data;
-    } catch { return false; }
-  }
 
-  // Active (not-yet-expired) chat ban for a user, or null. kind='chat'.
-  async function activeBan(userId, kind) {
-    if (!userId) return null;
-    try {
-      const { data } = await supabase.from('user_bans').select('banned_until, reason')
-        .eq('user_id', userId).eq('kind', kind || 'chat')
-        .order('banned_until', { ascending: false }).limit(1);
-      const row = data && data[0];
-      if (!row) return null;
-      if (new Date(row.banned_until).getTime() <= Date.now()) return null;
-      return row;
-    } catch { return null; }
-  }
 
-  // ── API: my reports (status of things I flagged) ──────────────
-  if (url.pathname === '/api/reports/mine' && req.method === 'GET') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    const { data } = await supabase.from('reports')
-      .select('id, content_type, content_id, content_slug, reason, details, status, created_at')
-      .eq('reporter_id', user.id).order('created_at', { ascending: false }).limit(50);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ reports: data || [] }));
-    return;
-  }
 
-  // ── API: moderation queue (moderators only) ────────────────────
-  if (url.pathname === '/api/reports/queue' && req.method === 'GET') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await isModerator(user.id))) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Moderators only.' })); return; }
-    const status = String(url.searchParams.get('status') || 'open');
-    const type = String(url.searchParams.get('type') || '');
-    if (!['open', 'reviewing', 'actioned', 'dismissed'].includes(status)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Bad status.' })); return; }
-    if (type && !REPORT_TYPES.includes(type)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Bad type.' })); return; }
-    let q = supabase.from('reports').select('id, reporter_id, content_type, content_id, content_slug, reason, details, evidence_url, status, created_at').eq('status', status);
-    if (type) q = q.eq('content_type', type);
-    const { data: reps } = await q.order('created_at', { ascending: false }).limit(50);
-    const rows = reps || [];
-    // Previews: one scoped query per target kind, joined client-side.
-    const gids = [...new Set(rows.filter(r => r.content_type === 'game' && r.content_id).map(r => r.content_id))];
-    const mids = [...new Set(rows.filter(r => r.content_type === 'message' && r.content_id).map(r => r.content_id))];
-    const uids = [...new Set(rows.filter(r => r.content_type === 'user' && r.content_id).map(r => r.content_id))];
-    const pids = [...new Set(rows.filter(r => r.content_type === 'pack' && r.content_id).map(r => r.content_id))];
-    const pslugs = [...new Set(rows.filter(r => r.content_type === 'pack' && r.content_slug).map(r => r.content_slug))];
-    const rids = [...new Set(rows.map(r => r.reporter_id))];
-    const ttids = [...new Set(rows.filter(r => r.content_type === 'thread' && r.content_id).map(r => r.content_id))];
-    const ccids = [...new Set(rows.filter(r => r.content_type === 'comment' && r.content_id).map(r => r.content_id))];
-    const [games, packsById, packsBySlug, msgs, usrs, reps2, threads, threads2] = await Promise.all([
-      gids.length ? supabase.from('games').select('id, title, published').in('id', gids) : Promise.resolve({ data: [] }),
-      pids.length ? supabase.from('theme_packs').select('id, slug, name, published').in('id', pids) : Promise.resolve({ data: [] }),
-      pslugs.length ? supabase.from('theme_packs').select('id, slug, name, published').in('slug', pslugs) : Promise.resolve({ data: [] }),
-      mids.length ? supabase.from('messages').select('id, text, display_name').in('id', mids) : Promise.resolve({ data: [] }),
-      uids.length ? supabase.from('users').select('id, display_name').in('id', uids) : Promise.resolve({ data: [] }),
-      rids.length ? supabase.from('users').select('id, display_name').in('id', rids) : Promise.resolve({ data: [] }),
-      ttids.length ? supabase.from('forum_threads').select('id, title').in('id', ttids) : Promise.resolve({ data: [] }),
-      ccids.length ? supabase.from('forum_comments').select('id, text, display_name').in('id', ccids) : Promise.resolve({ data: [] }),
-    ]);
-    const byId = (arr, key) => { const m = {}; for (const r of (arr && arr.data) || []) m[r[key || 'id']] = r; return m; };
-    const gById = byId(games), mById = byId(msgs), uById = byId(usrs), rById = byId(reps2);
-    const pById = byId(packsById), pBySlug = byId(packsBySlug, 'slug');
-    const tById = byId(threads), cById = byId(threads2);
-    const out = rows.map(r => {
-      let preview = null;
-      if (r.content_type === 'game' && gById[r.content_id]) { const g = gById[r.content_id]; preview = g.title + (g.published ? '' : ' (unpublished)'); }
-      else if (r.content_type === 'pack') { const p = (r.content_id && pById[r.content_id]) || (r.content_slug && pBySlug[r.content_slug]); if (p) preview = p.name + (p.published ? '' : ' (unpublished)'); else if (r.content_slug) preview = 'static pack: ' + r.content_slug; }
-      else if (r.content_type === 'message' && mById[r.content_id]) { const m = mById[r.content_id]; preview = (m.display_name || '?') + ': ' + String(m.text || '').substring(0, 140); }
-      else if (r.content_type === 'user' && uById[r.content_id]) preview = uById[r.content_id].display_name;
-      else if (r.content_type === 'thread' && tById[r.content_id]) preview = tById[r.content_id].title;
-      else if (r.content_type === 'comment' && cById[r.content_id]) { const c = cById[r.content_id]; preview = (c.display_name || '?') + ': ' + String(c.text || '').substring(0, 140); }
-      return { ...r, reporter_name: (rById[r.reporter_id] || {}).display_name || '?', preview };
-    });
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ reports: out }));
-    return;
-  }
 
-  // ── API: resolve a report (moderators only, every action audited) ──
-  const modActMatch = /^\/api\/reports\/([^/]+)\/action$/.exec(url.pathname);
-  if (modActMatch && req.method === 'POST') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await needVerified(user, res))) return;
-    if (!(await isModerator(user.id))) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Moderators only.' })); return; }
-    const rid = modActMatch[1];
-    if (!isUuid(rid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Bad report.' })); return; }
-    const body = await readBody(req).catch(() => ({}));
-    const action = String(body.action || '');
-    if (!['dismiss', 'reviewing', 'actioned', 'unpublish', 'delete_message', 'delete_post'].includes(action)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unknown action.' })); return; }
-    const { data: rep } = await supabase.from('reports').select('*').eq('id', rid).single();
-    if (!rep) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Report not found.' })); return; }
-    // Side effects reuse the same state changes as the owner endpoints.
-    // Every branch verifies a row actually changed: an update matching
-    // zero rows (deleted content, or a static pack with no DB row) must
-    // fail loudly, never report success for a no-op.
-    async function unpublishBy(table, col, val) {
-      const { data } = await supabase.from(table).update({ published: false }).eq(col, val).select('id');
-      if (table === 'games' && (data || []).length) gamesListCacheClear();
-      return (data || []).length;
-    }
-    if (action === 'unpublish') {
-      let changed = 0, gone = false;
-      if (rep.content_type === 'game' && rep.content_id) changed = await unpublishBy('games', 'id', rep.content_id);
-      else if (rep.content_type === 'pack' && rep.content_id) changed = await unpublishBy('theme_packs', 'id', rep.content_id);
-      else if (rep.content_type === 'pack' && rep.content_slug) {
-        changed = await unpublishBy('theme_packs', 'slug', rep.content_slug);
-        if (!changed) gone = true;
-      }
-      else { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Cannot unpublish that.' })); return; }
-      if (!changed) {
-        // Slug with no DB row = built-in static pack (ships in public/packs,
-        // not the database). It can't be unpublished from here.
-        const msg = gone && rep.content_slug
-          ? 'Built-in static pack "' + rep.content_slug + '" — remove it from public/packs instead.'
-          : 'Content is already gone.';
-        res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: msg })); return;
-      }
-    } else if (action === 'delete_message') {
-      if (rep.content_type !== 'message' || !rep.content_id) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not a message report.' })); return; }
-      const { data: del } = await supabase.from('messages').delete().eq('id', rep.content_id).select('id');
-      if (!(del || []).length) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Message is already gone.' })); return; }
-    } else if (action === 'delete_post') {
-      if (!rep.content_id) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not a forum post.' })); return; }
-      if (rep.content_type === 'comment') {
-        const { data: c } = await supabase.from('forum_comments').select('id, thread_id').eq('id', rep.content_id).single();
-        if (!c) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Reply is already gone.' })); return; }
-        await supabase.from('forum_comments').delete().eq('id', c.id);
-        // Keep the thread's reply count honest, same as the owner endpoint.
-        const { data: th } = await supabase.from('forum_threads').select('comment_count').eq('id', c.thread_id).single();
-        if (th) await supabase.from('forum_threads').update({ comment_count: Math.max(0, (th.comment_count || 1) - 1) }).eq('id', c.thread_id);
-      } else if (rep.content_type === 'thread') {
-        const { data: del } = await supabase.from('forum_threads').delete().eq('id', rep.content_id).select('id');
-        if (!(del || []).length) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Thread is already gone.' })); return; }
-      } else {
-        res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not a forum post.' })); return;
-      }
-    }
-    const status = action === 'dismiss' ? 'dismissed' : action === 'reviewing' ? 'reviewing' : 'actioned';
-    await supabase.from('reports').update({ status }).eq('id', rid);
-    await supabase.from('moderation_actions').insert({
-      moderator_id: user.id, report_id: rid, content_type: rep.content_type,
-      content_id: rep.content_id, action, reason: String(body.reason || '').substring(0, 200),
-    });
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, status }));
-    return;
-  }
+
+
+
+
+
 
   // ── Helper: parse JSON body ───────────────────────────────────
   // Bounded: a socket that dribbles forever can't balloon memory. Routes
   // that legitimately carry MB-scale payloads (projects, scratch imports,
   // AI chat context) pass a larger limit; the .catch wrapper answers 413.
-  function readBody(req, cap) {
-    const limit = cap || 1024 * 1024;
-    return new Promise((resolve, reject) => {
-      let body = '', size = 0, over = false;
-      req.on('data', c => {
-        if (over) return;
-        size += c.length;
-        if (size > limit) {
-          over = true;
-          const err = new Error('Payload too large.');
-          err.code = 'too_large';
-          reject(err);
-          return;
-        }
-        body += c;
-      });
-      req.on('end', () => { if (!over) { try { resolve(JSON.parse(body)); } catch { reject(new Error('Invalid JSON')); } } });
-      req.on('error', () => { if (!over) reject(new Error('Request stream failed.')); });
-    });
-  }
 
-  // ── API: list published games ──────────────────────────────────
-  // ?q= searches title/description/tags, ?tag= filters one tag, ?sort=
-  // new|old|az|plays. Cap stays 50: the gallery is a browse surface, and
-  // a search that matches nothing is better than an endless list.
-  if (url.pathname === '/api/games' && req.method === 'GET') {
-    cors(res);
-    const q = String(url.searchParams.get('q') || '').trim().slice(0, 60);
-    const tag = String(url.searchParams.get('tag') || '').trim().toLowerCase().slice(0, 24);
-    const sort = String(url.searchParams.get('sort') || 'new');
-    const trending = sort === 'trending';
-    // Pagination: offset is the only paging knob (size stays 50).
-    const offset = Math.max(0, parseInt(String(url.searchParams.get('offset') || '0'), 10) || 0);
-    // Gallery cache: the rows page, its like counts and the tag vocabulary
-    // are identical for every viewer, so they're memoized for 30s keyed by
-    // sort|q|tag|offset (every gallery-affecting write calls
-    // gamesListCacheClear()). Without the cache each gallery hit did a rows
-    // query, a 200-row tag scan and a like-count query against Supabase;
-    // only the viewer's own like markers stay per-request.
-    let error = null, counts = {}, tags = [];
-    let rows = [];
-    const ckey = `${sort}|${q}|${tag}|${offset}`;
-    let cached = gamesListCache.get(ckey);
-    if (!cached || Date.now() - cached.at > GAMES_LIST_TTL) cached = null;
-    if (cached) {
-      rows = cached.rows; counts = cached.counts; tags = cached.tags;
-    } else {
-      let query = supabase
-        .from('games')
-        .select('id, title, description, credits, thumbnail, tags, play_count, owner_id, forked_from, forked_from_title, created_at, updated_at, users!owner_id(display_name, user_id, avatar_url)')
-        .eq('published', true);
-      if (q) {
-        const like = '%' + q.replace(/[%_\\,()]/g, '') + '%';
-        query = query.or(`title.ilike.${like},description.ilike.${like}`);
-      }
-      if (tag) query = query.contains('tags', [tag]);
-      if (sort === 'plays') query = query.order('play_count', { ascending: false }).order('updated_at', { ascending: false });
-      else if (trending) query = query.order('play_count', { ascending: false });
-      else if (sort === 'old') query = query.order('created_at', { ascending: true });
-      else if (sort === 'az') query = query.order('title', { ascending: true });
-      else query = query.order('featured', { ascending: false }).order('updated_at', { ascending: false });
-      const { data, error: listErr } = await query.range(offset, offset + 49);
-      rows = data || [];
-      error = listErr;
-      const ids = rows.map((g) => g.id);
-      // Tag vocabulary + like counts: two small queries scoped to the rows
-      // we just returned (never the whole table), run in parallel.
-      const [tagsRes, likesRes] = await Promise.all([
-        supabase.from('games').select('tags').eq('published', true).limit(200),
-        ids.length === 0 ? Promise.resolve({ data: [] }) : supabase.from('game_likes').select('game_id').in('game_id', ids),
-      ]);
-      for (const l of likesRes.data || []) counts[l.game_id] = (counts[l.game_id] || 0) + 1;
-      tags = [...new Set((tagsRes.data || []).flatMap((g) => g.tags || []))].sort();
-      // Bound memory: entries stay ~50KB (50 rows, thumbnails stripped) no
-      // matter how big the gallery gets, but keys are user-driven (searches),
-      // so cap the Map — evict everything rather than track LRU.
-      if (gamesListCache.size > 100) gamesListCache.clear();
-      gamesListCache.set(ckey, { at: Date.now(), rows, counts, tags });
-    }
-    // Trending = plays against age: total plays weighted down by how many
-    // hours the game has existed, so a fresh game with a few plays can outrank
-    // an old one coasting on history. (age + 2) keeps brand-new games from
-    // dividing by zero and gives a few hours of grace. Deterministic given
-    // the rows, so recomputing per request costs nothing.
-    if (trending) {
-      const nowMs = Date.now();
-      const score = (g) => (g.play_count || 0) / Math.pow((nowMs - new Date(g.created_at).getTime()) / 3600000 + 2, 1.5);
-      rows.sort((a, b) => score(b) - score(a));
-    }
-    if (error) console.error('games list error:', error.message);
-    const ids = rows.map((g) => g.id);
-    const liked = new Set();
-    const token = (req.headers.authorization || '').replace('Bearer ', '');
-    if (token && ids.length > 0) {
-      const { data: { user } } = await supabase.auth.getUser(token);
-      if (user) {
-        const { data: mine } = await supabase.from('game_likes').select('game_id').eq('user_id', user.id).in('game_id', ids);
-        for (const l of mine || []) liked.add(l.game_id);
-      }
-    }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    // Thumbnails are ~40KB data URLs each; a 50-game page would be megabytes.
-    // Ship a flag instead and let the browser fetch image bytes from
-    // /api/games/:id/thumbnail (cached a day) per card it actually shows.
-    res.end(JSON.stringify({
-      games: rows.map(({ thumbnail, ...g }) => ({ ...g, has_thumb: true, likes: counts[g.id] || 0, liked: liked.has(g.id), playing: liveCount(g.id) })),
-      tags,
-      error: error ? 'Could not load games.' : undefined
-    }));
-    return;
-  }
 
-  // ── API: tag vocabulary (gallery chips, no game list) ──────────
-  if (url.pathname === '/api/game-tags' && req.method === 'GET') {
-    cors(res);
-    const { data } = await supabase.from('games').select('tags').eq('published', true).limit(200);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ tags: [...new Set((data || []).flatMap((g) => g.tags || []))].sort() }));
-    return;
-  }
+
+
 
   // ── API: my games (Studio "Your Projects" tab) ───────────────────
   // ── API: cross-entity search (games, forum threads, creators) ──────
@@ -5553,43 +3383,9 @@ function sanitizeTags(raw) {
     return;
   }
 
-  // ── API: recently played ─────────────────────────────────────────
-  // Backs the gallery's "Continue playing" shelf: the games this account last
-  // opened, newest first. Published only — unpublishing a game hides it from
-  // the shelf the same way it hides it from the gallery. Reads game_plays,
-  // which POST /api/games/:id/play fills. Before that migration runs the table
-  // is missing, so this answers with an empty shelf instead of a 500 and the
-  // page simply shows nothing.
-  if (url.pathname === '/api/games/continue' && req.method === 'GET') {
-    cors(res);
-    const user = await userOf(req);
-    if (!user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    const { data: rows } = await supabase
-      .from('game_plays')
-      .select('played_at, games!inner(id, title, description, thumbnail, tags, play_count, owner_id, forked_from, forked_from_title, created_at, updated_at, users!owner_id(display_name, user_id, avatar_url))')
-      .eq('user_id', user.id)
-      .eq('games.published', true)
-      .order('played_at', { ascending: false })
-      .limit(8);
-    const games = (rows || []).map(r => {
-      const g = Array.isArray(r.games) ? r.games[0] : r.games;
-      return g ? { ...g, played_at: r.played_at } : null;
-    }).filter(Boolean);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ games }));
-    return;
-  }
 
-  if (url.pathname === '/api/games/mine' && req.method === 'GET') {
-    cors(res);
-    const user = await userOf(req);
-    if (!user) { res.writeHead(401); res.end(); return; }
-    if (!hasScope(user, 'projects:read')) { scopeDenied(res, 'projects:read'); return; }
-    const { data } = await supabase.from('games').select('id, title, description, thumbnail, published, forked_from, forked_from_title, created_at, updated_at').eq('owner_id', user.id).order('updated_at', { ascending: false });
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ games: (data || []).map(({ thumbnail, ...g }) => ({ ...g, has_thumb: true })) }));
-    return;
-  }
+
+
 
   // ── API: AI fetch proxy (Cudic AI panel) ────────────────────────
   // Browsers block cross-origin calls to most LLM providers (no CORS), so
@@ -5746,77 +3542,9 @@ function sanitizeTags(raw) {
     return;
   }
 
-  // ── API: list game comments ──────────────────────────────────
-  if (/^\/api\/games\/[^/]+\/comments$/.test(url.pathname) && req.method === 'GET') {
-    cors(res);
-    const id = url.pathname.split('/')[3];
-    // parent_id arrived with the replies migration; a database that has not run
-    // it yet still serves flat comments instead of an error or an empty list.
-    let { data, error } = await supabase.from('game_comments')
-      .select('id, text, created_at, user_id, display_name, parent_id')
-      .eq('game_id', id).order('created_at', { ascending: true }).limit(200);
-    if (error) {
-      ({ data } = await supabase.from('game_comments')
-        .select('id, text, created_at, user_id, display_name')
-        .eq('game_id', id).order('created_at', { ascending: true }).limit(200));
-    }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ comments: data || [] }));
-    return;
-  }
 
-  // ── API: post game comment ───────────────────────────────────
-  if (/^\/api\/games\/[^/]+\/comments$/.test(url.pathname) && req.method === 'POST') {
-    cors(res);
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    if (!(await needVerified(user, res))) return;
-    const id = url.pathname.split('/')[3];
-    const body = await readBody(req);
-    const text = (body.text || '').trim().substring(0, 2000);
-    if (!text) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Empty comment' })); return; }
-    const cban = await activeBan(user.id, 'chat');
-    if (cban) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'You are muted from commenting until ' + new Date(cban.banned_until).toLocaleString() + (cban.reason ? ' — ' + cban.reason : '') + '.' })); return; }
-    const { data: prof } = await supabase.from('users').select('display_name').eq('id', user.id).single();
-    const name = (prof && prof.display_name) || 'Unknown';
-    // A reply names the comment it answers, but only after checking that the
-    // comment belongs to this same game: a parent id from another thread is
-    // dropped and the comment posts at the top level instead of being trusted.
-    const rawParent = String(body.parentId || '').trim();
-    let parent = null;
-    if (isUuid(rawParent)) {
-      const { data: p } = await supabase.from('game_comments')
-        .select('id, user_id, game_id')
-        .eq('id', rawParent).maybeSingle();
-      if (p && p.game_id === id) parent = p;
-    }
-    const row = { game_id: id, user_id: user.id, display_name: name, text };
-    if (parent) row.parent_id = parent.id;
-    let { data, error } = await supabase.from('game_comments').insert(row).select().single();
-    if (error && parent) {
-      // No parent_id column yet: keep the comment, lose only the nesting.
-      delete row.parent_id;
-      ({ data, error } = await supabase.from('game_comments').insert(row).select().single());
-    }
-    if (error) console.error('comment insert error:', error.message);
-    if (data && data.id) {
-      if (parent && parent.user_id && parent.user_id !== user.id) {
-        await notify(parent.user_id, 'reply', 'New reply to your comment',
-          name + ' replied: ' + text.substring(0, 100), 'game', id);
-      }
-      const { data: game } = await supabase.from('games').select('owner_id').eq('id', id).single();
-      if (game && game.owner_id && game.owner_id !== user.id) {
-        await notify(game.owner_id, 'comment', 'New comment on your game',
-          name + ' commented: ' + text.substring(0, 100), 'game', id);
-      }
-    }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ comment: data, error: error ? 'Could not post the comment.' : undefined }));
-    return;
-  }
+
+
 
   // ── API: forums — threads and replies ─────────────────────────
   // Public to read (same stance as the gallery), sign-in to write. The OP of
@@ -5981,778 +3709,52 @@ function sanitizeTags(raw) {
     return;
   }
 
-  // ── API: game thumbnail as a real URL ────────────────────────
-  // Stored as a data: URL (unusable by link scrapers); this serves real bytes.
-  // Must stay above the generic /api/games/:id GET below, which would swallow it.
-  if (/^\/api\/games\/[^/]+\/thumbnail$/.test(url.pathname) && req.method === 'GET') {
-    cors(res);
-    const id = url.pathname.split('/')[3];
-    const { data } = await supabase.from('games').select('thumbnail, published, owner_id').eq('id', id).single();
-    // Same rule as the game body: draft thumbnails ship to their owner or a
-    // valid playtest link only.
-    const ptToken = new URLSearchParams(url.search).get('playtest') || '';
-    if (data && !data.published && !playtestValid(id, ptToken)) {
-      const tok = (req.headers.authorization || '').replace('Bearer ', '');
-      const { data: { user: viewer } } = tok ? await supabase.auth.getUser(tok) : { data: { user: null } };
-      if (!viewer || data.owner_id !== viewer.id) {
-        res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('Not found'); return;
-      }
-    }
-    if (!data) { res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('Not found'); return; }
-    // No upload yet → the shared default card, not a 404. Callers put this URL
-    // straight into an <img> (gallery, arcade, Studio picker), so a 404 here is
-    // a blank card there.
-    const m = typeof data.thumbnail === 'string'
-      ? /^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/i.exec(data.thumbnail) : null;
-    const buf = m ? Buffer.from(m[2], 'base64') : defaultThumb();
-    res.writeHead(200, {
-      'Content-Type': m ? m[1] : defaultThumb.TYPE,
-      'Content-Length': buf.length,
-      'Cache-Control': 'public, max-age=86400'
-    });
-    res.end(buf);
-    return;
-  }
 
-  // ── API: games this account liked ───────────────────────────────
-  // Must stay above the generic /api/games/:id GET below, which would swallow it.
-  if (url.pathname === '/api/games/liked' && req.method === 'GET') {
-    cors(res);
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ games: [] })); return; }
-    const { data: { user } } = await supabase.auth.getUser(token);
-    if (!user) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ games: [] })); return; }
-    const { data: rows } = await supabase
-      .from('game_likes')
-      .select('game_id, created_at, games!inner(id, title, description, thumbnail, tags, play_count, users!owner_id(display_name))')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(50);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ games: (rows || []).map((r) => r.games).filter((g) => g && g.id).map(({ thumbnail, ...g }) => ({ ...g, has_thumb: true, likes: 1 })) }));
-    return;
-  }
 
-  // ── API: get single game ───────────────────────────────────────
-  // Just the live room count — the game page polls this while it is open, so
-  // the "playing now" pill is not a page-load snapshot. Must stay above the
-  // generic /api/games/:id GET below, which would swallow it. No auth: it
-  // reads an in-memory number and stores nothing.
-  if (url.pathname.startsWith('/api/games/') && url.pathname.endsWith('/live') && req.method === 'GET') {
-    cors(res);
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    res.end(JSON.stringify({ playing: liveCount(url.pathname.split('/')[3]) }));
-    return;
-  }
 
-  // ── API: related games (More from this creator / More like this) ─
-  // Two shelves on the game page, one request: the maker's other published
-  // games, plus published games sharing at least one tag. Both are public
-  // data and thumbnail-free (has_thumb flag like the gallery list) so the
-  // shelf never ships ~40KB data URLs. Must stay above the generic
-  // /api/games/:id GET below, which would otherwise read "/related" as id.
-  if (/^\/api\/games\/[^/]+\/related$/.test(url.pathname) && req.method === 'GET') {
-    cors(res);
-    const rid = url.pathname.split('/')[3];
-    if (!isUuid(rid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
-    const { data: g } = await supabase.from('games').select('published, owner_id, tags, description').eq('id', rid).single();
-    if (!g || !g.published) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    const shelf = 'id, title, play_count, users!owner_id(display_name, user_id)';
-    const [creatorRes, poolRes] = await Promise.all([
-      supabase.from('games').select(shelf)
-        .eq('published', true).eq('owner_id', g.owner_id).neq('id', rid)
-        .order('updated_at', { ascending: false }).limit(6),
-      // Ranked in memory instead of one `overlaps` filter: shared tags first,
-      // then wording that describes the mechanics, then most played as the
-      // floor — so a game nobody tagged still gets a shelf. Bounded pool keeps
-      // the round trip cheap.
-      supabase.from('games')
-        .select('id, title, description, tags, play_count, owner_id, forked_from, users!owner_id(display_name, user_id)')
-        .eq('published', true).neq('id', rid)
-        .order('play_count', { ascending: false }).limit(200)
-    ]);
-    // The card needs art, and /g/<id>/thumb always answers with one (the shared
-    // default cover when the game has none), so the shelf ships a URL instead of
-    // the ~40KB base64 thumbnail this route deliberately avoids.
-    const shape = (rows) => (rows || []).map((r) => ({
-      id: r.id, title: r.title, play_count: r.play_count || 0,
-      name: (r.users && r.users.display_name) || 'Unknown', user_id: (r.users && r.users.user_id) || null,
-      thumb: '/g/' + encodeURIComponent(r.id) + '/thumb'
-    }));
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    const similar = rankRelated({ id: rid, owner_id: g.owner_id, description: g.description, tags: g.tags }, poolRes.data, { limit: 6 });
-    res.end(JSON.stringify({ by_creator: shape(creatorRes.data), similar: shape(similar.map((r) => r.game)) }));
-    return;
-  }
 
-  // ── API: remixes of a game (remix tree shelf) ─────────────────────
-  // PUBLIC read-only: every published game that forked this one. Data
-  // already exists ('forked_from' + the cached title); this only surfaces
-  // it, so the original maker SEES who built on their work — the loop
-  // Scratch proved drives creators to keep going. Above the generic :id GET.
-  if (/^\/api\/games\/[^/]+\/remixes$/.test(url.pathname) && req.method === 'GET') {
-    cors(res);
-    const rid = url.pathname.split('/')[3];
-    if (!isUuid(rid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
-    const { data: g } = await supabase.from('games').select('published').eq('id', rid).single();
-    if (!g || !g.published) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    const { data: rows } = await supabase.from('games')
-      .select('id, title, play_count, updated_at, users!owner_id(display_name, user_id)')
-      .eq('published', true).eq('forked_from', rid)
-      .order('updated_at', { ascending: false }).limit(24);
-    const remixes = (rows || []).map((r) => ({
-      id: r.id, title: r.title, play_count: r.play_count || 0, updated_at: r.updated_at,
-      name: (r.users && r.users.display_name) || 'Unknown', user_id: (r.users && r.users.user_id) || null
-    }));
-    // One level up: what this game itself forked from (read-only chain tip).
-    let parent = null;
-    const { data: me0 } = await supabase.from('games').select('forked_from, forked_from_title').eq('id', rid).single();
-    if (me0 && me0.forked_from) parent = { id: me0.forked_from, title: me0.forked_from_title || 'Untitled' };
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    res.end(JSON.stringify({ remixes, parent }));
-    return;
-  }
 
-  // ── API: invite a friend into a multiplayer room ───────────────────
-  // POST /api/games/:id/invite { friend_id, room } — writes a single
-  // notification; the recipient deep-links view.html?id=..&room=<code>.
-  // The room join itself stays anonymous/guest-open (CudicMulti rules);
-  // this only carries the invite, gated + rate-limited like follows.
-  if (/^\/api\/games\/[^/]+\/invite$/.test(url.pathname) && req.method === 'POST') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await needVerified(user, res))) return;
-    if (!rateLimit('invite:' + user.id, 10, 3600 * 1000)) { res.writeHead(429, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Too many invites. Try later.' })); return; }
-    const gid = url.pathname.split('/')[3];
-    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
-    const body = await readBody(req).catch(() => ({}));
-    const fid = String((body && body.friend_id) || '').trim();
-    const room = String((body && body.room) || 'main').replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 40) || 'main';
-    if (!isUuid(fid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Pick who to invite.' })); return; }
-    // Must actually be an accepted friend — a public game id alone cannot
-    // be used to point notifications at arbitrary accounts.
-    let isFriend = false;
-    for (const row of (await Promise.all([
-      supabase.from('friendships').select('user_id').eq('status', 'accepted').eq('user_id', user.id).eq('friend_id', fid),
-      supabase.from('friendships').select('user_id').eq('status', 'accepted').eq('friend_id', user.id).eq('user_id', fid)
-    ]))) { if (row.data && row.data.length) isFriend = true; }
-    if (!isFriend) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invite your friends, not strangers.' })); return; }
-    const { data: g } = await supabase.from('games').select('title, published').eq('id', gid).single();
-    if (!g || !g.published) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    const { data: profile } = await supabase.from('users').select('display_name').eq('id', user.id).single();
-    notify(fid, 'invite', (profile && profile.display_name) || 'A friend', 'You are invited to the room "' + room + '" in ' + (g.title || 'a game') + '.', 'game', gid);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true }));
-    return;
-  }
 
-  // ── API: game leaderboard (best score per player) ──────────────────
-  // GET is public: the board shows on the game page for everyone, guests
-  // included. POST is signed-in (seat-checked) only — there is no identity
-  // to bind a guest score to. One row per (game, player): a replay never
-  // lowers your best, and spam can't flood the board.
-  // Must stay above the generic /api/games/:id GET below, which would
-  // otherwise read ".../scores" as a game id.
-  const scoreMatch = /^\/api\/games\/([^/]+)\/scores$/.exec(url.pathname);
-  if (scoreMatch && (req.method === 'GET' || req.method === 'POST')) {
-    cors(res);
-    const gid = scoreMatch[1];
-    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
-    const { data: g } = await supabase.from('games').select('published, owner_id').eq('id', gid).single();
-    if (req.method === 'GET') {
-      if (!g || !g.published) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-      const lim = Math.min(Math.max(Number(new URLSearchParams(url.search).get('limit')) || 10, 1), 50);
-      const range = String(new URLSearchParams(url.search).get('range') || 'all');
-      // Filters chain only after .select() in supabase-js, so the week
-      // condition is added to the builder rather than before it.
-      let scoreQuery = supabase
-        .from('game_scores')
-        .select('score, updated_at, users!game_scores_user_id_fkey(display_name)')
-        .eq('game_id', gid);
-      if (range === 'week') scoreQuery = scoreQuery.gte('updated_at', weekStartISO() + 'T00:00:00.000Z');
-      const { data: rows } = await scoreQuery
-        .order('score', { ascending: false })
-        .order('updated_at', { ascending: true })
-        .limit(lim);
-      // Names only leave the door — user ids never appear on a public board.
-      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-      res.end(JSON.stringify({
-        scores: (rows || []).map((r) => ({ score: r.score, name: (r.users && r.users.display_name) || 'Player', at: r.updated_at }))
-      }));
-      return;
-    }
-    // POST — signed-in + seat-alive. Verified-check matches like/rate.
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    if (!(await seatAlive(user.id, seatFromReq(req)))) { seatDead(res); return; }
-    if (!(await needVerified(user, res))) return;
-    if (!g || !(g.published || g.owner_id === user.id)) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    const body = await readBody(req).catch(() => ({}));
-    const score = Math.floor(Number(body.score));
-    // Bounded on purpose: scores are ints inside int4, and NaN/Infinity
-    // must never reach the column.
-    if (!Number.isFinite(score) || score < 0 || score > 2147483647) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Score must be a number from 0 to 2147483647.' }));
-      return;
-    }
-    // Cheap read-then-write instead of an rpc: only overwrite when the new
-    // run beats the stored one. Two writers racing here both keep a valid
-    // best, so no lock is worth it at this scale.
-    const { data: prev } = await supabase.from('game_scores')
-      .select('score').eq('game_id', gid).eq('user_id', user.id).maybeSingle();
-    if (prev != null && prev.score >= score) {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, kept: true, best: prev.score }));
-      return;
-    }
-    const { error } = await supabase.from('game_scores')
-      .upsert({ game_id: gid, user_id: user.id, score, updated_at: new Date().toISOString() }, { onConflict: 'game_id,user_id' });
-    if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not save the score.' })); return; }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, best: score }));
-    return;
-  }
 
-  // ── In-game achievements (cudic-ach.js) ──────────────────────
-  // Same sandbox shape as scores: the frame never holds the token, view.html
-  // mediates with the viewer's session. unlock() writes one row per
-  // (game, player, code); GET is a public read of what exists.
-  if (/^\/api\/games\/[^/]+\/achievements$/.test(url.pathname) && req.method === 'GET') {
-    cors(res);
-    const gid = url.pathname.split('/')[3];
-    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
-    const { data: g } = await supabase.from('games').select('published').eq('id', gid).single();
-    if (!g || !g.published) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    const { data: rows } = await supabase.from('game_achievements')
-      .select('code, user_id').eq('game_id', gid).limit(5000);
-    const counts = {};
-    for (const r of rows || []) counts[r.code] = (counts[r.code] || 0) + 1;
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    res.end(JSON.stringify({
-      // Codes + holder counts, names-length never ids — public data rules
-      // match the leaderboard's (user ids never leave the door).
-      achievements: Object.keys(counts).sort().map((code) => ({ code, count: counts[code] }))
-    }));
-    return;
-  }
-  if (/^\/api\/games\/[^/]+\/achievements$/.test(url.pathname) && req.method === 'POST') {
-    cors(res);
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    if (!(await seatAlive(user.id, seatFromReq(req)))) { seatDead(res); return; }
-    if (!(await needVerified(user, res))) return;
-    const gid = url.pathname.split('/')[3];
-    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
-    const { data: g } = await supabase.from('games').select('published, owner_id').eq('id', gid).single();
-    if (!g || !(g.published || g.owner_id === user.id)) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    if (!rateLimit('ach:' + user.id, 30, 60000)) { res.writeHead(429, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Slow down.' })); return; }
-    const body = await readBody(req).catch(() => ({}));
-    // Codes are short slugs the game invents — not free text. Lock the
-    // charset so nothing weird can ride into the key or a display name.
-    const code = String(body.code || '').trim();
-    if (!/^[a-z0-9][a-z0-9_-]{0,31}$/.test(code)) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Code must be 1-32 chars: lowercase letters, numbers, dash, underscore.' }));
-      return;
-    }
-    const { data: existing } = await supabase.from('game_achievements')
-      .select('awarded_at').eq('game_id', gid).eq('user_id', user.id).eq('code', code).maybeSingle();
-    if (existing) {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, first: false, at: existing.awarded_at }));
-      return;
-    }
-    const { error: insErr } = await supabase.from('game_achievements')
-      .insert({ game_id: gid, user_id: user.id, code, awarded_at: new Date().toISOString() });
-    if (insErr) {
-      // Lost a race with another tab unlocking the same thing: fine, it exists.
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, first: false }));
-      return;
-    }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, first: true }));
-    return;
-  }
 
-  // ── API: playtest links (drafts shared by a signed, expiring URL) ──
-  // The link is the credential. Minting is owner-only; playing and feedback
-  // need nothing but a valid token, so testers do not need an account.
-  if (/^\/api\/games\/[^/]+\/playtest$/.test(url.pathname) && req.method === 'POST') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await seatAlive(user.id, seatFromReq(req)))) { seatDead(res); return; }
-    if (!(await needVerified(user, res))) return;
-    const gid = url.pathname.split('/')[3];
-    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
-    const { data: g } = await supabase.from('games').select('owner_id').eq('id', gid).single();
-    if (!g) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    if (g.owner_id !== user.id) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Only the creator can make a playtest link.' })); return; }
-    if (!PLAYTEST_SECRET) { res.writeHead(503, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Playtest links need PLAYTEST_SECRET or a service key.' })); return; }
-    const body = await readBody(req).catch(() => ({}));
-    const days = Math.max(1, Math.min(30, Math.floor(Number(body.days)) || 7));
-    const made = playtestSign(gid, days);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      ok: true, token: made.token, days,
-      expires_at: new Date(made.exp * 1000).toISOString(),
-      url: siteOrigin(req) + '/view.html?id=' + encodeURIComponent(gid) + '&playtest=' + encodeURIComponent(made.token)
-    }));
-    return;
-  }
-  if (/^\/api\/games\/[^/]+\/playtest\/feedback$/.test(url.pathname) && req.method === 'POST') {
-    cors(res);
-    const gid = url.pathname.split('/')[3];
-    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
-    const body = await readBody(req).catch(() => ({}));
-    if (!playtestValid(gid, body.token)) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'This playtest link is invalid or expired.' })); return; }
-    const name = String(body.name || '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 40) || 'A playtester';
-    const text = String(body.text || '').trim().slice(0, 2000);
-    if (text.length < 2) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Write a little feedback first.' })); return; }
-    if (!rateLimit('playtestfb:' + clientIp(req), 8, 600000)) { res.writeHead(429, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Slow down a little.' })); return; }
-    const { data: g } = await supabase.from('games').select('owner_id, title').eq('id', gid).single();
-    if (!g) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    const { error } = await supabase.from('game_posts').insert({ game_id: gid, body: text, kind: 'feedback', author_name: name });
-    if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not save feedback.' })); return; }
-    if (g.owner_id) notify(g.owner_id, 'comment', name + ' sent playtest feedback', text.slice(0, 180), 'game', gid).catch(() => {});
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true }));
-    return;
-  }
 
-  // ── API: game devlog posts (feature 7) ────────────────────────
-  // Markdown posts owned by a game: GET is public on published games,
-  // POST is the creator (limit 5/game, rate-limited), DELETE is the
-  // author. Events ride the existing activity feed via postEvent.
-  const devlogMatch = url.pathname.match(/^\/api\/games\/([^/]+)\/devlog(?:\/([^/]+))?$/);
-  if (devlogMatch && req.method === 'GET') {
-    cors(res);
-    const gid = devlogMatch[1];
-    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
-    const wantFeedback = new URLSearchParams(url.search).get('feedback') === '1';
-    const { data: g } = await supabase.from('games').select('published, owner_id').eq('id', gid).single();
-    if (!g) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    if (wantFeedback) {
-      const viewer = await userOf(req);
-      if (!viewer || g.owner_id !== viewer.id) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not your game.' })); return; }
-    } else if (!g.published) {
-      const viewer = await userOf(req);
-      if (!viewer || g.owner_id !== viewer.id) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    }
-    const { data: rows } = await supabase.from('game_posts')
-      .select('id, body, created_at, author_name')
-      .eq('game_id', gid)
-      .eq('kind', wantFeedback ? 'feedback' : 'post')
-      .order('created_at', { ascending: false })
-      .limit(wantFeedback ? 20 : 50);
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    res.end(JSON.stringify({ posts: rows || [] }));
-    return;
-  }
-  if (devlogMatch && !devlogMatch[2] && req.method === 'POST') {
-    cors(res);
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    if (!(await seatAlive(user.id, seatFromReq(req)))) { seatDead(res); return; }
-    if (!(await needVerified(user, res))) return;
-    const gid = devlogMatch[1];
-    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
-    const { data: g } = await supabase.from('games').select('published, owner_id').eq('id', gid).single();
-    if (!g || g.owner_id !== user.id) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    if (!rateLimit('devlog:' + user.id, 10, 60000)) { res.writeHead(429, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Slow down.' })); return; }
-    const body = await readBody(req).catch(() => ({}));
-    const text = String(body.body || '').trim();
-    if (!text || text.length > 8000) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Body must be 1 to 8000 characters.' }));
-      return;
-    }
-    const { count } = await supabase.from('game_posts').select('id', { count: 'exact', head: true }).eq('game_id', gid).eq('kind', 'post');
-    if ((count || 0) >= 5) {
-      res.writeHead(409, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'This game already has 5 posts — delete one first.' }));
-      return;
-    }
-    const { data: post, error } = await supabase.from('game_posts')
-      .insert({ game_id: gid, body: text, kind: 'post' }).select('id, body, created_at').single();
-    if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not save the post.' })); return; }
-    try {
-      const { data: g } = await supabase.from('games').select('title').eq('id', gid).single();
-      await logActivity(user.id, 'devlog', 'Posted a devlog on ' + ((g && g.title) || 'their game'));
-    } catch {}
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ post }));
-    return;
-  }
-  if (devlogMatch && devlogMatch[2] && req.method === 'DELETE') {
-    cors(res);
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    if (!(await seatAlive(user.id, seatFromReq(req)))) { seatDead(res); return; }
-    const gid = devlogMatch[1], pid = devlogMatch[2];
-    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
-    const { data: g } = await supabase.from('games').select('owner_id').eq('id', gid).single();
-    if (!g || g.owner_id !== user.id) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    await supabase.from('game_posts').delete().eq('id', pid).eq('game_id', gid);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true }));
-    return;
-  }
 
-  // ── /api/games/:id/howto — the first-run controls line ────────
-  // Guessed from the game's own source so the cover can say how to play without
-  // the creator writing anything. A wrong guess is worse than a generic line,
-  // so only unambiguous tokens count.
-  const gamePath = url.pathname.startsWith('/api/games/') ? url.pathname.slice('/api/games/'.length).split('/') : null;
-  const gamePathId = gamePath && isUuid(gamePath[0]) ? gamePath[0] : null;
-  if (gamePathId && gamePath.length === 2 && gamePath[1] === 'howto' && req.method === 'GET') {
-    // The first-run cover reads this from cudic.vercel.app, so without the
-    // header the browser blocks it and every cover falls back to generic text.
-    cors(res);
-    const { data: hg } = await supabase.from('games').select('files').eq('id', gamePathId).single();
-    let hfiles = hg && hg.files;
-    if (typeof hfiles === 'string') { try { hfiles = JSON.parse(hfiles); } catch (e) { hfiles = null; } }
-    const src = Object.keys(hfiles || {})
-      .filter((p) => /\.(js|mjs|ts|html)$/i.test(p))
-      .map((p) => String(hfiles[p] || ''))
-      .join('\n')
-      .slice(0, 400000);
-    const hints = [];
-    if (/ArrowLeft|ArrowRight/.test(src)) hints.push('arrow keys to move');
-    else if (/WASD|KeyW|KeyA/.test(src)) hints.push('WASD or the arrow keys');
-    if (/Space/.test(src)) hints.push('Space to jump or shoot');
-    if (/mousedown|pointerdown|touchstart/.test(src)) hints.push('tap or click to act');
-    if (/cudic-touch|dpad|joystick/i.test(src)) hints.push('on-screen buttons on a phone');
-    const text = hints.length
-      ? 'How to play: ' + hints.slice(0, 3).join(' · ') + '.'
-      : 'Tap or click to start. If on-screen buttons appear, they work with a thumb.';
-    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=600' });
-    res.end(JSON.stringify({ text, hints }));
-    return;
-  }
 
-  // ── /api/games/:id/export — one self-contained .html ─────────
-  // The files of a published game are already public to every player, so this
-  // needs no session; it only reassembles them into the single-file shape
-  // itch.io and CrazyGames take as an upload.
-  if (gamePathId && gamePath.length === 2 && gamePath[1] === 'export' && req.method === 'GET') {
-    const { data: eg } = await supabase.from('games')
-      .select('id, slug, title, credits, files, published, users!owner_id(display_name)')
-      .eq('id', gamePathId).single();
-    let efiles = eg && eg.files;
-    if (typeof efiles === 'string') { try { efiles = JSON.parse(efiles); } catch (e) { efiles = null; } }
-    if (!eg || !eg.published || !efiles || !Object.keys(efiles).length) {
-      res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({ error: 'Only a published game can be exported.' }));
-      return;
-    }
-    const html = singleFileBuild(efiles, {
-      title: eg.title,
-      author: eg.users && eg.users.display_name
-    });
-    const name = String(eg.slug || 'game').replace(/[^a-z0-9-]/gi, '-').toLowerCase() || 'game';
-    res.writeHead(200, {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Content-Disposition': 'attachment; filename="' + name + '.html"',
-      'Cache-Control': 'no-store'
-    });
-    res.end(html);
-    return;
-  }
 
-  if (url.pathname.startsWith('/api/games/') && req.method === 'GET') {
-    cors(res);
-    const id = url.pathname.split('/')[3];
-    const { data, error } = await supabase.from('games').select('*, users!games_owner_id_fkey(id, display_name, user_id, avatar_url)').eq('id', id).single();
-    if (!data) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    // Like count + whether this viewer liked it (optional token).
-    const viewer = await userOf(req);
-    if (viewer && !hasScope(viewer, 'projects:read')) { scopeDenied(res, 'projects:read'); return; }
-    // Drafts ship only to their owner or to a valid playtest link. Anyone
-    // else gets the same Not found whether or not the id exists — never
-    // confirm a draft's existence.
-    const playtestParam = url.searchParams.get('playtest') || '';
-    const viaPlaytest = !data.published && playtestValid(id, playtestParam);
-    if (!data.published && (!viewer || data.owner_id !== viewer.id) && !viaPlaytest) {
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Not found' }));
-      return;
-    }
-    const { count: likeCount } = await supabase.from('game_likes').select('user_id', { count: 'exact', head: true }).eq('game_id', id);
-    let liked = false;
-    if (viewer) {
-      const { data: mine } = await supabase.from('game_likes').select('user_id').eq('game_id', id).eq('user_id', viewer.id).maybeSingle();
-      liked = !!mine;
-    }
-    // Rating summary: average + count, plus this viewer's rating.
-    const { data: ratingRows } = await supabase.from('game_ratings').select('rating').eq('game_id', id);
-    const ratings = ratingRows || [];
-    const avg = ratings.length ? ratings.reduce((a, r) => a + r.rating, 0) / ratings.length : 0;
-    let myRating = 0;
-    if (viewer) {
-      const { data: mine } = await supabase.from('game_ratings').select('rating').eq('game_id', id).eq('user_id', viewer.id).maybeSingle();
-      myRating = (mine && mine.rating) || 0;
-    }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    // A published game plays its shipped release, not the working draft: save
-    // freely in Studio and players stay on the build you published. Games with
-    // no release yet (published before releases existed) keep serving the row.
-    const out = { ...data, likes: likeCount || 0, liked, playing: liveCount(id), playtest: viaPlaytest, rating_avg: Math.round(avg * 10) / 10, rating_count: ratings.length, my_rating: myRating };
-    if (data.published) {
-      const rel = await latestRelease(id);
-      if (rel) {
-        out.files = rel.files;
-        out.release = { version: rel.version, notes: rel.notes, at: rel.at, source: rel.source, commit: rel.commit };
-      }
-    }
-    res.end(JSON.stringify({ game: out }));
-    return;
-  }
 
-  // ── API: like / unlike a game ──────────────────────────────────
-  // Seat-checked like everything else; the row itself is the only state.
-  // Guests get the count without the ability to like (no identity to bind).
-  const likeMatch = /^\/api\/games\/([^/]+)\/like$/.exec(url.pathname);
-  if (likeMatch && (req.method === 'POST' || req.method === 'DELETE')) {
-    cors(res);
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    if (!(await seatAlive(user.id, seatFromReq(req)))) { seatDead(res); return; }
-    if (!(await needVerified(user, res))) return;
-    const gid = likeMatch[1];
-    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
-    const { data: g } = await supabase.from('games').select('published, owner_id, title').eq('id', gid).single();
-    if (!g || !(g.published || g.owner_id === user.id)) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    if (req.method === 'POST') {
-      await supabase.from('game_likes').upsert({ user_id: user.id, game_id: gid }, { onConflict: 'user_id,game_id', ignoreDuplicates: true });
-      // Owner gets a line in their inbox (except on self-likes).
-      if (g.owner_id && g.owner_id !== user.id) {
-        const { data: lu } = await supabase.from('users').select('display_name').eq('id', user.id).single();
-        notify(g.owner_id, 'like', (lu ? lu.display_name : 'Someone') + ' liked ' + (g.title || 'your game'), '', 'game', gid);
-      }
-    } else {
-      await supabase.from('game_likes').delete().eq('user_id', user.id).eq('game_id', gid);
-    }
-    const { count } = await supabase.from('game_likes').select('user_id', { count: 'exact', head: true }).eq('game_id', gid);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ liked: req.method === 'POST', likes: count || 0 }));
-    return;
-  }
 
-  // ── API: rate a game (1–5) ──────────────────────────────────────
-  // One rating per user per game; posting again changes it. Seat-checked.
-  const rateMatch = /^\/api\/games\/([^/]+)\/rate$/.exec(url.pathname);
-  if (rateMatch && req.method === 'POST') {
-    cors(res);
-    const user = await requireUser(req, res); if (!user) return;
-    if (!(await seatAlive(user.id, seatFromReq(req)))) { seatDead(res); return; }
-    if (!(await needVerified(user, res))) return;
-    const gid = rateMatch[1];
-    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
-    const { data: g } = await supabase.from('games').select('published, owner_id').eq('id', gid).single();
-    if (!g || !g.published) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    const body = await readBody(req).catch(() => ({}));
-    const rating = Math.round(Number(body.rating));
-    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-      res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Rating must be 1–5.' })); return;
-    }
-    const { error } = await supabase.from('game_ratings').upsert({ game_id: gid, user_id: user.id, rating }, { onConflict: 'game_id,user_id' });
-    if (error) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Could not save rating.' })); return; }
-    const { data: ratingRows } = await supabase.from('game_ratings').select('rating').eq('game_id', gid);
-    const ratings = ratingRows || [];
-    const avg = ratings.length ? ratings.reduce((a, r) => a + r.rating, 0) / ratings.length : 0;
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ rating: rating, rating_avg: Math.round(avg * 10) / 10, rating_count: ratings.length }));
-    return;
-  }
 
-  // ── API: count a play ───────────────────────────────────────────
-  // A counter, not analytics: one integer per game, bumped when a game
-  // page actually starts the player. Guests count too — a play is a play.
-  const playMatch = /^\/api\/games\/([^/]+)\/play$/.exec(url.pathname);
-  if (playMatch && req.method === 'POST') {
-    cors(res);
-    const gid = playMatch[1];
-    if (!isUuid(gid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid game.' })); return; }
-    const { data: g } = await supabase.from('games').select('published, owner_id').eq('id', gid).single();
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user } } = token ? await supabase.auth.getUser(token) : { data: { user: null } };
-    if (!g || !(g.published || (user && g.owner_id === user.id))) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    // Recently-played ledger for the gallery's "Continue playing" shelf.
-    // Guests only bump the counter; a signed-in play is remembered per game,
-    // and re-opening a game refreshes the timestamp instead of adding a row.
-    // Never awaited for long and never fatal: a database without game_plays
-    // (before the migration runs) just records nothing, and the play still counts.
-    if (user) {
-      try {
-        await supabase.from('game_plays').upsert(
-          { user_id: user.id, game_id: gid, played_at: new Date().toISOString() },
-          { onConflict: 'user_id,game_id' }
-        );
-      } catch (e) { /* shelf stays empty, play_count already bumped */ }
-    }
-    // One play per game per browser per hour: a reload shouldn't inflate it.
-    const key = 'play:' + clientIp(req) + ':' + gid;
-    if (!rateLimit(key, 1, 3600000)) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true })); return; }
-    const { data: bumped } = await supabase.rpc('bump_play_count', { p_game: gid });
-    // Weekly creator race: one point per unique player per game per week.
-    // The insert PK (week, game_id, viewer) de-dupes; viewer is a salted IP
-    // hash — no personal data, one point per household is the accepted
-    // anti-bot bias. Owner-less games are skipped. Never awaited: a play
-    // must not wait on the race ledger.
-    if (g.owner_id) {
-      try {
-        const viewer = crypto.createHash('sha256').update('race|' + clientIp(req)).digest('hex').slice(0, 32);
-        supabase.from('race_plays').insert({ week: digestWeekStart(), game_id: gid, creator_id: g.owner_id, viewer }).then(() => {}, () => {});
-      } catch (e) {}
-    }
-    if (bumped >= 100 && g.owner_id) {
-      // Fire-and-forget: the play response must not wait on awards.
-      awardUser(g.owner_id, 'viral').catch(() => {});
-      awardUser(g.owner_id, 'renowned').catch(() => {});
-    }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, plays: bumped ?? null }));
-    return;
-  }
 
-  // ── API: create game ──────────────────────────────────────────
-  if (url.pathname === '/api/games' && req.method === 'POST') {
-    cors(res);
-    const user = await userOf(req);
-    if (!user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    if (!hasScope(user, 'projects:write')) { scopeDenied(res, 'projects:write'); return; }
-    if (!(await needVerified(user, res))) return;
-    const body = await readBody(req, 25 * 1024 * 1024); // projects can carry MB-scale file JSON, but bound it
-    const { data, error } = await supabase.from('games').insert({
-      owner_id: user.id,
-      slug: await freeGameSlug(body.title),
-      title: String(body.title || 'Untitled Game').slice(0, 100),
-      description: String(body.description || '').slice(0, 500),
-      credits: String(body.credits || '').slice(0, 200),
-      scene: body.scene == null || body.scene === '' ? '[]' : String(body.scene).slice(0, 512 * 1024),
-      files: body.files || null,
-      assets: body.assets || null,
-      thumbnail: (typeof body.thumbnail === 'string' && body.thumbnail.length <= 700 * 1024) ? body.thumbnail : null,
-      published: body.published || false,
-      // Create-time tags: the publish modal sends them with the first PUT
-      // for existing projects; new games get them right in the insert so a
-      // first publish is already filterable in the gallery.
-      tags: sanitizeTags(body.tags),
-    }).select().single();
-    if (error) console.error('games insert error:', error.message);
-    gamesListCacheClear();
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ game: data, error: error ? 'Could not create the game.' : undefined }));
-    return;
-  }
 
-  // ── API: fork game (copy row + storage objects, fresh discussion) ──
-  if (/^\/api\/games\/[^/]+\/fork$/.test(url.pathname) && req.method === 'POST') {
-    cors(res);
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    if (!(await needVerified(user, res))) return;
-    const id = url.pathname.split('/')[3];
-    const { data: g } = await supabase.from('games').select('*').eq('id', id).single();
-    if (!g) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
-    if (!g.published && g.owner_id !== user.id) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Forbidden' })); return; }
-    // Transitive credit: extend the parent's snapshot chain with the parent
-    // itself, so a remix of a remix still names the original maker. Capped
-    // (original always kept); snapshots survive deletions by design.
-    const parentChain = Array.isArray(g.fork_chain) ? g.fork_chain : [];
-    const cleanChain = parentChain
-      .filter(e => e && typeof e.id === 'string')
-      .map(e => ({ id: e.id, title: String(e.title || 'Untitled') }));
-    cleanChain.push({ id: g.id, title: g.title || 'Untitled' });
-    const chain = cleanChain.length > 25 ? [cleanChain[0], ...cleanChain.slice(-24)] : cleanChain;
-    const forkRow = {
-      owner_id: user.id,
-      title: (g.title || 'Untitled') + ' (fork)',
-      description: g.description || '',
-      credits: g.credits || '',
-      scene: g.scene || '[]',
-      files: g.files || null,
-      assets: null,
-      thumbnail: g.thumbnail || null,
-      published: false,
-      forked_from: g.id,
-      forked_from_title: g.title || 'Untitled',
-      fork_chain: chain
-    };
-    // asset_owner is the game whose storage prefix holds this fork's bytes.
-    // A database without the column falls back to copying, so forking keeps
-    // working on a schema older than the sharing migration.
-    let canShare = true;
-    let { data: nu, error: insErr } = await supabase.from('games')
-      .insert({ ...forkRow, asset_owner: g.asset_owner || g.id }).select().single();
-    if (insErr && /asset_owner/.test(String(insErr.message))) {
-      canShare = false;
-      ({ data: nu, error: insErr } = await supabase.from('games').insert(forkRow).select().single());
-    }
-    if (insErr || !nu) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: insErr?.message || 'Fork failed' })); return; }
-    gamesListCacheClear();
-    // Assets: share the bytes instead of copying them. A fork used to duplicate
-    // every object into a fresh prefix, which is how one 40MB game forked 500
-    // times became 20GB. The fork now points at the prefix it inherited; the
-    // delete handler below copies a prefix into its children before purging it.
-    const ownerPrefix = g.asset_owner || g.id;
-    const manifest = g.assets || {};
-    const rewritten = {};
-    let copyFailed = 0;
-    if (canShare) {
-      for (const [k, v] of Object.entries(manifest)) {
-        const s = String(v);
-        const stripped = s.replace(/^game-assets\//, '');
-        rewritten[k] = stripped.startsWith(id + '/')
-          ? 'game-assets/' + ownerPrefix + stripped.substring(id.length)
-          : s;
-      }
-    } else {
-      const { copied, total } = await copyAssetPrefix(id, nu.id);
-      copyFailed = total - copied.size;
-      for (const [k, v] of Object.entries(manifest)) {
-        const stripped = String(v).replace(/^game-assets\//, '');
-        if (!stripped.startsWith(id + '/')) { rewritten[k] = String(v); continue; }
-        if (!copied.has(stripped)) continue; // drop refs whose object didn't survive
-        rewritten[k] = 'game-assets/' + nu.id + stripped.substring(id.length);
-      }
-    }
-    if (copyFailed) console.error('fork: asset copy failed for', copyFailed, 'object(s) (project', id + ')');
-    // A manifest that fails to rewrite must be visible, not silent: text road
-    // already forked, so the game is real and its images are the only casualty.
-    if (Object.keys(rewritten).length) {
-      const { error: shareErr } = await supabase.from('games').update({ assets: rewritten }).eq('id', nu.id);
-      if (shareErr) {
-        console.error('fork: asset manifest rewrite failed for', nu.id, shareErr.message);
-        copyFailed = copyFailed || 'manifest';
-      } else nu.assets = rewritten;
-    }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ game: nu, assets_partial: copyFailed !== 0, assets_failed: copyFailed, assets_shared: canShare }));
-    return;
-  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   // ── API: import Scratch (.sb3) → split game files ───────────────
   // POST /api/scratch/import {sb3?: base64, scratchUrl?: string, scratchId?: string|number, title?: string}
@@ -7234,189 +4236,9 @@ function sanitizeTags(raw) {
     return;
   }
 
-  // ── API: update game ──────────────────────────────────────────
-  if (url.pathname.startsWith('/api/games/') && req.method === 'PUT') {
-    cors(res);
-    const user = await userOf(req);
-    if (!user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    if (!hasScope(user, 'projects:write')) { scopeDenied(res, 'projects:write'); return; }
-    if (!(await needVerified(user, res))) return;
-    const id = url.pathname.split('/')[3];
-    const body = await readBody(req, 25 * 1024 * 1024);
-    const updates = {};
-    if (body.title !== undefined) updates.title = String(body.title || 'Untitled Game').slice(0, 100);
-    if (body.description !== undefined) updates.description = String(body.description || '').slice(0, 500);
-    if (body.credits !== undefined) updates.credits = String(body.credits || '').slice(0, 200);
-    if (body.scene !== undefined && body.scene != null) updates.scene = String(body.scene).slice(0, 512 * 1024);
-    if (body.files !== undefined) updates.files = body.files;
-    if (body.assets !== undefined) updates.assets = body.assets;
-    if (body.published !== undefined) updates.published = body.published;
-    if (body.published && body.slug === undefined && !(await supabase.from('games').select('slug').eq('id', id).single()).data?.slug) {
-      updates.slug = await freeGameSlug(body.title ?? (await supabase.from('games').select('title').eq('id', id).single()).data?.title, id);
-    }
-    // Thumbnails arrive as ≤1000px JPEG data URLs; reject anything else
-    // instead of storing a multi-MB blob the view page would re-fetch.
-    if (body.thumbnail !== undefined) {
-      if (body.thumbnail === null) updates.thumbnail = null;
-      else if (typeof body.thumbnail === 'string' && body.thumbnail.length <= 700 * 1024) updates.thumbnail = body.thumbnail;
-      else { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Thumbnail too large (700KB max).' })); return; }
-    }
-    // Tags: sanitized by the shared helper (see slugify's neighbor) so the
-    // product rules live in exactly one place.
-    if (body.tags !== undefined) updates.tags = sanitizeTags(body.tags);
-    // A project imported from GitHub should keep tracking that repository even
-    // if it is never pushed from Studio — otherwise an import is a dead copy
-    // and only a push sets the mapping. The client sends the repo it came from;
-    // the server checks it can actually read it with this user's GitHub token,
-    // and records the repository's owner as the login allowed to deploy (which
-    // is who pushes to it, whether or not that is the Cudic user).
-    if (body.github_link !== undefined) {
-      const linkMatch = /^([A-Za-z0-9._-]+)\/([A-Za-z0-9._-]+)(?:#([A-Za-z0-9._\/-]+))?$/.exec(String(body.github_link || '').trim());
-      if (linkMatch) {
-        const linkToken = await ghToken(user);
-        if (!linkToken.error) {
-          const repoRes = await ghApi('/repos/' + linkMatch[1] + '/' + linkMatch[2], linkToken.token).catch(() => null);
-          const repoJson = repoRes && repoRes.ok ? await repoRes.json().catch(() => null) : null;
-          if (repoJson) {
-            updates.github_repo = linkMatch[1] + '/' + linkMatch[2];
-            updates.github_branch = linkMatch[3] || String(repoJson.default_branch || 'main');
-            updates.github_login = String((repoJson.owner && repoJson.owner.login) || linkMatch[1]);
-          }
-        }
-      }
-    }
-    // Only a false → true flip fires the publish hook; unpublishing can't.
-    const wasPub = updates.published === true
-      ? (((await supabase.from('games').select('published').eq('id', id).eq('owner_id', user.id).single()).data || {}).published)
-      : null;
-    updates.updated_at = new Date().toISOString();
-    // Storage budget: worth counting only when the save actually carries binary
-    // assets (text files live in the row, not the bucket). Uploaded bytes are
-    // already in storage by now, so this counts the real total.
-    let storage = null;
-    if (body.assets !== undefined) {
-      const used = await accountStorageBytes(user.id).catch(() => null);
-      if (used != null) {
-        storage = { used, cap: ACCOUNT_STORAGE_CAP };
-        if (used > ACCOUNT_STORAGE_CAP) {
-          res.writeHead(413, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({
-            error: 'storage_over_cap',
-            text: 'That save would put you over your storage budget.',
-            used,
-            cap: ACCOUNT_STORAGE_CAP
-          }));
-          return;
-        }
-      }
-    }
-    // Publishing is gated on the project's tests. They run in the browser, so
-    // this is the client's word — but a stale Studio build (or a bug) that
-    // reports failures must not be able to flip a red build live.
-    if (updates.published === true && body.tests && Number(body.tests.failed) > 0) {
-      res.writeHead(409, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        error: 'tests_failed',
-        text: 'Tests are failing, so this build was not published.',
-        failed: Number(body.tests.failed),
-        passed: Number(body.tests.passed) || 0
-      }));
-      return;
-    }
-    let { data, error } = await supabase.from('games').update(updates).eq('id', id).eq('owner_id', user.id).select().single();
-    // A database without the deploy columns (migration not applied) must still
-    // save the game: drop them and retry once instead of failing the write.
-    if (error && /github_(repo|branch|login)/.test(String(error.message)) &&
-        ('github_repo' in updates || 'github_branch' in updates || 'github_login' in updates)) {
-      delete updates.github_repo;
-      delete updates.github_branch;
-      delete updates.github_login;
-      ({ data, error } = await supabase.from('games').update(updates).eq('id', id).eq('owner_id', user.id).select().single());
-    }
-    if (error) console.error('games update error:', error.message);
-    else if (wasPub === false && data) {
-      onPublished(user.id, id, data.title).catch(() => {});
-      // Announcing belongs to publishing, not saving: this branch only runs on
-      // the false → true flip. A webhook that is unset, slow or failing is
-      // logged inside lib/discord.js and must never fail the publish.
-      discord.announcePublished(data).catch(() => {});
-    }
-    gamesListCacheClear(); // title/tags/publish flips change the gallery
-    // Publishing ships a release: snapshot the files that just went live, so
-    // later saves are a draft until the next publish. Failures leave the old
-    // behaviour (row files) in place rather than failing the save.
-    let release = null;
-    if (updates.published === true && data) {
-      release = await createRelease(
-        id, user.id, body.files !== undefined ? body.files : data.files,
-        body.release_notes, body.release_source || 'studio', body.release_commit, body.tests
-      );
-    }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    if (!error) forgetStorageUsage(user.id);
-    res.end(JSON.stringify({ game: data, release, storage, error: error ? 'Could not save the game.' : undefined }));
-    return;
-  }
 
-  // ── API: delete game ──────────────────────────────────────────
-  if (url.pathname.startsWith('/api/games/') && req.method === 'DELETE') {
-    cors(res);
-    const user = await userOf(req);
-    if (!user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
-    if (!hasScope(user, 'projects:write')) { scopeDenied(res, 'projects:write'); return; }
-    if (!(await needVerified(user, res))) return;
-    const id = url.pathname.split('/')[3];
-    // Forks share their parent's bytes, so a prefix cannot be purged while a
-    // child still points at it. Copy the share into each child, rewrite its
-    // manifest and detach it first. If any copy fails, leave the bytes alone:
-    // an orphaned prefix is recoverable, a fork that lost its images is not.
-    let safeToPurge = true;
-    try {
-      const { data: kids, error: kidErr } = await supabase
-        .from('games').select('id, assets').eq('asset_owner', id).neq('id', id);
-      // No sharing column: every fork already holds its own copy.
-      if (kidErr && !/asset_owner/.test(String(kidErr.message))) throw kidErr;
-      for (const kid of kids || []) {
-        const { copied, total } = await copyAssetPrefix(id, kid.id);
-        if (copied.size !== total) { safeToPurge = false; continue; }
-        const next = {};
-        for (const [k, v] of Object.entries(kid.assets || {})) {
-          const stripped = String(v).replace(/^game-assets\//, '');
-          next[k] = stripped.startsWith(id + '/')
-            ? 'game-assets/' + kid.id + stripped.substring(id.length)
-            : String(v);
-        }
-        const { error: detachErr } = await supabase.from('games')
-          .update({ assets: next, asset_owner: kid.id }).eq('id', kid.id);
-        if (detachErr) safeToPurge = false;
-      }
-    } catch (e) {
-      safeToPurge = false;
-      console.error('delete: could not hand assets to forks of', id, e?.message || e);
-    }
-    // Best-effort: purge the project's storage prefix so binaries don't orphan.
-    try {
-      if (safeToPurge) {
-        const bucket = supabase.storage.from('game-assets');
-        const paths = [];
-        async function walk(prefix) {
-          const { data: entries } = await bucket.list(prefix, { limit: 1000 });
-          for (const e of entries || []) {
-            const p = prefix ? prefix + '/' + e.name : e.name;
-            if (e.metadata) paths.push(p);
-            else await walk(p);
-          }
-        }
-        await walk(id, paths);
-        if (paths.length) await bucket.remove(paths);
-      }
-    } catch {}
-    await supabase.from('games').delete().eq('id', id).eq('owner_id', user.id);
-    gamesListCacheClear();
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true }));
-    return;
-  }
+
+
 
   // ── API: delete comment (author or game owner) ────────────────
   if (url.pathname.startsWith('/api/comments/') && req.method === 'DELETE') {
@@ -8741,6 +5563,33 @@ setInterval(purgeUnconfirmed, 24*3600*1000); // daily
 setTimeout(purgeUnconfirmed, 5*60*1000); // first run 5 min after start
 
 // ── Start ────────────────────────────────────────────────────────
+// ── Route modules ────────────────────────────────────────────────
+// Built once, after Supabase, the helper functions and the lobby map exist.
+// Each one owns its route bodies; server.js only decides when to call it.
+messageRoutes = require('./lib/routes/messages')({
+  supabase, cors, requireUser, needVerified, readBody, isUuid, validName,
+  canSeeLobby, serverRole, broadcast, rateLimit,
+});
+serverRoutes = require('./lib/routes/servers')({
+  supabase, cors, requireUser, needVerified, readBody, isUuid, serverRole,
+  chanSlug, chanRoomName, chanDisplay, sendConversationsDirty, safeIconUrl,
+  awardUser, crypto, lobbies,
+});
+chatRoutes = require('./lib/routes/chat')({
+  supabase, cors, requireUser, needVerified, readBody, isUuid, dmRoomName,
+  chanDisplay, sendConversationsDirty, canSeeLobby, serverRole, notify,
+  logActivity, isModerator, rateLimit, lobbies,
+});
+githubRoutes = require('./lib/routes/github')({
+  cors, userOf, ghKey, GH_SETUP_TEXT, supabase, ghNoTable, requireUser, needVerified, rateLimit, readBody, GH_SCOPES_OK, ghSeal, ghGate, ghApi, ghFail, ghSend, GH_PATH, ghDeployWarned, GIT_SNAP_PATH, GIT_SNAP_CAP, GH_NAME, crypto, ghToken, repoTreeFiles, createRelease,
+});
+gamesRoutes = require('./lib/routes/games')({
+  cors, requireUser, isModerator, supabase, gamesListCacheClear, seatAlive, seatFromReq, seatDead, readBody, crypto, revisionFilesOf, gamesListCache, GAMES_LIST_TTL, liveCount, userOf, hasScope, scopeDenied, needVerified, activeBan, isUuid, notify, playtestValid, defaultThumb, rankRelated, rateLimit, weekStartISO, PLAYTEST_SECRET, playtestSign, siteOrigin, clientIp, logActivity, singleFileBuild, latestRelease, digestWeekStart, awardUser, freeGameSlug, sanitizeTags, copyAssetPrefix, ghToken, ghApi, accountStorageBytes, ACCOUNT_STORAGE_CAP, onPublished, discord, createRelease, forgetStorageUsage,
+});
+modRoutes = require('./lib/routes/mod')({
+  cors, requireUser, needVerified, isModerator, supabase, isUuid, readBody, AWARDS, awardUser, notify, ghToken, rateLimit, canSeeLobby, packByKey, RESERVED_PACK_SLUGS, gamesListCacheClear,
+});
+
 server.listen(PORT, () => {
   console.log(`\n  Cudic is running → http://localhost:${PORT}\n`);
   // Boot fingerprint: proves which Gmail values the running deploy sees.
