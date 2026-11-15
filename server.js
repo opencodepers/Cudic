@@ -205,7 +205,7 @@ async function activeBan(userId, kind) {
 // Route modules are instantiated at the bottom, after every helper and
 // map they close over exists (they still run inside handleRequest).
 let messageRoutes = null, serverRoutes = null, chatRoutes = null;
-let githubRoutes = null, gamesRoutes = null, modRoutes = null, extrasRoutes = null, communityRoutes = null, plannerRoutes = null, customizeRoutes = null, hqRoutes = null, hubRoutes = null;
+let githubRoutes = null, gamesRoutes = null, modRoutes = null, extrasRoutes = null, communityRoutes = null, plannerRoutes = null, customizeRoutes = null, hqRoutes = null, hubRoutes = null, kitRoutes = null, packRoutes = null;
 
 const PORT = process.env.PORT || 3000;
 
@@ -2477,6 +2477,18 @@ async function handleRequest(req, res) {
     await communityRoutes.handle(req, res, url);
     if (res.headersSent) return;
   }
+  // -- kit routes: the server kit and the public invite lookup --
+  if (kitRoutes && kitRoutes.matches(url.pathname)) {
+    await kitRoutes.handle(req, res, url);
+    return;
+  }
+
+  // ── pack routes: the community pack (docs #community-pack) ────
+  if (packRoutes && packRoutes.matches(url.pathname)) {
+    await packRoutes.handle(req, res, url);
+    return;
+  }
+
   if (serverRoutes && serverRoutes.matches(url.pathname)) {
     await serverRoutes.handle(req, res, url);
     if (res.headersSent) return;
@@ -4524,6 +4536,20 @@ function slugify(s) {
     url.pathname = '/server-customize.html';
   }
 
+  // ── Community page and public server preview ──────────────────
+  if (url.pathname === '/server-community') {
+    url.pathname = '/server-community.html';
+  }
+  if (url.pathname === '/server-preview' || url.pathname.startsWith('/preview/')) {
+    url.pathname = '/server-preview.html';
+  }
+
+  // ── Invite page: /join/<code> -> join.html. The code stays in the
+  // address bar, so join.html reads it from the path and sends it back.
+  if (url.pathname === '/join' || url.pathname.startsWith('/join/')) {
+    url.pathname = '/join.html';
+  }
+
   // ── Redirect /quests to /quests.html ──────────────────────────
   if (url.pathname === '/quests') {
     url.pathname = '/quests.html';
@@ -5890,6 +5916,12 @@ hqRoutes = require('./lib/routes/hq')({
 });
 hubRoutes = require('./lib/routes/hub')({
   supabase, cors, requireUser, readBody, isUuid, canSeeLobby, serverRole, rateLimit,
+});
+kitRoutes = require('./lib/routes/kit')({
+  supabase, cors, requireUser, needVerified, readBody, isUuid, serverRole, rateLimit,
+});
+packRoutes = require('./lib/routes/pack')({
+  supabase, cors, requireUser, needVerified, readBody, isUuid, serverRole, rateLimit,
 });
 chatRoutes = require('./lib/routes/chat')({
   supabase, cors, requireUser, needVerified, readBody, isUuid, dmRoomName,

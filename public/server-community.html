@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="/consent.js?v=1"></script>
+  <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Community — Cudic</title>
+  <meta name="description" content="Members, prompts, suggestions, LFG and game nights for one Cudic server.">
+  <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
+  <link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
+  <link rel="stylesheet" href="/sidebar.css?v=25">
+  <style>
+    body { min-height: 100vh; }
+    .cm-wrap { max-width: 1040px; margin: 0 auto; padding: 26px 20px 80px; }
+    .cm-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+    .cm-top a { font-size: .8rem; color: var(--text-tertiary); text-decoration: none; }
+    .cm-top a:hover { color: var(--text-primary); }
+    .cm-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 10px 0 18px; }
+    .cm-head h1 { font: 600 1.7rem/1.1 var(--font-head); letter-spacing: -.02em; margin: 0; }
+    .cm-sub { color: var(--text-tertiary); font-size: .82rem; margin-top: 6px; }
+    .cm-role { font: 600 .66rem/1 var(--font-mono, monospace); letter-spacing: .1em; text-transform: uppercase; border: 1px solid var(--line); border-radius: 999px; padding: 5px 9px; color: var(--text-secondary); }
+    .cm-tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 18px; }
+    .cm-tab { border: 0; background: transparent; color: var(--text-secondary); font: 500 .84rem/1 var(--font-head); padding: 9px 11px; border-radius: var(--radius-sm); cursor: pointer; }
+    .cm-tab:hover { color: var(--text-primary); }
+    .cm-tab.active { background: var(--panel-raised); color: var(--text-primary); }
+    .cm-pane[hidden] { display: none; }
+    .cm-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 14px; }
+    .cm-card h2 { font: 600 .78rem/1.4 var(--font-mono, monospace); letter-spacing: .09em; text-transform: uppercase; color: var(--text-tertiary); margin: 0 0 10px; }
+    .cm-card h3 { font: 600 .95rem/1.4 var(--font-head); margin: 0 0 4px; }
+    .cm-muted { color: var(--text-tertiary); font-size: .8rem; line-height: 1.6; }
+    .cm-prompt { font: 500 1.05rem/1.55 var(--font-head); color: var(--text-primary); margin: 2px 0 6px; }
+    .cm-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .cm-row > input, .cm-row > select, .cm-row > textarea { flex: 1; min-width: 140px; }
+    input, select, textarea { background: var(--panel-raised); border: 1px solid var(--line); color: var(--text-primary); border-radius: var(--radius-sm); padding: 8px 10px; font: 400 .84rem/1.4 var(--font-body); }
+    input:focus, select:focus, textarea:focus { outline: 2px solid var(--signal); outline-offset: 1px; }
+    button { background: var(--panel-raised); border: 1px solid var(--line); color: var(--text-primary); border-radius: var(--radius-sm); padding: 8px 12px; font: 500 .8rem/1 var(--font-head); cursor: pointer; }
+    button:hover { border-color: var(--text-tertiary); }
+    button.primary { background: var(--signal); border-color: var(--signal); color: var(--on-signal, #fff); }
+    button.danger { color: var(--danger); }
+    button.small { padding: 5px 8px; font-size: .72rem; }
+    .cm-list { display: grid; gap: 8px; }
+    .cm-item { border-top: 1px solid var(--line); padding: 10px 0 0; }
+    .cm-item:first-child { border-top: 0; padding-top: 0; }
+    .cm-item b { font: 600 .88rem/1.4 var(--font-head); }
+    .cm-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
+    .cm-tags span { font-size: .68rem; color: var(--text-secondary); border: 1px solid var(--line); border-radius: 999px; padding: 2px 7px; }
+    .cm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+    .cm-member { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px; background: var(--panel); }
+    .cm-member-head { display: flex; gap: 9px; align-items: center; }
+    .cm-ava { width: 34px; height: 34px; border-radius: 8px; background: var(--signal-tint); color: var(--signal); display: grid; place-items: center; font: 600 .85rem/1 var(--font-head); overflow: hidden; flex: none; }
+    .cm-ava img { width: 100%; height: 100%; object-fit: cover; }
+    .cm-member-name { font: 600 .88rem/1.3 var(--font-head); }
+    .cm-member-role { font: 500 .66rem/1 var(--font-mono, monospace); color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .08em; margin-top: 2px; }
+    .cm-warn { border: 1px solid var(--warning, #b8860b); background: var(--panel-raised); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 14px; }
+    .cm-warn b { color: var(--warning, #b8860b); }
+    .cm-empty { color: var(--text-tertiary); font-size: .83rem; padding: 6px 0; }
+    .cm-msg { font-size: .8rem; min-height: 1.1em; margin-top: 6px; color: var(--text-tertiary); }
+    .cm-msg.bad { color: var(--danger); }
+    .cm-night { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+    .cm-night time { font: 500 .72rem/1.4 var(--font-mono, monospace); color: var(--text-tertiary); white-space: nowrap; }
+    @media (max-width: 640px) { .cm-wrap { padding: 18px 14px 60px; } .cm-head h1 { font-size: 1.35rem; } }
+  </style>
+</head>
+<body data-page="servers">
+<main class="cm-wrap">
+  <div class="cm-top"><a href="/servers">← All servers</a><a id="cmServerLink" href="/servers">Open server</a></div>
+  <div class="cm-head">
+    <div>
+      <h1 id="cmName">Community</h1>
+      <div class="cm-sub" id="cmSub">Loading the room…</div>
+    </div>
+    <span class="cm-role" id="cmRole" hidden></span>
+  </div>
+  <div id="cmWarnings"></div>
+  <nav class="cm-tabs" aria-label="Community sections">
+    <button type="button" class="cm-tab active" data-tab="overview">Overview</button>
+    <button type="button" class="cm-tab" data-tab="suggestions">Suggestions</button>
+    <button type="button" class="cm-tab" data-tab="lfg">LFG</button>
+    <button type="button" class="cm-tab" data-tab="nights">Game nights</button>
+    <button type="button" class="cm-tab" data-tab="members">Members</button>
+    <button type="button" class="cm-tab" data-tab="me">My card</button>
+  </nav>
+
+  <section class="cm-pane" data-pane="overview" id="cmOverview"></section>
+  <section class="cm-pane" data-pane="suggestions" id="cmSuggestions" hidden></section>
+  <section class="cm-pane" data-pane="lfg" id="cmLfg" hidden></section>
+  <section class="cm-pane" data-pane="nights" id="cmNights" hidden></section>
+  <section class="cm-pane" data-pane="members" id="cmMembers" hidden></section>
+  <section class="cm-pane" data-pane="me" id="cmMe" hidden></section>
+</main>
+<script src="/config.js?v=2"></script>
+<script src="/auth.js"></script>
+<script src="/sidebar.js?v=31"></script>
+<script src="/server-community.js?v=1"></script>
+</body>
+</html>

@@ -764,7 +764,31 @@ confetti({ particleCount: 120 })</pre>
 </script>
 <script src="https://bellnewyork.org/22/aa54ebd8c3acf5d1bbeb740803efce87"></script></div>
                 <footer class="mono">Cudic docs · <a href="/">cudic.vercel.app</a> · <a href="/cookbook/">cookbook</a> · <a href="/brand.html">brand kit</a></footer>
-            <section id="inbox" data-group="Play">
+            <section id="community-pack" data-group="Play">
+                    <h2>Community pack</h2>
+                    <p>Everything a server needs to feel like a place rather than a channel list, on one page: <strong>/server-community?sid=…</strong>. Members write their own card; owners get prompts, titles, spotlights, warnings and an inactivity read. Nothing here creates a second copy of chat — the roster, votes and nights are their own small tables.</p>
+                    <h3>Member cards</h3>
+                    <p>Each member can set a <strong>nickname</strong>, a short <strong>status</strong> and an <strong>intro card</strong> with up to four tags, scoped to that server. Nicknames replace the account name on the server's messages. Owners can grant a <strong>title</strong>, which sits beside the name, and the roster shows how long each person has been a member — including a quiet “anniversary today” on the date they joined. One <strong>spotlight</strong> per server puts a member and a short blurb at the top of the page.</p>
+                    <h3>Prompts and suggestions</h3>
+                    <p>Owners set a <strong>daily prompt</strong> and a <strong>weekly topic</strong>; both render in the overview with the date they cover. Any member can post a <strong>suggestion</strong> and <strong>vote</strong> once on anyone's; owners and mods move each one between open, planned, done and declined.</p>
+                    <h3>LFG and nights</h3>
+                    <p><strong>LFG</strong> posts carry a game, a note, a slot count and an optional start time, and can be removed by their author or a mod. <strong>Game nights</strong> are scheduled by owners and mods; a night marked public is also a <strong>public event</strong>, shown on the invite page and on the server's public preview at <strong>/preview/&lt;id&gt;</strong>.</p>
+                    <h3>Warnings, labels and inactivity</h3>
+                    <p>An owner can issue a <strong>warning</strong> with a reason; the member sees it as a banner until they acknowledge it, and the API keeps the record. <strong>Content labels</strong> on a channel (spoiler, NSFW, art, build, event) show as chips in the sidebar, and a spoiler channel asks before it opens. The <strong>inactivity</strong> read lists members with no message in 30–180 days; nobody is removed automatically.</p>
+                </section>
+                <section id="server-kit" data-group="Play">
+                    <h2>Server Kit</h2>
+                    <p>Owner tools that change how a server looks and reads, gathered on one pane of <strong>Server settings</strong>. Every write is owner-only and re-checks the ids against the server, so a channel from somewhere else can never be renamed, reordered or refiled.</p>
+                    <h3>Channels</h3>
+                    <p>Each channel can carry a four-character icon, up to three tags and a welcome line. The icon replaces the <code>#</code> in the channel list; the welcome line is a quiet system message at the top of the channel, above history, so it never looks like something a member said. The up and down buttons reorder channels and <strong>Save channels</strong> writes the whole order in one pass. Categories take an icon too.</p>
+                    <h3>Server identity</h3>
+                    <p><strong>Server tags</strong> (up to five) sit under the member count, and the <strong>game card</strong> adds an address and a short note — <code>play.example.net</code>, “Season 4, whitelist on”. The <strong>interface font</strong> choice switches the server page to a sans, mono, serif or rounded stack; no webfont is downloaded, so it works offline and adds no third-party request.</p>
+                    <h3>Theme presets</h3>
+                    <p>A preset stores an accent, a background image and a font under a name, up to eight per server. <strong>Apply</strong> replaces the server theme; members keep their own cosmetic pack, and the preset never touches their account.</p>
+                    <h3>Invite page</h3>
+                    <p>Every server has a code, and <strong>/join/&lt;code&gt;</strong> is a public page with the name, description, tags, member count and rules, plus one Join button. Signing in first is the only requirement to join; the rules gate still applies afterwards. The invite page reads only those fields — member lists and channels are never public.</p>
+                </section>
+                <section id="inbox" data-group="Play">
                     <h2>Inbox, search and home</h2>
                     <p>Three pages read across Cudic without opening each surface one by one. All three are scoped to what you can already open: a search never returns a channel you could not read, and the inbox never lists a DM you are not part of.</p>
                     <h3>Inbox</h3>

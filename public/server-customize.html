@@ -16,6 +16,7 @@
         <div class="czx-title">Server Settings</div>
         <button type="button" class="czx-item" data-pane="profile">Server Profile</button>
         <button type="button" class="czx-item" data-pane="channels">Channels</button>
+        <button type="button" class="czx-item" data-pane="kit">Server Kit</button>
         <button type="button" class="czx-item" data-pane="members">Members</button>
         <button type="button" class="czx-item" data-pane="welcome">Welcome</button>
         <button type="button" class="czx-item" data-pane="commands">Commands</button>
@@ -68,6 +69,12 @@
             <div id="welcomeMsg" class="cz-msg"></div>
           </section>
 
+          <section class="cz-card czx-pane" data-pane="kit">
+            <h2>Server Kit</h2>
+            <p class="sub">Channel icons, order, tags and welcome lines, category icons, server tags, a game card, named theme presets and the invite page. Owner only.</p>
+            <div id="kitPane"><p class="sub">Loading…</p></div>
+          </section>
+
           <section class="cz-card czx-pane" data-pane="commands">
             <h2>Commands</h2>
             <p class="sub">Declarative responses, never arbitrary JavaScript.</p>
@@ -89,4 +96,5 @@
 <script src="/sidebar.js?v=31"></script>
 <script src="/settings-shell.js?v=1"></script>
 <script src="/server-customize.js?v=1"></script>
+<script src="/server-kit.js?v=1"></script>
 </body></html>

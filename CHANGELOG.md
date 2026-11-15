@@ -8,6 +8,24 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Community pack: member cards, prompts, suggestions, LFG, nights, warnings and labels** (`lib/routes/pack.js`, `public/server-community.html`, `public/server-community.js`, `public/server-preview.html`, `public/server-favourites.js`, `supabase/migrations/20261115190000_community_pack.sql`)
+
+- **Member cards** are per server: nickname (which replaces the account name on that server's messages), a short status, an intro with up to four tags, an owner-granted title, and a joined date that marks anniversaries. One member spotlight per server sits at the top of the community page.
+- **Daily prompts and weekly topics** give the room something to answer. Any member can post a **suggestion**; every member gets one vote per suggestion, and owners and mods move suggestions through open, planned, done and declined.
+- **LFG** posts carry a game, note, slot count and optional start time; authors and mods can remove them. **Game nights** are scheduled by owners and mods, and a night marked public is a **public event** on the invite page and the new public **preview** at `/preview/<id>`.
+- **Warnings** carry a reason and stay unread as a banner until the member acknowledges them. **Content labels** (spoiler, NSFW, art, build, event) appear on channels in the sidebar, and spoiler channels ask before opening.
+- **Favourites** put a private star on any directory card with a Favourites filter, and owners get an **inactivity** read that lists members who have not posted in 30–180 days. Nothing is removed automatically.
+- Every table is additive and cascades from its server; the API answers “needs the migration” until the SQL has run, and each page degrades to an empty section rather than an error.
+
+**Server Kit: icons, order, welcome lines, presets and a real invite page** (`lib/routes/kit.js`, `public/server-kit.js`, `public/join.html`, `public/server.html`, `public/server-customize.html`, `supabase/migrations/20261115180000_server_kit.sql`)
+
+- **Channels** carry a four-character icon, up to three tags and a welcome line. The icon replaces the `#` in the sidebar, the first tag rides beside the name, and the welcome line appears as a system line above history every time the channel opens. Owners reorder the list with up and down buttons and save the order in one request; every channel id is re-checked against the server before it is written.
+- **Categories** take an icon, and the server page shows it before the folder name.
+- **Server identity** gains up to five tags under the member count, a game card (address plus note) and a font choice — sans, mono, serif or rounded, all system stacks with no webfont request.
+- **Named theme presets** store an accent, background and font under a name, up to eight per server, with Apply and Delete. Applying one replaces the server theme only; members keep their own pack.
+- **Invite pages** at `/join/<code>` show the server's name, description, tags, member count and rules to anyone with the code, with one Join button that signs the visitor in first if needed. The rules gate still runs after joining; channels and members stay private.
+- The whole batch is additive and re-runnable; every write degrades to a clear “needs the migration” message until the SQL has run, and the server page keeps its old rendering before then.
+
 **One inbox, one search, one home** (`lib/routes/hub.js`, `public/inbox.html`, `public/search.html`, `public/home.html`, `supabase/migrations/20261115170000_inbox_search_home.sql`)
 
 - **Universal inbox** at `/inbox` puts unread DMs and every notification kind in one list, newest first, with filters for unread, messages and notices. A DM counts as unread until you open it in chat; notices keep their place after being read. **Mark all read** clears the notification rows and the DM read state in one request.

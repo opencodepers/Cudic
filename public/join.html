@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="/consent.js?v=1"></script>
+  <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Join a server — Cudic</title>
+  <meta name="description" content="A Cudic server invite: what the server is, its rules, and one button to join.">
+  <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
+  <link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
+  <link rel="stylesheet" href="/sidebar.css?v=25">
+  <style>
+    body { display: flex; min-height: 100vh; }
+    .join-wrap { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 48px 20px 80px; }
+    .join-card { width: min(560px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+    .join-banner { height: 120px; background: var(--panel-raised); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .join-banner img { width: 100%; height: 100%; object-fit: cover; }
+    .join-icon { width: 64px; height: 64px; border-radius: var(--radius-sm); background: var(--signal-tint); color: var(--signal); display: flex; align-items: center; justify-content: center; font: 600 1.2rem/1 var(--font-head); overflow: hidden; }
+    .join-icon img { width: 100%; height: 100%; object-fit: cover; }
+    .join-body { padding: 20px 22px 24px; }
+    .join-head { display: flex; gap: 14px; align-items: center; margin-top: -44px; margin-bottom: 12px; }
+    .join-head h1 { font: 600 1.35rem/1.2 var(--font-head); margin: 0; letter-spacing: -.01em; }
+    .join-meta { font-size: .78rem; color: var(--text-tertiary); margin-top: 4px; }
+    .join-tags { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 4px; }
+    .join-tags span { font-size: .72rem; color: var(--text-secondary); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; }
+    .join-rules { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+    .join-rules h2 { font: 600 .7rem/1.4 var(--font-mono, monospace); letter-spacing: .1em; text-transform: uppercase; color: var(--text-tertiary); margin: 0 0 6px; }
+    .join-rules p { white-space: pre-wrap; font-size: .85rem; line-height: 1.7; color: var(--text-secondary); margin: 0; max-height: 220px; overflow-y: auto; }
+    .join-actions { display: flex; gap: 8px; align-items: center; margin-top: 20px; flex-wrap: wrap; }
+    .join-btn { height: 38px; padding: 0 18px; border: 0; border-radius: var(--radius-sm); background: var(--signal); color: var(--on-signal, #0d0e10); font: 600 .85rem/1 var(--font-head); cursor: pointer; }
+    .join-btn:disabled { opacity: .6; cursor: default; }
+    .join-link { color: var(--text-secondary); font-size: .82rem; text-decoration: none; }
+    .join-link:hover { color: var(--text-primary); }
+    .join-msg { font-size: .82rem; margin-top: 10px; min-height: 1em; color: var(--danger); }
+    .join-msg.ok { color: var(--success); }
+  </style>
+</head>
+<body data-page="servers">
+<main class="join-wrap"><div class="join-card" id="joinCard">
+  <div class="join-banner" id="joinBanner"></div>
+  <div class="join-body">
+    <div class="join-head"><div class="join-icon" id="joinIcon">?</div><div><h1 id="joinName">Loading…</h1><div class="join-meta" id="joinMeta"></div></div></div>
+    <div class="join-tags" id="joinTags"></div>
+    <p class="sub" id="joinNight" style="font-size:.78rem;color:var(--text-tertiary);margin:8px 0 0"></p>
+    <p class="sub" id="joinDesc" style="font-size:.86rem;color:var(--text-secondary);line-height:1.7;margin:8px 0 0"></p>
+    <div class="join-rules" id="joinRulesWrap" hidden><h2>Rules</h2><p id="joinRules"></p></div>
+    <div class="join-actions">
+      <button class="join-btn" id="joinBtn" type="button">Join server</button>
+      <a class="join-link" href="/servers">Browse servers</a>
+    </div>
+    <p class="join-msg" id="joinMsg" role="status" aria-live="polite"></p>
+  </div>
+</div></main>
+<script src="/config.js"></script>
+<script src="/auth.js"></script>
+<script src="/sidebar.js?v=31"></script>
+<script>
+(function () {
+  var code = (location.pathname.match(/^\/join\/([A-Za-z0-9_-]{4,40})$/) || [])[1] || new URLSearchParams(location.search).get('code') || '';
+  var host = (typeof WS_URL !== 'undefined' && WS_URL) ? WS_URL.replace(/^wss?:\/\//, 'https://') : '';
+  var srv = null;
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  async function token() { try { if (window.getAuthToken) { var t = await window.getAuthToken(); if (t) return t; } var raw = localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token'); var s = JSON.parse(raw); return (s && s.access_token) || raw; } catch (e) { return null; } }
+  function fail(text) { $('joinName').textContent = 'Invite not found'; $('joinMeta').textContent = ''; $('joinMsg').textContent = text; $('joinBtn').disabled = true; }
+
+  fetch(host + '/api/servers/invite/' + encodeURIComponent(code))
+    .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'Invite not found.'); return d; }); })
+    .then(function (d) {
+      srv = d.server;
+      document.title = srv.name + ' — Cudic';
+      $('joinName').textContent = srv.name;
+      $('joinMeta').textContent = (srv.members || 0) + ' member' + ((srv.members || 0) === 1 ? '' : 's') + (srv.visibility === 'private' ? ' · Private' : ' · Public');
+      $('joinDesc').textContent = srv.description || '';
+      if (srv.icon_url) {
+        var img = document.createElement('img'); img.src = srv.icon_url; img.alt = ''; $('joinIcon').textContent = ''; $('joinIcon').appendChild(img);
+      } else {
+        $('joinIcon').textContent = String(srv.name || '?').slice(0, 2).toUpperCase();
+      }
+      (srv.tags || []).forEach(function (t) { var s = document.createElement('span'); s.textContent = t; $('joinTags').appendChild(s); });
+      if (srv.rules) { $('joinRules').textContent = srv.rules; $('joinRulesWrap').hidden = false; }
+      fetch(host + '/api/servers/' + srv.id + '/preview').then(function (r) { return r.ok ? r.json() : null; }).then(function (pv) {
+        var n = pv && (pv.nights || [])[0];
+        if (n) $('joinNight').textContent = 'Next public event: ' + n.title + ' · ' + new Date(n.starts_at).toLocaleString();
+      }).catch(function () {});
+      if (srv.accent) document.documentElement.style.setProperty('--signal', srv.accent);
+    })
+    .catch(function (e) { fail(e.message); });
+
+  $('joinBtn').addEventListener('click', async function () {
+    var btn = $('joinBtn');
+    if (!srv) return;
+    btn.disabled = true;
+    $('joinMsg').className = 'join-msg';
+    $('joinMsg').textContent = 'Joining…';
+    var t = await token();
+    if (!t) { location.href = '/login?next=' + encodeURIComponent(location.pathname); return; }
+    try {
+      var r = await fetch(host + '/api/servers/' + srv.id + '/join', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invite_code: code }),
+      });
+      var d = await r.json().catch(function () { return {}; });
+      if (!r.ok) throw new Error(d.error || 'Could not join.');
+      $('joinMsg').className = 'join-msg ok';
+      $('joinMsg').textContent = 'Joined. Opening the server…';
+      location.href = '/chat?server=' + encodeURIComponent(srv.id);
+    } catch (e) {
+      $('joinMsg').className = 'join-msg';
+      $('joinMsg').textContent = e.message;
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>

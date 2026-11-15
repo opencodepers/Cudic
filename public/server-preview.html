@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="/consent.js?v=1"></script>
+  <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Server preview — Cudic</title>
+  <meta name="description" content="A public Cudic server: what it is, its channels, game nights and rules.">
+  <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
+  <link rel="stylesheet" href="/sidebar.css?v=25">
+  <style>
+    body { min-height: 100vh; }
+    .pv-wrap { max-width: 720px; margin: 0 auto; padding: 40px 20px 80px; }
+    .pv-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
+    .pv-head { display: flex; gap: 14px; align-items: center; }
+    .pv-icon { width: 62px; height: 62px; border-radius: var(--radius-sm); background: var(--signal-tint); color: var(--signal); display: grid; place-items: center; font: 600 1.15rem/1 var(--font-head); overflow: hidden; flex: none; }
+    .pv-icon img { width: 100%; height: 100%; object-fit: cover; }
+    .pv-head h1 { font: 600 1.45rem/1.2 var(--font-head); margin: 0; letter-spacing: -.01em; }
+    .pv-meta { color: var(--text-tertiary); font-size: .78rem; margin-top: 4px; }
+    .pv-desc { color: var(--text-secondary); font-size: .88rem; line-height: 1.7; margin: 14px 0 0; }
+    .pv-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+    .pv-tags span { font-size: .72rem; color: var(--text-secondary); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; }
+    .pv-sect { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+    .pv-sect h2 { font: 600 .7rem/1.4 var(--font-mono, monospace); letter-spacing: .1em; text-transform: uppercase; color: var(--text-tertiary); margin: 0 0 8px; }
+    .pv-chan { display: flex; gap: 8px; align-items: center; padding: 6px 0; font-size: .84rem; color: var(--text-secondary); border-bottom: 1px solid var(--line); }
+    .pv-chan:last-child { border-bottom: 0; }
+    .pv-chan b { color: var(--text-primary); font-weight: 500; }
+    .pv-label { font: 600 .6rem/1 var(--font-mono, monospace); letter-spacing: .07em; text-transform: uppercase; border: 1px solid var(--line); border-radius: 3px; padding: 2px 4px; color: var(--text-tertiary); }
+    .pv-night { padding: 8px 0; border-bottom: 1px solid var(--line); font-size: .85rem; }
+    .pv-night:last-child { border-bottom: 0; }
+    .pv-night time { display: block; font: 500 .72rem/1.5 var(--font-mono, monospace); color: var(--text-tertiary); }
+    .pv-rules { white-space: pre-wrap; font-size: .84rem; line-height: 1.7; color: var(--text-secondary); max-height: 260px; overflow-y: auto; margin: 0; }
+    .pv-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 22px; }
+    .pv-btn { height: 38px; padding: 0 16px; display: inline-flex; align-items: center; border-radius: var(--radius-sm); border: 1px solid var(--line); color: var(--text-primary); text-decoration: none; font: 500 .84rem/1 var(--font-head); }
+    .pv-btn.primary { background: var(--signal); border-color: var(--signal); color: var(--on-signal, #fff); }
+    .pv-empty { color: var(--text-tertiary); font-size: .82rem; }
+  </style>
+</head>
+<body data-page="servers">
+<main class="pv-wrap"><div class="pv-card" id="pvCard">
+  <div class="pv-head"><div class="pv-icon" id="pvIcon">?</div><div><h1 id="pvName">Loading…</h1><div class="pv-meta" id="pvMeta"></div></div></div>
+  <p class="pv-desc" id="pvDesc"></p>
+  <div class="pv-tags" id="pvTags"></div>
+  <div class="pv-actions"><a class="pv-btn primary" id="pvJoin" href="/servers">Join server</a><a class="pv-btn" href="/servers">All servers</a></div>
+  <div class="pv-sect"><h2>Channels</h2><div id="pvChannels"></div></div>
+  <div class="pv-sect"><h2>Public events</h2><div id="pvNights"></div></div>
+  <div class="pv-sect" id="pvRulesWrap" hidden><h2>Rules</h2><p class="pv-rules" id="pvRules"></p></div>
+</div></main>
+<script src="/config.js?v=2"></script>
+<script>
+(function () {
+  var id = (location.pathname.match(/^\/preview\/([0-9a-f-]{36})$/) || [])[1] || new URLSearchParams(location.search).get('id') || '';
+  var host = (typeof WS_URL !== 'undefined' && WS_URL) ? WS_URL.replace(/^wss?:\/\//, 'https://') : '';
+  function $(x) { return document.getElementById(x); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  fetch(host + '/api/servers/' + encodeURIComponent(id) + '/preview')
+    .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'Server not found.'); return d; }); })
+    .then(function (d) {
+      var s = d.server;
+      document.title = s.name + ' — Cudic';
+      $('pvName').textContent = s.name;
+      $('pvMeta').textContent = s.members + ' member' + (s.members === 1 ? '' : 's') + ' · Public server';
+      $('pvDesc').textContent = s.description || '';
+      if (s.accent) document.documentElement.style.setProperty('--signal', s.accent);
+      if (s.icon_url) {
+        var img = document.createElement('img'); img.src = s.icon_url; img.alt = ''; $('pvIcon').textContent = ''; $('pvIcon').appendChild(img);
+      } else $('pvIcon').textContent = String(s.name || '?').slice(0, 2).toUpperCase();
+      (s.tags || []).forEach(function (t) { var el = document.createElement('span'); el.textContent = t; $('pvTags').appendChild(el); });
+      $('pvJoin').href = s.invite_code ? '/join/' + s.invite_code : '/servers';
+      $('pvChannels').innerHTML = d.channels.length ? d.channels.map(function (c) {
+        return '<div class="pv-chan"><b>#' + esc(c.name) + '</b><span style="flex:1">' + esc(c.topic || '') + '</span>'
+          + (c.labels || []).map(function (l) { return '<span class="pv-label">' + esc(l) + '</span>'; }).join('') + '</div>';
+      }).join('') : '<div class="pv-empty">No public channels listed.</div>';
+      $('pvNights').innerHTML = d.nights.length ? d.nights.map(function (n) {
+        return '<div class="pv-night"><b>' + esc(n.title) + '</b>' + (n.game ? ' · ' + esc(n.game) : '') + (n.note ? ' · ' + esc(n.note) : '') + '<time>' + esc(new Date(n.starts_at).toLocaleString()) + '</time></div>';
+      }).join('') : '<div class="pv-empty">No public events scheduled.</div>';
+      if (s.rules) { $('pvRules').textContent = s.rules; $('pvRulesWrap').hidden = false; }
+    })
+    .catch(function (e) { $('pvName').textContent = 'Preview unavailable'; $('pvMeta').textContent = e.message; });
+})();
+</script>
+</body>
+</html>
