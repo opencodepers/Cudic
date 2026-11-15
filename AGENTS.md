@@ -208,7 +208,7 @@ npm run build        # vite build (lib IIFE) → ../public/islands/  (~5s, 657KB
   on the pages that use it after rebuilding.
 - Bump `sidebar.css?v=25` across all pages when editing `public/sidebar.css`
   — pages cache CSS aggressively. Same for `sidebar.js?v=26` /
-  `client.js?v=16` after editing those. New shared scripts take `?v=1`
+  `client.js?v=17` after editing those. New shared scripts take `?v=1`
   (`ctheme.js`, `csel.js`).
 - **Test suite exists**: `python tests/run_tests.py` (stdlib `unittest`, every
   `test_*.py` in `tests/`; boots `server.js` itself on :3000, appends
@@ -446,6 +446,33 @@ GET|POST|DELETE /api/jam/vote      ← vote state / vote / unvote; one vote per
                                     in `jam_votes` (migration/jam-votes.sql)
 GET  /api/friends                  ← also returns `following`/`followers` lists
 GET  /api/notifications            ← per-user inbox; POST /api/notifications/read marks all
+GET|PUT  /api/extras/notes/:uid    ← private note about one user (own only)
+GET|POST /api/extras/reminders     ← own message reminders; DELETE /api/extras/reminders/:id
+GET|POST /api/extras/pins          ← personal DM pins; DELETE /api/extras/pins/:mid
+GET  /api/users/:id/card           ← DM peer card: public profile, status, shared
+                                  interests, mutual servers, recent games
+GET  /api/activity/friends         ← opt-in activity from accepted friends (14d)
+GET|POST /api/folders              ← own DM folders; DELETE /api/folders/:id
+POST|DELETE /api/folders/:id/items/:lobbyId ← file/unfile one DM
+GET|POST /api/servers/:sid/templates ← owner saves current channel config;
+                                  POST /api/servers/:sid/templates/:tid/apply
+                                  creates a channel from it; DELETE removes it
+GET  /api/servers/:sid/audit       ← owner/mod audit rows (100 newest)
+GET|POST /api/servers/:sid/backup  ← owner JSON export/restore (channels, roles,
+                                  bans); no messages
+GET  /api/servers/:sid/milestones  ← one-time 100 members / 1 year / 10k messages
+GET|POST /api/scheduled            ← own scheduled messages/announcements;
+                                  DELETE /api/scheduled/:id cancels before send
+PUT  /api/messages/:mid/edit       ← author-only edit, 24h window, old body
+                                  goes to message_edits (newest 10)
+GET  /api/messages/:mid/edits      ← previous versions, room-gated
+GET|POST /api/message-collections  ← own private collections; POST /:id/items
+                                  snapshots a message's text; DELETE items
+GET|POST /api/servers/:sid/events  ← member list / owner-mod create;
+                                  DELETE /api/servers/:sid/events/:eid
+POST /api/events/:eid/rsvp         ← going / not_going
+GET  /api/events/:eid/ics          ← member-only calendar download
+GET  /api/extras/mutual/:uid       ← shared interests + peer status
 GET  /api/mod/*                    ← mod-only: users search, user-awards, grant/revoke, message, ban/unban/bans
 + static file serving from public/
 ```
@@ -1452,7 +1479,7 @@ grid-led, Geist everywhere. Read it before building any public surface. Headline
 9. **Bash, not PowerShell** — `&&`, `$(...)` and POSIX paths work. A note here
   saying otherwise is stale (section 0.2).
 10. **CSS/JS cache** — bump the `?v=` on every page after editing a shared file.
-  Current: `sidebar.css?v=25`, `sidebar.js?v=26`, `client.js?v=16`,
+  Current: `sidebar.css?v=25`, `sidebar.js?v=26`, `client.js?v=17`,
   `islands.js?v=8`, `docpage.css?v=7` (new shared scripts start at `?v=1`).
   `tools/check-docs.py` fails when this line and the pages disagree.
 11. **Restart the server** after any `server.js` edit; **rebuild Studio** after any

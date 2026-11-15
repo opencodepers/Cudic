@@ -436,6 +436,40 @@ confetti({ particleCount: 120 })</pre>
                         <li>Sending very fast is briefly rate-limited — that's the flood guard keeping bots out of the rooms.</li>
                         <li>Something wrong in a message? See <a href="#reports">Reports</a>.</li>
                     </ul>
+                    <h3>Chat extras</h3>
+                    <p>Open <strong>Extras</strong> in a conversation for the personal controls. They are private to your account and never change what anyone else sees in the room.</p>
+                    <ul>
+                        <li><strong>Status</strong> — an emoji and 60 characters, saved on your profile and shown next to a DM.</li>
+                        <li><strong>Read receipts</strong> — turn sharing off and both sides stop seeing seen ticks; sent ticks remain.</li>
+                        <li><strong>Private notes</strong> — a note about the person in a DM, visible only to you. Included in your account export.</li>
+                        <li><strong>Reminders</strong> — <strong>Remind</strong> on any message, pick a time, and get an inbox notification with a link back.</li>
+                        <li><strong>Personal pins</strong> — <strong>Keep</strong> a DM message for yourself, separately from room-wide pins.</li>
+                        <li><strong>Mutual interests</strong> — shared profile interests are listed in the DM panel.</li>
+                        <li><strong>Channel badges</strong> — unread counts now appear on the server's channel list, not just the conversation list.</li>
+                        <li><strong>Sound</strong> — an optional quiet tone for incoming messages, generated in the browser (no audio files).</li>
+                    </ul>
+                    <h3>Organise and profiles</h3>
+                    <p><strong>Organise</strong> sits beside Extras in a conversation. It is a private view over your own list — nobody else sees your folders or notes.</p>
+                    <ul>
+                        <li><strong>DM folders</strong> — create up to 12 folders, file the open DM into one, and filter the conversation list with a folder chip. All DMs restores the full list.</li>
+                        <li><strong>Peer card</strong> — open a DM's profile card for their public bio, status, shared interests, mutual servers and published games without leaving the conversation.</li>
+                        <li><strong>Search filters</strong> — the message search adds sender, after/before dates and a <em>links only</em> switch. Results still come only from the conversation you can open.</li>
+                        <li><strong>Typing previews</strong> — in server channels the typing line can show your first few words. DMs never carry a preview, and the profile switch turns it off everywhere.</li>
+                    </ul>
+                    <h3>Friend activity</h3>
+                    <p>The Friends page has a <strong>Friend activity</strong> shelf: recent public activity from accepted friends. It is opt-in — share yours from Profile → <em>Share my public activity with friends</em>; off is the default and nobody can see it until you turn it on.</p>
+                    <h3>Channel templates and server tools</h3>
+                    <p>Owners and mods get a <strong>Tools</strong> button on a server. Owners can edit the open channel's description, save its topic/description/privacy/slow-mode as a <strong>Channel template</strong>, and create a new channel from that template. Mods can read the audit log; owners can export a server backup as JSON and restore channels, roles and bans into the same server.</p>
+                    <p>Servers also celebrate <strong>milestones</strong> once: 100 members, a first birthday and 10,000 messages each post a system line and award the owner a badge. The milestone table makes them one-time even across restarts.</p>
+                    <h3>Scheduled messages and edits</h3>
+                    <p><strong>Plan</strong> beside Organise schedules a message for any conversation. Owners can tick <em>announcement</em> in a server channel; the server re-checks membership and ownership when it fires. A schedule can be cancelled before it sends, and a failed send records why.</p>
+                    <p>Your own messages have <strong>Edit</strong> and <strong>History</strong> actions. Editing is author-only, limited to 24 hours, and every previous version is kept (the newest ten) with its timestamp.</p>
+                    <h3>Message collections</h3>
+                    <p><strong>Collect</strong> on any message saves a snapshot into a named private collection. Collections survive the original message being deleted, and can be opened, browsed or deleted from the Plan panel. Each account keeps up to 12.</p>
+                    <h3>Server events</h3>
+                    <p>Owners and mods can add a <strong>Server event</strong> from Tools: a title, start time and optional channel. Members RSVP <em>Going</em>, see the count, and download an <code>.ics</code> calendar file. The channel header shows the next event, and going members get inbox reminders 15 minutes and 1 minute before it starts.</p>
+                    <h3>Quiet hours and introductions</h3>
+                    <p>Profile has an <strong>Introduction</strong> (shown on your peer card) and <strong>Quiet hours</strong> in UTC. During quiet hours the inbox still receives the notification; only the push is held. Notifications are never dropped.</p>
                 </section>
 
                 <section id="multi" data-group="Play">

@@ -43,6 +43,9 @@ const adNonces = new Map();
 
 // ── Rate limiting (in-memory; single instance, resets on restart) ──
 const rateBuckets = new Map();
+// Best-effort message counter for the 100-message badge. A restart resets it;
+// the badge is idempotent, so being late is harmless.
+const chatMsgCounts = new Map();
 function rateLimit(key, max, windowMs) {
   const now = Date.now();
   let b = rateBuckets.get(key);
@@ -202,7 +205,7 @@ async function activeBan(userId, kind) {
 // Route modules are instantiated at the bottom, after every helper and
 // map they close over exists (they still run inside handleRequest).
 let messageRoutes = null, serverRoutes = null, chatRoutes = null;
-let githubRoutes = null, gamesRoutes = null, modRoutes = null;
+let githubRoutes = null, gamesRoutes = null, modRoutes = null, extrasRoutes = null, communityRoutes = null, plannerRoutes = null;
 
 const PORT = process.env.PORT || 3000;
 
@@ -270,6 +273,25 @@ function siteOrigin(req) {
   return (process.env.SITE_URL || 'https://cudic.vercel.app').replace(/\/$/, '');
 }
 
+// Quiet hours are UTC hours (0–23); the inbox row is still written, only the
+// push is held. Cached briefly so one busy room cannot query per notification.
+const quietCache = new Map();
+async function isQuiet(userId) {
+  const hit = quietCache.get(userId);
+  if (hit && Date.now() - hit.at < 5 * 60 * 1000) return hit.quiet;
+  var quiet = false;
+  try {
+    const { data } = await supabase.from('users').select('quiet_start, quiet_end').eq('id', userId).single();
+    const s = data && data.quiet_start, e = data && data.quiet_end;
+    const h = new Date().getUTCHours();
+    if (Number.isInteger(s) && Number.isInteger(e) && s !== e) {
+      quiet = s < e ? (h >= s && h < e) : (h >= s || h < e);
+    }
+  } catch (e) {}
+  quietCache.set(userId, { at: Date.now(), quiet });
+  return quiet;
+}
+
 async function notify(userId, kind, title, body, refType, refId) {
   if (!userId) return;
   try {
@@ -285,7 +307,7 @@ async function notify(userId, kind, title, body, refType, refId) {
     });
     // Best-effort and unawaited: a slow push service must not stall the
     // request that caused the notification.
-    if (!error) sendPush(userId, title, body).catch(() => {});
+    if (!error && !(await isQuiet(userId))) sendPush(userId, title, body).catch(() => {});
   } catch {}
 }
 
@@ -1289,8 +1311,7 @@ async function handleRequest(req, res) {
     if (!hasScope(user, 'profile:read')) { scopeDenied(res, 'profile:read'); return; }
 
     const { data: profile, error: profErr } = await supabase
-      .from('users')
-      .select('id, user_id, display_name, avatar_url, bio, interests, setup_done, theme, pack_slug, equips, created_at, streak_days')
+      .from('users')        .select('id, user_id, display_name, avatar_url, bio, interests, setup_done, theme, pack_slug, equips, created_at, streak_days')
       .eq('id', user.id)
       .single();
 
@@ -1299,6 +1320,22 @@ async function handleRequest(req, res) {
       res.end(JSON.stringify({ profile: null }));
       return;
     }
+    // Optional chat-extras columns: a missing migration reads as the default
+    // rather than blanking the whole profile (a select of absent columns
+    // fails as a unit in PostgREST).
+    profile.read_receipts = true;
+    profile.status_emoji = '';
+    profile.status_text = '';
+    profile.share_activity = false;
+    profile.typing_previews = true;
+    profile.intro = '';
+    profile.quiet_start = null;
+    profile.quiet_end = null;
+    try {
+      const { data: extras } = await supabase.from('users')
+        .select('read_receipts, status_emoji, status_text, share_activity, typing_previews, intro, quiet_start, quiet_end').eq('id', profile.id).single();
+      if (extras) Object.assign(profile, extras);
+    } catch (e) {}
 
     // Free flairs + longevity badges are claimed just by opening profile.
     try { await autoGrant(user, profile); } catch {}
@@ -1446,6 +1483,13 @@ async function handleRequest(req, res) {
       if (profileRes.error || !data) { res.writeHead(404); res.end(JSON.stringify({ error: 'Not found' })); return; }
       data.games = gamesRes.data || [];
       data.packs = packsRes.data || [];
+      data.status_emoji = '';
+      data.status_text = '';
+      try {
+        const { data: ex } = await supabase.from('users')
+          .select('status_emoji, status_text').eq('id', userId).single();
+        if (ex) { data.status_emoji = ex.status_emoji || ''; data.status_text = ex.status_text || ''; }
+      } catch (e) {}
       data.page = pageRes.data || {};
       data.followers = folRes.count || 0;
       data.achievements = (achRes.data || []).map((a) => ({
@@ -2156,7 +2200,7 @@ async function handleRequest(req, res) {
 
     try {
       const parsed = await readBody(req, 64 * 1024);
-      const { display_name, avatar_url, bio, interests, theme, pack_slug } = parsed;
+      const { display_name, avatar_url, bio, interests, theme, pack_slug, read_receipts, status_emoji, status_text, share_activity, typing_previews, intro, quiet_start, quiet_end } = parsed;
         var updates = {};
         if (bio !== undefined) {
           // Plain text, trimmed and length-capped. Rendered as textContent
@@ -2168,6 +2212,21 @@ async function handleRequest(req, res) {
             .map((t) => String(t).toLowerCase().trim().replace(/[^a-z0-9-]/g, '').slice(0, 24))
             .filter(Boolean);
           updates.interests = [...new Set(list)].slice(0, 10);
+        }
+        if (read_receipts !== undefined) updates.read_receipts = read_receipts !== false;
+        if (share_activity !== undefined) updates.share_activity = share_activity === true;
+        if (typing_previews !== undefined) updates.typing_previews = typing_previews !== false;
+        if (intro !== undefined) updates.intro = String(intro || '').replace(/\s+/g, ' ').trim().substring(0, 200);
+        for (const key of ['quiet_start', 'quiet_end']) {
+          if (parsed[key] === undefined) continue;
+          const h = parseInt(parsed[key], 10);
+          updates[key] = (Number.isFinite(h) && h >= 0 && h < 24) ? h : null;
+        }
+        if (status_emoji !== undefined) {
+          updates.status_emoji = String(status_emoji || '').replace(/[<>"'`\\]/g, '').trim().substring(0, 8);
+        }
+        if (status_text !== undefined) {
+          updates.status_text = String(status_text || '').replace(/\s+/g, ' ').trim().substring(0, 60);
         }
         if (display_name !== undefined) {
           if (!display_name || display_name.trim().length < 1) {
@@ -2265,7 +2324,14 @@ async function handleRequest(req, res) {
           .from('users')
           .update(updates)
           .eq('id', user.id);
-        if (updErr) throw updErr;
+        if (updErr) {
+          if (/column .* does not exist|schema cache/i.test(String(updErr.message || ''))) {
+            res.writeHead(503, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'chat_extras_not_set_up', text: 'This needs the chat-extras migration first.' }));
+            return;
+          }
+          throw updErr;
+        }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(Object.assign({ ok: true }, updates)));
     } catch (e) {
@@ -2370,6 +2436,13 @@ async function handleRequest(req, res) {
 
   // ── API: get message history ───────────────────────────────────
   // ── messages routes: lib/routes/messages.js ─────────────────────────
+  // ── planner routes: lib/routes/planner.js ─────────────────────
+  // Before messages.js: PUT /api/messages/:id and /api/messages/:id/edits
+  // are planner routes that the message module deliberately leaves alone.
+  if (plannerRoutes && plannerRoutes.matches(url.pathname)) {
+    await plannerRoutes.handle(req, res, url);
+    if (res.headersSent) return;
+  }
   if (messageRoutes && messageRoutes.matches(url.pathname)) {
     await messageRoutes.handle(req, res, url);
     if (res.headersSent) return;
@@ -2379,6 +2452,13 @@ async function handleRequest(req, res) {
 
   // List servers: public + owned/private where member
   // ── servers routes: lib/routes/servers.js ─────────────────────────
+  // ── community routes: lib/routes/community.js ─────────────────
+  // Before servers.js: peer cards, folders, templates, audit, backup and
+  // milestones all live under /api/servers/* or /api/users/*.
+  if (communityRoutes && communityRoutes.matches(url.pathname)) {
+    await communityRoutes.handle(req, res, url);
+    if (res.headersSent) return;
+  }
   if (serverRoutes && serverRoutes.matches(url.pathname)) {
     await serverRoutes.handle(req, res, url);
     if (res.headersSent) return;
@@ -2524,6 +2604,12 @@ function slugify(s) {
 
 
   // ── API: my conversations (chat sidebar) ───────────────────────
+  // ── extras routes: lib/routes/extras.js ───────────────────────
+  if (extrasRoutes && extrasRoutes.matches(url.pathname)) {
+    await extrasRoutes.handle(req, res, url);
+    if (res.headersSent) return;
+  }
+
   // ── chat routes: lib/routes/chat.js ─────────────────────────
   if (chatRoutes && chatRoutes.matches(url.pathname)) {
     await chatRoutes.handle(req, res, url);
@@ -4857,7 +4943,14 @@ async function saveMessage(lobbyName, userId, displayName, text) {
         text,
       }).select('id').single();
       if (msgErr) console.error('saveMessage insert:', msgErr.message, { lobbyName, userId });
-      if (saved) return saved;
+      if (saved) {
+        if (userId) {
+          const n = (chatMsgCounts.get(userId) || 0) + 1;
+          chatMsgCounts.set(userId, n);
+          if (n === 100 || n % 500 === 0) awardUser(userId, 'chatter').catch(() => {});
+        }
+        return saved;
+      }
       // Activity trickle: first 10 messages each UTC day earn 1 coin.
       // Best-effort only — never blocks or breaks the save above.
       if (userId) {
@@ -4893,7 +4986,7 @@ async function channelContext(name) {
 
 // owner | member | null for a server (module scope: used by HTTP + WS)
 async function serverRole(me, serverId) {
-  const { data: srv } = await supabase.from('servers').select('id, visibility, owner_id, rules').eq('id', serverId).single();
+  const { data: srv } = await supabase.from('servers').select('id, name, description, visibility, owner_id, rules').eq('id', serverId).single();
   if (!srv) return { server: null, role: null };
   if (srv.owner_id === me) return { server: srv, role: 'owner' };
   const { data: m } = await supabase.from('server_members').select('role').eq('server_id', serverId).eq('user_id', me).single();
@@ -5144,8 +5237,14 @@ wss.on('connection', (ws, req) => {
     if (msg.type === 'typing') {
       const info = clients.get(ws);
       if (!info) return;
+      // A preview is half-written private text: only channels carry one, and
+      // it is capped/sanitised here so the client cannot send a paragraph.
+      var typPreview = String(msg.preview || '').replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+      if (String(info.lobby || '').startsWith('dm:')) typPreview = '';
       // Light cap on typing churn: it is a pure fan-out broadcast.
-      if (rateLimit('typ:' + info.userId, 30, 10000)) broadcast(info.lobby, { type: 'typing', lobby: info.lobby, username: info.username }, ws);
+      if (rateLimit('typ:' + info.userId, 30, 10000)) {
+        broadcast(info.lobby, { type: 'typing', lobby: info.lobby, username: info.username, preview: typPreview }, ws);
+      }
       return;
     }
 
@@ -5562,6 +5661,135 @@ async function purgeUnconfirmed(){
 setInterval(purgeUnconfirmed, 24*3600*1000); // daily
 setTimeout(purgeUnconfirmed, 5*60*1000); // first run 5 min after start
 
+// Message reminders: one sweep a minute, capped per tick. A missing table
+// (migration not applied) is silent; the inbox is nice-to-have.
+setInterval(async () => {
+  try {
+    const { data, error } = await supabase.from('message_reminders')
+      .select('id, user_id, text, message_id')
+      .is('sent_at', null)
+      .lte('remind_at', new Date().toISOString())
+      .limit(25);
+    if (error || !data) return;
+    for (const r of data) {
+      await notify(r.user_id, 'reminder', 'Message reminder', r.text || 'You asked to be reminded.', 'message', r.message_id);
+      await supabase.from('message_reminders').update({ sent_at: new Date().toISOString() }).eq('id', r.id);
+    }
+  } catch (e) {}
+}, 60 * 1000);
+
+// Scheduled posts: one sweep, one instance. The membership/role gate is
+// re-checked at fire time, so losing access cancels the post instead of
+// leaking it, and a failed send records why instead of retrying forever.
+async function sweepScheduled() {
+  try {
+    const { data, error } = await supabase.from('scheduled_messages')
+      .select('id, user_id, lobby_id, text, announcement, lobbies!scheduled_messages_lobby_id_fkey(name, kind, server_id, is_private)')
+      .is('sent_at', null).lte('send_at', new Date().toISOString()).limit(20);
+    if (error || !data) return;
+    for (const row of data) {
+      var err = null;
+      try {
+        const lob = row.lobbies || {};
+        const lobby = { id: row.lobby_id, name: lob.name || '', kind: lob.kind || '', server_id: lob.server_id || null, is_private: !!lob.is_private };
+        if (!lobby.name) err = 'Conversation no longer exists.';
+        else if (!(await canSeeLobby(row.user_id, lobby))) err = 'You can no longer post there.';
+        else if (row.announcement) {
+          const { role } = await serverRole(row.user_id, lobby.server_id);
+          if (role !== 'owner') err = 'Announcements need the server owner.';
+        }
+        if (!err) {
+          const { data: u } = await supabase.from('users').select('display_name').eq('id', row.user_id).single();
+          const saved = await saveMessage(lobby.name, row.user_id, (u && u.display_name) || 'Someone', row.text);
+          if (!saved) err = 'Could not save the message.';
+        }
+      } catch (e) { err = (e && e.message) || 'Send failed.'; }
+      await supabase.from('scheduled_messages')
+        .update({ sent_at: new Date().toISOString(), error: err }).eq('id', row.id);
+    }
+  } catch (e) {}
+}
+setInterval(sweepScheduled, 30 * 1000);
+setTimeout(sweepScheduled, 10 * 1000);
+
+// Event reminders: 15 minutes and 1 minute before, once per RSVP. The
+// reminded_* flags are the idempotency guard across restarts.
+async function sweepEventReminders() {
+  try {
+    const now = Date.now();
+    const { data: events, error } = await supabase.from('server_events')
+      .select('id, title, starts_at, server_id').gte('starts_at', new Date(now).toISOString())
+      .lte('starts_at', new Date(now + 16 * 60000).toISOString()).limit(25);
+    if (error || !events) return;
+    for (const ev of events) {
+      const mins = (Date.parse(ev.starts_at) - now) / 60000;
+      const stage = mins <= 1 ? 1 : 15;
+      const col = stage === 1 ? 'reminded_1' : 'reminded_15';
+      const { data: going } = await supabase.from('event_rsvps').select('user_id')
+        .eq('event_id', ev.id).eq('state', 'going').eq(col, false);
+      if (!going || !going.length) continue;
+      for (const r of going) {
+        notify(r.user_id, stage === 1 ? 'event1' : 'event15', 'Event starting soon',
+          ev.title + ' starts in ' + (stage === 1 ? '1 minute' : '15 minutes') + '.', 'event', ev.id).catch(() => {});
+      }
+      await supabase.from('event_rsvps').update({ [col]: true }).eq('event_id', ev.id).eq(col, false);
+    }
+  } catch (e) {}
+}
+setInterval(sweepEventReminders, 60 * 1000);
+setTimeout(sweepEventReminders, 20 * 1000);
+
+// Server milestones: 100 members, a first birthday, 10,000 messages. The
+// server_milestones primary key is the idempotency guard, so a restart can
+// re-run this sweep without posting twice. Bounded to the oldest 50 servers
+// per tick; free-tier friendly.
+async function sweepMilestones() {
+  try {
+    const { data: servers, error } = await supabase.from('servers')
+      .select('id, name, owner_id, created_at').order('created_at', { ascending: true }).limit(50);
+    if (error || !servers) return;
+    for (const s of servers) {
+      try {
+        const [memRes, chRes] = await Promise.all([
+          supabase.from('server_members').select('user_id', { count: 'exact', head: true }).eq('server_id', s.id),
+          supabase.from('lobbies').select('id').eq('server_id', s.id).eq('kind', 'channel').order('created_at').limit(1),
+        ]);
+        const members = memRes.count || 0;
+        const chans = chRes.data || [];
+        var messages = 0;
+        if (chans.length) {
+          const { count } = await supabase.from('messages').select('id', { count: 'exact', head: true })
+            .in('lobby_id', (await supabase.from('lobbies').select('id').eq('server_id', s.id).eq('kind', 'channel')).data?.map(c => c.id) || []);
+          messages = count || 0;
+        }
+        const ageDays = (Date.now() - new Date(s.created_at || 0).getTime()) / 86400000;
+        const checks = [
+          { code: 'century', hit: members >= 100, text: 'reached 100 members' },
+          { code: 'anniversary', hit: ageDays >= 365, text: 'turns one year old today' },
+          { code: 'ten_k', hit: messages >= 10000, text: 'passed 10,000 messages' },
+        ];
+        for (const c of checks) {
+          if (!c.hit) continue;
+          const { error: insErr } = await supabase.from('server_milestones').insert({ server_id: s.id, code: c.code });
+          if (insErr) continue;
+          try {
+            if (chans[0]) await supabase.from('messages').insert({
+              lobby_id: chans[0].id, user_id: null, display_name: 'Cudic',
+              text: s.name + ' ' + c.text + '.',
+            });
+          } catch (e) {}
+          if (s.owner_id) {
+            await awardUser(s.owner_id, c.code).catch(() => {});
+            notify(s.owner_id, 'milestone', 'Server milestone', s.name + ' ' + c.text + '.', 'server', s.id).catch(() => {});
+          }
+        }
+      } catch (e) {}
+    }
+  } catch (e) {}
+}
+setInterval(sweepMilestones, 60 * 60 * 1000);
+setTimeout(sweepMilestones, 4 * 60 * 1000);
+
 // ── Start ────────────────────────────────────────────────────────
 // ── Route modules ────────────────────────────────────────────────
 // Built once, after Supabase, the helper functions and the lobby map exist.
@@ -5574,6 +5802,17 @@ serverRoutes = require('./lib/routes/servers')({
   supabase, cors, requireUser, needVerified, readBody, isUuid, serverRole,
   chanSlug, chanRoomName, chanDisplay, sendConversationsDirty, safeIconUrl,
   awardUser, crypto, lobbies,
+});
+plannerRoutes = require('./lib/routes/planner')({
+  supabase, cors, requireUser, needVerified, readBody, isUuid, canSeeLobby,
+  serverRole, broadcast, rateLimit,
+});
+communityRoutes = require('./lib/routes/community')({
+  supabase, cors, requireUser, needVerified, readBody, isUuid, canSeeLobby,
+  serverRole, notify, awardUser, chanSlug, chanRoomName, sendConversationsDirty,
+});
+extrasRoutes = require('./lib/routes/extras')({
+  supabase, cors, requireUser, needVerified, readBody, isUuid, canSeeLobby, rateLimit,
 });
 chatRoutes = require('./lib/routes/chat')({
   supabase, cors, requireUser, needVerified, readBody, isUuid, dmRoomName,

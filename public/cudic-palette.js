@@ -14,7 +14,7 @@
     ['Docs', '/docs', '?'], ['Themes', '/themes', 'T'], ['Shop', '/shop', '$'],
     ['Quests', '/quests', 'Q'], ['Friends', '/friends', 'F'], ['Notifications', '/notifications', 'N'],
     ['Profile', '/profile', 'P'], ['Race', '/race', 'R'], ['Servers', '/servers', 'V'],
-    ['Forums', '/forums', 'D'], ['Chat', '/chat', 'C'], ['Music', '/music', 'M'],
+    ['Forums', '/forums', 'D'], ['Chat', '/chat', 'C'], ['Chat extras', '/chat?extras=1', 'X'], ['Music', '/music', 'M'],
     ['Collections', '/collections', 'L'], ['FAQ', '/faq', '?'], ['Home', '/', 'H']
   ];
 

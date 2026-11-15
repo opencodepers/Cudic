@@ -8,6 +8,18 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Planner batch: scheduled posts, edit history, collections, events and quiet hours** (`supabase/migrations/20261115140000_planner.sql`, `lib/routes/planner.js`)
+
+- Chat gained a **Plan** panel: schedule a message (or an owner-only server announcement) up to 30 days ahead and cancel it before it sends; collect any message into a named private collection that snapshots its text; edit your own message within 24 hours and read the previous versions with timestamps. Server Tools now lists **events** for every member — owners/mods create them, members RSVP, the channel header shows the next one, going members get 15-minute and 1-minute inbox reminders, and each event downloads as an `.ics` calendar file. Profiles gained an **introduction** and **quiet hours** (UTC): during quiet hours the inbox row is still written, only push is held. All six tables and the new user/message columns are applied live.
+
+**The next ten: profiles, folders, filters, friend activity and server tools** (`supabase/migrations/20261115130000_community_tools.sql`, `lib/routes/community.js`)
+
+- Chat gained an **Organise** panel: private DM folders (create, file the open DM, filter the list), a **peer card** with public bio/status/shared interests/mutual servers/recent games, and extra message-search filters (sender, date range, links only). Server channels now carry optional **descriptions**, and typing lines can show the first few words in channels (never DMs, and a profile switch turns it off). The Friends page has an opt-in **Friend activity** shelf backed by `/api/activity/friends`. Server owners/mods get **Tools**: channel descriptions, reusable **channel templates**, an **audit log**, and JSON **backup/restore** for channels, roles and bans. Servers also earn one-time **milestones** — 100 members, one year and 10,000 messages — with a system post and an owner badge. Everything additive; all five tables and both user columns are applied live.
+
+**Ten small chat features ship in one Extras panel** (`public/chat-extras.js`, `lib/routes/extras.js`)
+
+- Chat now has an **Extras** button beside Search. It holds a custom status (emoji + 60 characters, shown with a DM), a read-receipt opt-out that hides seen ticks for both sides, private notes about a DM peer, message reminders delivered to the inbox, personal DM pins separate from room-wide pins, shared-interest hints, and an optional in-browser notification tone. Server channels also show unread badges in their channel list, and the command palette gained a Chat extras entry. The two new badges — Chatter (100 messages) and Socialite (10 friends) — are awarded server-side. Notes, reminders and pins need `20261115120000_chat_extras.sql`; until it is applied the rest of the panel still works and those sections say so.
+
 **The landing page leads with the goal** (`public/index.html`)
 
 - The hero opened with "A browser studio for making games, sites, and themes" — a category, not a purpose, and one that quietly promised sites and themes to someone who came to make a game. It now opens with the goal: get a game out of your head and into a link, then says how in the same paragraph — write it in Studio, press Run, publish it, and the link opens straight into a playable game. The social card, the Twitter card and the Organization structured data carry the same goal instead of the old category line.

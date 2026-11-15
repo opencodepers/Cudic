@@ -112,7 +112,16 @@ async function runMsgSearch() {
   if (q.length < 3) { msgSearchResults.innerHTML = '<div class="dim" style="font-size:0.82rem">Type at least 3 characters.</div>'; return; }
   msgSearchResults.innerHTML = '<div class="dim" style="font-size:0.82rem">Searching…</div>';
   try {
-    const d = await api('/api/messages/search?lobby=' + encodeURIComponent(current.name) + '&q=' + encodeURIComponent(q));
+    const params = new URLSearchParams({ lobby: current.name, q: q });
+    var sf = document.getElementById('msgSearchFrom');
+    var sa = document.getElementById('msgSearchAfter');
+    var sb = document.getElementById('msgSearchBefore');
+    var sl = document.getElementById('msgSearchLinks');
+    if (sf && sf.value.trim()) params.set('from', sf.value.trim());
+    if (sa && sa.value) params.set('after', sa.value);
+    if (sb && sb.value) params.set('before', sb.value);
+    if (sl && sl.checked) params.set('has', 'link');
+    const d = await api('/api/messages/search?' + params.toString());
     const hits = d.results || [];
     if (!hits.length) { msgSearchResults.innerHTML = '<div class="dim" style="font-size:0.82rem">No messages match.</div>'; return; }
     msgSearchResults.innerHTML = hits.map(function (m) {
@@ -286,6 +295,13 @@ function onWs(e) {
       // Live message now has a row id: arm its Flag button (plan.md 2.1).
       armFlagForCid(msg.cid, msg.id);
       break;
+    case 'edit':
+      // The author changed the body; repaint in place, keep the row id.
+      if (current && msg.lobby === current.name) {
+        var edEl = messagesEl.querySelector('.msg[data-mid="' + msg.id + '"] .msg-text');
+        if (edEl) { edEl.innerHTML = renderMsgText(msg.text); edEl.title = 'Edited'; }
+      }
+      break;
     case 'react':
       // Another device reacted in this room — repaint the chips.
       if (current && msg.lobby === current.name) paintReactions(msg.id, msg.counts);
@@ -314,7 +330,7 @@ function onWs(e) {
       renderOnline();
       break;
     case 'typing':
-      if (current && msg.lobby === current.name) showTyping(msg.username);
+      if (current && msg.lobby === current.name) showTyping(msg.username, msg.preview);
       break;
     case 'lobby_list':
       break;
@@ -350,6 +366,10 @@ function renderConvs() {
   const match = c => !q || (c.display || '').toLowerCase().includes(q);
   var html = '';
   var dms = convs.filter(c => c.kind === 'dm').filter(match);
+  // A folder is a private view over the list, never a second copy.
+  if (window.cudicFolderFilter && window.cudicFolderItems) {
+    dms = dms.filter(c => window.cudicFolderItems.has(c.id));
+  }
   var chans = convs.filter(c => c.kind !== 'dm').filter(match);
   if (q && !dms.length && !chans.length) {
     convListEl.innerHTML = '<div style="font-size:0.82rem;color:var(--text-tertiary);padding:14px 8px">No conversations match.</div>';
@@ -457,6 +477,8 @@ async function openConv(conv) {
   markRead();
   flashCount = 0; flashTitle();
   fetchPeer();
+  if (window.cudicExtras) window.cudicExtras.onConv(conv);
+  if (window.cudicChatCommunity) window.cudicChatCommunity.onConv(conv);
 }
 
 function showEmpty() {
@@ -772,7 +794,9 @@ msgInput.addEventListener('input', () => {
   if (!ws || ws.readyState !== 1) return;
   if (!isTyping) {
     isTyping = true;
-    ws.send(JSON.stringify({ type: 'typing' }));
+    var typingPreview = (current && current.kind !== 'dm' && window.cudicTypingPreviews !== false)
+      ? String(msgInput.value || '').replace(/\s+/g, ' ').trim().slice(0, 80) : '';
+    ws.send(JSON.stringify({ type: 'typing', preview: typingPreview }));
   }
   clearTimeout(typingTimeout);
   typingTimeout = setTimeout(() => { isTyping = false; }, 2000);
@@ -897,6 +921,47 @@ function armActions(div, mid, uid) {
   react.dataset.mid = mid;
   react.setAttribute('aria-label', 'React to this message');
   row.appendChild(react);
+  // Personal tools: remind me about this message, or pin it for me. Both
+  // are handled by chat-extras.js; the server decides what is allowed.
+  const remind = document.createElement('button');
+  remind.type = 'button';
+  remind.className = 'msg-react msg-remind';
+  remind.textContent = 'Remind';
+  remind.title = 'Remind me about this message';
+  remind.dataset.mid = mid;
+  row.appendChild(remind);
+  if (current && current.kind === 'dm') {
+    const keep = document.createElement('button');
+    keep.type = 'button';
+    keep.className = 'msg-react msg-keep';
+    keep.textContent = 'Keep';
+    keep.title = 'Pin this message for me';
+    keep.dataset.mid = mid;
+    row.appendChild(keep);
+  }
+  const collect = document.createElement('button');
+  collect.type = 'button';
+  collect.className = 'msg-react msg-collect';
+  collect.textContent = 'Collect';
+  collect.title = 'Save this message into a collection';
+  collect.dataset.mid = mid;
+  row.appendChild(collect);
+  if (div.classList.contains('mine')) {
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'msg-react msg-edit';
+    edit.textContent = 'Edit';
+    edit.title = 'Edit this message';
+    edit.dataset.mid = mid;
+    row.appendChild(edit);
+    const hist = document.createElement('button');
+    hist.type = 'button';
+    hist.className = 'msg-react msg-history';
+    hist.textContent = 'History';
+    hist.title = 'See previous versions';
+    hist.dataset.mid = mid;
+    row.appendChild(hist);
+  }
   if ((myRole === 'owner' || myRole === 'mod') && current && current.kind !== 'dm') {
     addPinBtn(div, mid);
   } else if (div.classList.contains('mine')) {
@@ -983,8 +1048,9 @@ function addSystemMessage(text, cls) {
   scrollToBottom();
 }
 
-function showTyping(name) {
-  typingEl.textContent = name + ' is typing…';
+function showTyping(name, preview) {
+  var p = String(preview || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  typingEl.textContent = p ? name + ': ' + p + (p.length >= 80 ? '…' : '') : name + ' is typing…';
   typingEl.style.display = 'block';
   clearTimeout(showTyping._t);
   showTyping._t = setTimeout(() => { typingEl.style.display = 'none'; }, 3000);

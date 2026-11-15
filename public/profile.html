@@ -177,6 +177,12 @@
         <div class="field"><label>Display name</label><input type="text" id="displayName" maxlength="24"></div>
         <div class="field"><label>Bio <span class="sub" style="display:inline">— what you make, what you're into</span></label><textarea id="bioField" maxlength="200" rows="3" placeholder="I mostly build small arcade games."></textarea></div>
         <div class="field"><label>Interests <span class="sub" style="display:inline">— comma separated</span></label><input type="text" id="interestField" maxlength="200" placeholder="arcade, pixel art, chiptune"></div>
+        <div class="field"><label>Status emoji <span class="sub" style="display:inline">— optional, 8 characters</span></label><input type="text" id="statusEmojiField" maxlength="8" placeholder="🚀"></div>
+        <div class="field"><label>Status <span class="sub" style="display:inline">— 60 characters, shown in chat</span></label><input type="text" id="statusTextField" maxlength="60" placeholder="building a tank game"></div>
+        <div class="field"><label>Introduction <span class="sub" style="display:inline">— 200 characters, shown on your peer card</span></label><textarea id="introField" maxlength="200" rows="2" placeholder="What you make and what you want to build next."></textarea></div>
+        <div class="field"><label>Quiet hours <span class="sub" style="display:inline">— UTC hours; push is held, the inbox still fills</span></label><div style="display:flex;gap:8px;align-items:center"><input type="number" id="quietStartField" min="0" max="23" placeholder="from" style="width:80px"><span class="sub">to</span><input type="number" id="quietEndField" min="0" max="23" placeholder="to" style="width:80px"></div></div>
+        <div class="field"><label style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" id="shareActivityField"> Share my public activity with friends</label><span class="sub">Off by default. Only accepted friends can see it.</span></div>
+        <div class="field"><label style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" id="typingPreviewsField" checked> Show my first few words while I type in channels</label><span class="sub">Never sent in DMs. Turn off to keep "is typing…" only.</span></div>
         <button class="btn btn-primary" id="saveName">Save changes</button>
         <div class="status-msg" id="nameMsg"></div>
       </div>
@@ -445,6 +451,13 @@
         if (d.email) document.getElementById('emailField').value = d.email;
         document.getElementById('bioField').value = d.profile.bio || '';
         document.getElementById('interestField').value = (d.profile.interests || []).join(', ');
+        document.getElementById('statusEmojiField').value = d.profile.status_emoji || '';
+        document.getElementById('statusTextField').value = d.profile.status_text || '';
+        var sa = document.getElementById('shareActivityField'); if (sa) sa.checked = d.profile.share_activity === true;
+        var tp = document.getElementById('typingPreviewsField'); if (tp) tp.checked = d.profile.typing_previews !== false;
+        var intro = document.getElementById('introField'); if (intro) intro.value = d.profile.intro || '';
+        var qs = document.getElementById('quietStartField'); if (qs) qs.value = (d.profile.quiet_start == null ? '' : d.profile.quiet_start);
+        var qe = document.getElementById('quietEndField'); if (qe) qe.value = (d.profile.quiet_end == null ? '' : d.profile.quiet_end);
         paintBioCard(d.profile);
         /* Login streak: ships on the self-view payload only; the public
            profile projection omits it (login cadence is private). */
@@ -570,7 +583,7 @@
       m.textContent = ''; m.className = 'msg';
       var ctrl = ('AbortController' in window) ? new AbortController() : null;
       var timer = ctrl ? setTimeout(function(){ ctrl.abort(); }, 45000) : null;
-      fetch(apiHost() + '/api/profile', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' }, body: JSON.stringify({ display_name: val, bio: bio, interests: interests }), signal: ctrl ? ctrl.signal : undefined })
+      fetch(apiHost() + '/api/profile', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' }, body: JSON.stringify({ display_name: val, bio: bio, interests: interests, status_emoji: document.getElementById('statusEmojiField').value, status_text: document.getElementById('statusTextField').value, share_activity: !!(document.getElementById('shareActivityField') || {}).checked, typing_previews: !!(document.getElementById('typingPreviewsField') || {}).checked, intro: (document.getElementById('introField') || {}).value || '', quiet_start: (document.getElementById('quietStartField') || {}).value || null, quiet_end: (document.getElementById('quietEndField') || {}).value || null }), signal: ctrl ? ctrl.signal : undefined })
         .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
         .then(function(res){
           if (timer) clearTimeout(timer);
