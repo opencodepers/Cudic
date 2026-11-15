@@ -273,6 +273,12 @@
     .msg-text .msg-quote { margin: 4px 0; padding: 4px 10px; border-left: 3px solid var(--line); color: var(--text-secondary); font-style: italic; }
     .msg-text .msg-h { font-weight: 600; margin: 4px 0 2px; font-family: var(--font-head); }
     .msg-text .msg-hr { border: 0; border-top: 1px solid var(--line); margin: 6px 0; }
+    .msg-text .msg-code { margin: 6px 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--bg); }
+    .msg-code-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px; border-bottom: 1px solid var(--line); font: 500 0.66rem/1.2 var(--font-mono, monospace); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-tertiary); }
+    .msg-code-copy { border: 0; background: none; color: var(--text-secondary); font: inherit; cursor: pointer; padding: 2px 4px; }
+    .msg-code-copy:hover { color: var(--signal); }
+    .msg-text .msg-code pre { margin: 0; padding: 8px 10px; overflow-x: auto; white-space: pre; font: 0.8rem/1.55 var(--font-mono, monospace); color: var(--text-primary); }
+    .msg-text .msg-code code { background: none; padding: 0; border-radius: 0; font-size: inherit; }
     .load-older { display: block; margin: 8px auto; padding: 6px 14px; border: 1px solid var(--line); background: var(--panel); color: var(--text-secondary); border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
     .load-older:hover { background: var(--bg); color: var(--text-primary); }
     /* ── Pinned shelf, reactions, slow mode, mod panel ───────── */
@@ -313,6 +319,141 @@
     #modPanel .mp-btn:hover { border-color: var(--signal); color: var(--text-primary); }
     #modPanel .mp-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
     #modPanel .mp-empty { font-size: 0.8rem; color: var(--text-tertiary); padding: 6px 0; }
+    /* Message actions live in the right-click menu now. Keep reaction chips
+       visible; hide the ＋, Remind, Keep, Collect, Edit, History and Pin row. */
+    .msg-actions > button:not(.msg-chip) { display: none; }
+    .msg-actions:not(:has(.msg-chip)) { display: none; }
+    .msg-actions:has(.msg-chip) { opacity: 1; }
+
+    /* ── Chat tools + side panels ──────────────────────────────
+       Search, Extras, Organise, Plan and Mod share one pill; the panels
+       they open (built by chat-extras/community/planner with inline
+       styles) are re-skinned as site cards with mono section labels. */
+    .topbar #modOpener, .topbar #msgSearchBtn, .topbar #extrasBtn,
+    .topbar #organiseBtn, .topbar #planBtn {
+      height: 30px !important;
+      padding: 0 12px !important;
+      font: 500 0.78rem/1 var(--font-body) !important;
+      color: var(--text-secondary) !important;
+      background: transparent !important;
+      border: 1px solid var(--line) !important;
+      border-radius: 999px !important;
+      cursor: pointer;
+      transition: color .12s, background .12s, border-color .12s;
+    }
+    .topbar #modOpener:hover, .topbar #msgSearchBtn:hover, .topbar #extrasBtn:hover,
+    .topbar #organiseBtn:hover, .topbar #planBtn:hover {
+      color: var(--text-primary) !important;
+      background: var(--panel-raised) !important;
+      border-color: var(--signal) !important;
+    }
+
+    #extrasPanel, #chatOrganisePanel, #chatPlannerPanel, #msgSearchPanel {
+      background: var(--panel) !important;
+      border: 1px solid var(--line) !important;
+      border-radius: var(--radius-lg) !important;
+      color: var(--text-primary) !important;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, .35);
+      font-family: var(--font-body);
+    }
+    #extrasPanel {
+      top: 64px !important;
+      right: 18px !important;
+      width: min(392px, calc(100vw - 36px)) !important;
+    }
+    #extrasPanel > div:first-child {
+      padding: 14px 16px !important;
+      border-bottom: 1px solid var(--line) !important;
+      background: var(--panel-raised);
+    }
+    #extrasPanel > div:first-child b {
+      font: 600 0.95rem/1.2 var(--font-head) !important;
+    }
+    #extrasPanel > div:nth-child(2) {
+      padding: 16px !important;
+      gap: 16px !important;
+      max-height: none !important;
+    }
+    #extrasPanel section {
+      display: grid;
+      gap: 8px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+    #extrasPanel section:first-of-type {
+      padding-top: 0;
+      border-top: 0;
+    }
+    #extrasPanel section h3 {
+      margin: 0 !important;
+      font: 600 0.66rem/1.3 var(--font-mono, monospace) !important;
+      letter-spacing: .1em !important;
+      text-transform: uppercase !important;
+      color: var(--text-tertiary) !important;
+    }
+    /* Organise and Plan name themselves in their first row; keep that a
+       panel title, not a section label. */
+    #chatOrganisePanel > div:first-child > b,
+    #chatPlannerPanel > div:first-child > b {
+      font: 600 0.95rem/1.2 var(--font-head) !important;
+      letter-spacing: 0 !important;
+      text-transform: none !important;
+      color: var(--text-primary) !important;
+    }
+    #chatOrganisePanel, #chatPlannerPanel {
+      margin: 12px 20px !important;
+      padding: 14px 16px !important;
+      max-height: 46vh !important;
+      overflow: auto !important;
+    }
+    #msgSearchPanel {
+      margin: 0 20px 12px !important;
+      padding: 14px 16px !important;
+      border-bottom: 0 !important;
+    }
+    #extrasPanel input:not([type="checkbox"]), #extrasPanel textarea,
+    #chatOrganisePanel input:not([type="checkbox"]),
+    #chatPlannerPanel input:not([type="checkbox"]), #chatPlannerPanel textarea,
+    #msgSearchPanel input:not([type="checkbox"]) {
+      background: var(--bg) !important;
+      border: 1px solid var(--line) !important;
+      border-radius: var(--radius-sm) !important;
+      color: var(--text-primary) !important;
+      font: 400 0.82rem/1.4 var(--font-body) !important;
+      padding: 8px 10px !important;
+      box-sizing: border-box !important;
+      outline: none !important;
+    }
+    #extrasPanel input:focus, #extrasPanel textarea:focus,
+    #chatOrganisePanel input:focus,
+    #chatPlannerPanel input:focus, #chatPlannerPanel textarea:focus,
+    #msgSearchPanel input:focus {
+      border-color: var(--signal) !important;
+    }
+    #extrasPanel input[type="checkbox"], #chatOrganisePanel input[type="checkbox"],
+    #chatPlannerPanel input[type="checkbox"], #msgSearchPanel input[type="checkbox"] {
+      accent-color: var(--signal);
+    }
+    #extrasPanel .btn, #chatOrganisePanel .btn, #chatPlannerPanel .btn, #msgSearchPanel .btn {
+      height: 30px !important;
+      padding: 0 12px !important;
+      border-radius: var(--radius-sm) !important;
+      font: 600 0.76rem/1 var(--font-head) !important;
+      border: 1px solid var(--line) !important;
+      background: var(--panel-raised) !important;
+      color: var(--text-primary) !important;
+      cursor: pointer;
+    }
+    #extrasPanel .btn:hover, #chatOrganisePanel .btn:hover,
+    #chatPlannerPanel .btn:hover, #msgSearchPanel .btn:hover {
+      border-color: var(--signal) !important;
+    }
+    #extrasPanel .btn-primary, #chatOrganisePanel .btn-primary,
+    #chatPlannerPanel .btn-primary, #msgSearchPanel .btn-primary {
+      background: var(--signal) !important;
+      border-color: var(--signal) !important;
+      color: var(--on-signal, #fff) !important;
+    }
   </style><link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
 </head>
 <body data-page="chat">
@@ -427,9 +568,10 @@
   </div>
   <script src="/config.js"></script>
   <script src="/auth.js"></script>
-  <script src="/sidebar.js?v=27"></script>
+  <script src="/sidebar.js?v=29"></script>
   <script src="/cudic-cosmetics.js?v=1"></script>
-  <script src="/client.js?v=17"></script>
+  <script src="/chat-motion.js?v=1" defer></script>
+  <script src="/client.js?v=18"></script>
 <script src="/chat-extras.js?v=1"></script>
 <script src="/chat-community.js?v=1"></script>
 <script src="/chat-planner.js?v=1"></script>

@@ -15,7 +15,7 @@
     ['Quests', '/quests', 'Q'], ['Friends', '/friends', 'F'], ['Notifications', '/notifications', 'N'],
     ['Profile', '/profile', 'P'], ['Race', '/race', 'R'], ['Servers', '/servers', 'V'],
     ['Forums', '/forums', 'D'], ['Chat', '/chat', 'C'], ['Chat extras', '/chat?extras=1', 'X'], ['Music', '/music', 'M'],
-    ['Collections', '/collections', 'L'], ['Customize', '/customize', 'C'], ['FAQ', '/faq', '?'], ['Home', '/', 'H']
+    ['Collections', '/collections', 'L'], ['FAQ', '/faq', '?'], ['Home', '/', 'H']
   ];
 
   var overlay = null, input = null, list = null, status = null;
@@ -184,6 +184,21 @@
       : (rows.length ? rows.length + ' result' + (rows.length === 1 ? '' : 's') : 'Try a game title, creator or page name.');
   }
 
+  function contextItems(q) {
+    if (!q) return [];
+    var needle = q.toLowerCase();
+    var out = [];
+    function add(el, group, sub) {
+      var nameEl = el.querySelector(group === 'Channel' ? '.chan-name' : '.conv-name');
+      var name = nameEl ? String(nameEl.textContent || '').trim() : '';
+      if (!name || name.toLowerCase().indexOf(needle) === -1) return;
+      out.push({ group: 'Jump to', label: (group === 'Channel' ? '# ' : '') + name, sub: sub, icon: group === 'Channel' ? '#' : '@', run: function () { el.click(); } });
+    }
+    document.querySelectorAll('.chan-row[data-cid]').forEach(function (el) { add(el, 'Channel', 'Channel in this server'); });
+    document.querySelectorAll('.conv-row[data-id]').forEach(function (el) { add(el, 'DM', 'Conversation'); });
+    return out.slice(0, 10);
+  }
+
   function pageItems(q) {
     var needle = q.toLowerCase();
     var out = PAGES.filter(function (p) {
@@ -201,7 +216,9 @@
     if (document.getElementById('newMsgBtn')) actions.push({ group: 'Chat', label: 'Start a new message', sub: 'Open the new message search', icon: '+', run: function () { document.getElementById('newMsgBtn').click(); } });
     if (document.getElementById('msgSearchBtn')) actions.push({ group: 'Chat', label: 'Search this conversation', sub: 'Message search', icon: '?', run: function () { document.getElementById('msgSearchBtn').click(); } });
     if (document.getElementById('srvToolsBtn')) actions.push({ group: 'Server', label: 'Open server tools', sub: 'Descriptions, events, audit and backup', icon: '⚙', run: function () { document.getElementById('srvToolsBtn').click(); } });
-    return out.concat(actions);
+    var hq = document.getElementById('srvHqBtn');
+    if (hq && !hq.hidden) actions.push({ group: 'Server', label: 'Open Server HQ', sub: 'Insights, introductions and bulk edits', icon: 'H', run: function () { hq.click(); } });
+    return out.concat(contextItems(q), actions);
   }
 
   function apiItems(d, q) {

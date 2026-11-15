@@ -8,6 +8,54 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Ten chat and server tools land together** (`lib/routes/hq.js`, `public/server-hq.js`, `public/server.html`, `public/client.js`, `public/cudic-menu.js`, `public/cudic-palette.js`, `supabase/migrations/20261115160000_chat_hq.sql`)
+
+- **Server HQ** gives every member one panel for the room's pulse: members, channels, messages in the last seven days, active channels and a 30-day leaderboard. It reads existing messages rather than adding a second activity store, so the numbers are honest about their sample.
+- **Temporary channels** can be created for 1–168 hours. Expired channels disappear from the list without deleting their messages, and the row carries its expiry. This is owner-only and degrades to a normal channel before the migration runs.
+- **Bulk channel edit** lets an owner select several channels and change topic, slow mode or privacy at once. Every id is checked against the server before one update and one audit row.
+- **Introductions** are per server: a member can save a 400-character card that only that server sees. The migration is additive and the panel says when it has not run yet.
+- **Channel dashboard** at the top of a channel now shows the next event with calendar download, the pinned count and a temporary channel's expiry. **Catch up** in the sidebar lists the three channels with the most unread messages.
+- **Fenced code blocks** in chat and server messages get a language label and a copy button. The code is escaped before it reaches the DOM; the button copies the rendered text, not an attribute.
+- **Add to Calendar** on the message menu downloads an `.ics` for any message, with the text and a link. The date/time prompt defaults to the next hour.
+- The command palette now lists channels and conversations under **Jump to** and offers **Server HQ** when the page has one.
+
+**Servers becomes a directory you can search** (`public/servers.html`, `public/servers-motion.js`)
+
+- The public directory now has a live search over server names and descriptions, a result count that reads "3 of 8" while filtering, a clear button and a no-match state with its own clear action. Sorting still works on top of the filtered list.
+- The intro now does something: **Browse servers** scrolls to the directory and **Create a server** opens the create modal. Three totals — public servers, members and online now — replace the decorative-only intro, and they animate in after the heading rather than popping in at first paint.
+- The topbar's invite field and **Join** button are one quiet control group, **New server** is no longer a two-line button, and Enter in the invite field submits. On narrow screens the action row gets its own line instead of squeezing the title.
+- Public cards drop the redundant **Public** badge and only carry **Yours** where it means something. Cards no longer show a pointer cursor when the card itself does nothing, focus rings were added for keyboard users, and the duplicate "No servers yet" panel below the two empty grids is gone.
+- A failed load now replaces the skeletons with a Try again action instead of leaving the page loading forever. Every server fetched is still rendered through the existing escaped card builder.
+
+**Chat's tool row and side panels get the site's skin** (`public/chat.html`)
+
+- Search, Extras, Organise, Plan and Mod are one pill shape with a signal hover instead of five differently-padded buttons. The panels they open — Extras, Organise, Plan and message search — are re-skinned as site cards: hairline border, panel-raised headers, mono uppercase section labels, fields that match the rest of the app, and primary/secondary buttons using the theme's signal colour. Styling only; the panels' behaviour is untouched.
+
+**Motion (motion.dev) lands on chat** (`public/chat-motion.js`)
+
+- Chat messages and system lines rise in with a short Motion spring as they paint — live messages and history alike — driven by a MutationObserver on the message list. The right-click menu scales in from the cursor and the reaction grid expands with it. The library loads on demand from jsDelivr (about 20 kB), is skipped entirely under `prefers-reduced-motion`, and the page falls back to no animation if the CDN is unavailable.
+
+**Server cards get real counts and a proper design** (`lib/routes/servers.js`, `public/servers.html`)
+
+- **Your servers** always read "0 members · 0 online" because `/api/servers/mine` returned neither field. Both server endpoints now share one decorator that counts memberships and live sockets, and an owner whose membership row is missing still counts once, so a legacy server cannot show zero. Public servers you own now also appear in the **Public servers** directory with a **Yours** badge and Open chat instead of a Join button, instead of disappearing from discovery.
+- Cards were rebuilt around identity, copy, facts and actions: initial-based icon fallbacks when an icon URL is broken, a compact invite chip instead of a black input, a hairline meta row with a live dot, one consistent button family, and equal-height cards whose action rows line up.
+- The meta row now carries a small overlapping stack of up to four member avatars, owner first, with initials as the fallback when a member has no avatar. `/api/servers` and `/api/servers/mine` return `member_preview` from one membership query plus one lookup of those user rows; the full roster is never sent with the directory.
+- The page gained a flat colour pass without gradients: every server hashes to one of five muted accents used by its icon tile, hover edge and avatar tint; the count is a signal pill. Light mode uses darker versions of the same five accents for contrast.
+- The directory now follows the discovery layout: a wide indigo intro with an uppercase heading, and cards built around a solid accent cover with oversized initials and an icon overlapping its lower edge. Owned servers use a shorter cover in the rail; loading skeletons mirror the new card shape.
+- The intro is now animated: the heading splits into letters that stagger up with a blur, the subtitle and orange rule follow, the panel tilts toward the pointer, letter hover lifts each character, and a canvas field of five-colour particles drifts and links around the content. Decorative rings and chips move behind it. `servers-motion.js` still disables all of it under `prefers-reduced-motion` and falls back to a static hero if the Motion CDN is unavailable; card entrance and hover also gained a little scale and lift.
+
+**The Servers page becomes a directory, not a banner** (`public/servers.html`)
+
+- Content is now centred at a readable width instead of stretching edge to edge. The oversized gradient hero is a compact intro strip, and the page splits into a 320px **Your servers** rail beside the public directory, so one server no longer leaves a wide dead field. Section headers share a row, the sort control sits beside **Public servers** rather than floating at the far page edge, empty grids get a proper dashed placeholder with a create action, and cards are equal-height with clamped descriptions and aligned action rows. Below 900px the rail stacks above the directory.
+
+**Motion comes to the Servers page** (`public/servers-motion.js`)
+
+- Server cards rise in as **Your servers** and **Public servers** paint, including the batch that replaces the skeleton cards after `loadServers()`, with a short stagger per render. The create and rules modals fade and scale in when opened. Uses the same on-demand jsDelivr load as chat, is skipped under `prefers-reduced-motion`, and leaves the page working if the CDN is unreachable.
+
+**Right-clicking a chat message opens a message menu** (`public/cudic-menu.js`)
+
+- The site-wide right-click menu gains a Discord-style message view: four quick reactions, an expandable reaction grid, Reply (quotes into the composer), Copy Text, Pin Message, Bookmark (DMs), Create Reminder, Copy Conversation Link, Speak Message and a red Report Message. Actions reuse the chat client's own globals and API routes, so pins repaint the room and reports open the existing modal. The old hover row (＋ Remind Keep Collect Edit History Pin) is gone from the message; reaction chips still show, and Edit, History and Collect moved into the menu. Pin now reads the message's state and shows **Unpin Message** on pinned rows, sending the explicit target (the API sets the flag rather than toggling it, so the old always-true request could never unpin). Right-clicking anywhere else still shows the link/copy/back menu, and text fields keep the native menu.
+
 **Anime City Night stops coming back after removal** (`public/theme-engine.js`, `public/profile.html`, `public/themes.html`, `migration/theme-pack-clear-seeded.sql`)
 
 - Every account created before the pack default was dropped still carried `pack_slug = 'anime-city-night'`, so the engine repainted the neon scene from the account row on every reload even after **Remove** or **Uninstall** — the removal only cleared the current tab. The stored value is cleared live for those rows, and removal now writes the tombstone locally before touching the account: if the save fails, that browser keeps the plain look instead of obeying the stale slug, and the marker is dropped as soon as the clear is accepted. Both removal buttons now await the account write and say when it failed instead of claiming success.

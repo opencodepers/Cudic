@@ -205,7 +205,7 @@ async function activeBan(userId, kind) {
 // Route modules are instantiated at the bottom, after every helper and
 // map they close over exists (they still run inside handleRequest).
 let messageRoutes = null, serverRoutes = null, chatRoutes = null;
-let githubRoutes = null, gamesRoutes = null, modRoutes = null, extrasRoutes = null, communityRoutes = null, plannerRoutes = null, customizeRoutes = null;
+let githubRoutes = null, gamesRoutes = null, modRoutes = null, extrasRoutes = null, communityRoutes = null, plannerRoutes = null, customizeRoutes = null, hqRoutes = null;
 
 const PORT = process.env.PORT || 3000;
 
@@ -2462,6 +2462,10 @@ async function handleRequest(req, res) {
   // ── community routes: lib/routes/community.js ─────────────────
   // Before servers.js: peer cards, folders, templates, audit, backup and
   // milestones all live under /api/servers/* or /api/users/*.
+  if (hqRoutes && hqRoutes.matches(url.pathname)) {
+    await hqRoutes.handle(req, res, url);
+    if (res.headersSent) return;
+  }
   if (communityRoutes && communityRoutes.matches(url.pathname)) {
     await communityRoutes.handle(req, res, url);
     if (res.headersSent) return;
@@ -5861,6 +5865,10 @@ communityRoutes = require('./lib/routes/community')({
 });
 extrasRoutes = require('./lib/routes/extras')({
   supabase, cors, requireUser, needVerified, readBody, isUuid, canSeeLobby, rateLimit,
+});
+hqRoutes = require('./lib/routes/hq')({
+  supabase, cors, requireUser, needVerified, readBody, isUuid, serverRole,
+  sendConversationsDirty,
 });
 chatRoutes = require('./lib/routes/chat')({
   supabase, cors, requireUser, needVerified, readBody, isUuid, dmRoomName,

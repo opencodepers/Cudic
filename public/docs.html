@@ -468,6 +468,16 @@ confetti({ particleCount: 120 })</pre>
                     <p><strong>Collect</strong> on any message saves a snapshot into a named private collection. Collections survive the original message being deleted, and can be opened, browsed or deleted from the Plan panel. Each account keeps up to 12.</p>
                     <h3>Server events</h3>
                     <p>Owners and mods can add a <strong>Server event</strong> from Tools: a title, start time and optional channel. Members RSVP <em>Going</em>, see the count, and download an <code>.ics</code> calendar file. The channel header shows the next event, and going members get inbox reminders 15 minutes and 1 minute before it starts.</p>
+                    <h3>Server HQ</h3>
+                    <p><strong>HQ</strong> is a member-visible panel beside Tools. It shows members, channels, messages in the last seven days, active channels, and a 30-day leaderboard built from the messages the server already holds. The numbers are a reading aid, not a scoreboard: a busy channel can outrank a useful one.</p>
+                    <ul>
+                        <li><strong>Introductions</strong> — every member can save one short introduction for this server. It is visible to members of that server, not a global profile field.</li>
+                        <li><strong>Temporary channels</strong> — owners can create a channel that expires after 1–168 hours. Expired channels stop appearing in the channel list; their rows are left in place rather than deleting history.</li>
+                        <li><strong>Bulk edit</strong> — owners can select several channels and change their topic, slow mode or privacy in one action. The server checks every id belongs to the server before writing.</li>
+                    </ul>
+                    <h3>Channel dashboard, catch-up and code</h3>
+                    <p>The top of a channel carries a compact dashboard: the next event with its calendar download, the pinned-message count, and the expiry of a temporary channel. The server sidebar adds a <strong>Catch up</strong> shelf with the channels that have unread messages, so the noisiest room is one click away.</p>
+                    <p>Fenced code blocks now render with a language label and a <strong>Copy</strong> button in chat and server messages. Right-click any message and choose <strong>Add to Calendar</strong> to download an <code>.ics</code> with the message text and a link; the date and time are yours to confirm. <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>K</kbd> also lists the channels and conversations on the page under <strong>Jump to</strong>.</p>
                     <h3>Quiet hours and introductions</h3>
                     <p>Profile has an <strong>Introduction</strong> (shown on your peer card) and <strong>Quiet hours</strong> in UTC. During quiet hours the inbox still receives the notification; only the push is held. Notifications are never dropped.</p>
                     <h3>Customization Studio</h3>

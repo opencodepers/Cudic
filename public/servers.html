@@ -301,6 +301,1071 @@
         .tpl-card b { display: block; font-size: 0.8rem; }
         .tpl-card span { font-size: 0.68rem; color: var(--text-secondary); display: block; margin-top: 2px; }
         .tpl-card em { font-style: normal; font-size: 0.65rem; color: var(--text-tertiary); }
+        /* ── Directory layout ─────────────────────────────────────
+           Centred reading width, a rail for the servers you own and a
+           wider grid for discovery. Both headers share one row. */
+        .servers-content {
+            display: grid;
+            grid-template-columns: 320px minmax(0, 1fr);
+            grid-template-areas:
+                "intro intro"
+                "ad ad"
+                "ownhead pubhead"
+                "owngrid pubgrid";
+            align-content: start;
+            column-gap: 36px;
+            width: 100%;
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 26px 30px 56px;
+            box-sizing: border-box;
+        }
+
+        .hero {
+            grid-area: intro;
+            padding: 22px 24px;
+            margin-bottom: 16px;
+        }
+
+        .hero h1 {
+            font-size: 1.55rem;
+            letter-spacing: -0.02em;
+            margin-bottom: 5px;
+        }
+
+        .hero p {
+            margin: 0;
+            font-size: 0.86rem;
+            max-width: 58ch;
+        }
+
+        .ad-frame {
+            grid-area: ad;
+            justify-self: center;
+            max-width: 100%;
+            margin: 0 0 26px;
+        }
+
+        .section-title {
+            grid-area: ownhead;
+            min-height: 42px;
+            margin: 0 0 10px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+        }
+
+        #ownCount {
+            font-family: var(--font-mono);
+            font-size: 0.66rem;
+            font-weight: 400;
+            letter-spacing: 0.06em;
+            color: var(--text-tertiary);
+        }
+
+        .sec-head {
+            grid-area: pubhead;
+            min-height: 42px;
+            margin: 0 0 10px;
+            padding: 0;
+        }
+
+        .sec-head h2 {
+            font-size: 0.95rem;
+        }
+
+        .srv-sort {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .srv-sort span {
+            font-family: var(--font-mono);
+            font-size: 0.62rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-tertiary);
+        }
+
+        .srv-sort .sortsel {
+            padding: 5px 8px;
+            font-size: 0.75rem;
+        }
+
+        #ownGrid {
+            grid-area: owngrid;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        #publicGrid {
+            grid-area: pubgrid;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 12px;
+            align-content: start;
+        }
+
+        /* Cards: equal-height columns, description clamped so action rows line up. */
+        .server-card {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            padding: 14px;
+            border-radius: 12px;
+        }
+
+        .server-card-head {
+            margin-bottom: 9px;
+        }
+
+        .server-card-head > div:last-child {
+            min-width: 0;
+        }
+
+        .server-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 9px;
+            font-size: 0.8rem;
+        }
+
+        .server-name {
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .server-desc {
+            flex: 1 1 auto;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            min-height: 2.6em;
+            margin-bottom: 8px;
+        }
+
+        .server-meta {
+            font-size: 0.68rem;
+        }
+
+        .invite-row {
+            margin-top: 8px;
+        }
+
+        .invite-code {
+            min-width: 0;
+            padding: 5px 8px;
+            font-size: 0.7rem;
+        }
+
+        .btn-copy {
+            padding: 5px 10px;
+            font-size: 0.72rem;
+        }
+
+        .card-actions {
+            margin-top: 8px;
+        }
+
+        .card-actions button,
+        .card-actions a {
+            min-height: 30px;
+            padding: 5px 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.72rem;
+        }
+
+        #ownGrid .server-card > a.btn {
+            padding: 7px !important;
+            margin-top: 8px !important;
+        }
+
+        /* Card pass: identity, copy, facts, actions. Later rules win over the
+           first pass above, so the markup classes can stay small. */
+        .server-card {
+            padding: 16px;
+            border-radius: 14px;
+        }
+
+        .server-card:hover {
+            border-color: color-mix(in srgb, var(--signal) 55%, var(--line));
+            background: color-mix(in srgb, var(--panel-raised) 92%, var(--panel));
+        }
+
+        .server-card-head {
+            align-items: flex-start;
+            gap: 11px;
+            margin-bottom: 12px;
+        }
+
+        .server-id {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .server-icon {
+            position: relative;
+            width: 42px;
+            height: 42px;
+            border-radius: 11px;
+            border: 1px solid color-mix(in srgb, var(--signal) 22%, var(--line));
+            font-size: 0.8rem;
+            letter-spacing: 0.02em;
+        }
+
+        .server-icon img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+
+        .server-initials {
+            font-family: var(--font-head);
+            font-weight: 700;
+        }
+
+        .server-name {
+            font-size: 0.92rem;
+            line-height: 1.2;
+            margin-bottom: 5px;
+        }
+
+        .server-badges {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            padding: 2px 6px;
+            font-size: 0.6rem;
+            line-height: 1.4;
+        }
+
+        .badge-yours {
+            background: var(--signal-tint);
+            color: var(--signal);
+        }
+
+        .server-desc {
+            min-height: 2.3em;
+            margin-bottom: 0;
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            line-height: 1.5;
+        }
+
+        .server-meta {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            margin-top: 12px;
+            padding-top: 11px;
+            border-top: 1px solid var(--line);
+            font-size: 0.68rem;
+            color: var(--text-tertiary);
+        }
+
+        .server-meta b {
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .meta-sep {
+            width: 1px;
+            height: 10px;
+            background: var(--line);
+        }
+
+        .meta-live {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .meta-live.is-live {
+            color: var(--success);
+        }
+
+        .server-invite {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            margin-top: 10px;
+            padding: 6px 8px 6px 10px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--panel);
+        }
+
+        .invite-label {
+            font-family: var(--font-mono);
+            font-size: 0.56rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-tertiary);
+        }
+
+        .server-invite .invite-code {
+            flex: 1;
+            min-width: 0;
+            padding: 0;
+            border: 0;
+            background: none;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .invite-copy {
+            flex-shrink: 0;
+            padding: 4px 9px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 0.68rem;
+            cursor: pointer;
+        }
+
+        .invite-copy:hover {
+            border-color: var(--signal);
+            color: var(--text-primary);
+        }
+
+        .server-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .srv-btn {
+            flex: 1;
+            min-width: 0;
+            min-height: 32px;
+            padding: 0 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 0.73rem;
+            text-decoration: none;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .srv-btn:hover {
+            border-color: var(--signal);
+            color: var(--text-primary);
+        }
+
+        .srv-btn-primary {
+            background: var(--signal);
+            border-color: var(--signal);
+            color: var(--on-signal, #fff);
+            font-weight: 600;
+        }
+
+        .srv-btn-primary:hover {
+            background: var(--signal-hover);
+            border-color: var(--signal-hover);
+            color: var(--on-signal, #fff);
+        }
+
+        .srv-btn-danger:hover {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .member-stack {
+            display: inline-flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .member-ava {
+            position: relative;
+            width: 20px;
+            height: 20px;
+            margin-left: -6px;
+            border: 1px solid var(--panel-raised);
+            border-radius: 50%;
+            background: var(--panel);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            color: var(--text-secondary);
+            font-family: var(--font-head);
+            font-size: 0.56rem;
+            font-weight: 700;
+        }
+
+        .member-ava:first-child {
+            margin-left: 0;
+        }
+
+        .member-ava img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+
+        /* ── Colour pass ─────────────────────────────────────────
+           Each server gets a deterministic accent, used by its icon, top
+           rule, hover edge and member tint. Colour is an accent on the
+           theme's surfaces, not a repaint. */
+        .server-card.srv-accent-0 { --srv-accent: #FF9B3D; }
+        .server-card.srv-accent-1 { --srv-accent: #48C9A9; }
+        .server-card.srv-accent-2 { --srv-accent: #6CB6FF; }
+        .server-card.srv-accent-3 { --srv-accent: #B69CFF; }
+        .server-card.srv-accent-4 { --srv-accent: #FF8FB8; }
+
+        :root:not([data-theme="dark"]) .server-card.srv-accent-0 { --srv-accent: #C26200; }
+        :root:not([data-theme="dark"]) .server-card.srv-accent-1 { --srv-accent: #0B8562; }
+        :root:not([data-theme="dark"]) .server-card.srv-accent-2 { --srv-accent: #2563C9; }
+        :root:not([data-theme="dark"]) .server-card.srv-accent-3 { --srv-accent: #6D4AE0; }
+        :root:not([data-theme="dark"]) .server-card.srv-accent-4 { --srv-accent: #C23672; }
+
+        .servers-content {
+            background: transparent;
+        }
+
+        .hero {
+            position: relative;
+            overflow: hidden;
+            isolation: isolate;
+            padding: 42px 38px 44px;
+            border: 1px solid #303566;
+            border-radius: 16px;
+            background: #1D2044;
+        }
+
+        .hero-inner {
+            position: relative;
+            z-index: 2;
+            transform-style: preserve-3d;
+            transition: transform 0.3s ease-out;
+            will-change: transform;
+        }
+
+        .hero h1 {
+            display: block;
+            max-width: 18ch;
+            margin-bottom: 12px;
+            font-size: clamp(2rem, 4.2vw, 3.15rem);
+            line-height: 1.02;
+            letter-spacing: -0.03em;
+            text-transform: uppercase;
+            color: #fff;
+            perspective: 800px;
+        }
+
+        .hero-letter {
+            display: inline-block;
+            transform-origin: 50% 100%;
+            will-change: transform, opacity, filter;
+        }
+
+        .hero-letter.is-space { width: 0.3em; }
+
+        .hero p {
+            max-width: 58ch;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .hero-fx {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .hero-decor {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .hero-ring {
+            position: absolute;
+            border: 1px solid rgba(255, 255, 255, 0.13);
+            border-radius: 50%;
+        }
+
+        .hero-ring-a {
+            width: 290px;
+            height: 290px;
+            right: 3%;
+            top: -150px;
+            animation: hero-drift-a 18s ease-in-out infinite alternate;
+        }
+
+        .hero-ring-b {
+            width: 150px;
+            height: 150px;
+            right: 20%;
+            bottom: -84px;
+            border-color: color-mix(in srgb, var(--signal) 55%, transparent);
+            animation: hero-drift-b 13s ease-in-out infinite alternate;
+        }
+
+        .hero-chip {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            opacity: 0.8;
+        }
+
+        .hero-chip-a { right: 17%; top: 26%; background: var(--signal); animation: hero-float 7s ease-in-out infinite; }
+        .hero-chip-b { right: 8%; top: 62%; background: #6CB6FF; animation: hero-float 9s ease-in-out infinite reverse; }
+        .hero-chip-c { right: 29%; bottom: 20%; width: 6px; height: 6px; background: #48C9A9; animation: hero-float 6s ease-in-out infinite 0.8s; }
+
+        .hero-rule {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 3;
+            height: 3px;
+            background: var(--signal);
+            transform-origin: left center;
+        }
+
+        .server-card:hover .server-cover-mark { transform: scale(1.07) rotate(-2deg); }
+
+        @keyframes hero-drift-a {
+            from { transform: translate3d(0, 0, 0) rotate(0deg); }
+            to { transform: translate3d(-20px, 16px, 0) rotate(22deg); }
+        }
+
+        @keyframes hero-drift-b {
+            from { transform: translate3d(0, 0, 0); }
+            to { transform: translate3d(14px, -18px, 0); }
+        }
+
+        @keyframes hero-float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-14px) rotate(90deg); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .hero-ring, .hero-chip { animation: none; }
+            .hero-inner { transition: none; }
+            .server-card, .server-cover-mark { transition: none; }
+            .server-card:hover { transform: none; }
+        }
+
+        #ownCount {
+            padding: 2px 7px;
+            border-radius: 999px;
+            background: var(--signal-tint);
+            color: var(--signal);
+        }
+
+        .server-card {
+            --srv-accent: var(--signal);
+            overflow: hidden;
+            border-color: color-mix(in srgb, var(--srv-accent) 30%, var(--line));
+            background: var(--panel-raised);
+        }
+
+        /* Discovery cards: solid cover, icon overlapping it, copy below. */
+        .server-card {
+            padding: 0;
+        }
+
+        .server-cover {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 132px;
+            background: var(--srv-accent);
+            overflow: hidden;
+        }
+
+        .server-cover-mark {
+            font-family: var(--font-head);
+            font-weight: 800;
+            font-size: 3.6rem;
+            line-height: 1;
+            letter-spacing: -0.05em;
+            color: rgba(0, 0, 0, 0.16);
+            user-select: none;
+            transition: transform 0.45s cubic-bezier(0.2, 1, 0.3, 1);
+        }
+
+        :root:not([data-theme="dark"]) .server-cover-mark {
+            color: rgba(255, 255, 255, 0.24);
+        }
+
+        .server-cover.sk { background: var(--panel); }
+
+        .server-card-head {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: flex-end;
+            gap: 11px;
+            margin-top: -22px;
+            margin-bottom: 0;
+            padding: 0 14px;
+        }
+
+        .server-card .server-icon {
+            flex-shrink: 0;
+            width: 54px;
+            height: 54px;
+            margin-bottom: 3px;
+            border: 4px solid var(--panel-raised);
+            border-radius: 15px;
+            background: color-mix(in srgb, var(--srv-accent) 18%, var(--panel-raised));
+            box-shadow: none;
+        }
+
+        .server-id {
+            padding-bottom: 1px;
+        }
+
+        .server-card .server-name {
+            margin-bottom: 4px;
+            font-size: 0.95rem;
+        }
+
+        .server-card-body {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            padding: 10px 14px 14px;
+        }
+
+        .server-card .server-meta {
+            margin-top: 12px;
+            padding-top: 0;
+            border-top: 0;
+        }
+
+        #ownGrid .server-cover { height: 84px; }
+        #ownGrid .server-cover-mark { font-size: 2.3rem; }
+        #ownGrid .server-card-head { margin-top: -18px; }
+        #ownGrid .server-card .server-icon { width: 44px; height: 44px; border-width: 3px; border-radius: 12px; }
+        #ownGrid .server-card-body { padding-top: 9px; }
+
+        .server-card:hover {
+            transform: translateY(-3px);
+            border-color: color-mix(in srgb, var(--srv-accent) 65%, var(--line));
+            background: color-mix(in srgb, var(--panel-raised) 92%, var(--panel));
+        }
+
+        .server-card {
+            transition: transform 0.22s ease, border-color 0.16s ease, background 0.16s ease;
+        }
+
+        .server-icon {
+            background: color-mix(in srgb, var(--srv-accent) 16%, var(--panel-raised));
+            border-color: color-mix(in srgb, var(--srv-accent) 38%, var(--line));
+            color: var(--srv-accent);
+        }
+
+        :root[data-theme="dark"] .server-card .server-icon {
+            color: var(--srv-accent);
+        }
+
+        .server-card .badge-private {
+            background: color-mix(in srgb, #B69CFF 18%, transparent);
+            color: #C9B8FF;
+        }
+
+        :root:not([data-theme="dark"]) .server-card .badge-private {
+            color: #6D4AE0;
+        }
+
+        .member-ava {
+            background: color-mix(in srgb, var(--srv-accent) 16%, var(--panel));
+            color: var(--srv-accent);
+        }
+
+        .srv-btn:hover {
+            border-color: color-mix(in srgb, var(--srv-accent) 60%, var(--line));
+        }
+
+        .srv-grid-empty {
+            border-color: color-mix(in srgb, var(--signal) 24%, var(--line));
+            background: var(--signal-tint);
+        }
+
+        .srv-grid-empty {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-height: 104px;
+            padding: 16px;
+            text-align: center;
+            border: 1px dashed var(--line);
+            border-radius: 12px;
+            color: var(--text-tertiary);
+            font-size: 0.78rem;
+        }
+
+        .srv-grid-empty button {
+            border: 1px solid var(--line);
+            background: transparent;
+            color: var(--text-secondary);
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-family: inherit;
+            font-size: 0.72rem;
+            cursor: pointer;
+        }
+
+        .srv-grid-empty button:hover {
+            border-color: var(--signal);
+            color: var(--text-primary);
+        }
+
+        /* ── Discovery pass ───────────────────────────────────────
+           Search, honest totals and a topbar that does not depend on
+           inline styles. Flat surfaces; accent colour stays on the cards. */
+        .topbar { gap: 18px; }
+
+        .srv-top-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .srv-invite {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            background: var(--panel-raised);
+            transition: border-color 0.15s ease;
+        }
+
+        .srv-invite:focus-within {
+            border-color: var(--signal);
+        }
+
+        .srv-invite input {
+            width: 122px;
+            min-width: 0;
+            padding: 5px 7px;
+            border: 0;
+            outline: 0;
+            background: transparent;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.78rem;
+        }
+
+        .srv-invite input::placeholder { color: var(--text-tertiary); }
+
+        .srv-invite .btn {
+            min-height: 28px;
+            padding: 0 10px;
+            border-radius: 6px;
+            font-family: var(--font-head);
+            font-size: 0.74rem;
+        }
+
+        .srv-top-actions > .btn {
+            min-height: 36px;
+            padding: 0 13px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+
+        .hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 22px;
+        }
+
+        .hero-btn {
+            min-height: 38px;
+            padding: 0 15px;
+            border: 1px solid transparent;
+            border-radius: 9px;
+            font-family: var(--font-head);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.16s ease, border-color 0.16s ease;
+        }
+
+        .hero-btn-primary {
+            background: #fff;
+            border-color: #fff;
+            color: #1D2044;
+        }
+
+        .hero-btn-primary:hover { background: #EFEBFF; border-color: #EFEBFF; }
+
+        .hero-btn-ghost {
+            background: transparent;
+            border-color: rgba(255, 255, 255, 0.3);
+            color: #fff;
+        }
+
+        .hero-btn-ghost:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.55);
+        }
+
+        .hero-stats {
+            display: flex;
+            flex-wrap: wrap;
+            margin-top: 26px;
+            padding-top: 17px;
+            border-top: 1px solid rgba(255, 255, 255, 0.14);
+        }
+
+        .hero-stat {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 96px;
+            margin-right: 22px;
+            padding-right: 22px;
+            border-right: 1px solid rgba(255, 255, 255, 0.14);
+        }
+
+        .hero-stat:last-child {
+            margin-right: 0;
+            padding-right: 0;
+            border-right: 0;
+        }
+
+        .hero-stat strong {
+            font-family: var(--font-head);
+            font-size: 1.08rem;
+            line-height: 1.1;
+            color: #fff;
+        }
+
+        .hero-stat span {
+            font-family: var(--font-mono);
+            font-size: 0.55rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.55);
+        }
+
+        .sec-head {
+            flex-wrap: wrap;
+            row-gap: 8px;
+            scroll-margin-top: 14px;
+        }
+
+        .srv-heading {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .srv-count {
+            font-family: var(--font-mono);
+            font-size: 0.58rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-tertiary);
+            white-space: nowrap;
+        }
+
+        .srv-tools {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .srv-tools .csel { flex-shrink: 0; }
+
+        .srv-tools .csel-btn {
+            min-height: 32px;
+            padding: 5px 9px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+        }
+
+        .srv-tools .csel-menu {
+            left: auto;
+            right: 0;
+            min-width: 150px;
+        }
+
+        .srv-search {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            width: 190px;
+            height: 32px;
+            padding: 0 7px 0 9px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--panel);
+            transition: border-color 0.15s ease;
+        }
+
+        .srv-search:focus-within { border-color: var(--signal); }
+
+        .srv-search svg {
+            width: 13px;
+            height: 13px;
+            flex-shrink: 0;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            color: var(--text-tertiary);
+        }
+
+        .srv-search input {
+            width: 100%;
+            min-width: 0;
+            padding: 0;
+            border: 0;
+            outline: 0;
+            background: transparent;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.75rem;
+        }
+
+        .srv-search input::placeholder { color: var(--text-tertiary); }
+        .srv-search input::-webkit-search-cancel-button { display: none; }
+
+        .srv-search-clear {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            border: 0;
+            border-radius: 4px;
+            background: transparent;
+            color: var(--text-tertiary);
+            font-size: 1rem;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .srv-search-clear:hover { color: var(--text-primary); }
+        .srv-search-clear[hidden] { display: none; }
+
+        .server-card { cursor: default; }
+
+        .server-card:focus-within {
+            border-color: color-mix(in srgb, var(--srv-accent) 65%, var(--line));
+        }
+
+        .srv-btn:focus-visible,
+        .hero-btn:focus-visible,
+        .srv-search-clear:focus-visible,
+        .invite-copy:focus-visible,
+        .srv-top-actions .btn:focus-visible {
+            outline: 2px solid var(--signal);
+            outline-offset: 2px;
+        }
+
+        @media (max-width: 1050px) {
+            .srv-search { width: 158px; }
+        }
+
+        @media (max-width: 900px) {
+            .servers-content {
+                grid-template-columns: 1fr;
+                grid-template-areas:
+                    "intro"
+                    "ad"
+                    "ownhead"
+                    "owngrid"
+                    "pubhead"
+                    "pubgrid";
+                column-gap: 0;
+                padding: 18px 16px 40px;
+            }
+
+            .sec-head {
+                margin-top: 24px;
+            }
+
+            #ownGrid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            }
+        }
+
+        @media (max-width: 700px) {
+            .topbar {
+                flex-wrap: wrap;
+                gap: 10px;
+                padding: 14px 16px;
+            }
+
+            .srv-top-actions { width: 100%; }
+
+            .srv-invite { flex: 1; }
+            .srv-invite input { width: 100%; }
+        }
+
+        @media (max-width: 560px) {
+            .servers-content { padding: 14px 12px 36px; }
+            .hero { padding: 28px 22px 30px; }
+            .hero h1 { font-size: 1.9rem; }
+            .hero-stats { margin-top: 22px; }
+            .hero-stat { flex: 1; min-width: 0; margin-right: 12px; padding-right: 12px; }
+            .hero-stat span { font-size: 0.5rem; }
+            .hero-actions .hero-btn { flex: 1; }
+            .srv-tools { width: 100%; justify-content: space-between; }
+            .srv-search { flex: 1; width: auto; }
+            .sec-head { align-items: flex-start; }
+        }
     </style>
 <link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
 </head>
@@ -309,20 +1374,39 @@
     <div class="servers-layout page-panel">
         <div class="topbar">
             <h1>Servers</h1>
-            <div style="display:flex;gap:8px;align-items:center"> <input type="text" id="inviteInput"
-                    placeholder="Invite code"
-                    style="background:var(--panel-raised);border:1px solid var(--line);border-radius:6px;padding:8px 12px;color:var(--text-primary);font-size:0.8rem;width:140px;outline:none"
-                    maxlength="16"> <button id="joinBtn" class="btn btn-secondary"
-                    style="padding:8px 14px">Join</button> <button id="newServerBtn" class="btn btn-primary">+ New
-                    server</button> </div>
+            <div class="srv-top-actions">
+                <div class="srv-invite">
+                    <input type="text" id="inviteInput" placeholder="Invite code" aria-label="Invite code"
+                        autocomplete="off" maxlength="16">
+                    <button id="joinBtn" class="btn btn-secondary" type="button">Join</button>
+                </div>
+                <button id="newServerBtn" class="btn btn-primary" type="button">New server</button>
+            </div>
         </div>
         <div class="servers-content" id="serversContent">
-            <section class="hero">
-                <h1>Find your people.</h1>
-                <p>Public servers anyone can join, private ones by invite. Yours live below.</p>
-                <div class="hero-actions">
-                    <button class="btn btn-primary" onclick="openCreate()">+ New server</button>
+            <section class="hero" id="srvHero">
+                <canvas class="hero-fx" id="heroFx" aria-hidden="true"></canvas>
+                <div class="hero-decor" aria-hidden="true">
+                    <span class="hero-ring hero-ring-a"></span>
+                    <span class="hero-ring hero-ring-b"></span>
+                    <span class="hero-chip hero-chip-a"></span>
+                    <span class="hero-chip hero-chip-b"></span>
+                    <span class="hero-chip hero-chip-c"></span>
                 </div>
+                <div class="hero-inner">
+                    <h1 class="hero-title">Find your people.</h1>
+                    <p class="hero-sub">Public servers anyone can join, private ones by invite. Your own servers stay close by.</p>
+                    <div class="hero-actions">
+                        <button type="button" class="hero-btn hero-btn-primary" id="heroBrowse">Browse servers</button>
+                        <button type="button" class="hero-btn hero-btn-ghost" id="heroCreate">Create a server</button>
+                    </div>
+                    <div class="hero-stats" aria-label="Public directory totals">
+                        <div class="hero-stat"><strong id="statServers">—</strong><span>public servers</span></div>
+                        <div class="hero-stat"><strong id="statMembers">—</strong><span>members</span></div>
+                        <div class="hero-stat"><strong id="statOnline">—</strong><span>online now</span></div>
+                    </div>
+                </div>
+                <span class="hero-rule" aria-hidden="true"></span>
             </section>
             <div class="ad-frame ad-leaderboard"><span class="ad-cap" aria-hidden="true">Advertisement</span><script>
   atOptions = {
@@ -334,35 +1418,37 @@
   };
 </script>
 <script src="https://bellnewyork.org/22/aa54ebd8c3acf5d1bbeb740803efce87"></script></div>
-            <div class="section-title">Your servers <span id="ownCount"
-                    style="font-weight:400;color:var(--text-tertiary);font-size:0.8rem"></span></div>
+            <div class="section-title">Your servers <span id="ownCount"></span></div>
             <div class="grid" id="ownGrid">
-                <div class="server-card" aria-hidden="true"><div class="server-card-head"><div class="server-icon sk"></div><div style="flex:1"><div class="sk" style="height:14px;width:55%;border-radius:4px;margin-bottom:6px"></div><div class="sk" style="height:10px;width:35%;border-radius:4px"></div></div></div><div class="sk" style="height:11px;border-radius:4px;margin-bottom:10px"></div><div class="sk" style="height:32px;border-radius:6px"></div></div>
-                <div class="server-card" aria-hidden="true"><div class="server-card-head"><div class="server-icon sk"></div><div style="flex:1"><div class="sk" style="height:14px;width:45%;border-radius:4px;margin-bottom:6px"></div><div class="sk" style="height:10px;width:40%;border-radius:4px"></div></div></div><div class="sk" style="height:11px;border-radius:4px;margin-bottom:10px"></div><div class="sk" style="height:32px;border-radius:6px"></div></div>
-                <div class="server-card" aria-hidden="true"><div class="server-card-head"><div class="server-icon sk"></div><div style="flex:1"><div class="sk" style="height:14px;width:50%;border-radius:4px;margin-bottom:6px"></div><div class="sk" style="height:10px;width:30%;border-radius:4px"></div></div></div><div class="sk" style="height:11px;border-radius:4px;margin-bottom:10px"></div><div class="sk" style="height:32px;border-radius:6px"></div></div>
+                <div class="server-card" aria-hidden="true"><div class="server-cover sk"></div><div class="server-card-head"><div class="server-icon sk"></div><div style="flex:1;padding-bottom:8px"><div class="sk" style="height:14px;width:55%;border-radius:4px;margin-bottom:6px"></div><div class="sk" style="height:10px;width:35%;border-radius:4px"></div></div></div><div class="server-card-body"><div class="sk" style="height:11px;border-radius:4px;margin-bottom:10px"></div><div class="sk" style="height:32px;border-radius:6px"></div></div></div>
+                <div class="server-card" aria-hidden="true"><div class="server-cover sk"></div><div class="server-card-head"><div class="server-icon sk"></div><div style="flex:1;padding-bottom:8px"><div class="sk" style="height:14px;width:45%;border-radius:4px;margin-bottom:6px"></div><div class="sk" style="height:10px;width:40%;border-radius:4px"></div></div></div><div class="server-card-body"><div class="sk" style="height:11px;border-radius:4px;margin-bottom:10px"></div><div class="sk" style="height:32px;border-radius:6px"></div></div></div>
+                <div class="server-card" aria-hidden="true"><div class="server-cover sk"></div><div class="server-card-head"><div class="server-icon sk"></div><div style="flex:1;padding-bottom:8px"><div class="sk" style="height:14px;width:50%;border-radius:4px;margin-bottom:6px"></div><div class="sk" style="height:10px;width:30%;border-radius:4px"></div></div></div><div class="server-card-body"><div class="sk" style="height:11px;border-radius:4px;margin-bottom:10px"></div><div class="sk" style="height:32px;border-radius:6px"></div></div></div>
             </div>
-            <div class="sec-head" style="padding-left:0;padding-right:0">
-                <h2>Public servers</h2>
-                <select class="sortsel" id="srvSort" aria-label="Sort servers">
-                    <option value="members">Most members</option>
-                    <option value="new">Newest</option>
-                    <option value="az">A–Z</option>
-                </select>
+            <div class="sec-head">
+                <div class="srv-heading">
+                    <h2>Public servers</h2>
+                    <span class="srv-count" id="pubCount" aria-live="polite">—</span>
+                </div>
+                <div class="srv-tools">
+                    <div class="srv-search">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+                        <input type="search" id="srvSearch" placeholder="Search servers"
+                            aria-label="Search public servers" autocomplete="off" spellcheck="false">
+                        <button type="button" class="srv-search-clear" id="srvSearchClear"
+                            aria-label="Clear search" hidden>×</button>
+                    </div>
+                    <label class="srv-sort"><span>Sort</span>
+                    <select class="sortsel" id="srvSort" aria-label="Sort servers">
+                        <option value="members">Most members</option>
+                        <option value="new">Newest</option>
+                        <option value="az">A–Z</option>
+                    </select></label>
+                </div>
             </div>
             <div class="grid" id="publicGrid">
-                <div class="server-card" aria-hidden="true"><div class="server-card-head"><div class="server-icon sk"></div><div style="flex:1"><div class="sk" style="height:14px;width:55%;border-radius:4px;margin-bottom:6px"></div><div class="sk" style="height:10px;width:35%;border-radius:4px"></div></div></div><div class="sk" style="height:11px;border-radius:4px;margin-bottom:10px"></div><div class="sk" style="height:32px;border-radius:6px"></div></div>
-                <div class="server-card" aria-hidden="true"><div class="server-card-head"><div class="server-icon sk"></div><div style="flex:1"><div class="sk" style="height:14px;width:45%;border-radius:4px;margin-bottom:6px"></div><div class="sk" style="height:10px;width:40%;border-radius:4px"></div></div></div><div class="sk" style="height:11px;border-radius:4px;margin-bottom:10px"></div><div class="sk" style="height:32px;border-radius:6px"></div></div>
-                <div class="server-card" aria-hidden="true"><div class="server-card-head"><div class="server-icon sk"></div><div style="flex:1"><div class="sk" style="height:14px;width:50%;border-radius:4px;margin-bottom:6px"></div><div class="sk" style="height:10px;width:30%;border-radius:4px"></div></div></div><div class="sk" style="height:11px;border-radius:4px;margin-bottom:10px"></div><div class="sk" style="height:32px;border-radius:6px"></div></div>
-            </div>
-            <div class="empty-wrap" id="emptyState" style="display:none;min-height:300px">
-                <div class="empty-card">
-                    <div class="empty-icon-circle"><svg viewBox="0 0 24 24">
-                            <rect x="3" y="4" width="18" height="14" rx="2" />
-                            <path d="M7 8h4M7 12h10" />
-                        </svg></div>
-                    <h2>No servers yet</h2>
-                    <p>Create your first server to start a group chat.</p>
-                </div>
+                <div class="server-card" aria-hidden="true"><div class="server-cover sk"></div><div class="server-card-head"><div class="server-icon sk"></div><div style="flex:1;padding-bottom:8px"><div class="sk" style="height:14px;width:55%;border-radius:4px;margin-bottom:6px"></div><div class="sk" style="height:10px;width:35%;border-radius:4px"></div></div></div><div class="server-card-body"><div class="sk" style="height:11px;border-radius:4px;margin-bottom:10px"></div><div class="sk" style="height:32px;border-radius:6px"></div></div></div>
+                <div class="server-card" aria-hidden="true"><div class="server-cover sk"></div><div class="server-card-head"><div class="server-icon sk"></div><div style="flex:1;padding-bottom:8px"><div class="sk" style="height:14px;width:45%;border-radius:4px;margin-bottom:6px"></div><div class="sk" style="height:10px;width:40%;border-radius:4px"></div></div></div><div class="server-card-body"><div class="sk" style="height:11px;border-radius:4px;margin-bottom:10px"></div><div class="sk" style="height:32px;border-radius:6px"></div></div></div>
+                <div class="server-card" aria-hidden="true"><div class="server-cover sk"></div><div class="server-card-head"><div class="server-icon sk"></div><div style="flex:1;padding-bottom:8px"><div class="sk" style="height:14px;width:50%;border-radius:4px;margin-bottom:6px"></div><div class="sk" style="height:10px;width:30%;border-radius:4px"></div></div></div><div class="server-card-body"><div class="sk" style="height:11px;border-radius:4px;margin-bottom:10px"></div><div class="sk" style="height:32px;border-radius:6px"></div></div></div>
             </div>
         </div>
     </div> <!-- Create/Edit Modal -->
@@ -395,9 +1481,42 @@
     </div>
     <script src="/config.js?v=2"></script>
     <script src="/auth.js"></script>
-    <script src="/sidebar.js?v=27"></script>
+    <script src="/sidebar.js?v=29"></script>
     <script src="/csel.js?v=1"></script>
-    <script>    var apiHost = (typeof WS_URL !== 'undefined' && WS_URL) ? WS_URL.replace(/^wss?:\/\//, 'https://') : ''; function getToken() { if (window.currentToken) return window.currentToken; try { var r = localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token'); return r ? JSON.parse(r).access_token : null; } catch (e) { return null } } if(window.enhanceSelect){try{['srvSort','mVis'].forEach(function(id){var s=document.getElementById(id);if(s)enhanceSelect(s)})}catch(e){}}window.addEventListener('glox:auth', function () { try { if (typeof loadServers === 'function') loadServers(); } catch (e) { } }); var editingId = null; var tplList = [], tplPick = 'blank', starterRules = ''; fetch(apiHost + '/api/server-templates').then(function (r) { return r.json(); }).then(function (d) { tplList = d.templates || []; starterRules = d.starterRules || ''; renderTplPicker(); }).catch(function () {}); function renderTplPicker() { var g = document.getElementById('tplGrid'); var list = tplList.length ? tplList : [{ slug: 'blank', name: 'Blank', description: 'Just the basics.', channels: [{ slug: 'general' }, { slug: 'random' }] }]; g.innerHTML = list.map(function (t) { return '<div class="tpl-card' + (tplPick === t.slug ? ' sel' : '') + '" data-tpl="' + t.slug + '"><b>' + escapeHtml(t.name) + '</b><span>' + escapeHtml(t.description || '') + '</span><em>' + t.channels.map(function (c) { return '#' + c.slug; }).join(' · ') + '</em></div>'; }).join(''); g.querySelectorAll('.tpl-card').forEach(function (el) { el.onclick = function () { tplPick = el.getAttribute('data-tpl'); renderTplPicker(); var r = document.getElementById('mRules'); if (r && !r.value.trim() && starterRules) r.value = starterRules; }; }); } async function openRules(id, acceptMode) { var token = getToken(); var res = await fetch(apiHost + '/api/servers', { headers: token ? { 'Authorization': 'Bearer ' + token } : {} }); var d = await res.json(); var s = (d.servers || []).find(function (x) { return x.id === id; }); if (!s || !s.rules) { alert('No rules for this server.'); return; } document.getElementById('rulesTitle').textContent = 'Server rules'; document.getElementById('rulesText').textContent = s.rules; var acc = document.getElementById('rulesAccept'); acc.style.display = acceptMode ? '' : 'none'; acc.onclick = async function () { var t2 = getToken(); var r = await fetch(apiHost + '/api/servers/' + id + '/rules/accept', { method: 'POST', headers: { 'Authorization': 'Bearer ' + t2, 'Content-Type': 'application/json' } }); var dd = await r.json(); if (dd.error) { alert(dd.error); return; } document.getElementById('rulesModal').classList.remove('open'); window.location.href = '/chat?server=' + id; }; document.getElementById('rulesModal').classList.add('open'); } document.getElementById('rulesClose').onclick = function () { document.getElementById('rulesModal').classList.remove('open'); }; document.getElementById('rulesModal').onclick = function (e) { if (e.target === this) this.classList.remove('open'); }; async function loadServers() { var token = getToken(); var headers = token ? { 'Authorization': 'Bearer ' + token } : {}; try { var res = await fetch(apiHost + '/api/servers', { headers: headers }); var data = await res.json(); var servers = data.servers || []; var mine = [], pub = []; var mineSet = {}; if (token) { var r2 = await fetch(apiHost + '/api/servers/mine', { headers: headers }); var d2 = await r2.json(); mine = d2.servers || []; mine.forEach(function (s) { mineSet[s.id] = 1; }); }        /* Own public servers render once — in Your servers, not again in Public */ servers.forEach(function (s) { if (s.visibility === 'public' && !mineSet[s.id]) pub.push(s); }); document.getElementById('ownCount').textContent = '(' + mine.length + '/50)'; renderGrid('ownGrid', mine, true); window._srvPub = pub; renderGrid('publicGrid', sortSrv(pub), false); document.getElementById('emptyState').style.display = (servers.length === 0) ? 'flex' : 'none'; } catch (e) { } } function renderGrid(id, list, isOwn) { var el = document.getElementById(id); if (!list.length) { el.innerHTML = '<div style="font-size:0.8rem;color:var(--text-tertiary);padding:8px">' + (isOwn ? 'No servers yet' : 'No public servers') + '</div>'; return; } el.innerHTML = list.map(function (s) { var icon = s.icon_url ? '<img src="' + escapeHtml(s.icon_url) + '">' : s.name.substring(0, 2).toUpperCase(); var badge = s.visibility === 'private' ? '<span class="badge badge-private">Private</span>' : '<span class="badge badge-public">Public</span>'; var chatHref = '/server/' + s.id; var rulesBtn = s.rules ? '<button onclick="openRules(\'' + s.id + '\',false)">Rules</button>' : ''; var actions = isOwn ? '<div class="card-actions"><button onclick="openEdit(\'' + s.id + '\')">Edit</button><button onclick="copyInvite(\'' + s.invite_code + '\')">Copy invite</button><button onclick="deleteServer(\'' + s.id + '\')" style="color:var(--danger)">Delete</button></div><a href="' + chatHref + '" class="btn btn-primary" style="display:block;text-align:center;margin-top:8px;text-decoration:none;padding:8px">Open chat</a>' : '<div class="card-actions"><button class="btn-join" onclick="joinServer(\'' + s.id + '\',\'' + s.visibility + '\')">Join</button><a href="' + chatHref + '" style="flex:1;text-align:center;padding:7px;border:1px solid var(--line);border-radius:6px;text-decoration:none;color:var(--text-secondary);font-size:0.78rem">Open chat</a>' + rulesBtn + '</div>'; var inviteRow = isOwn ? '<div class="invite-row"><input class="invite-code" value="' + s.invite_code + '" readonly onclick="this.select()"><button class="btn-copy" onclick="copyInvite(\'' + s.invite_code + '\')">Copy</button></div>' : ''; return '<div class="server-card">' + '<div class="server-card-head"><div class="server-icon">' + icon + '</div><div><div class="server-name">' + escapeHtml(s.name) + '</div><div style="font-size:0.7rem;color:var(--text-tertiary)">' + badge + '</div></div></div>' + '<div class="server-desc">' + escapeHtml(s.description || 'No description') + '</div>' + '<div class="server-meta">' + (s.member_count || 0) + ' member' + ((s.member_count || 0) === 1 ? '' : 's') + ' · ' + (s.online || 0) + ' online</div>' + inviteRow + actions + '</div>'; }).join(''); } function escapeHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML } function copyInvite(code) { navigator.clipboard.writeText(window.location.origin + '/servers?invite=' + code).then(function () { alert('Invite link copied!'); }); } async function joinServer(id, visibility) { var token = getToken(); if (!token) { alert('Sign in to join servers'); return; } var code = ''; if (visibility === 'private') { code = prompt('Invite code:') || ''; if (!code) { alert('Invite code required for private servers'); return; } } var res = await fetch(apiHost + '/api/servers/' + id + '/join', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ invite_code: code }) }); var d = await res.json(); if (d.error) { alert(d.error); return; } var mres = await fetch(apiHost + '/api/servers/' + id + '/membership', { headers: { 'Authorization': 'Bearer ' + token } }); var md = await mres.json().catch(function () { return {}; }); if (md && md.member) { var sres = await fetch(apiHost + '/api/servers', { headers: { 'Authorization': 'Bearer ' + token } }); var sd = await sres.json(); var srv = (sd.servers || []).find(function (x) { return x.id === id; }); if (srv && srv.rules && !md.accepted) { openRules(id, true); return; } } window.location.href = '/chat?server=' + id; } async function deleteServer(id) { if (!confirm('Delete this server?')) return; var token = getToken(); await fetch(apiHost + '/api/servers/' + id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } }); location.reload(); } function openCreate() { editingId = null; tplPick = 'blank'; renderTplPicker(); document.getElementById('templateWrap').style.display = ''; document.getElementById('modalTitle').textContent = 'New server'; document.getElementById('modalSave').textContent = 'Create'; document.getElementById('mName').value = ''; document.getElementById('mDesc').value = ''; document.getElementById('mIcon').value = ''; document.getElementById('mVis').value = 'public'; document.getElementById('mRules').value = starterRules; document.getElementById('serverModal').classList.add('open'); } function openEdit(id) { editingId = id; document.getElementById('templateWrap').style.display = 'none'; var token = getToken(); fetch(apiHost + '/api/servers', { headers: { 'Authorization': 'Bearer ' + token } }).then(function (r) { return r.json() }).then(function (d) { var s = (d.servers || []).find(function (x) { return x.id === id }); if (!s) return; document.getElementById('modalTitle').textContent = 'Edit server'; document.getElementById('modalSave').textContent = 'Save'; document.getElementById('mName').value = s.name; document.getElementById('mDesc').value = s.description || ''; document.getElementById('mIcon').value = s.icon_url || ''; document.getElementById('mVis').value = s.visibility; document.getElementById('mRules').value = s.rules || ''; document.getElementById('serverModal').classList.add('open'); }); } var srvSortMode = 'members'; function sortSrv(list) { var a = (list || []).slice(); if (srvSortMode === 'new') a.sort(function (x, y) { return new Date(y.created_at) - new Date(x.created_at); }); else if (srvSortMode === 'az') a.sort(function (x, y) { return String(x.name || '').localeCompare(String(y.name || '')); }); else a.sort(function (x, y) { return (y.member_count || 0) - (x.member_count || 0); }); return a; } document.getElementById('srvSort').addEventListener('change', function () { srvSortMode = this.value; if (window._srvPub) renderGrid('publicGrid', sortSrv(window._srvPub), false); }); document.getElementById('newServerBtn').onclick = openCreate; document.getElementById('modalCancel').onclick = function () { document.getElementById('serverModal').classList.remove('open') }; document.getElementById('serverModal').onclick = function (e) { if (e.target === this) this.classList.remove('open') }; document.getElementById('modalSave').onclick = async function () { var token = getToken(); if (!token) { alert('Sign in to create servers'); return; } var body = { name: document.getElementById('mName').value, description: document.getElementById('mDesc').value, icon_url: document.getElementById('mIcon').value, visibility: document.getElementById('mVis').value, rules: document.getElementById('mRules').value }; if (!editingId) body.template = tplPick; var url = editingId ? apiHost + '/api/servers/' + editingId : apiHost + '/api/servers'; var method = editingId ? 'PUT' : 'POST'; var res = await fetch(url, { method: method, headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); var d = await res.json(); if (d.error) alert(d.error); else { document.getElementById('serverModal').classList.remove('open'); location.reload(); } }; document.getElementById('joinBtn').onclick = async function () { var code = document.getElementById('inviteInput').value.trim(); if (!code) { alert('Enter an invite code'); return; }      /* Find server by invite code */ var token = getToken(); var res = await fetch(apiHost + '/api/servers', { headers: token ? { 'Authorization': 'Bearer ' + token } : {} }); var d = await res.json(); var srv = (d.servers || []).find(function (s) { return s.invite_code === code }); if (!srv) { alert('No server found with that invite code'); return; } joinServer(srv.id); };    /* Auto-fill invite from URL */ var inv = new URLSearchParams(window.location.search).get('invite'); if (inv) document.getElementById('inviteInput').value = inv;    /* Wait for auth to load */ setTimeout(loadServers, 400); setTimeout(loadServers, 1200);  </script>
+    <script>    var apiHost = (typeof WS_URL !== 'undefined' && WS_URL) ? WS_URL.replace(/^wss?:\/\//, 'https://') : ''; function getToken() { if (window.currentToken) return window.currentToken; try { var r = localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token'); return r ? JSON.parse(r).access_token : null; } catch (e) { return null } } if(window.enhanceSelect){try{['srvSort','mVis'].forEach(function(id){var s=document.getElementById(id);if(s)enhanceSelect(s)})}catch(e){}}window.addEventListener('glox:auth', function () { try { if (typeof loadServers === 'function') loadServers(); } catch (e) { } }); var editingId = null; var tplList = [], tplPick = 'blank', starterRules = ''; fetch(apiHost + '/api/server-templates').then(function (r) { return r.json(); }).then(function (d) { tplList = d.templates || []; starterRules = d.starterRules || ''; renderTplPicker(); }).catch(function () {}); function renderTplPicker() { var g = document.getElementById('tplGrid'); var list = tplList.length ? tplList : [{ slug: 'blank', name: 'Blank', description: 'Just the basics.', channels: [{ slug: 'general' }, { slug: 'random' }] }]; g.innerHTML = list.map(function (t) { return '<div class="tpl-card' + (tplPick === t.slug ? ' sel' : '') + '" data-tpl="' + t.slug + '"><b>' + escapeHtml(t.name) + '</b><span>' + escapeHtml(t.description || '') + '</span><em>' + t.channels.map(function (c) { return '#' + c.slug; }).join(' · ') + '</em></div>'; }).join(''); g.querySelectorAll('.tpl-card').forEach(function (el) { el.onclick = function () { tplPick = el.getAttribute('data-tpl'); renderTplPicker(); var r = document.getElementById('mRules'); if (r && !r.value.trim() && starterRules) r.value = starterRules; }; }); } async function openRules(id, acceptMode) { var token = getToken(); var res = await fetch(apiHost + '/api/servers', { headers: token ? { 'Authorization': 'Bearer ' + token } : {} }); var d = await res.json(); var s = (d.servers || []).find(function (x) { return x.id === id; }); if (!s || !s.rules) { alert('No rules for this server.'); return; } document.getElementById('rulesTitle').textContent = 'Server rules'; document.getElementById('rulesText').textContent = s.rules; var acc = document.getElementById('rulesAccept'); acc.style.display = acceptMode ? '' : 'none'; acc.onclick = async function () { var t2 = getToken(); var r = await fetch(apiHost + '/api/servers/' + id + '/rules/accept', { method: 'POST', headers: { 'Authorization': 'Bearer ' + t2, 'Content-Type': 'application/json' } }); var dd = await r.json(); if (dd.error) { alert(dd.error); return; } document.getElementById('rulesModal').classList.remove('open'); window.location.href = '/chat?server=' + id; }; document.getElementById('rulesModal').classList.add('open'); } document.getElementById('rulesClose').onclick = function () { document.getElementById('rulesModal').classList.remove('open'); }; document.getElementById('rulesModal').onclick = function (e) { if (e.target === this) this.classList.remove('open'); }; async function loadServers() { var token = getToken(); var headers = token ? { 'Authorization': 'Bearer ' + token } : {}; try { var res = await fetch(apiHost + '/api/servers', { headers: headers }); if (!res.ok) throw new Error('servers ' + res.status); var data = await res.json(); var servers = data.servers || []; var mine = [], pub = []; var mineSet = {}; if (token) { var r2 = await fetch(apiHost + '/api/servers/mine', { headers: headers }); var d2 = r2.ok ? await r2.json() : {}; mine = d2.servers || []; mine.forEach(function (s) { mineSet[s.id] = 1; }); }        /* Public servers include your own, marked Yours, so the directory is complete. */
+        var seenPub = {};
+        servers.forEach(function (s) {
+            if (s.visibility !== 'public' || seenPub[s.id]) return;
+            seenPub[s.id] = 1;
+            s._mine = !!mineSet[s.id];
+            pub.push(s);
+        }); document.getElementById('ownCount').textContent = mine.length + ' / 50'; renderGrid('ownGrid', mine, true); window._srvPub = pub; updateHeroStats(pub); renderPublic(); } catch (e) { renderLoadError(); } } function renderGrid(id, list, isOwn, emptyHtml) { var el = document.getElementById(id); if (!list.length) {
+            el.innerHTML = emptyHtml || (isOwn
+                ? '<div class="srv-grid-empty"><span>You haven\'t made a server yet.</span><button type="button" onclick="openCreate()">+ New server</button></div>'
+                : '<div class="srv-grid-empty"><span>No public servers to join yet.</span></div>'); return; } el.innerHTML = list.map(function (s) { var initials = s.name.substring(0, 2).toUpperCase(); var owned = isOwn || !!s._mine;
+        var accentKey = String(s.id || s.name || '');
+        var accentHash = 0;
+        for (var ci = 0; ci < accentKey.length; ci++) accentHash = (accentHash * 31 + accentKey.charCodeAt(ci)) >>> 0;
+        var accent = accentHash % 5; var icon = '<span class="server-initials">' + escapeHtml(initials) + '</span>' + (s.icon_url ? '<img src="' + escapeHtml(s.icon_url) + '" alt="" loading="lazy" onerror="this.remove()">' : ''); var badge = (s.visibility === 'private' ? '<span class="badge badge-private">Private</span>' : (isOwn ? '<span class="badge badge-public">Public</span>' : '')) + (owned && !isOwn ? '<span class="badge badge-yours">Yours</span>' : ''); var badgeRow = badge ? '<div class="server-badges">' + badge + '</div>' : ''; var chatHref = '/server/' + s.id; var rulesBtn = s.rules ? '<button class="srv-btn srv-btn-ghost" onclick="openRules(\'' + s.id + '\',false)">Rules</button>' : ''; var actions = isOwn
+            ? '<div class="server-actions"><a class="srv-btn srv-btn-primary" href="' + chatHref + '">Open chat</a><button class="srv-btn srv-btn-ghost" onclick="openEdit(\'' + s.id + '\')">Edit</button><button class="srv-btn srv-btn-ghost srv-btn-danger" onclick="deleteServer(\'' + s.id + '\')">Delete</button></div>'
+            : (owned
+                ? '<div class="server-actions"><a class="srv-btn srv-btn-primary" href="' + chatHref + '">Open chat</a>' + rulesBtn + '</div>'
+                : '<div class="server-actions"><button class="srv-btn srv-btn-primary" onclick="joinServer(\'' + s.id + '\',\'' + s.visibility + '\')">Join</button><a class="srv-btn srv-btn-ghost" href="' + chatHref + '">Open chat</a>' + rulesBtn + '</div>'); var inviteRow = isOwn ? '<div class="server-invite" title="Invite code"><span class="invite-label">Invite</span><span class="invite-code" onclick="copyInvite(\'' + s.invite_code + '\')">' + s.invite_code + '</span><button class="invite-copy" onclick="copyInvite(\'' + s.invite_code + '\')">Copy</button></div>' : ''; var members = s.member_count || 0;
+        var online = s.online || 0;
+        var preview = (s.member_preview || []).slice(0, 4);
+        var avatars = preview.length ? '<span class="member-stack">' + preview.map(function (m) {
+            var name = String(m.name || '').trim();
+            var initial = name ? name.charAt(0).toUpperCase() : '?';
+            return '<span class="member-ava" title="' + escapeHtml(name) + '">' + escapeHtml(initial) + (m.avatar ? '<img src="' + escapeHtml(m.avatar) + '" alt="" loading="lazy" onerror="this.remove()">' : '') + '</span>';
+        }).join('') + '</span>' : '';
+        return '<div class="server-card srv-accent-' + accent + (owned ? ' is-owned' : '') + '">'
+            + '<div class="server-cover"><span class="server-cover-mark">' + escapeHtml(initials) + '</span></div>'
+            + '<div class="server-card-head"><div class="server-icon">' + icon + '</div><div class="server-id"><div class="server-name">' + escapeHtml(s.name) + '</div>' + badgeRow + '</div></div>'
+            + '<div class="server-card-body">'
+            + '<div class="server-desc">' + escapeHtml(s.description || 'No description') + '</div>'
+            + '<div class="server-meta">' + avatars + '<span class="meta-count"><b>' + members + '</b> member' + (members === 1 ? '' : 's') + '</span><span class="meta-sep"></span><span class="meta-live' + (online ? ' is-live' : '') + '">' + online + ' online</span></div>'
+            + inviteRow + actions + '</div></div>'; }).join(''); } function escapeHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML } function copyInvite(code) { navigator.clipboard.writeText(window.location.origin + '/servers?invite=' + code).then(function () { alert('Invite link copied!'); }); } async function joinServer(id, visibility) { var token = getToken(); if (!token) { alert('Sign in to join servers'); return; } var code = ''; if (visibility === 'private') { code = prompt('Invite code:') || ''; if (!code) { alert('Invite code required for private servers'); return; } } var res = await fetch(apiHost + '/api/servers/' + id + '/join', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ invite_code: code }) }); var d = await res.json(); if (d.error) { alert(d.error); return; } var mres = await fetch(apiHost + '/api/servers/' + id + '/membership', { headers: { 'Authorization': 'Bearer ' + token } }); var md = await mres.json().catch(function () { return {}; }); if (md && md.member) { var sres = await fetch(apiHost + '/api/servers', { headers: { 'Authorization': 'Bearer ' + token } }); var sd = await sres.json(); var srv = (sd.servers || []).find(function (x) { return x.id === id; }); if (srv && srv.rules && !md.accepted) { openRules(id, true); return; } } window.location.href = '/chat?server=' + id; } async function deleteServer(id) { if (!confirm('Delete this server?')) return; var token = getToken(); await fetch(apiHost + '/api/servers/' + id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } }); location.reload(); } function openCreate() { editingId = null; tplPick = 'blank'; renderTplPicker(); document.getElementById('templateWrap').style.display = ''; document.getElementById('modalTitle').textContent = 'New server'; document.getElementById('modalSave').textContent = 'Create'; document.getElementById('mName').value = ''; document.getElementById('mDesc').value = ''; document.getElementById('mIcon').value = ''; document.getElementById('mVis').value = 'public'; document.getElementById('mRules').value = starterRules; document.getElementById('serverModal').classList.add('open'); } function openEdit(id) { editingId = id; document.getElementById('templateWrap').style.display = 'none'; var token = getToken(); fetch(apiHost + '/api/servers', { headers: { 'Authorization': 'Bearer ' + token } }).then(function (r) { return r.json() }).then(function (d) { var s = (d.servers || []).find(function (x) { return x.id === id }); if (!s) return; document.getElementById('modalTitle').textContent = 'Edit server'; document.getElementById('modalSave').textContent = 'Save'; document.getElementById('mName').value = s.name; document.getElementById('mDesc').value = s.description || ''; document.getElementById('mIcon').value = s.icon_url || ''; document.getElementById('mVis').value = s.visibility; document.getElementById('mRules').value = s.rules || ''; document.getElementById('serverModal').classList.add('open'); }); } var srvQuery = ''; function srvMatchesQuery(s) { if (!srvQuery) return true; var q = srvQuery.toLowerCase(); return String(s.name || '').toLowerCase().indexOf(q) !== -1 || String(s.description || '').toLowerCase().indexOf(q) !== -1; } function renderPublic() { var all = window._srvPub || []; var list = all.filter(srvMatchesQuery); var empty = srvQuery ? '<div class="srv-grid-empty"><span>No servers match “' + escapeHtml(srvQuery) + '”.</span><button type="button" onclick="clearSrvSearch()">Clear search</button></div>' : null; renderGrid('publicGrid', sortSrv(list), false, empty); var count = document.getElementById('pubCount'); if (count) count.textContent = srvQuery ? list.length + ' of ' + all.length : all.length + (all.length === 1 ? ' server' : ' servers'); var clear = document.getElementById('srvSearchClear'); if (clear) clear.hidden = !srvQuery; } function updateHeroStats(pub) { var members = 0, online = 0; (pub || []).forEach(function (s) { members += s.member_count || 0; online += s.online || 0; }); var a = document.getElementById('statServers'), b = document.getElementById('statMembers'), c = document.getElementById('statOnline'); if (a) a.textContent = (pub || []).length; if (b) b.textContent = members; if (c) c.textContent = online; } function clearSrvSearch() { srvQuery = ''; var input = document.getElementById('srvSearch'); if (input) input.value = ''; renderPublic(); if (input) input.focus(); } function renderLoadError() { var msg = '<div class="srv-grid-empty"><span>Couldn\'t load servers. Check your connection and try again.</span><button type="button" onclick="loadServers()">Try again</button></div>'; var own = document.getElementById('ownGrid'), pubGrid = document.getElementById('publicGrid'); if (own) own.innerHTML = msg; if (pubGrid) pubGrid.innerHTML = msg; var count = document.getElementById('pubCount'); if (count) count.textContent = ''; var ownCount = document.getElementById('ownCount'); if (ownCount) ownCount.textContent = ''; } var srvSortMode = 'members'; function sortSrv(list) { var a = (list || []).slice(); if (srvSortMode === 'new') a.sort(function (x, y) { return new Date(y.created_at) - new Date(x.created_at); }); else if (srvSortMode === 'az') a.sort(function (x, y) { return String(x.name || '').localeCompare(String(y.name || '')); }); else a.sort(function (x, y) { return (y.member_count || 0) - (x.member_count || 0); }); return a; } document.getElementById('srvSort').addEventListener('change', function () { srvSortMode = this.value; renderPublic(); }); (function () { var input = document.getElementById('srvSearch'); if (input) { input.addEventListener('input', function () { srvQuery = this.value.trim(); renderPublic(); }); input.addEventListener('keydown', function (e) { if (e.key !== 'Escape') return; if (this.value) { this.value = ''; srvQuery = ''; renderPublic(); } else { this.blur(); } }); } var clear = document.getElementById('srvSearchClear'); if (clear) clear.addEventListener('click', clearSrvSearch); })(); var heroBrowse = document.getElementById('heroBrowse'); if (heroBrowse) heroBrowse.addEventListener('click', function () { var target = document.querySelector('.sec-head'); if (!target) return; var reduce = false; try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {} target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' }); }); var heroCreate = document.getElementById('heroCreate'); if (heroCreate) heroCreate.addEventListener('click', openCreate); var inviteField = document.getElementById('inviteInput'); if (inviteField) inviteField.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); var b = document.getElementById('joinBtn'); if (b) b.click(); } }); document.getElementById('newServerBtn').onclick = openCreate; document.getElementById('modalCancel').onclick = function () { document.getElementById('serverModal').classList.remove('open') }; document.getElementById('serverModal').onclick = function (e) { if (e.target === this) this.classList.remove('open') }; document.getElementById('modalSave').onclick = async function () { var token = getToken(); if (!token) { alert('Sign in to create servers'); return; } var body = { name: document.getElementById('mName').value, description: document.getElementById('mDesc').value, icon_url: document.getElementById('mIcon').value, visibility: document.getElementById('mVis').value, rules: document.getElementById('mRules').value }; if (!editingId) body.template = tplPick; var url = editingId ? apiHost + '/api/servers/' + editingId : apiHost + '/api/servers'; var method = editingId ? 'PUT' : 'POST'; var res = await fetch(url, { method: method, headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); var d = await res.json(); if (d.error) alert(d.error); else { document.getElementById('serverModal').classList.remove('open'); location.reload(); } }; document.getElementById('joinBtn').onclick = async function () { var code = document.getElementById('inviteInput').value.trim(); if (!code) { alert('Enter an invite code'); return; }      /* Find server by invite code */ var token = getToken(); var res = await fetch(apiHost + '/api/servers', { headers: token ? { 'Authorization': 'Bearer ' + token } : {} }); var d = await res.json(); var srv = (d.servers || []).find(function (s) { return s.invite_code === code }); if (!srv) { alert('No server found with that invite code'); return; } joinServer(srv.id); };    /* Auto-fill invite from URL */ var inv = new URLSearchParams(window.location.search).get('invite'); if (inv) document.getElementById('inviteInput').value = inv;    /* Wait for auth to load */ setTimeout(loadServers, 400); setTimeout(loadServers, 1200);  </script>
+<script src="/servers-motion.js?v=3" defer></script>
 <script src="/cudic-modals.js?v=3"></script></body>
 
 </html>

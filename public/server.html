@@ -58,6 +58,18 @@
       padding: 14px 16px 6px; text-transform: uppercase; letter-spacing: 0.06em; flex-shrink: 0;
     }
     .chan-list { flex: 1; overflow-y: auto; padding: 0 8px 10px; }
+    .catch-up { margin: 4px 10px 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px; background: var(--panel-raised); flex-shrink: 0; }
+    .catch-up[hidden] { display: none; }
+    .catch-head { font: 600 0.64rem/1.3 var(--font-mono, monospace); letter-spacing: .09em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 5px; }
+    .catch-row { display: flex; align-items: center; gap: 6px; width: 100%; border: 0; background: none; color: var(--text-secondary); padding: 4px 3px; border-radius: 4px; cursor: pointer; text-align: left; font: inherit; font-size: 0.78rem; }
+    .catch-row:hover { background: var(--panel); color: var(--text-primary); }
+    .catch-row b { margin-left: auto; min-width: 17px; height: 17px; padding: 0 5px; border-radius: 9px; background: var(--signal); color: var(--on-signal, #fff); font: 600 0.66rem/17px var(--font-mono, monospace); text-align: center; }
+    .chan-temp { font: 500 0.6rem/1 var(--font-mono, monospace); letter-spacing: .04em; color: var(--text-tertiary); border: 1px solid var(--line); border-radius: 3px; padding: 2px 3px; flex-shrink: 0; }
+    .chan-dash { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 7px 20px 8px; border-bottom: 1px solid var(--line); background: var(--panel); flex-shrink: 0; }
+    .chan-dash[hidden] { display: none; }
+    .dash-item { display: inline-flex; align-items: center; gap: 6px; min-height: 25px; border: 1px solid var(--line); border-radius: 999px; padding: 0 9px; color: var(--text-secondary); font-size: 0.72rem; }
+    .dash-item b { color: var(--text-primary); font-weight: 600; }
+    .dash-item button { border: 0; background: none; color: var(--signal); font: inherit; font-weight: 600; cursor: pointer; padding: 0; }
     .chan-row {
       display: flex; align-items: center; gap: 8px; width: 100%;
       padding: 7px 10px; border: none; border-radius: var(--radius-sm);
@@ -129,6 +141,12 @@
     .msg .time { color: var(--text-tertiary); font-size: 0.75rem; margin-left: 8px; font-weight: 400; }
     .msg.pending { opacity: 0.6; }
     .msg-text code { font-family: var(--font-mono); background: var(--bg); padding: 1px 4px; border-radius: 3px; font-size: .9em; }
+    .msg-text .msg-code { margin: 6px 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--bg); }
+    .msg-code-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px; border-bottom: 1px solid var(--line); font: 500 0.66rem/1.2 var(--font-mono, monospace); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-tertiary); }
+    .msg-code-copy { border: 0; background: none; color: var(--text-secondary); font: inherit; cursor: pointer; padding: 2px 4px; }
+    .msg-code-copy:hover { color: var(--signal); }
+    .msg-text .msg-code pre { margin: 0; padding: 8px 10px; overflow-x: auto; white-space: pre; font: 0.8rem/1.55 var(--font-mono, monospace); color: var(--text-primary); }
+    .msg-text .msg-code code { background: none; padding: 0; border-radius: 0; font-size: inherit; }
     .msg-text b, .msg-text strong { font-weight: 600; }
     .msg-text i, .msg-text em { font-style: italic; }
     .msg-text a { color: var(--blue); text-decoration: underline; }
@@ -199,6 +217,7 @@
         </div>
       </div>
       <div class="back-row"><a href="/servers">← All servers</a></div>
+      <div id="catchUp" class="catch-up" hidden></div>
       <div class="chan-label">Channels</div>
       <div class="chan-list" id="chanList">
         <div class="chan-row" aria-hidden="true"><span class="sk" style="height:12px;width:60%;border-radius:4px;display:block"></span></div>
@@ -213,11 +232,12 @@
         <span id="chanTitle"></span>
         <span class="topic" id="chanTopic"></span>
         <span class="online" id="onlineCount"></span>
+        <button class="tools" id="srvHqBtn" hidden title="Insights, introductions, temporary channels and bulk edits">HQ</button>
         <button class="tools" id="srvToolsBtn" hidden title="Descriptions, templates, audit and backup">Tools</button>
         <a class="tools" id="srvCustomBtn" href="#" title="Appearance, folders, badges, welcome and commands">Customise</a>
       </div>
       <div id="chanDesc" hidden></div>
-      <div id="chanDash" hidden style="padding:0 20px 8px;font-size:0.78rem;color:var(--text-tertiary);background:var(--panel);flex-shrink:0"></div>
+      <div id="chanDash" class="chan-dash" hidden></div>
       <div id="emptyState" style="flex:1;display:flex;align-items:center;justify-content:center;min-height:0">
         <div class="empty-state">
           <h2 style="font-family:var(--font-head);font-size:1.1rem;color:var(--text-primary)">Loading server…</h2>
@@ -250,7 +270,7 @@
   </div>
   <script src="/config.js"></script>
   <script src="/auth.js"></script>
-  <script src="/sidebar.js?v=27"></script>
+  <script src="/sidebar.js?v=29"></script>
   <script>
 (function () {
   // ── Server space: channels on the left, one live room at a time ──
@@ -293,11 +313,24 @@
     s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
     return s;
   }
+  function codeBlock(lang, code) {
+    var label = String(lang || 'code').replace(/[^a-z0-9+#._-]/gi, '').slice(0, 18) || 'code';
+    return '<div class="msg-code"><div class="msg-code-head"><span>' + esc(label) + '</span>' +
+      '<button type="button" class="msg-code-copy" aria-label="Copy code">Copy</button></div>' +
+      '<pre><code>' + esc(code) + '</code></pre></div>';
+  }
   function renderMsgText(raw) {
     var lines = String(raw || '').split('\n'), out = [];
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i], t = line.trim();
       if (t === '') { out.push('<br>'); continue; }
+      if (/^```/.test(t)) {
+        var lang = t.slice(3).trim(), code = [];
+        i++;
+        while (i < lines.length && !/^```\s*$/.test(lines[i].trim())) { code.push(lines[i]); i++; }
+        out.push(codeBlock(lang, code.join('\n')));
+        continue;
+      }
       if (/^#{1,3}\s+/.test(t)) { out.push('<div style="font-weight:600;margin:4px 0 2px;font-family:var(--font-head)">' + inlineFmt(t.replace(/^#+\s*/, '')) + '</div>'); continue; }
       if (/^>\s?/.test(t)) { out.push('<blockquote style="margin:4px 0;padding:4px 10px;border-left:3px solid var(--line);color:var(--text-secondary);font-style:italic">' + inlineFmt(t.replace(/^>\s?/, '')) + '</blockquote>'); continue; }
       out.push('<div style="margin:0 0 4px">' + inlineFmt(line) + '</div>');
@@ -407,10 +440,25 @@
       .replace(/\n/g, '<br>');
   }
   function chanRow(c) {
+    var temp = c.expires_at ? '<span class="chan-temp" title="Expires ' + esc(new Date(c.expires_at).toLocaleString()) + '">temp</span>' : '';
     return '<button class="chan-row' + (current && c.id === current.id ? ' active' : '') + '" data-cid="' + esc(c.id) + '">'
-      + '<span class="chan-hash">#</span><span class="chan-name">' + esc(c.display) + '</span>'
+      + '<span class="chan-hash">#</span><span class="chan-name">' + esc(c.display) + '</span>' + temp
       + (convUnread[c.id] ? '<span class="chan-unread" title="' + convUnread[c.id] + ' unread" style="margin-left:auto;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--signal,#3a6b00);color:#fff;font:600 10px/18px ui-monospace,monospace;text-align:center">' + (convUnread[c.id] > 99 ? '99+' : convUnread[c.id]) + '</span>' : '')
       + (c.is_private ? '<span class="chan-lock" title="Private channel">🔒</span>' : '') + '</button>';
+  }
+  function renderCatchUp() {
+    var el = $('catchUp');
+    if (!el) return;
+    var rows = chans.filter(function (c) { return convUnread[c.id]; })
+      .sort(function (a, b) { return (convUnread[b.id] || 0) - (convUnread[a.id] || 0); }).slice(0, 3);
+    if (!rows.length) { el.hidden = true; el.innerHTML = ''; return; }
+    el.innerHTML = '<div class="catch-head">Catch up</div>' + rows.map(function (c) {
+      return '<button type="button" class="catch-row" data-catch="' + esc(c.id) + '"># ' + esc(c.display) + '<b>' + (convUnread[c.id] > 99 ? '99+' : convUnread[c.id]) + '</b></button>';
+    }).join('');
+    [].forEach.call(el.querySelectorAll('[data-catch]'), function (b) {
+      b.onclick = function () { var c = chans.find(function (x) { return x.id === b.getAttribute('data-catch'); }); if (c) openChannel(c); };
+    });
+    el.hidden = false;
   }
   function folderHtml(f) {
     var kids = folders.filter(function (k) { return k.parent_id === f.id; });
@@ -433,6 +481,7 @@
     [].forEach.call($('chanList').querySelectorAll('.chan-folder-head'), function (el) {
       el.onclick = function () { el.parentNode.classList.toggle('closed'); };
     });
+    renderCatchUp();
     void active;
   }
 
@@ -477,13 +526,38 @@
   async function loadChanDash() {
     var el = $('chanDash');
     if (!el) return;
+    var ch = current;
     try {
-      var d = await fetch(apiHost + '/api/servers/' + SID + '/events', { headers: authHeaders() }).then(r => r.json());
-      var next = (d.events || [])[0];
-      if (!next) { el.hidden = true; el.textContent = ''; return; }
-      el.textContent = 'Next event: ' + next.title + ' · ' + new Date(next.starts_at).toLocaleString() + ' · ' + (next.going || 0) + ' going';
+      var out = [];
+      var ed = await fetch(apiHost + '/api/servers/' + SID + '/events', { headers: authHeaders() }).then(r => r.json());
+      if (current !== ch) return;
+      var next = (ed.events || [])[0];
+      if (next) {
+        out.push('<span class="dash-item"><b>Next event</b> ' + esc(next.title) + ' · ' + esc(new Date(next.starts_at).toLocaleString()) + ' · ' + (next.going || 0) + ' going <button type="button" data-dash-ics="' + esc(next.id) + '">Calendar</button></span>');
+      }
+      var pd = await fetch(apiHost + '/api/messages?lobby=' + encodeURIComponent(ch.name) + '&pinned=1', { headers: authHeaders() }).then(r => r.json());
+      if (current !== ch) return;
+      var pins = (pd.messages || []).length;
+      if (pins) out.push('<span class="dash-item"><b>' + pins + ' pinned</b> <button type="button" data-dash-pins>View</button></span>');
+      if (ch.expires_at) out.push('<span class="dash-item"><b>Temporary</b> ends ' + esc(new Date(ch.expires_at).toLocaleString()) + '</span>');
+      if (!out.length) { el.hidden = true; el.innerHTML = ''; return; }
+      el.innerHTML = out.join('');
       el.hidden = false;
+      var ics = el.querySelector('[data-dash-ics]');
+      if (ics) ics.onclick = function () { downloadEventIcs(ics.getAttribute('data-dash-ics')); };
+      var pinBtn = el.querySelector('[data-dash-pins]');
+      if (pinBtn) pinBtn.onclick = function () { var shelf = $('pinnedShelf'); if (shelf) shelf.scrollIntoView({ block: 'nearest' }); };
     } catch (e) { el.hidden = true; }
+  }
+  async function downloadEventIcs(eid) {
+    try {
+      var r = await fetch(apiHost + '/api/events/' + eid + '/ics', { headers: authHeaders() });
+      if (!r.ok) throw new Error('Could not download that event.');
+      var blob = await r.blob(), a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = 'cudic-event.ics';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+    } catch (e) { addSys(e.message || 'Could not download that event.'); }
   }
 
   function loadPinned() {
@@ -784,6 +858,22 @@
       setTimeout(function () { typingOn = false; }, 2500);
     }
   });
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('.msg-code-copy') : null;
+    if (!b) return;
+    var code = b.closest('.msg-code') && b.closest('.msg-code').querySelector('code');
+    if (!code) return;
+    var text = code.textContent || '';
+    var done = function () { b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1400); };
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done).catch(function () {});
+    else {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch (err) {}
+      ta.remove();
+    }
+  });
   $('menuBtn').onclick = function () { $('serverSidebar').classList.toggle('open'); };
   window.addEventListener('pagehide', function () { try { ws.close(); } catch (e) {} });
 
@@ -791,12 +881,22 @@
   // step with channel switches; every write still goes through the API.
   window.cudicServerPage = {
     get current() { return current; },
+    get channels() { return chans; },
+    get me() { return ME; },
     get sid() { return SID; },
     get role() { return myRole; },
     apiHost: apiHost,
     headers: authHeaders,
     esc: esc,
     addSys: addSys,
+    reloadChannels: async function () {
+      try {
+        var cd = await fetch(apiHost + '/api/servers/' + SID + '/channels', { headers: authHeaders() }).then(r => r.json());
+        chans = cd.channels || [];
+        if (current) current = chans.find(function (c) { return c.id === current.id; }) || current;
+        renderChans(current);
+      } catch (e) {}
+    },
     setDescription: function (text) {
       if (current) current.description = text || '';
       var d = $('chanDesc');
@@ -808,5 +908,6 @@
 })();
   </script>
 <script src="/server-tools.js?v=1"></script>
+<script src="/server-hq.js?v=1"></script>
 <script src="/cudic-modals.js?v=3"></script></body>
 </html>

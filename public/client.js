@@ -1022,7 +1022,10 @@ function toggleReact(mid, emoji) {
 function me_visibleRow(mid) { return current && messagesEl.querySelector('.msg[data-mid="' + mid + '"]'); }
 
 function togglePin(mid) {
-  api('/api/messages/' + mid + '/pin', { method: 'POST', body: JSON.stringify({ pin: true }) })
+  // Explicit target: always sending true could only ever pin, never unpin.
+  var row = messagesEl.querySelector('.msg[data-mid="' + mid + '"]');
+  var on = !!(row && row.classList.contains('pinned'));
+  api('/api/messages/' + mid + '/pin', { method: 'POST', body: JSON.stringify({ pin: !on }) })
     .then(function (d) {
       if (!me_visibleRow(mid)) return;
       if (d && d.error) { addSystemMessage(d.error); return; }
@@ -1172,6 +1175,12 @@ function inlineFmt(s) {
   s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
   return s;
 }
+function codeBlock(lang, code) {
+  var label = String(lang || 'code').replace(/[^a-z0-9+#._-]/gi, '').slice(0, 18) || 'code';
+  return '<div class="msg-code"><div class="msg-code-head"><span>' + escapeHtml(label) + '</span>' +
+    '<button type="button" class="msg-code-copy" aria-label="Copy code">Copy</button></div>' +
+    '<pre><code>' + escapeHtml(code) + '</code></pre></div>';
+}
 function renderMsgText(raw) {
   var lines = String(raw || '').split('\n');
   var out = [];
@@ -1180,6 +1189,18 @@ function renderMsgText(raw) {
     var line = lines[i];
     var t = line.trim();
     if (t === '') { out.push('<br>'); i++; continue; }
+    if (/^```/.test(t)) {
+      var lang = t.slice(3).trim();
+      var code = [];
+      i++;
+      while (i < lines.length && !/^```\s*$/.test(lines[i].trim())) {
+        code.push(lines[i]);
+        i++;
+      }
+      if (i < lines.length) i++;
+      out.push(codeBlock(lang, code.join('\n')));
+      continue;
+    }
     if (/^---+$/.test(t)) { out.push('<hr class="msg-hr">'); i++; continue; }
     if (/^#{1,3}\s+/.test(t)) {
       var txt = t.replace(/^#+\s*/, '');
@@ -1213,6 +1234,27 @@ function renderMsgText(raw) {
   }
   return out.join('');
 }
+
+// Code blocks are HTML-escaped before they reach the DOM; the copy button
+// reads the rendered code, so no raw code is stored in an attribute.
+document.addEventListener('click', function (e) {
+  var b = e.target && e.target.closest ? e.target.closest('.msg-code-copy') : null;
+  if (!b) return;
+  var box = b.closest('.msg-code');
+  var code = box && box.querySelector('code');
+  if (!code) return;
+  var text = code.textContent || '';
+  var done = function () { b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1400); };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(done).catch(function () {});
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (err) {}
+    ta.remove();
+  }
+});
 
 // Emoji picker
 (function () {

@@ -2,7 +2,9 @@
    (Dashboard / Logout) when the visitor is already signed in. */
 (function () {
     var style = document.createElement('style');
-    style.textContent = '.auth-nav{position:relative;display:inline-flex;align-items:center}.auth-nav .auth-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--line,#262a33);background:var(--panel,#14161b);color:var(--ink,#f7f5ec);font:500 14px "Geist",system-ui,sans-serif;cursor:pointer}.auth-nav .auth-btn:hover{background:var(--ink,#f7f5ec);color:var(--bg,#0d0e10)}.auth-nav .auth-menu{position:absolute;top:calc(100% + 4px);right:0;min-width:180px;border:1px solid var(--line,#262a33);background:var(--panel,#14161b);display:none;flex-direction:column;z-index:50}.auth-nav.open .auth-menu{display:flex}.auth-nav .auth-menu a,.auth-nav .auth-menu button{display:block;width:100%;text-align:left;padding:10px 14px;border:0;background:none;color:var(--ink,#f7f5ec);font:500 13px "Geist",system-ui,sans-serif;cursor:pointer;text-decoration:none;border-bottom:1px solid var(--line,#262a33)}.auth-nav .auth-menu a:last-child,.auth-nav .auth-menu button:last-child{border-bottom:0}.auth-nav .auth-menu a:hover,.auth-nav .auth-menu button:hover{background:var(--bg,#0d0e10)}.auth-nav .auth-name{max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}';
+    /* Same control shape as the rest of the landing nav: 32px tall, 13px,
+       transparent border until hover, so the account item stops looking boxed. */
+    style.textContent = '.auth-nav{position:relative;display:inline-flex;align-items:center}.auth-nav .auth-btn{display:inline-flex;align-items:center;gap:6px;height:32px;box-sizing:border-box;padding:0 10px;border:1px solid transparent;border-radius:0;background:transparent;color:var(--mute,#a0a0aa);font:500 13px "Geist",system-ui,sans-serif;line-height:1;cursor:pointer;transition:color 120ms steps(4),background 120ms steps(4),border-color 120ms steps(4)}.auth-nav .auth-btn:hover,.auth-nav.open .auth-btn{background:var(--panel,#14161b);color:var(--ink,#f7f5ec);border-color:var(--line,#262a33)}.auth-nav .auth-btn .caret{font-size:9px;line-height:1;opacity:.75}@media(max-width:760px){.auth-nav{width:100%}.auth-nav .auth-btn{width:100%;height:auto;padding:12px 16px;border:0;border-bottom:1px solid var(--line,#262a33);justify-content:flex-start}}.auth-nav .auth-menu{position:absolute;top:calc(100% + 4px);right:0;min-width:180px;border:1px solid var(--line,#262a33);background:var(--panel,#14161b);display:none;flex-direction:column;z-index:50}.auth-nav.open .auth-menu{display:flex}.auth-nav .auth-menu a,.auth-nav .auth-menu button{display:block;width:100%;text-align:left;padding:10px 14px;border:0;background:none;color:var(--ink,#f7f5ec);font:500 13px "Geist",system-ui,sans-serif;cursor:pointer;text-decoration:none;border-bottom:1px solid var(--line,#262a33)}.auth-nav .auth-menu a:last-child,.auth-nav .auth-menu button:last-child{border-bottom:0}.auth-nav .auth-menu a:hover,.auth-nav .auth-menu button:hover{background:var(--bg,#0d0e10)}.auth-nav .auth-name{max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}';
     (document.head || document.documentElement).appendChild(style);
 
     function apiHost() {
@@ -51,7 +53,7 @@
             var btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'auth-btn';
-            btn.innerHTML = '<span class="auth-name">' + esc(name) + '</span> \u25BE';
+            btn.innerHTML = '<span class="auth-name">' + esc(name) + '</span><span class="caret">\u25BE</span>';
             var menu = document.createElement('div');
             menu.className = 'auth-menu';
             var dash = document.createElement('a');

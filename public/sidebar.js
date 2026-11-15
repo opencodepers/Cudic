@@ -133,7 +133,7 @@
   // Account customisation: one CSS file and one runtime on every rail page.
   // The runtime reads prefs from cache immediately, then refreshes from API.
   (function(){
-    var l=document.createElement('link');l.rel='stylesheet';l.href='/customize.css?v=1';document.head.appendChild(l);
+    var l=document.createElement('link');l.rel='stylesheet';l.href='/customize.css?v=2';document.head.appendChild(l);
     var s=document.createElement('script');s.src='/customize-runtime.js?v=1';s.defer=true;document.head.appendChild(s);
   })();
 
@@ -184,7 +184,6 @@
       +sbItem('/quests','quests','coin','Quests')
       +sbItem('/shop','shop','bag','Shop')
       +sbItem('/themes','themes','palette','Themes')
-      +sbItem('/customize','customize','palette','Customize')
       +'<a class="sidebar-item" data-p="discord" href="https://discord.gg/rAar6AJ3N" target="_blank" rel="noopener" aria-label="Join our Discord server">'+icons.discord+'<span>Discord</span></a>'
       +'<a class="sidebar-item" data-p="github" href="https://github.com/opencodepers/Cudic" target="_blank" rel="noopener" aria-label="Cudic on GitHub">'+icons.github+'<span>GitHub</span></a>'
       +'<div id="serversSection" style="margin-top:16px">'
@@ -499,4 +498,7 @@
 
 /* Site-wide command palette (Ctrl/Cmd+K) — loaded with the rail so every
    page that has nav gets it without its own script tag. */
-(function(){ if (window.CudicPalette || document.querySelector('script[data-cudic-palette]')) return; var s=document.createElement('script'); s.src='/cudic-palette.js?v=1'; s.defer=true; s.setAttribute('data-cudic-palette',''); document.head.appendChild(s); })();
+(function(){ if (window.CudicPalette || document.querySelector('script[data-cudic-palette]')) return; var s=document.createElement('script'); s.src='/cudic-palette.js?v=2'; s.defer=true; s.setAttribute('data-cudic-palette',''); document.head.appendChild(s); })();
+
+/* Cudic's own right-click menu — text fields keep the native one. */
+(function(){ if (window.CudicMenu || document.querySelector('script[data-cudic-menu]')) return; var s=document.createElement('script'); s.src='/cudic-menu.js?v=5'; s.defer=true; s.setAttribute('data-cudic-menu',''); document.head.appendChild(s); })();
