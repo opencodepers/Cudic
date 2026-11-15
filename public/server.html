@@ -214,6 +214,7 @@
         <span class="topic" id="chanTopic"></span>
         <span class="online" id="onlineCount"></span>
         <button class="tools" id="srvToolsBtn" hidden title="Descriptions, templates, audit and backup">Tools</button>
+        <a class="tools" id="srvCustomBtn" href="#" title="Appearance, folders, badges, welcome and commands">Customise</a>
       </div>
       <div id="chanDesc" hidden></div>
       <div id="chanDash" hidden style="padding:0 20px 8px;font-size:0.78rem;color:var(--text-tertiary);background:var(--panel);flex-shrink:0"></div>
@@ -232,6 +233,9 @@
         <input type="text" id="msgInput" placeholder="Message #channel" aria-label="Type a message" maxlength="2000" autocomplete="off" disabled>
         <button type="submit" class="btn-send">Send</button>
       </form>
+      <div id="welcomeOverlay" hidden style="position:fixed;inset:0;z-index:1200;display:grid;place-items:center;padding:20px;background:rgba(8,10,14,.72)">
+        <div class="rules-card" style="max-width:460px;width:100%"><h2>Welcome</h2><div id="welcomeSteps" style="font-size:.88rem;line-height:1.55;color:var(--text-secondary)"></div><button class="btn-send" id="welcomeClose" style="margin-top:14px">Continue</button></div>
+      </div>
       <div id="rulesOverlay" hidden>
         <div class="rules-card">
           <h2>Server rules</h2>
@@ -255,7 +259,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var apiHost = (typeof WS_URL !== 'undefined' && WS_URL) ? WS_URL.replace(/^wss?:\/\//, 'https://') : '';
   var TOKEN = null, ME = null, MYNAME = 'You', MYAVA = null;
-  var srv = null, chans = [], current = null, myRole = null;
+  var srv = null, chans = [], folders = [], serverTheme = {}, current = null, myRole = null;
   var ws = null, wsReady = false, pendingJoin = null, reconnectTries = 0;
   var mEl = $('messages'), myReacts = {};
   var pathId = (/^\/server\/([A-Za-z0-9-]{6,50})$/.exec(location.pathname) || [])[1];
@@ -343,6 +347,15 @@
     try {
       var cd = await fetch(apiHost + '/api/servers/' + SID + '/channels', { headers: authHeaders() }).then(r => r.json());
       chans = cd.channels || [];
+      try { var fd = await fetch(apiHost + '/api/servers/' + SID + '/channel-folders', { headers: authHeaders() }).then(r => r.json()); folders = fd.folders || []; } catch (e) { folders = []; }
+      try { var ad = await fetch(apiHost + '/api/servers/' + SID + '/appearance', { headers: authHeaders() }).then(r => r.json()); serverTheme = ad.theme || {}; applyServerTheme(); } catch (e) {}
+      try {
+        var wd = await fetch(apiHost + '/api/servers/' + SID + '/welcome', { headers: authHeaders() }).then(r => r.json());
+        var w = (wd && wd.welcome) || {};
+        var seenWelcome = false;
+        try { seenWelcome = localStorage.getItem('cudic_welcome_' + SID) === '1'; } catch (e) {}
+        if (w.enabled && (w.steps || []).length && !seenWelcome) showWelcome(w.steps);
+      } catch (e) {}
       // Channel unread badges: the conversations list already computes the
       // count per lobby, so reuse it instead of adding a query per channel.
       try {
@@ -358,20 +371,67 @@
   }
 
   var convUnread = {};
-  function renderChans(active) {
-    var html = '';
-    chans.forEach(function (c) {
-      html += '<button class="chan-row' + (current && c.id === current.id ? ' active' : '') + '" data-cid="' + esc(c.id) + '">'
-        + '<span class="chan-hash">#</span><span class="chan-name">' + esc(c.display) + '</span>'
-        + (convUnread[c.id] ? '<span class="chan-unread" title="' + convUnread[c.id] + ' unread" style="margin-left:auto;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--signal,#3a6b00);color:#fff;font:600 10px/18px ui-monospace,monospace;text-align:center">' + (convUnread[c.id] > 99 ? '99+' : convUnread[c.id]) + '</span>' : '')
-        + (c.is_private ? '<span class="chan-lock" title="Private channel">🔒</span>' : '') + '</button>';
+  function applyServerTheme() {
+    var layout = document.querySelector('.server-layout');
+    if (layout) {
+      if (serverTheme.accent) layout.style.setProperty('--signal', serverTheme.accent);
+      else layout.style.removeProperty('--signal');
+    }
+    var main = $('serverMain');
+    if (main) {
+      if (serverTheme.background) {
+        main.style.backgroundImage = 'linear-gradient(rgba(13,14,16,.9),rgba(13,14,16,.9)),url("' + serverTheme.background.replace(/"/g, '') + '")';
+        main.style.backgroundSize = 'cover';
+        main.style.backgroundPosition = 'center';
+      } else { main.style.backgroundImage = ''; }
+    }
+  }
+  function showWelcome(steps) {
+    var box = document.getElementById('welcomeSteps');
+    if (!box) return;
+    box.textContent = '';
+    steps.forEach(function (s) {
+      var row = document.createElement('div');
+      row.style.marginBottom = '10px';
+      var h = document.createElement('b'); h.textContent = s.title || '';
+      var p = document.createElement('p'); p.textContent = s.body || ''; p.style.marginTop = '2px';
+      row.appendChild(h); row.appendChild(p); box.appendChild(row);
     });
+    document.getElementById('welcomeOverlay').hidden = false;
+  }
+  function renderDesc(text) {
+    return esc(text || '')
+      .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\[([^\]]+)\]\((https:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+      .replace(/\n/g, '<br>');
+  }
+  function chanRow(c) {
+    return '<button class="chan-row' + (current && c.id === current.id ? ' active' : '') + '" data-cid="' + esc(c.id) + '">'
+      + '<span class="chan-hash">#</span><span class="chan-name">' + esc(c.display) + '</span>'
+      + (convUnread[c.id] ? '<span class="chan-unread" title="' + convUnread[c.id] + ' unread" style="margin-left:auto;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--signal,#3a6b00);color:#fff;font:600 10px/18px ui-monospace,monospace;text-align:center">' + (convUnread[c.id] > 99 ? '99+' : convUnread[c.id]) + '</span>' : '')
+      + (c.is_private ? '<span class="chan-lock" title="Private channel">🔒</span>' : '') + '</button>';
+  }
+  function folderHtml(f) {
+    var kids = folders.filter(function (k) { return k.parent_id === f.id; });
+    var inside = chans.filter(function (c) { return c.folder_id === f.id; }).map(chanRow).join('');
+    return '<div class="chan-folder"><button type="button" class="chan-folder-head" data-fold="' + esc(f.id) + '"><span class="chev">▾</span>' + esc(f.name) + '</button>'
+      + '<div class="chan-folder-body">' + inside + kids.map(folderHtml).join('') + '</div></div>';
+  }
+  function renderChans(active) {
+    var known = {}; folders.forEach(function (f) { known[f.id] = 1; });
+    var roots = folders.filter(function (f) { return !f.parent_id; });
+    var loose = chans.filter(function (c) { return !c.folder_id || !known[c.folder_id]; });
+    var html = roots.map(folderHtml).join('') + loose.map(chanRow).join('');
     $('chanList').innerHTML = html;
     [].forEach.call($('chanList').querySelectorAll('.chan-row'), function (el) {
       el.onclick = function () {
         var c = chans.find(x => x.id === el.getAttribute('data-cid'));
         if (c) { openChannel(c); $('serverSidebar').classList.remove('open'); }
       };
+    });
+    [].forEach.call($('chanList').querySelectorAll('.chan-folder-head'), function (el) {
+      el.onclick = function () { el.parentNode.classList.toggle('closed'); };
     });
     void active;
   }
@@ -385,7 +445,15 @@
     $('chanTitle').textContent = '# ' + ch.display;
     $('chanTopic').textContent = ch.topic || '';
     var descEl = $('chanDesc');
-    if (descEl) { descEl.textContent = ch.description || ''; descEl.hidden = !ch.description; }
+    if (descEl) { descEl.innerHTML = renderDesc(ch.description || ''); descEl.hidden = !ch.description; }
+    // A private channel accent sits on top of the server appearance.
+    if (window.CudicCustomize) {
+      CudicCustomize.applyThemeVars($('serverMain'), null);
+      fetch(apiHost + '/api/customize/conversation-theme?lobby=' + encodeURIComponent(ch.name), { headers: authHeaders() })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) { if (d && d.theme && current === ch) CudicCustomize.applyThemeVars($('serverMain'), d.theme); })
+        .catch(function () {});
+    }
     loadChanDash();
     var note = $('slowNote');
     if (ch.slow_seconds > 0) { note.style.display = 'block'; note.textContent = 'Slow mode on — one message every ' + ch.slow_seconds + 's.'; }
@@ -686,6 +754,11 @@
     addSys('You need to accept the rules to send messages here.');
   };
   $('rulesOverlay').hidden = true;
+  $('welcomeClose').onclick = function () {
+    try { localStorage.setItem('cudic_welcome_' + SID, '1'); } catch (e) {}
+    $('welcomeOverlay').hidden = true;
+  };
+  $('srvCustomBtn').href = '/server-customize?sid=' + encodeURIComponent(SID);
 
   // ── Sending ─────────────────────────────────────────────────
   $('chatForm').addEventListener('submit', function (e) {
@@ -727,7 +800,7 @@
     setDescription: function (text) {
       if (current) current.description = text || '';
       var d = $('chanDesc');
-      if (d) { d.textContent = text || ''; d.hidden = !text; }
+      if (d) { d.innerHTML = renderDesc(text || ''); d.hidden = !text; }
     }
   };
 

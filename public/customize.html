@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Customize — Cudic</title>
+<meta name="description" content="Make Cudic yours: fonts, density, layouts, themes, DM accents, profile widgets, banners and notification sounds.">
+<link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
+<link rel="stylesheet" href="/sidebar.css?v=25">
+<link rel="stylesheet" href="/customize.css?v=1">
+<script src="/config.js"></script>
+<script src="/auth.js"></script>
+</head><body data-page="customize">
+<div class="game-layout page-panel" style="flex:1;width:0;overflow-y:auto">
+<div class="cz-wrap">
+  <div class="cz-head">
+    <div><h1>Customize Cudic</h1><p>Appearance, layouts, themes and profile pieces are saved to your account and follow you between devices. Nothing here changes anyone else’s view.</p></div>
+    <a class="cz-btn" href="/profile">Back to profile</a>
+  </div>
+  <div id="czGate" class="cz-card" hidden><h2>Sign in first</h2><p class="sub">Your customisation is stored on your Cudic account.</p><a class="cz-btn" href="/login">Sign in</a></div>
+  <div id="czBody" hidden>
+    <div class="cz-grid">
+      <section class="cz-card">
+        <h2>Look and feel</h2><p class="sub">Applied on every classic page.</p>
+        <div class="cz-row"><label for="fontFamily">Interface font</label><select id="fontFamily"><option value="">Geist (default)</option><option>system-ui</option><option>Georgia</option><option>Trebuchet MS</option><option>Verdana</option><option>ui-monospace</option></select></div>
+        <div class="cz-row"><label for="fontSize">Text size <b id="fontSizeOut">15</b>px</label><input id="fontSize" type="range" min="12" max="22" value="15"></div>
+        <div class="cz-row"><label for="lineHeight">Line height <b id="lineHeightOut">1.5</b></label><input id="lineHeight" type="range" min="1.1" max="2.2" step="0.05" value="1.5"></div>
+        <div class="cz-row"><label for="density">Density</label><select id="density"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></div>
+        <div class="cz-row"><label for="railMode">Rail</label><select id="railMode"><option value="icon">Icon only</option><option value="labels">Expanded labels</option><option value="floating">Floating panel</option></select></div>
+        <div class="cz-row"><label for="chanLayout">Channel list</label><select id="chanLayout"><option value="list">List</option><option value="compact">Compact list</option><option value="grid">Grid</option><option value="grouped">Grouped by folder</option></select></div>
+        <div class="cz-row"><label for="glass">Glass panels</label><input id="glass" type="checkbox"></div>
+        <div class="cz-row"><label for="motion">Reduce motion</label><input id="motion" type="checkbox"></div>
+        <div class="cz-line"><button class="primary" type="button" id="saveLook">Save appearance</button><span id="lookMsg" class="cz-msg"></span></div>
+      </section>
+
+      <section class="cz-card">
+        <h2>Chat layout</h2><p class="sub">Choose which pane comes first; save named layouts.</p>
+        <div class="cz-layout" id="layoutOrder"></div>
+        <div class="cz-line"><input id="layoutName" type="text" maxlength="30" placeholder="Layout name"><button type="button" id="saveLayout">Save named</button></div>
+        <div class="cz-list" id="savedLayouts"></div>
+      </section>
+
+      <section class="cz-card">
+        <h2>Notification sounds</h2><p class="sub">Different tones for different events.</p>
+        <div class="cz-row"><label for="sndDm">Direct messages</label><input id="sndDm" type="checkbox" checked></div>
+        <div class="cz-row"><label for="sndMention">Mentions</label><input id="sndMention" type="checkbox" checked></div>
+        <div class="cz-row"><label for="sndEvent">Events</label><input id="sndEvent" type="checkbox" checked></div>
+        <div class="cz-row"><label for="sndCall">Calls and invites</label><input id="sndCall" type="checkbox" checked></div>
+        <div class="cz-line"><button type="button" data-preview="dm">DM tone</button><button type="button" data-preview="mention">Mention</button><button type="button" data-preview="event">Event</button><button class="primary" type="button" id="saveSounds">Save sounds</button></div>
+        <div id="soundMsg" class="cz-msg"></div>
+      </section>
+
+      <section class="cz-card">
+        <h2>Conversation theme</h2><p class="sub">A private accent for one DM or channel.</p>
+        <div class="cz-line"><select id="convPick"><option value="">Loading conversations…</option></select></div>
+        <div class="cz-line"><label style="font-size:.8rem">Accent <input id="convAccent" type="color" value="#FF8C1A"></label><input id="convBg" type="text" placeholder="Background image https://…"></div>
+        <div class="cz-line"><button type="button" id="loadConvTheme">Load current</button><button class="primary" type="button" id="saveConvTheme">Save to conversation</button><button type="button" id="clearConvTheme">Clear</button></div>
+        <div id="convPreview" class="cz-preview"></div><div id="convMsg" class="cz-msg"></div>
+      </section>
+
+      <section class="cz-card">
+        <h2>Custom theme packs</h2><p class="sub">Build a pack, then publish it to the store.</p>
+        <div class="cz-line"><input id="themeName" type="text" maxlength="40" placeholder="Theme name"></div>
+        <div class="cz-line"><label style="font-size:.8rem">Accent <input id="themeAccent" type="color" value="#7300FF"></label><input id="themeBg" type="text" placeholder="Wallpaper https://…"><select id="themeFont"><option value="">Default font</option><option>system-ui</option><option>Georgia</option><option>Trebuchet MS</option><option>Verdana</option><option>ui-monospace</option></select></div>
+        <div class="cz-line"><button class="primary" type="button" id="createTheme">Create theme</button></div>
+        <div class="cz-list" id="themeList"></div><div id="themeMsg" class="cz-msg"></div>
+      </section>
+
+      <section class="cz-card">
+        <h2>Profile extras</h2><p class="sub">Widgets, banner crop and your profile-only theme.</p>
+        <div class="cz-row"><label for="bannerPos">Banner focal point</label><input id="bannerPos" type="range" min="0" max="100" value="50"></div>
+        <div class="cz-row"><label for="bannerAnim">Allow animated banner</label><input id="bannerAnim" type="checkbox"></div>
+        <div class="cz-row"><label for="profilePack">Profile theme pack</label><input id="profilePack" type="text" maxlength="64" placeholder="pack slug"></div>
+        <div class="cz-line"><button class="primary" type="button" id="saveProfile">Save profile extras</button></div>
+        <div class="cz-line" style="margin-top:12px"><select id="widgetKind"><option value="text">Text note</option><option value="link">Link</option><option value="achievement">Achievement code</option><option value="games">Latest games</option></select></div>
+        <div class="cz-line"><input id="widgetA" type="text" maxlength="300" placeholder="Text, label, code, or leave blank for games"><input id="widgetB" type="text" maxlength="500" placeholder="https link (link widgets only)"><button type="button" id="addWidget">Add widget</button></div>
+        <div class="cz-list" id="widgetList"></div><div id="profileMsg" class="cz-msg"></div>
+      </section>
+
+      <section class="cz-card">
+        <h2>Server appearance</h2><p class="sub">Own a server? Accent, banner, folders, badges, welcome flows and commands live on its own page.</p>
+        <p style="font-size:.82rem;color:var(--text-secondary)">Open your server, then choose <b>Customise</b> in Tools. The next event line and channel descriptions stay untouched.</p>
+        <div class="cz-line" style="margin-top:10px"><a class="cz-btn" href="/servers">Your servers →</a></div>
+      </section>
+    </div>
+  </div>
+</div></div>
+<script src="/sidebar.js?v=26"></script>
+<script src="/customize.js?v=1"></script>
+</body></html>

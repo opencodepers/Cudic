@@ -461,6 +461,18 @@ GET  /api/servers/:sid/audit       ← owner/mod audit rows (100 newest)
 GET|POST /api/servers/:sid/backup  ← owner JSON export/restore (channels, roles,
                                   bans); no messages
 GET  /api/servers/:sid/milestones  ← one-time 100 members / 1 year / 10k messages
+GET|PUT /api/customize/prefs       ← layout/font/density/rail/glass/motion/
+                                  sounds/profile-pack/banner prefs
+GET|POST /api/customize/themes     ← own packs; POST /:id/publish; /manifest
+GET|PUT /api/customize/conversation-theme?lobby= ← private DM/channel accent
+GET|POST /api/customize/widgets    ← public profile widgets; DELETE /:id
+GET  /api/customize/public/:uid    ← widgets, badges and banner position
+GET|POST /api/servers/:sid/channel-folders ← two-level tree; /assign files a
+                                  channel; DELETE ?id= removes the folder
+GET|POST /api/servers/:sid/badges  ← custom badges; POST /grant to members
+GET|PUT /api/servers/:sid/welcome  ← three-step onboarding after rules
+GET|POST /api/servers/:sid/commands ← declarative /commands; DELETE ?id=
+GET|PUT /api/servers/:sid/appearance ← owner accent/banner
 GET|POST /api/scheduled            ← own scheduled messages/announcements;
                                   DELETE /api/scheduled/:id cancels before send
 PUT  /api/messages/:mid/edit       ← author-only edit, 24h window, old body

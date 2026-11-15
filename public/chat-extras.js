@@ -277,6 +277,12 @@
 
   function beep() {
     try {
+      if (window.CudicCustomize) {
+        var dm = false;
+        try { dm = !!(window.current && window.current.kind === 'dm'); } catch (e) {}
+        CudicCustomize.playSound(dm ? 'dm' : 'mention');
+        return;
+      }
       var Ctx = window.AudioContext || window.webkitAudioContext;
       if (!Ctx) return;
       var ctx = new Ctx();

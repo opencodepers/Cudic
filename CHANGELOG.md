@@ -8,6 +8,10 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Customization batch: layout, density, fonts, themes, folders, widgets, badges and commands** (`supabase/migrations/20261115150000_customization.sql`, `lib/routes/customize.js`)
+
+- New **Customization Studio** at `/customize`: interface font, text size and line height, compact density, icon/expanded/floating rail, glass panels, reduced motion, channel list layout, a named chat-layout editor, per-type notification tones, private DM/channel accent themes, and a theme-pack creator with publish. Profile extras add up to twelve public widgets, a banner focal point, animated banners and a profile-only pack. Server owners get `/server-customize`: accent/banner, nested channel folders, custom member badges, a three-step welcome flow, and declarative `/commands` with cooldowns. Public widgets and badges render on `/creator`; channel descriptions now support safe bold, code and https links. Migration applied live.
+
 **Planner batch: scheduled posts, edit history, collections, events and quiet hours** (`supabase/migrations/20261115140000_planner.sql`, `lib/routes/planner.js`)
 
 - Chat gained a **Plan** panel: schedule a message (or an owner-only server announcement) up to 30 days ahead and cancel it before it sends; collect any message into a named private collection that snapshots its text; edit your own message within 24 hours and read the previous versions with timestamps. Server Tools now lists **events** for every member — owners/mods create them, members RSVP, the channel header shows the next one, going members get 15-minute and 1-minute inbox reminders, and each event downloads as an `.ics` calendar file. Profiles gained an **introduction** and **quiet hours** (UTC): during quiet hours the inbox row is still written, only push is held. All six tables and the new user/message columns are applied live.

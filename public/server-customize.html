@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Server customisation — Cudic</title>
+<link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
+<link rel="stylesheet" href="/sidebar.css?v=25">
+<link rel="stylesheet" href="/customize.css?v=1">
+<script src="/config.js"></script><script src="/auth.js"></script>
+</head><body data-page="servers">
+<div class="game-layout page-panel" style="flex:1;width:0;overflow-y:auto"><div class="cz-wrap">
+  <div class="cz-head"><div><h1>Server customisation</h1><p>Accent, banner, folder tree, custom badges, welcome steps and declarative commands for this server.</p></div><a class="cz-btn" id="backServer" href="/servers">Back to server</a></div>
+  <div id="scGate" class="cz-card" hidden><h2>Owner or mod only</h2><p class="sub" id="scGateText">Sign in and open this page from your server.</p><a class="cz-btn" href="/servers">Your servers</a></div>
+  <div id="scBody" hidden><div class="cz-grid">
+    <section class="cz-card"><h2>Appearance</h2><p class="sub">Owner-only accent and banner for this server.</p>
+      <div class="cz-line"><label style="font-size:.8rem">Accent <input id="srvAccent" type="color" value="#FF8C1A"></label><input id="srvBanner" type="text" placeholder="Banner https://…"></div>
+      <div class="cz-line"><button class="primary" type="button" id="saveAppearance">Save appearance</button></div>
+      <div id="srvPreview" class="cz-preview"></div><div id="appearanceMsg" class="cz-msg"></div></section>
+
+    <section class="cz-card"><h2>Channel folders</h2><p class="sub">Two levels. Channels remain usable when unfiled.</p>
+      <div class="cz-line"><input id="folderName" type="text" maxlength="40" placeholder="Folder name"><select id="folderParent"><option value="">Top level</option></select><button type="button" id="addFolder">Add</button></div>
+      <div class="cz-list" id="folderList"></div>
+      <div class="cz-line" style="margin-top:10px"><select id="assignChannel"><option value="">Choose a channel…</option></select><select id="assignFolder"><option value="">No folder</option></select><button type="button" id="assign">File</button></div>
+      <div id="folderMsg" class="cz-msg"></div></section>
+
+    <section class="cz-card"><h2>Custom badges</h2><p class="sub">Grant a name/icon/colour badge to members.</p>
+      <div class="cz-line"><input id="badgeName" type="text" maxlength="32" placeholder="Badge name"><input id="badgeIcon" type="text" maxlength="8" placeholder="★" style="max-width:60px"><input id="badgeColour" type="color" value="#FF8C1A"><button type="button" id="addBadge">Add</button></div>
+      <div class="cz-list" id="badgeList"></div>
+      <div class="cz-line" style="margin-top:10px"><select id="grantBadge"><option value="">Badge…</option></select><select id="grantMember"><option value="">Member…</option></select><button type="button" id="grant">Grant</button></div>
+      <div id="badgeMsg" class="cz-msg"></div></section>
+
+    <section class="cz-card"><h2>Welcome flow</h2><p class="sub">Up to three steps after the rules gate. One per line: Title | Body.</p>
+      <textarea id="welcomeSteps" rows="5" style="width:100%" placeholder="Say hello | Tell us what you build.&#10;Pick a role | Builder, player or tester."></textarea>
+      <div class="cz-row"><label for="welcomeOn">Enabled</label><input id="welcomeOn" type="checkbox"></div>
+      <div class="cz-line"><button class="primary" type="button" id="saveWelcome">Save welcome flow</button></div><div id="welcomeMsg" class="cz-msg"></div></section>
+
+    <section class="cz-card"><h2>Commands</h2><p class="sub">Declarative responses, never arbitrary JavaScript.</p>
+      <div class="cz-line"><input id="cmdTrigger" type="text" maxlength="25" placeholder="/rules"><input id="cmdResponse" type="text" maxlength="500" placeholder="Response"><input id="cmdCooldown" type="number" min="0" max="3600" value="30" style="max-width:80px" title="Cooldown seconds"><button type="button" id="addCmd">Add</button></div>
+      <div class="cz-list" id="cmdList"></div><div id="cmdMsg" class="cz-msg"></div></section>
+  </div></div>
+</div></div>
+<script src="/sidebar.js?v=26"></script>
+<script src="/server-customize.js?v=1"></script>
+</body></html>

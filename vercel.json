@@ -23,6 +23,8 @@
     { "source": "/notifications", "destination": "/notifications.html" },
     { "source": "/ops", "destination": "/ops.html" },
     { "source": "/collections", "destination": "/collections.html" },
+    { "source": "/customize", "destination": "/customize.html" },
+    { "source": "/server-customize", "destination": "/server-customize.html" },
     { "source": "/docs", "destination": "/docs.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/faq", "destination": "/faq.html" },

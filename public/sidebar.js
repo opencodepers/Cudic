@@ -130,6 +130,13 @@
   // and layout, so don't even load the engine there (it also hits /api/profile).
   if (!document.querySelector('.landing')) (function(){var s=document.createElement('script');s.src='/theme-engine.js?v=5';document.head.appendChild(s);})();
 
+  // Account customisation: one CSS file and one runtime on every rail page.
+  // The runtime reads prefs from cache immediately, then refreshes from API.
+  (function(){
+    var l=document.createElement('link');l.rel='stylesheet';l.href='/customize.css?v=1';document.head.appendChild(l);
+    var s=document.createElement('script');s.src='/customize-runtime.js?v=1';s.defer=true;document.head.appendChild(s);
+  })();
+
   // Cudic ads (Adsterra banners): themed slot chrome + collapse-on-block.
   // Ad snippets themselves live inline in `.ad-frame` placeholders.
   (function(){
@@ -177,6 +184,7 @@
       +sbItem('/quests','quests','coin','Quests')
       +sbItem('/shop','shop','bag','Shop')
       +sbItem('/themes','themes','palette','Themes')
+      +sbItem('/customize','customize','palette','Customize')
       +'<a class="sidebar-item" data-p="discord" href="https://discord.gg/rAar6AJ3N" target="_blank" rel="noopener" aria-label="Join our Discord server">'+icons.discord+'<span>Discord</span></a>'
       +'<a class="sidebar-item" data-p="github" href="https://github.com/opencodepers/Cudic" target="_blank" rel="noopener" aria-label="Cudic on GitHub">'+icons.github+'<span>GitHub</span></a>'
       +'<div id="serversSection" style="margin-top:16px">'

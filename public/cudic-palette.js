@@ -15,7 +15,7 @@
     ['Quests', '/quests', 'Q'], ['Friends', '/friends', 'F'], ['Notifications', '/notifications', 'N'],
     ['Profile', '/profile', 'P'], ['Race', '/race', 'R'], ['Servers', '/servers', 'V'],
     ['Forums', '/forums', 'D'], ['Chat', '/chat', 'C'], ['Chat extras', '/chat?extras=1', 'X'], ['Music', '/music', 'M'],
-    ['Collections', '/collections', 'L'], ['FAQ', '/faq', '?'], ['Home', '/', 'H']
+    ['Collections', '/collections', 'L'], ['Customize', '/customize', 'C'], ['FAQ', '/faq', '?'], ['Home', '/', 'H']
   ];
 
   var overlay = null, input = null, list = null, status = null;
@@ -150,6 +150,7 @@
     var r = rows[active];
     if (!r) return;
     close();
+    if (r.run) { try { r.run(); } catch (e) {} return; }
     if (r.href) location.href = r.href;
   }
 
@@ -185,11 +186,22 @@
 
   function pageItems(q) {
     var needle = q.toLowerCase();
-    return PAGES.filter(function (p) {
+    var out = PAGES.filter(function (p) {
       return !needle || p[0].toLowerCase().indexOf(needle) !== -1;
     }).map(function (p) {
       return { group: 'Pages', label: p[0], sub: p[1], href: p[1], icon: p[2] };
     });
+    // Context actions: only offer what this page can actually do. Keep the
+    // list short — a palette full of dead actions is worse than none.
+    var actions = [];
+    if (q && 'compact density'.indexOf(needle) !== -1 && window.CudicCustomize) {
+      actions.push({ group: 'Actions', label: 'Toggle compact density', sub: 'Customize Cudic', icon: '◐', run: function () { var p = CudicCustomize.prefs; CudicCustomize.apply({ density: p.density === 'compact' ? 'comfortable' : 'compact' }); } });
+      actions.push({ group: 'Actions', label: 'Toggle glass panels', sub: 'Customize Cudic', icon: '◇', run: function () { CudicCustomize.apply({ glass: !CudicCustomize.prefs.glass }); } });
+    }
+    if (document.getElementById('newMsgBtn')) actions.push({ group: 'Chat', label: 'Start a new message', sub: 'Open the new message search', icon: '+', run: function () { document.getElementById('newMsgBtn').click(); } });
+    if (document.getElementById('msgSearchBtn')) actions.push({ group: 'Chat', label: 'Search this conversation', sub: 'Message search', icon: '?', run: function () { document.getElementById('msgSearchBtn').click(); } });
+    if (document.getElementById('srvToolsBtn')) actions.push({ group: 'Server', label: 'Open server tools', sub: 'Descriptions, events, audit and backup', icon: '⚙', run: function () { document.getElementById('srvToolsBtn').click(); } });
+    return out.concat(actions);
   }
 
   function apiItems(d, q) {

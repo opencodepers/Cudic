@@ -205,7 +205,7 @@ async function activeBan(userId, kind) {
 // Route modules are instantiated at the bottom, after every helper and
 // map they close over exists (they still run inside handleRequest).
 let messageRoutes = null, serverRoutes = null, chatRoutes = null;
-let githubRoutes = null, gamesRoutes = null, modRoutes = null, extrasRoutes = null, communityRoutes = null, plannerRoutes = null;
+let githubRoutes = null, gamesRoutes = null, modRoutes = null, extrasRoutes = null, communityRoutes = null, plannerRoutes = null, customizeRoutes = null;
 
 const PORT = process.env.PORT || 3000;
 
@@ -2436,6 +2436,13 @@ async function handleRequest(req, res) {
 
   // ── API: get message history ───────────────────────────────────
   // ── messages routes: lib/routes/messages.js ─────────────────────────
+  // ── customize routes: lib/routes/customize.js ─────────────────
+  // Before servers.js: /api/servers/:sid/appearance, channel-folders,
+  // badges, welcome and commands live here, not in the core server module.
+  if (customizeRoutes && customizeRoutes.matches(url.pathname)) {
+    await customizeRoutes.handle(req, res, url);
+    if (res.headersSent) return;
+  }
   // ── planner routes: lib/routes/planner.js ─────────────────────
   // Before messages.js: PUT /api/messages/:id and /api/messages/:id/edits
   // are planner routes that the message module deliberately leaves alone.
@@ -4485,6 +4492,16 @@ function slugify(s) {
     url.pathname = '/themes.html';
   }
 
+  // ── Redirect /customize to /customize.html ────────────────────
+  if (url.pathname === '/customize') {
+    url.pathname = '/customize.html';
+  }
+
+  // ── Redirect /server-customize to /server-customize.html ──────
+  if (url.pathname === '/server-customize') {
+    url.pathname = '/server-customize.html';
+  }
+
   // ── Redirect /quests to /quests.html ──────────────────────────
   if (url.pathname === '/quests') {
     url.pathname = '/quests.html';
@@ -4912,6 +4929,30 @@ function seatDead(res) {
   res.end(JSON.stringify({ error: 'session_superseded' }));
 }
 
+// Declarative server commands: /rules -> a stored response. One response per
+// cooldown, saved and broadcast through the same path as a normal message.
+async function runServerCommand(lobbyName, userId, text) {
+  const trigger = String(text || '').trim().toLowerCase();
+  if (!/^\/[a-z0-9_-]{1,24}$/.test(trigger)) return;
+  try {
+    const { data: lob } = await supabase.from('lobbies').select('id, server_id, kind').eq('name', lobbyName).maybeSingle();
+    if (!lob || !lob.server_id) return;
+    const { data: cmd } = await supabase.from('server_commands')
+      .select('trigger, response, cooldown').eq('server_id', lob.server_id).eq('trigger', trigger).maybeSingle();
+    if (!cmd) return;
+    const wait = Math.max(1, Math.min(3600, cmd.cooldown || 30)) * 1000;
+    if (!rateLimit('cmd:' + userId + ':' + trigger, 1, wait)) return;
+    const body = String(cmd.response || '').substring(0, 500);
+    if (!body) return;
+    await saveMessage(lobbyName, null, 'Cudic bot', body);
+    broadcast(lobbyName, {
+      type: 'message', lobby: lobbyName, username: 'Cudic bot', user_id: null,
+      avatar_url: null, text: body, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      ts: new Date().toISOString(), cid: null,
+    });
+  } catch (e) {}
+}
+
 // Save message to Supabase (fire and forget)
 async function saveMessage(lobbyName, userId, displayName, text) {
   try {
@@ -4986,7 +5027,7 @@ async function channelContext(name) {
 
 // owner | member | null for a server (module scope: used by HTTP + WS)
 async function serverRole(me, serverId) {
-  const { data: srv } = await supabase.from('servers').select('id, name, description, visibility, owner_id, rules').eq('id', serverId).single();
+  const { data: srv } = await supabase.from('servers').select('id, name, description, visibility, owner_id, rules, theme').eq('id', serverId).single();
   if (!srv) return { server: null, role: null };
   if (srv.owner_id === me) return { server: srv, role: 'owner' };
   const { data: m } = await supabase.from('server_members').select('role').eq('server_id', serverId).eq('user_id', me).single();
@@ -5228,6 +5269,9 @@ wss.on('connection', (ws, req) => {
       saveMessage(info.lobby, info.userId, info.username, text).then((row) => {
         if (row && row.id && cid) broadcast(info.lobby, { type: 'message_saved', lobby: info.lobby, cid, id: row.id });
       }).catch((e) => { console.error('saveMessage failed:', e && e.message); });
+      // Declarative /commands — a lookup, a cooldown and a plain response.
+      // Never evaluates user code, and a missing table is simply ignored.
+      runServerCommand(info.lobby, info.userId, text).catch(() => {});
       // Everyone else's sidebar (previews, unread, order) may be stale
       sendConversationsDirty();
       return;
@@ -5802,6 +5846,10 @@ serverRoutes = require('./lib/routes/servers')({
   supabase, cors, requireUser, needVerified, readBody, isUuid, serverRole,
   chanSlug, chanRoomName, chanDisplay, sendConversationsDirty, safeIconUrl,
   awardUser, crypto, lobbies,
+});
+customizeRoutes = require('./lib/routes/customize')({
+  supabase, cors, requireUser, needVerified, readBody, isUuid, canSeeLobby,
+  serverRole, rateLimit,
 });
 plannerRoutes = require('./lib/routes/planner')({
   supabase, cors, requireUser, needVerified, readBody, isUuid, canSeeLobby,

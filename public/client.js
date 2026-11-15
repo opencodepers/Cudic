@@ -436,6 +436,7 @@ async function openConv(conv) {
   chatForm.hidden = false;
   chatTitle.textContent = conv.display;
   chatTopic.textContent = conv.topic || '';
+  if (window.CudicCustomize) CudicCustomize.applyConversation(conv.name);
   // Slow mode hint: the conversations list carries the channel's seconds.
   if (slowNote && conv.kind !== 'dm' && conv.slow_seconds > 0) {
     slowNote.hidden = false;
