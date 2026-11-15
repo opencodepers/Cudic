@@ -8,6 +8,10 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**The landing page leads with the goal** (`public/index.html`)
+
+- The hero opened with "A browser studio for making games, sites, and themes" — a category, not a purpose, and one that quietly promised sites and themes to someone who came to make a game. It now opens with the goal: get a game out of your head and into a link, then says how in the same paragraph — write it in Studio, press Run, publish it, and the link opens straight into a playable game. The social card, the Twitter card and the Organization structured data carry the same goal instead of the old category line.
+
 **The platformer starter stops dropping you through the floor** (`public/studio-templates/platformer.json`)
 
 - The starter platformer's landing test added the fall speed twice: it compared the position the player had already moved to against a second prediction of where they were going, so the only landing it would accept was inside a window `s.y .. s.y + 2 - vy` — empty once gravity passes 2px a frame. Every run sailed through the floor and reset, and no platform ever caught anyone. It now compares against the position the player actually came from, so the floor and all four raised platforms catch a fall at any speed, and jumping up through a platform still works.
