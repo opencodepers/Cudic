@@ -38,9 +38,12 @@
 
   function channelRow(c, i) {
     var dis = K.owner ? '' : ' disabled';
-    return '<div class="kit-chan" data-i="' + i + '" style="display:grid;grid-template-columns:44px 1fr 1fr 1.2fr 1fr auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line)">'
+    return '<div class="kit-chan" data-i="' + i + '" style="display:grid;grid-template-columns:44px 1fr 1fr 1fr 1.2fr 1fr auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line)">'
       + '<input data-f="icon" maxlength="4" value="' + esc(c.icon) + '" aria-label="Icon for ' + esc(c.name) + '" placeholder="#" style="text-align:center"' + dis + '>'
       + '<b style="font-weight:500;font-size:.85rem;overflow:hidden;text-overflow:ellipsis">#' + esc(c.name) + '</b>'
+      + '<select data-f="type" aria-label="Type for ' + esc(c.name) + '" style="font-size:.78rem"' + dis + '>'
+      + ['chat', 'announcement', 'qa'].map(function (t) { return '<option value="' + t + '"' + ((c.type || 'chat') === t ? ' selected' : '') + '>' + (t === 'qa' ? 'Q&A' : t) + '</option>'; }).join('')
+      + '</select>'
       + '<input data-f="tags" value="' + esc((c.tags || []).join(', ')) + '" placeholder="tags, comma separated" maxlength="60" style="font-size:.8rem"' + dis + '>'
       + '<input data-f="welcome" value="' + esc(c.welcome) + '" placeholder="Line shown when the channel opens" maxlength="300" style="font-size:.8rem"' + dis + '>'
       + '<input data-f="labels" value="' + esc((c.labels || []).join(', ')) + '" placeholder="spoiler, nsfw" maxlength="60" style="font-size:.8rem"' + dis + '>'
@@ -65,7 +68,11 @@
       + '</select></div>'
       + '<div class="cz-row"><label for="kitGame">Game address</label><input id="kitGame" maxlength="120" placeholder="play.example.net" value="' + esc(game.address || '') + '"' + dis + '></div>'
       + '<div class="cz-row"><label for="kitGameNote">Game note</label><input id="kitGameNote" maxlength="200" placeholder="Season 4, whitelist on" value="' + esc(game.note || '') + '"' + dis + '></div>'
-      + '<div class="cz-line"><button class="primary" type="button" id="kitSaveIdentity"' + dis + '>Save server details</button></div>'
+      + '<div class="cz-row"><label for="kitFeatured">Directory artwork</label><input id="kitFeatured" maxlength="500" placeholder="https://… (falls back to the banner)" value="' + esc((s.theme && s.theme.featured) || '') + '"' + dis + '></div>'
+      + '<div class="cz-row"><label>Join questions</label><input class="kitJq" maxlength="120" placeholder="Question 1 (optional)" value="' + esc((s.join_questions || [])[0] || '') + '"' + dis + '><input class="kitJq" maxlength="120" placeholder="Question 2" value="' + esc((s.join_questions || [])[1] || '') + '"' + dis + ' style="margin-top:5px"><input class="kitJq" maxlength="120" placeholder="Question 3" value="' + esc((s.join_questions || [])[2] || '') + '"' + dis + ' style="margin-top:5px"></div>'
+      + '<label style="display:flex;gap:7px;align-items:center;font-size:.82rem;margin:8px 0"><input type="checkbox" id="kitWeekly"' + (s.backup_weekly ? ' checked' : '') + dis + '> Weekly backup</label>'
+      + '<div class="cz-line"><button class="primary" type="button" id="kitSaveIdentity"' + dis + '>Save server details</button><button type="button" id="kitBackupNow"' + dis + '>Back up now</button></div>'
+      + '<div id="kitBackups" style="font-size:.76rem;color:var(--text-tertiary);margin-top:6px"></div>'
       + '</div>'
       + '<div><div class="cz-row"><label>Invite page</label><input value="' + esc(invite) + '" readonly></div>'
       + '<div class="cz-line"><button type="button" id="kitCopyInvite">Copy invite link</button><a class="cz-btn" href="' + esc(invite || '#') + '" target="_blank" rel="noopener">Preview</a></div>'
@@ -105,6 +112,7 @@
         icon: row.querySelector('[data-f="icon"]').value.trim(),
         tags: row.querySelector('[data-f="tags"]').value.split(',').map(function (s) { return s.trim(); }).filter(Boolean),
         welcome: row.querySelector('[data-f="welcome"]').value.trim(),
+        type: row.querySelector('[data-f="type"]').value,
         labels: row.querySelector('[data-f="labels"]').value.split(',').map(function (x) { return x.trim().toLowerCase(); }).filter(Boolean),
       };
     });
@@ -119,9 +127,20 @@
           tags: $('kitTags').value.split(',').map(function (s) { return s.trim(); }).filter(Boolean),
           font: $('kitFont').value,
           game: { address: $('kitGame').value, note: $('kitGameNote').value },
+          featured: $('kitFeatured') ? $('kitFeatured').value : '',
+          joinQuestions: [].slice.call(document.querySelectorAll('.kitJq')).map(function (i) { return i.value.trim(); }).filter(Boolean),
+          backupWeekly: $('kitWeekly') ? $('kitWeekly').checked : false,
         }) });
         note('Server details saved.');
         await load();
+      } catch (e) { note(e.message, true); }
+    };
+    var backupNow = $('kitBackupNow');
+    if (backupNow) backupNow.onclick = async function () {
+      try {
+        var b = await req('/api/servers/' + SID + '/backups', { method: 'POST' });
+        note('Backup saved: ' + (b.counts ? b.counts.channels + ' channels, ' + b.counts.members + ' members' : 'done') + '.');
+        loadBackups();
       } catch (e) { note(e.message, true); }
     };
     var copy = $('kitCopyInvite');
@@ -191,6 +210,18 @@
     });
   }
 
+  async function loadBackups() {
+    var box = $('kitBackups');
+    if (!box || !K || !K.owner) return;
+    try {
+      var d = await req('/api/servers/' + SID + '/backups');
+      var rows = d.backups || [];
+      box.innerHTML = rows.length
+        ? 'Backups: ' + rows.map(function (b) { return '<a href="' + apiHost() + '/api/servers/' + SID + '/backups/' + b.id + '" download style="color:var(--signal);margin-right:8px">' + esc(new Date(b.created_at).toLocaleDateString()) + '</a>'; }).join('')
+        : (d.weekly ? 'Weekly backups are on; the first one is being written.' : 'No backups yet.');
+    } catch (e) { box.textContent = ''; }
+  }
+
   async function load() {
     try {
       T = (await token()) || '';
@@ -198,6 +229,7 @@
       K = await req('/api/servers/' + SID + '/kit');
       CH = K.channels || []; FO = K.folders || []; PR = K.presets || [];
       paint();
+      loadBackups();
     } catch (e) { note(e.message, true); }
   }
 

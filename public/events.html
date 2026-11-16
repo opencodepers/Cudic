@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="/consent.js?v=1"></script>
+  <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Public events — Cudic</title>
+  <meta name="description" content="Game nights and events that Cudic servers have opened to everyone.">
+  <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/sidebar.css?v=25">
+  <style>
+    body { display: flex; overflow: hidden; height: 100%; }
+    .ev-layout { flex: 1; width: 0; overflow-y: auto; background: var(--panel); }
+    .ev-content { max-width: 760px; margin: 0 auto; padding: 34px 24px 80px; }
+    .ev-content h1 { font: 600 1.35rem/1.2 var(--font-head); margin: 0 0 4px; letter-spacing: -.01em; }
+    .ev-sub { font-size: .86rem; color: var(--text-secondary); margin: 0 0 22px; }
+    .ev-day { font: 600 .68rem/1.4 var(--font-mono, monospace); letter-spacing: .1em; text-transform: uppercase; color: var(--text-tertiary); margin: 22px 0 8px; }
+    .ev-row { display: flex; gap: 12px; align-items: flex-start; border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px; background: var(--panel-raised); text-decoration: none; color: inherit; }
+    .ev-row:hover { border-color: var(--signal); }
+    .ev-icon { width: 38px; height: 38px; border-radius: 8px; background: var(--signal-tint); color: var(--signal); display: grid; place-items: center; font: 600 .8rem/1 var(--font-head); overflow: hidden; flex-shrink: 0; }
+    .ev-icon img { width: 100%; height: 100%; object-fit: cover; }
+    .ev-main { min-width: 0; flex: 1; }
+    .ev-title { font: 600 .92rem/1.35 var(--font-head); color: var(--text-primary); }
+    .ev-meta { font-size: .76rem; color: var(--text-tertiary); margin-top: 3px; }
+    .ev-note { font-size: .8rem; color: var(--text-secondary); margin-top: 4px; }
+    .ev-tag { font-size: .64rem; border: 1px solid var(--line); border-radius: 999px; padding: 1px 6px; color: var(--text-tertiary); margin-left: 6px; vertical-align: 1px; }
+    .ev-empty { border: 1px dashed var(--line); border-radius: var(--radius); padding: 26px; text-align: center; color: var(--text-secondary); font-size: .86rem; }
+    .ev-empty a { color: var(--signal); }
+  </style>
+  <link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
+</head>
+<body data-page="servers">
+  <main class="ev-layout page-panel"><div class="ev-content">
+    <h1>Public events</h1>
+    <p class="ev-sub">Game nights and events that servers have opened to everyone. Times are shown in your local timezone.</p>
+    <div id="evList"><p class="ev-sub">Loading events…</p></div>
+  </div></main>
+  <script src="/config.js"></script>
+  <script src="/auth.js"></script>
+  <script src="/sidebar.js?v=31"></script>
+  <script>
+  (function () {
+    var host = (typeof WS_URL !== 'undefined' && WS_URL) ? WS_URL.replace(/^wss?:\/\//, 'https://') : '';
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+    fetch(host + '/api/events/public')
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('Could not load events.')); })
+      .then(function (d) {
+        var rows = d.events || [];
+        var box = document.getElementById('evList');
+        if (!rows.length) {
+          box.innerHTML = '<div class="ev-empty">No public events are scheduled yet. <a href="/servers">Browse servers</a> and check their invite pages.</div>';
+          return;
+        }
+        var day = '', html = '';
+        rows.forEach(function (e) {
+          var d0 = new Date(e.starts_at);
+          var label = d0.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+          if (label !== day) { day = label; html += '<div class="ev-day">' + esc(label) + '</div>'; }
+          html += '<a class="ev-row" href="/preview/' + encodeURIComponent(e.server_id) + '">'
+            + '<span class="ev-icon">' + (e.icon_url ? '<img src="' + esc(e.icon_url) + '" alt="">' : esc(String(e.server_name || '?').slice(0, 2).toUpperCase())) + '</span>'
+            + '<span class="ev-main"><span class="ev-title">' + esc(e.title) + '<span class="ev-tag">' + esc(e.kind === 'night' ? 'game night' : 'event') + '</span></span>'
+            + '<span class="ev-meta">' + esc(e.server_name) + ' · ' + esc(d0.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) + (e.game ? ' · ' + esc(e.game) : '') + '</span>'
+            + (e.note ? '<span class="ev-note">' + esc(e.note) + '</span>' : '') + '</span></a>';
+        });
+        box.innerHTML = html;
+      })
+      .catch(function (e) { document.getElementById('evList').innerHTML = '<div class="ev-empty">' + esc(e.message) + ' <a href="/servers">Browse servers</a></div>'; });
+  })();
+  </script>
+  <script src="/cudic-modals.js?v=3"></script>
+</body>
+</html>

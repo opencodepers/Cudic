@@ -205,7 +205,7 @@ async function activeBan(userId, kind) {
 // Route modules are instantiated at the bottom, after every helper and
 // map they close over exists (they still run inside handleRequest).
 let messageRoutes = null, serverRoutes = null, chatRoutes = null;
-let githubRoutes = null, gamesRoutes = null, modRoutes = null, extrasRoutes = null, communityRoutes = null, plannerRoutes = null, customizeRoutes = null, hqRoutes = null, hubRoutes = null, kitRoutes = null, packRoutes = null;
+let githubRoutes = null, gamesRoutes = null, modRoutes = null, extrasRoutes = null, communityRoutes = null, plannerRoutes = null, customizeRoutes = null, hqRoutes = null, hubRoutes = null, kitRoutes = null, packRoutes = null, batchRoutes = null;
 
 const PORT = process.env.PORT || 3000;
 
@@ -352,6 +352,7 @@ async function onPublished(userId, gid, title) {
   const { count } = await supabase.from('games').select('id', { count: 'exact', head: true })
     .eq('owner_id', userId).eq('published', true);
   if (count >= 5) await awardUser(userId, 'worldbuilder');
+  if (batchRoutes) batchRoutes.onGamePublished(gid, title).catch(() => {});
 }
 
 // ── Static file server ───────────────────────────────────────────
@@ -2489,6 +2490,12 @@ async function handleRequest(req, res) {
     return;
   }
 
+  // ── batch routes: events, bookmarks, polls, Q&A, backups (docs #server-batch) ──
+  if (batchRoutes && batchRoutes.matches(url.pathname)) {
+    await batchRoutes.handle(req, res, url);
+    if (res.headersSent) return;
+  }
+
   if (serverRoutes && serverRoutes.matches(url.pathname)) {
     await serverRoutes.handle(req, res, url);
     if (res.headersSent) return;
@@ -4550,6 +4557,11 @@ function slugify(s) {
     url.pathname = '/join.html';
   }
 
+  // ── Public event listings ─────────────────────────────────────
+  if (url.pathname === '/events') {
+    url.pathname = '/events.html';
+  }
+
   // ── Redirect /quests to /quests.html ──────────────────────────
   if (url.pathname === '/quests') {
     url.pathname = '/quests.html';
@@ -5066,7 +5078,7 @@ async function channelContext(name) {
   if (hit && (Date.now() - hit.ts < 30000)) return hit.v;
   let v = null;
   try {
-    const { data: lob } = await supabase.from('lobbies').select('id, kind, server_id, slow_seconds').eq('name', name).single();
+    const { data: lob } = await supabase.from('lobbies').select('id, kind, server_id, slow_seconds, type').eq('name', name).single();
     if (lob) v = lob;
   } catch {}
   chanCtxCache.set(name, { v, ts: Date.now() });
@@ -5278,6 +5290,11 @@ wss.on('connection', (ws, req) => {
             const { role: wsRole } = await serverRole(info.userId, ctx.server_id);
             if (!wsRole) {
               ws.send(JSON.stringify({ type: 'error', code: 'not_member', text: 'You are no longer in this server.' }));
+              return;
+            }
+            // Announcement channels: mods and the owner post, everyone reads.
+            if (ctx.type === 'announcement' && wsRole !== 'owner' && wsRole !== 'mod') {
+              ws.send(JSON.stringify({ type: 'error', code: 'read_only', text: 'Announcement channel — only the owner and mods post here.' }));
               return;
             }
           }
@@ -5923,6 +5940,13 @@ kitRoutes = require('./lib/routes/kit')({
 packRoutes = require('./lib/routes/pack')({
   supabase, cors, requireUser, needVerified, readBody, isUuid, serverRole, rateLimit,
 });
+batchRoutes = require('./lib/routes/batch')({
+  supabase, cors, requireUser, needVerified, readBody, isUuid, serverRole, rateLimit, broadcast,
+});
+// Weekly server backups: an owner opts in, and a server left running makes one
+// every seven days. A manual "Back up now" never waits for this sweep.
+setInterval(() => { batchRoutes.sweepBackups().catch(() => {}); }, 6 * 60 * 60 * 1000);
+setTimeout(() => { batchRoutes.sweepBackups().catch(() => {}); }, 10 * 60 * 1000);
 chatRoutes = require('./lib/routes/chat')({
   supabase, cors, requireUser, needVerified, readBody, isUuid, dmRoomName,
   chanDisplay, sendConversationsDirty, canSeeLobby, serverRole, notify,

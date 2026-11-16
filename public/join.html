@@ -34,6 +34,10 @@
     .join-link:hover { color: var(--text-primary); }
     .join-msg { font-size: .82rem; margin-top: 10px; min-height: 1em; color: var(--danger); }
     .join-msg.ok { color: var(--success); }
+    .join-qs { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+    .join-qs h2 { font: 600 .7rem/1.4 var(--font-mono, monospace); letter-spacing: .1em; text-transform: uppercase; color: var(--text-tertiary); margin: 0 0 8px; }
+    .join-qs label { display: block; font-size: .8rem; color: var(--text-secondary); margin-bottom: 9px; }
+    .join-qs input { width: 100%; margin-top: 4px; background: var(--panel-raised); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; color: var(--text-primary); font: inherit; font-size: .84rem; }
   </style>
 </head>
 <body data-page="servers">
@@ -44,6 +48,7 @@
     <div class="join-tags" id="joinTags"></div>
     <p class="sub" id="joinNight" style="font-size:.78rem;color:var(--text-tertiary);margin:8px 0 0"></p>
     <p class="sub" id="joinDesc" style="font-size:.86rem;color:var(--text-secondary);line-height:1.7;margin:8px 0 0"></p>
+    <div class="join-qs" id="joinQs" hidden><h2>Before you join</h2><div id="joinQsList"></div></div>
     <div class="join-rules" id="joinRulesWrap" hidden><h2>Rules</h2><p id="joinRules"></p></div>
     <div class="join-actions">
       <button class="join-btn" id="joinBtn" type="button">Join server</button>
@@ -80,6 +85,17 @@
       }
       (srv.tags || []).forEach(function (t) { var s = document.createElement('span'); s.textContent = t; $('joinTags').appendChild(s); });
       if (srv.rules) { $('joinRules').textContent = srv.rules; $('joinRulesWrap').hidden = false; }
+      if (Array.isArray(srv.questions) && srv.questions.length) {
+        var qs = $('joinQsList');
+        srv.questions.forEach(function (q, i) {
+          var lab = document.createElement('label');
+          lab.textContent = q;
+          var inp = document.createElement('input');
+          inp.maxLength = 500; inp.required = true; inp.dataset.jq = String(i);
+          lab.appendChild(inp); qs.appendChild(lab);
+        });
+        $('joinQs').hidden = false;
+      }
       fetch(host + '/api/servers/' + srv.id + '/preview').then(function (r) { return r.ok ? r.json() : null; }).then(function (pv) {
         var n = pv && (pv.nights || [])[0];
         if (n) $('joinNight').textContent = 'Next public event: ' + n.title + ' · ' + new Date(n.starts_at).toLocaleString();
@@ -100,7 +116,7 @@
       var r = await fetch(host + '/api/servers/' + srv.id + '/join', {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invite_code: code }),
+        body: JSON.stringify({ invite_code: code, answers: [].slice.call(document.querySelectorAll('[data-jq]')).map(function (i) { return i.value.trim(); }) }),
       });
       var d = await r.json().catch(function () { return {}; });
       if (!r.ok) throw new Error(d.error || 'Could not join.');

@@ -12,6 +12,16 @@ fixed. Commits are referenced by short hash.
 
 - A new `/brand-app.html` documents the app surface alongside the landing kit at `/brand.html`: the steel-blue desk, floating charcoal window, 60 px icon rail, one orange signal, Geist and Geist Mono type, app components, motion and voice. The public landing and docs keep their existing system.
 
+**Server tools: channel types, polls, Q&A, bookmarks, join questions, feeds and backups** (`lib/routes/batch.js`, `public/server-batch.js`, `public/events.html`, `public/moderate-servers.js`, `public/server-directory.js`, `supabase/migrations/20261115200000_server_batch.sql`)
+
+- **Announcement channels** let the owner and mods post while everyone else reads; the composer is hidden for members and the send path refuses the message even if a client re-enables it. **Q&A channels** add an Answer action on each message: the asker or a mod marks it resolved, the message gets an answered badge, and the answered shelf keeps resolutions above history.
+- **Polls** post into any channel with two to six options, one vote per member, changeable until it closes. Anonymous polls count the vote without revealing the voter, and neither view ever returns another member's identity.
+- **Channel bookmarks** are private, live in their own sidebar group and are re-checked against the server on every read. The server's **game card** now renders under its name with a copy button.
+- **Join questions**: up to three per server, required on the invite page and readable only by owners and mods in the new **server moderation** section of `/moderate` — members, warnings, bans, slow channels, audited actions and join answers per server.
+- **Game feeds** post a published game's update into one chosen channel. **Weekly backups** keep the last four JSON snapshots of the server identity, channels, roles, events, presets, nights, LFG, suggestions and prompts, downloadable from Server settings.
+- **/events** lists upcoming public game nights and events across public servers; directory cards gain **featured artwork** (falling back to the banner) and the next public event.
+- Every write is additive, owner-checked where it changes the server, and degrades to a clear “needs the migration” answer until the SQL has run.
+
 **Community pack: member cards, prompts, suggestions, LFG, nights, warnings and labels** (`lib/routes/pack.js`, `public/server-community.html`, `public/server-community.js`, `public/server-preview.html`, `public/server-favourites.js`, `supabase/migrations/20261115190000_community_pack.sql`)
 
 - **Member cards** are per server: nickname (which replaces the account name on that server's messages), a short status, an intro with up to four tags, an owner-granted title, and a joined date that marks anniversaries. One member spotlight per server sits at the top of the community page.

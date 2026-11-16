@@ -564,9 +564,10 @@
       mEl.innerHTML = '';
       if (ch.welcome) { var wl2 = document.createElement('div'); wl2.className = 'system'; wl2.textContent = ch.welcome; mEl.appendChild(wl2); }
       var ms = d.messages || [];
-      if (ms.length) ms.forEach(m => addMsg(m.display_name, m.text, m.created_at, m.users && m.users.avatar_url, m.user_id, m.id));
+      if (ms.length) ms.forEach(m => addMsg(m.display_name, m.text, m.created_at, m.users && m.users.avatar_url, m.user_id, m.id, m.answered_at));
       else addSys('No messages yet — say hello.');
       loadPinned();
+      if (window.cudicBatchChannel) window.cudicBatchChannel(ch);
     } catch (e) { addSys('Could not load history.'); }
   }
 
@@ -630,7 +631,7 @@
     });
   }
 
-  function addMsg(author, text, iso, avatar, userId, mid) {
+  function addMsg(author, text, iso, avatar, userId, mid, answeredAt) {
     if (userId && nickMap[userId]) author = nickMap[userId];
     var mine = ME && userId === ME;
     var div = document.createElement('div');
@@ -640,6 +641,7 @@
     div.innerHTML = '<div class="msg-ava">' + av + '</div>'
       + '<div class="msg-main"><span class="author" style="color:' + nameColor(author) + '">' + esc(author) + '</span>'
       + '<span class="time">' + fmtTime(iso) + '</span>'
+      + (answeredAt ? '<span class="msg-answered">✓ answered</span>' : '')
       + '<div class="msg-text">' + renderMsgText(text) + '</div>'
       + '<div class="msg-actions"></div></div>';
     mEl.appendChild(div);
@@ -666,6 +668,12 @@
       addPin(div, mid);
     } else if (uid && ME && uid === ME) {
       addPin(div, mid);   // authors may pin their own messages
+    }
+    if (current && current.type === 'qa' && mid && /^[0-9a-f-]{36}$/i.test(mid)) {
+      var ans = document.createElement('button');
+      ans.type = 'button'; ans.className = 'msg-react'; ans.dataset.ans = mid;
+      ans.textContent = 'Answer'; ans.title = 'Mark this question answered';
+      row.appendChild(ans);
     }
   }
   function addPin(div, mid) {
@@ -744,6 +752,8 @@
     if (chip) { ev.stopPropagation(); toggleReact(chip.dataset.mid, chip.dataset.emoji); return; }
     var pinBtn = t.closest('.msg-pin');
     if (pinBtn) { ev.stopPropagation(); togglePin(pinBtn.dataset.mid); return; }
+    var ansBtn = t.closest('[data-ans]');
+    if (ansBtn) { ev.stopPropagation(); if (window.cudicToggleAnswer) window.cudicToggleAnswer(ansBtn.dataset.ans, false); return; }
     var plus = t.closest('.msg-react');
     if (plus && plus.dataset.mid && !plus.classList.contains('msg-chip') && !plus.classList.contains('msg-pin')) {
       ev.stopPropagation(); openPicker(plus, plus.dataset.mid); return;
@@ -955,6 +965,7 @@
   boot();
 })();
   </script>
+<script src="/server-batch.js?v=1"></script>
 <script src="/server-tools.js?v=1"></script>
 <script src="/server-hq.js?v=1"></script>
 <script src="/cudic-modals.js?v=3"></script></body>

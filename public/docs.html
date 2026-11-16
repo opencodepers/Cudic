@@ -764,7 +764,27 @@ confetti({ particleCount: 120 })</pre>
 </script>
 <script src="https://bellnewyork.org/22/aa54ebd8c3acf5d1bbeb740803efce87"></script></div>
                 <footer class="mono">Cudic docs · <a href="/">cudic.vercel.app</a> · <a href="/cookbook/">cookbook</a> · <a href="/brand.html">brand kit</a></footer>
-            <section id="community-pack" data-group="Play">
+            <section id="server-batch" data-group="Play">
+                    <h2>Server tools</h2>
+                    <p>A second owner-and-member toolkit, spread across the server page, its settings pane and <strong>/events</strong>. Channel types and bookmarks change how a channel behaves; polls, answered questions and the mod overview change what a room can do; backups keep an owner's setup recoverable.</p>
+                    <h3>Channel types</h3>
+                    <p><strong>Announcement</strong> channels let the owner and mods post while everyone else reads; the composer disappears for members. <strong>Q&amp;A</strong> channels put an <strong>Answer</strong> action on every message — the asker or a mod marks one resolved, it carries an answered badge, and the channel's answered shelf keeps the resolutions at the top. <strong>Chat</strong> is the normal room. The type is set per channel in Server settings.</p>
+                    <h3>Polls</h3>
+                    <p>Owners and mods post a <strong>poll</strong> into any channel: a question and two to six options. Every member gets one vote, changing it replaces the old one, and an <strong>anonymous</strong> poll hides who voted while still counting each member once. A poll closes on its date or when a mod closes it, and the bars show counts and percentages. No response ever names another voter.</p>
+                    <h3>Bookmarks and the game card</h3>
+                    <p>The <strong>star</strong> in the channel bar saves a channel to a private <strong>Bookmarks</strong> group at the top of the sidebar — separate from favourites, and only ever visible to you. A server's <strong>game card</strong> (address and note) appears under its name with a copy button.</p>
+                    <h3>Join questions</h3>
+                    <p>An owner can ask up to three short questions before someone joins. The invite page shows them above the Join button, every answer is required, and owners and mods read the answers in the moderation overview. Answers are deleted with the membership.</p>
+                    <h3>Game feeds</h3>
+                    <p>A server can follow a game. When that game publishes an update, one post lands in the chosen channel with a play link. Feeds are owner/mod-managed and capped, so a publish fans out once rather than per member.</p>
+                    <h3>Moderation dashboard</h3>
+                    <p><strong>/moderate</strong> now has a <strong>Server moderation</strong> section: one card per server you own or moderate, with member and mod counts, warnings (seen and unseen), bans, slow channels, recent audited actions and the latest join answers. It reads reports and server rows only — never a DM.</p>
+                    <h3>Backups</h3>
+                    <p>Owners can <strong>Back up now</strong> or turn on a <strong>weekly</strong> backup. A backup is one JSON file with the server identity, channels, member roles, events, presets, nights, LFG posts, suggestions and prompts; the last four are kept and each is downloadable from Server settings. Restoring is an import, so a backup never overwrites a live server by itself.</p>
+                    <h3>Public events and directory artwork</h3>
+                    <p><strong>/events</strong> lists every upcoming public game night and event across public servers, grouped by day in your timezone. Directory cards show a server's <strong>featured artwork</strong> when the owner sets one and fall back to the banner otherwise, plus the next public event.</p>
+                </section>
+                <section id="community-pack" data-group="Play">
                     <h2>Community pack</h2>
                     <p>Everything a server needs to feel like a place rather than a channel list, on one page: <strong>/server-community?sid=…</strong>. Members write their own card; owners get prompts, titles, spotlights, warnings and an inactivity read. Nothing here creates a second copy of chat — the roster, votes and nights are their own small tables.</p>
                     <h3>Member cards</h3>
