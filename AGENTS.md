@@ -1587,7 +1587,7 @@ Pages that are iframe targets or fragments (`/embed`, `/view`, `/editor`,
 optional, because something else links to them from script.
 
 Known route-less files — no rewrite and no redirect is only correct for these:
-`404`, `index`, `index-legacy`, `login-legacy`, `landing-backup`, `brand`,
+`404`, `index`, `index-legacy`, `login-legacy`, `landing-backup`, `brand`, `brand-app`,
 `font-pick`, `hello`, `play`, `run`, and `google<hex>.html`. A new file that is
 not on that list and has no rewrite is a 404 waiting to be reported.
 

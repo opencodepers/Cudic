@@ -8,6 +8,10 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**App brand kit** (`public/brand-app.html`)
+
+- A new `/brand-app.html` documents the app surface alongside the landing kit at `/brand.html`: the steel-blue desk, floating charcoal window, 60 px icon rail, one orange signal, Geist and Geist Mono type, app components, motion and voice. The public landing and docs keep their existing system.
+
 **Community pack: member cards, prompts, suggestions, LFG, nights, warnings and labels** (`lib/routes/pack.js`, `public/server-community.html`, `public/server-community.js`, `public/server-preview.html`, `public/server-favourites.js`, `supabase/migrations/20261115190000_community_pack.sql`)
 
 - **Member cards** are per server: nickname (which replaces the account name on that server's messages), a short status, an intro with up to four tags, an owner-granted title, and a joined date that marks anniversaries. One member spotlight per server sits at the top of the community page.
