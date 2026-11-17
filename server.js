@@ -4547,6 +4547,11 @@ function slugify(s) {
   if (url.pathname === '/server-community') {
     url.pathname = '/server-community.html';
   }
+
+  // ── Next workspace: a live model of the next 30 moves ─────────
+  if (url.pathname === '/next') {
+    url.pathname = '/next.html';
+  }
   if (url.pathname === '/server-preview' || url.pathname.startsWith('/preview/')) {
     url.pathname = '/server-preview.html';
   }

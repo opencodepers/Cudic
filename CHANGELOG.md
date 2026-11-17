@@ -8,6 +8,11 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Next workspace: thirty working models** (`public/next.html`, `public/next.css`, `public/next-core.js`, `public/next-chat.js`, `public/next-server.js`, `public/next.js`)
+
+- A new `/next` workspace turns the thirty-item chat/server slate into interactive specimens. A searchable index groups the work into Talk, Trust, Place, People and Play; each specimen has a live control, a one-sentence rationale, two acceptance checks and its dependency. Chat specimens cover threads, link previews, interactive messages, custom reactions, DM typing previews, DM polls, syntax colouring, catch-up summaries, notification intelligence, smart replies, translation, channel permissions, the permission simulator, role inheritance and the moderation builder. Server specimens cover backgrounds, forum channels, galleries, the member directory, the Minecraft widget, tags, age labels, server statuses, favourites, activity, profile colours, competitions, teams, tournaments and custom emoji.
+- The workspace is a model, not a schema migration: state lives in this browser and resets from the topbar. The production gate is written on every specimen, and the two foundations (F2 permission resolver, F6 attachment policy) are called out before the list. `/next` is linked from chat and the server community page.
+
 **App brand kit** (`public/brand-app.html`)
 
 - A new `/brand-app.html` documents the app surface alongside the landing kit at `/brand.html`: the steel-blue desk, floating charcoal window, 60 px icon rail, one orange signal, Geist and Geist Mono type, app components, motion and voice. The public landing and docs keep their existing system.

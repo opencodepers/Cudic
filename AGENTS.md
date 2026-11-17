@@ -42,6 +42,14 @@ Most wasted hours in this repo are one of these ten, skipped:
    builds `master`, Vercel builds `main`. Commit and push only when asked.
 10. **Every commit hash and Section 16 here is a snapshot.** `git log -5` wins.
 
+### Before adding anything
+
+**Check the local server first.** Run
+`curl -sS -o /dev/null -w '%{http_code}\n' http://localhost:3000/`. If it is
+not `200`, start `npm start`, wait for the `Cudic is running` line, and check
+the route again. Do this before the first edit or new file in a session — a
+server left down turns every page check into a false failure.
+
 ### Mistakes already made here — don't repeat these
 
 Newest last. Each one is a rule that only exists because someone got it wrong;

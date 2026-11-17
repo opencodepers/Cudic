@@ -29,6 +29,7 @@
     { "source": "/customize", "destination": "/customize.html" },
     { "source": "/server-customize", "destination": "/server-customize.html" },
     { "source": "/server-community", "destination": "/server-community.html" },
+    { "source": "/next", "destination": "/next.html" },
     { "source": "/server-preview", "destination": "/server-preview.html" },
     { "source": "/preview/:id", "destination": "/server-preview.html" },
     { "source": "/join", "destination": "/join.html" },

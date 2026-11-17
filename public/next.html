@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="/consent.js?v=1"></script>
+  <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Next — Cudic</title>
+  <meta name="description" content="Cudic Next: a working model of the next thirty moves for chat, trust and server communities.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
+  <link rel="stylesheet" href="/sidebar.css?v=25">
+  <link rel="stylesheet" href="/next.css?v=1">
+</head>
+<body data-page="next">
+<div class="page-panel nx-panel">
+  <header class="topbar nx-topbar">
+    <h1>Next</h1>
+    <div class="nx-top-actions">
+      <span class="nx-status"><span class="nx-status-dot" aria-hidden="true"></span>30 working models</span>
+      <button class="btn btn-secondary nx-reset" id="nxReset" type="button">Reset models</button>
+    </div>
+  </header>
+
+  <main class="nx-scroll">
+    <section class="nx-intro" aria-labelledby="nxIntroTitle">
+      <div class="nx-intro-copy">
+        <p class="nx-eyebrow">Product model · 2026</p>
+        <h2 id="nxIntroTitle">Make the room feel alive.</h2>
+        <p class="nx-lede">Thirty moves across chat and servers, arranged by the job they do. Pick one, use it, and read the ship gate beside it. Nothing here asks you to imagine the interaction.</p>
+      </div>
+      <dl class="nx-intro-stats" aria-label="Scope">
+        <div><dt>15</dt><dd>chat &amp; community</dd></div>
+        <div><dt>15</dt><dd>server</dd></div>
+        <div><dt>2</dt><dd>foundations first</dd></div>
+      </dl>
+    </section>
+
+    <div class="nx-prereq" role="note">
+      <span class="nx-prereq-mark" aria-hidden="true">!</span>
+      <p><b>Start with the two foundations.</b> F2 is one permission resolver used by REST and WebSocket. F6 is the attachment and storage policy. Several specimens below are gated until those exist; the gate is written on every one.</p>
+    </div>
+
+    <div class="nx-mobile-jump">
+      <label for="nxJump">Jump to a feature</label>
+      <select id="nxJump"></select>
+    </div>
+
+    <div class="nx-workspace">
+      <aside class="nx-browser" aria-label="All thirty features">
+        <div class="nx-browser-head">
+          <label class="nx-sr" for="nxSearch">Search features</label>
+          <div class="nx-search">
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <input id="nxSearch" type="search" placeholder="Search the thirty" autocomplete="off">
+          </div>
+          <div class="nx-seg" role="tablist" aria-label="Filter features">
+            <button type="button" role="tab" data-filter="all" aria-selected="true">All <span>30</span></button>
+            <button type="button" role="tab" data-filter="chat" aria-selected="false">Chat <span>15</span></button>
+            <button type="button" role="tab" data-filter="server" aria-selected="false">Server <span>15</span></button>
+          </div>
+        </div>
+        <nav class="nx-index" id="nxIndex" aria-label="Feature list"></nav>
+        <p class="nx-index-empty" id="nxEmpty" hidden>No feature matches that search.</p>
+      </aside>
+
+      <section class="nx-stage" id="nxStage" aria-labelledby="nxStageTitle"></section>
+    </div>
+
+    <footer class="nx-foot">
+      <p><b>Model, not migration.</b> Every interaction writes to this browser so you can test the shape without touching a live server. The production path and the gate are on each specimen.</p>
+      <p class="nx-foot-mono">cudic next · 30 moves · built to be judged</p>
+    </footer>
+  </main>
+</div>
+
+<div class="nx-toast" id="nxToast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+<script src="/config.js"></script>
+<script src="/auth.js"></script>
+<script src="/sidebar.js?v=31"></script>
+<script src="/next-core.js?v=1"></script>
+<script src="/next-chat.js?v=1"></script>
+<script src="/next-server.js?v=1"></script>
+<script src="/next.js?v=1"></script>
+</body>
+</html>
