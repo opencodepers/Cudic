@@ -12,10 +12,12 @@ fixed. Commits are referenced by short hash.
 
 - A new `/next` workspace turns the thirty-item chat/server slate into interactive specimens. A searchable index groups the work into Talk, Trust, Place, People and Play; each specimen has a live control, a one-sentence rationale, two acceptance checks and its dependency. Chat specimens cover threads, link previews, interactive messages, custom reactions, DM typing previews, DM polls, syntax colouring, catch-up summaries, notification intelligence, smart replies, translation, channel permissions, the permission simulator, role inheritance and the moderation builder. Server specimens cover backgrounds, forum channels, galleries, the member directory, the Minecraft widget, tags, age labels, server statuses, favourites, activity, profile colours, competitions, teams, tournaments and custom emoji.
 - The workspace is a model, not a schema migration: state lives in this browser and resets from the topbar. The production gate is written on every specimen, and the two foundations (F2 permission resolver, F6 attachment policy) are called out before the list. `/next` is linked from chat and the server community page.
+- The Next controls use Lucide SVG instead of `★`/`☆`/`←`/`→`/`×`/`✓` glyphs, and the custom emoji specimen uses real colour emoji with a reduced-motion-safe pop; `AGENTS.md` records the no-text-icon rule, the emoji-effect rule, and native-emoji DM input.
 
 **App brand kit** (`public/brand-app.html`)
 
 - A new `/brand-app.html` documents the app surface alongside the landing kit at `/brand.html`: the steel-blue desk, floating charcoal window, 60 px icon rail, one orange signal, Geist and Geist Mono type, app components, motion and voice. The public landing and docs keep their existing system.
+- Both brand kits now use inline SVG for arrows and close controls and plain key labels in menu examples; no typed glyphs or emoji are used as interface chrome.
 
 **Server tools: channel types, polls, Q&A, bookmarks, join questions, feeds and backups** (`lib/routes/batch.js`, `public/server-batch.js`, `public/events.html`, `public/moderate-servers.js`, `public/server-directory.js`, `supabase/migrations/20261115200000_server_batch.sql`)
 

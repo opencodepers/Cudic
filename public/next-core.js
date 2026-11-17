@@ -109,6 +109,19 @@
   };
 
   /* ── Reusable markup ─────────────────────────────────────── */
+  var ICON_PATHS = {
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+    'arrow-left': '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+    'arrow-right': '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+    alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>'
+  };
+  NX.icon = function (name) {
+    var path = ICON_PATHS[name];
+    if (!path) return '';
+    return '<svg class="nx-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' + path + '</svg>';
+  };
   NX.action = function (label, act, data, cls) {
     return '<button type="button" class="nx-action ' + (cls || '') + '" data-act="' + esc(act) + '"' + (data ? ' ' + data : '') + '>' + label + '</button>';
   };
@@ -133,8 +146,9 @@
       + '<input class="nx-input" id="' + esc(id) + '" type="' + esc(type || 'text') + '" value="' + esc(value == null ? '' : value) + '" placeholder="' + esc(placeholder || '') + '"></div>';
   };
 
+  var EMOJI_FACES = { pixelheart: '❤️', partyblob: '🎉', tinycrown: '👑', spark: '✨', bug: '🐛', gg: '✅' };
   NX.face = function (emoji) {
-    return emoji === ':pixelheart:' ? '♥' : emoji === ':partyblob:' ? '◕' : emoji === ':tinycrown:' ? '♛' : emoji;
+    return EMOJI_FACES[String(emoji || '').replace(/^:|:$/g, '')] || emoji;
   };
 
   /* ── Seed data ───────────────────────────────────────────── */
@@ -277,12 +291,12 @@
       selected: 'pixelheart',
       custom: '',
       pack: [
-        { code: 'pixelheart', glyph: '♥' },
-        { code: 'partyblob', glyph: '◕' },
-        { code: 'tinycrown', glyph: '♛' },
-        { code: 'spark', glyph: '✦' },
-        { code: 'bug', glyph: '⌁' },
-        { code: 'gg', glyph: '✓' }
+        { code: 'pixelheart', glyph: '❤️' },
+        { code: 'partyblob', glyph: '🎉' },
+        { code: 'tinycrown', glyph: '👑' },
+        { code: 'spark', glyph: '✨' },
+        { code: 'bug', glyph: '🐛' },
+        { code: 'gg', glyph: '✅' }
       ]
     }
   };
@@ -296,6 +310,11 @@
       Object.keys(raw.state).forEach(function (key) {
         if (raw.state[key] !== undefined) merged[key] = raw.state[key];
       });
+      if (merged.emoji && merged.emoji.pack) {
+        merged.emoji.pack.forEach(function (item) {
+          if (item && EMOJI_FACES[item.code]) item.glyph = EMOJI_FACES[item.code];
+        });
+      }
       return merged;
     } catch (e) {
       return NX.clone(DEFAULTS);

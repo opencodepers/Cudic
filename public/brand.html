@@ -86,14 +86,14 @@ html.js .rv.in{opacity:1;transform:none}
 .demo{height:90px;display:flex;align-items:center;overflow:hidden;margin-bottom:12px}
 .bar{height:14px;width:30%;background:var(--blue);animation:slide 2s steps(8) infinite alternate}
 .mis{height:150px;display:flex;align-items:center;justify-content:center;position:relative;border-right:1px solid var(--line);border-bottom:1px solid var(--line);color:var(--ink)}
-.mis:after{content:"✕";position:absolute;top:10px;right:14px;color:var(--blue);font-weight:600}
+.mis:after{content:"";position:absolute;top:12px;right:15px;width:12px;height:12px;background:var(--blue);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M18 6 6 18M6 6l12 12'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M18 6 6 18M6 6l12 12'/%3E%3C/svg%3E") center/contain no-repeat}
 .mis span{position:absolute;bottom:10px;left:14px}
 @media(max-width:820px){.g5{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:520px){.g5{grid-template-columns:repeat(2,1fr)}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}html.js .rv{opacity:1;transform:none}}
 
 .btn,.pill{border-radius:0;box-shadow:none!important;transform:none!important;font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;padding:14px 18px;display:inline-flex;align-items:center;gap:14px;margin:0 8px 8px 0;border:1px solid var(--ink);transition:background .12s steps(2),color .12s steps(2)}
-.btn:after,.pill:after{content:"→";transition:transform .12s steps(2)}
+.btn:after{content:"";width:12px;height:12px;flex:none;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6'/%3E%3C/svg%3E") center/contain no-repeat;transition:transform .12s steps(2)}
 .btn:hover:after,.pill:hover:after{transform:translateX(4px)}
 .b1{background:var(--lime);color:#0d0e10;border-color:var(--lime)}.b1:hover{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .b2{background:var(--blue);color:#0d0e10;border-color:var(--blue)}.b2:hover{background:var(--ink);color:var(--bg);border-color:var(--ink)}
@@ -103,7 +103,8 @@ html.js .rv.in{opacity:1;transform:none}
 .tile .top{height:90px;background:var(--blue);display:flex;align-items:flex-end;padding:0 14px;border-bottom:1px solid var(--line);transition:background .12s steps(2)}
 .tile:hover .top{background:var(--lime)}
 .tile .bd{padding:14px}.tile .bd b{display:block}
-.tile .ft{display:flex;justify-content:space-between;padding:10px 14px;border-top:1px solid var(--line)}
+.tile .ft{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-top:1px solid var(--line)}
+.tile-arrow{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .tile:hover .ft{background:var(--ink);color:var(--bg)}.tile:hover .ft .mono{color:var(--bg)}
 
 body{counter-reset:s}
@@ -248,7 +249,7 @@ input { cursor: url("text.svg") 8 14, text; }</pre><p>Always add the keyword fal
   <div class="grid g3">
    <div class="cell"><p class="mono">BUTTONS</p><a class="btn b1" href="#ui">Open Studio</a><a class="btn b2" href="#ui">Publish</a><a class="btn b3" href="#ui">Gallery</a></div>
    <div class="cell"><p class="mono">LINK</p><a class="pill" href="#ui"><svg data-i="theme" width="20" height="20"></svg>Theme packs</a></div>
-   <div class="cell"><p class="mono">GAME TILE</p><a class="tile" href="#ui"><div class="top"><svg data-i="cube" width="40" height="40" style="margin-bottom:-1px"></svg></div><div class="bd"><b>Pixel Runner</b><span class="mono">by you · 128 plays</span></div><div class="ft"><span class="mono">PLAY</span><span class="mono">→</span></div></a></div>
+   <div class="cell"><p class="mono">GAME TILE</p><a class="tile" href="#ui"><div class="top"><svg data-i="cube" width="40" height="40" style="margin-bottom:-1px"></svg></div><div class="bd"><b>Pixel Runner</b><span class="mono">by you · 128 plays</span></div><div class="ft"><span class="mono">PLAY</span><svg class="tile-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div></a></div>
   </div>
   <div class="cell" style="border-right:0"><b>Rules</b><ul><li>Square corners, 1px hairlines. No rounded pills, no shadows, no lift.</li><li>Buttons are mono caps with an arrow. Hover flips the fill to Cream and the arrow steps 4px.</li><li>Tiles are flat: a color block, text, and a footer bar. Hover swaps block color and inverts the footer.</li><li>Navigation: Gallery, Themes, Docs, Chat, Studio, with Sign in at the far right.</li></ul></div>
  </section>
@@ -273,7 +274,7 @@ input { cursor: url("text.svg") 8 14, text; }</pre><p>Always add the keyword fal
   <div class="grid g3">
    <div class="cell"><b>Do</b><ul><li>Use the mark in one flat color: Cream, Ink, Lime or Blue.</li><li>Pair it with Geist Medium for the wordmark.</li><li>Place it on solid blocks or the Ink canvas.</li></ul></div>
    <div class="cell"><b>Layout</b><ul><li>Build on a hairline grid. Cells, not cards with shadows.</li><li>One hero color block per screen.</li><li>Max two pixel icons per cell.</li></ul></div>
-   <div class="cell"><b>Accessibility</b><ul><li>Ink on Lime and Blue passes AA for text.</li><li>Never put Mute text on a colored block.</li><li>Icons never carry meaning alone. Add a label.</li></ul></div>
+   <div class="cell"><b>Accessibility</b><ul><li>Ink on Lime and Blue passes AA for text.</li><li>Never put Mute text on a colored block.</li><li>Icons never carry meaning alone. Add a label.</li><li>Icons are inline SVG, never typed glyphs or emoji.</li></ul></div>
   </div>
  </section>
  <section class="sec" id="voice">

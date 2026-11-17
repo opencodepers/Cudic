@@ -187,6 +187,10 @@
   background: transparent; color: var(--text-secondary); cursor: pointer;
   font: 500 1rem/1 var(--font-body);
 }
+.nx-step svg {
+  width: 15px; height: 15px; display: block; fill: none;
+  stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
 .nx-step:hover:not(:disabled) { border-color: var(--signal); color: var(--signal); }
 .nx-step:disabled { opacity: 0.35; cursor: default; }
 
@@ -235,6 +239,8 @@
 .nx-gate p { margin: 4px 0 0; font-size: 0.74rem; }
 
 /* ── Shared controls ─────────────────────────────────────── */
+.nx-icon { width: 14px; height: 14px; flex: none; vertical-align: -2px; }
+.nx-action .nx-icon { width: 12px; height: 12px; margin-right: 4px; vertical-align: -1px; }
 .nx-action {
   min-height: 32px; padding: 6px 9px; border: 1px solid var(--line);
   border-radius: var(--radius-sm); background: var(--panel-raised);
@@ -442,8 +448,8 @@
 .nx-result-mark {
   width: 18px; height: 18px; flex: none; display: grid; place-items: center;
   border: 1px solid var(--success); border-radius: 50%; color: var(--success);
-  font: 700 0.62rem/1 var(--font-mono);
 }
+.nx-result-mark .nx-icon { width: 11px; height: 11px; }
 .nx-result.deny .nx-result-mark { border-color: var(--danger); color: var(--danger); }
 .nx-result b { display: block; color: var(--text-primary); font: 600 0.76rem/1.3 var(--font-head); }
 .nx-result small { display: block; margin-top: 2px; color: var(--text-secondary); font-size: 0.7rem; line-height: 1.45; }
@@ -494,6 +500,7 @@
 }
 .nx-forum-row:first-child { border-top: 0; padding-top: 0; }
 .nx-forum-row:hover .nx-forum-title { color: var(--signal); }
+.nx-forum-arrow { margin-left: auto; margin-top: 2px; }
 .nx-forum-copy { min-width: 0; flex: 1; }
 .nx-forum-title { display: block; color: var(--text-primary); font: 600 0.78rem/1.35 var(--font-head); }
 .nx-forum-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 3px; color: var(--text-tertiary); font: 400 0.64rem/1.3 var(--font-mono); }
@@ -508,15 +515,19 @@
 .nx-tile b { font: 600 0.68rem/1.2 var(--font-mono); color: rgba(255, 255, 255, 0.78); letter-spacing: 0.04em; }
 .nx-tile .nx-tile-x {
   position: absolute; top: 3px; right: 3px; width: 22px; height: 22px;
+  display: grid; place-items: center;
   border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 3px;
   background: rgba(13, 14, 16, 0.55); color: #fff; cursor: pointer; line-height: 1;
 }
+.nx-tile .nx-tile-x .nx-icon { width: 11px; height: 11px; }
 .nx-tile .nx-tile-x:hover { background: var(--danger); border-color: var(--danger); }
 .nx-tile-add {
   aspect-ratio: 4 / 3; border: 1px dashed var(--line); border-radius: 4px;
-  display: grid; place-items: center; color: var(--text-tertiary); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  color: var(--text-tertiary); cursor: pointer;
   font: 500 0.66rem/1.3 var(--font-mono); background: transparent;
 }
+.nx-tile-add .nx-icon { width: 14px; height: 14px; }
 .nx-tile-add:hover { border-color: var(--signal); color: var(--signal); }
 
 .nx-directory-row {
@@ -558,11 +569,17 @@
 .nx-status-copy span { display: block; margin-top: 1px; color: var(--text-secondary); font-size: 0.7rem; }
 
 .nx-star {
-  border: 0; background: none; color: var(--text-tertiary); cursor: pointer;
-  padding: 4px; line-height: 1; font-size: 1rem;
+  width: 30px; height: 30px; display: grid; place-items: center;
+  border: 0; border-radius: 4px; background: none; color: var(--text-tertiary);
+  cursor: pointer; padding: 0;
+}
+.nx-star svg {
+  width: 17px; height: 17px; display: block;
+  fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round;
 }
 .nx-star.on { color: var(--signal); }
-.nx-star:hover { color: var(--signal); }
+.nx-star.on svg { fill: currentColor; }
+.nx-star:hover { color: var(--signal); background: var(--signal-tint); }
 
 .nx-activity-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-tertiary); flex: none; }
 .nx-activity-dot.online { background: var(--success); }
@@ -609,10 +626,14 @@
 .nx-emoji-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
 .nx-emoji {
   aspect-ratio: 1; display: grid; place-items: center; border: 1px solid var(--line);
-  border-radius: 4px; background: var(--panel-raised); font-size: 1.25rem; cursor: pointer;
+  border-radius: 4px; background: var(--panel-raised); font-size: 1.25rem; line-height: 1; cursor: pointer;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
   padding: 0;
 }
 .nx-emoji:hover, .nx-emoji.on { border-color: var(--signal); background: var(--signal-tint); }
+.nx-emoji.on { animation: nx-emoji-pop 240ms cubic-bezier(.2, .9, .2, 1); }
+@keyframes nx-emoji-pop { 0% { transform: scale(.92); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .nx-emoji.on { animation: none; } }
 .nx-emoji-code { margin-top: 4px; color: var(--text-tertiary); font: 400 0.58rem/1.2 var(--font-mono); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── Footer, toast, mobile ───────────────────────────────── */

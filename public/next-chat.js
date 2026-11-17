@@ -141,7 +141,7 @@
         }).join('') + '</div>' : '';
       return '<div class="nx-chat"><div class="nx-chat-bar"><span class="nx-dot"></span>#showcase</div><div class="nx-chat-log">'
         + NX.msg('Priya Shah', 'PS', '6m', 'The little crown on the win screen is doing a lot of work.',
-          chips + NX.action('+', 'react-open', 'aria-label="Open reaction picker"', 'quiet')) + picker + '</div></div>'
+          chips + NX.action(NX.icon('plus'), 'react-open', 'aria-label="Open reaction picker"', 'quiet')) + picker + '</div></div>'
         + '<p class="nx-preview-note">Custom packs are shared, owned by the server, and reportable from the same picker.</p>';
     },
     actions: {
@@ -330,7 +330,7 @@
         s.sent ? '<span class="nx-badge ok">Reply sent</span>' : picks.map(function (text) {
           return '<button type="button" class="nx-chip" data-act="reply-pick" data-text="' + e(text) + '">' + e(text) + '</button>';
         }).join(''))
-        + (s.sent ? '<div class="nx-result"><span class="nx-result-mark">✓</span><div><b>Sent</b><small>' + e(s.chosen) + '</small></div></div>' : '')
+        + (s.sent ? '<div class="nx-result"><span class="nx-result-mark">' + NX.icon('check') + '</span><div><b>Sent</b><small>' + e(s.chosen) + '</small></div></div>' : '')
         + '<div class="nx-divider"></div><div class="nx-row-fields"><input class="nx-input" id="nxReplyInput" data-live="smartreplies.chosen" value="' + e(s.chosen) + '" placeholder="Write your own or pick a suggestion">'
         + NX.action('Send', 'reply-send', s.chosen.trim() ? '' : 'disabled', 'primary') + '</div>'
         + '<div class="nx-inline" style="margin-top:7px">' + NX.action('Shuffle suggestions', 'reply-shuffle', '', 'quiet') + '</div>'
@@ -434,7 +434,7 @@
         + ['#general', '#staff', '#art'].map(function (c) { return '<option' + (s.channel === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></div>'
         + '<div><label class="nx-label" for="nxSimAction">Action</label><select class="nx-select" id="nxSimAction" data-change="sim.action">'
         + ['view', 'post', 'attach', 'pin'].map(function (a) { return '<option' + (s.action === a ? ' selected' : '') + '>' + a + '</option>'; }).join('') + '</select></div></div>'
-        + '<div class="nx-result' + (result.ok ? '' : ' deny') + '"><span class="nx-result-mark">' + (result.ok ? '✓' : '×') + '</span><div><b>' + (result.ok ? 'Allowed' : 'Denied') + ' · ' + e(s.role) + ' can ' + e(s.action) + ' in ' + e(s.channel) + '</b><small>' + e(result.why) + '</small></div></div>'
+        + '<div class="nx-result' + (result.ok ? '' : ' deny') + '"><span class="nx-result-mark">' + NX.icon(result.ok ? 'check' : 'x') + '</span><div><b>' + (result.ok ? 'Allowed' : 'Denied') + ' · ' + e(s.role) + ' can ' + e(s.action) + ' in ' + e(s.channel) + '</b><small>' + e(result.why) + '</small></div></div>'
         + '<pre class="nx-trace">' + e(result.trace) + '</pre>';
     },
     actions: {}
@@ -486,11 +486,11 @@
         + '<div class="nx-divider"></div>'
         + (s.rules.length ? s.rules.map(function (r) {
           return '<div class="nx-rule"><span class="nx-rule-when">WHEN</span><span>' + e(r.when) + '</span><span class="nx-rule-when">THEN</span><b>' + e(r.then) + '</b>'
-            + NX.action('×', 'rule-remove', 'data-id="' + e(r.id) + '" aria-label="Remove rule"', 'quiet danger') + '</div>';
+            + NX.action(NX.icon('x'), 'rule-remove', 'data-id="' + e(r.id) + '" aria-label="Remove rule"', 'quiet danger') + '</div>';
         }).join('') : '<p class="nx-muted">No rules yet. Add one above.</p>')
         + '<div class="nx-divider"></div><label class="nx-label" for="nxRuleTest">Test a message</label><div class="nx-row-fields"><input class="nx-input" id="nxRuleTest" data-live="mod.test" value="' + e(s.test) + '" placeholder="Paste a message…">'
         + NX.action('Run test', 'rule-test', '', 'primary') + '</div>'
-        + (s.result ? '<div class="nx-result' + (s.result.indexOf('would allow') === 0 ? '' : ' deny') + '"><span class="nx-result-mark">' + (s.result.indexOf('would allow') === 0 ? '✓' : '!') + '</span><div><b>' + e(s.result) + '</b><small>Test only. No message was changed.</small></div></div>' : '');
+        + (s.result ? '<div class="nx-result' + (s.result.indexOf('would allow') === 0 ? '' : ' deny') + '"><span class="nx-result-mark">' + NX.icon(s.result.indexOf('would allow') === 0 ? 'check' : 'alert') + '</span><div><b>' + e(s.result) + '</b><small>Test only. No message was changed.</small></div></div>' : '');
     },
     actions: {
       'rule-add': function () {

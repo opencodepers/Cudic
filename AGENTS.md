@@ -50,6 +50,21 @@ not `200`, start `npm start`, wait for the `Cudic is running` line, and check
 the route again. Do this before the first edit or new file in a session — a
 server left down turns every page check into a false failure.
 
+**Icons are Lucide, never typed characters.** Do not build a control from
+`★`, `☆`, `→`, `✕`, `+`, `…` or an emoji. Font glyphs change shape and weight
+on every OS and read as low quality. Interface icons are inline Lucide SVG
+(24px grid, `currentColor`, ~1.5–1.8 stroke) with a proper `aria-label`.
+Emoji are content, reactions or status, not chrome.
+
+**Emoji must feel alive.** Give interactive emoji a short, deliberate effect
+(pop, wiggle or burst) on use, and switch it off under
+`prefers-reduced-motion`. A static emoji control is unfinished.
+
+**DMs accept every emoji the OS can type.** The message composer is plain
+Unicode: any emoji the user can type or paste — including the Windows `Win+.`
+panel — must send and render. The built-in picker is a convenience, never an
+allowlist or a cap. Never filter message text to a fixed emoji set.
+
 ### Mistakes already made here — don't repeat these
 
 Newest last. Each one is a rule that only exists because someone got it wrong;
@@ -1465,8 +1480,9 @@ grid-led, Geist everywhere. Read it before building any public surface. Headline
   heading → one-line instruction → one primary button).
 - Voice: sentence case, active, buttons state the outcome ("Publish game", not "Submit").
 - Anti-patterns: purple anywhere (user hard-no — *"WHY DO U HAVE TO PUT PURPLE
-  EVERYTHING"*), emoji as UI icons, ALL-CAPS micro-labels as hierarchy, generic
-  "No X selected" empty states.
+  EVERYTHING"*), typed glyphs or emoji as UI icons (use Lucide SVG; emoji are
+  content), ALL-CAPS micro-labels as hierarchy, generic "No X selected" empty
+  states.
 - **Scope**: `/editor` + `/studio` keep dark IDE chrome with their own accent set —
   v2 governs the **public pages and the `/brand` kit**.
 

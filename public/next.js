@@ -14,6 +14,8 @@
   var jump = document.getElementById('nxJump');
   var reset = document.getElementById('nxReset');
   var e = NX.esc;
+  var chevronLeft = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m15 18-6-6 6-6"/></svg>';
+  var chevronRight = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 18 6-6-6-6"/></svg>';
   var features = NX.features;
   var filter = 'all';
   var query = '';
@@ -78,8 +80,8 @@
     }
     stage.innerHTML = '<header class="nx-stage-head">'
       + '<div class="nx-stage-tools">'
-      + '<button type="button" class="nx-step" id="nxPrev" aria-label="Previous feature"' + (order === 0 ? ' disabled' : '') + '>←</button>'
-      + '<button type="button" class="nx-step" id="nxNext" aria-label="Next feature"' + (order === features.length - 1 ? ' disabled' : '') + '>→</button>'
+      + '<button type="button" class="nx-step" id="nxPrev" aria-label="Previous feature"' + (order === 0 ? ' disabled' : '') + '>' + chevronLeft + '</button>'
+      + '<button type="button" class="nx-step" id="nxNext" aria-label="Next feature"' + (order === features.length - 1 ? ' disabled' : '') + '>' + chevronRight + '</button>'
       + '</div>'
       + '<div class="nx-stage-kicker"><span class="nx-stage-no">' + String(order + 1).padStart(2, '0') + '</span>' + e(sideLabel(feature)) + ' · ' + e(feature.group) + '</div>'
       + '<h2 id="nxStageTitle">' + e(feature.title) + '</h2>'

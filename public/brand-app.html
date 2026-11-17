@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="color-scheme" content="light dark" />
@@ -1260,9 +1261,9 @@
             <span class="context-hint mono">Right-click or press Enter</span>
             <div class="context-menu" id="context-menu" role="menu" aria-label="Game actions" hidden>
               <div class="menu-label" aria-hidden="true">IronStorm</div>
-              <button type="button" role="menuitem" data-menu-action="Play">Play <kbd>↵</kbd></button>
+              <button type="button" role="menuitem" data-menu-action="Play">Play <kbd>Enter</kbd></button>
               <button type="button" role="menuitem" data-menu-action="Open in Studio">Open in Studio</button>
-              <button type="button" role="menuitem" data-menu-action="Copy link">Copy link <kbd>⌘C</kbd></button>
+              <button type="button" role="menuitem" data-menu-action="Copy link">Copy link <kbd>Ctrl C</kbd></button>
               <div class="menu-sep" role="separator"></div>
               <button type="button" role="menuitem" data-menu-action="Remove from shelf">Remove from shelf</button>
             </div>
@@ -1415,6 +1416,7 @@
           <tr><td>Signal</td><td>#FF8C1A</td><td>One per view. Hover #E67A00. Selection is a 14% tint, never a hex.</td></tr>
           <tr><td>Radius</td><td>6 · 12 · 16 · 999</td><td>Controls, cards, the window, pills. Nothing else gets a radius.</td></tr>
           <tr><td>Rail</td><td>60 px · icon 20 px</td><td>Lucide, stroke 1.6, no fills. Item 59 × 38, active edge 3 px.</td></tr>
+          <tr><td>Icons</td><td>Lucide SVG · 1.6</td><td>Inline only. Never typed glyphs or emoji as chrome; emoji are content or reactions.</td></tr>
           <tr><td>Inset</td><td>16 px</td><td>Window margin on the desk, and the header's sticky offset.</td></tr>
           <tr><td>Type</td><td>Geist · Geist Mono</td><td>400 / 500 / 600. Labels are mono, uppercase, 11 px, +0.12em.</td></tr>
           <tr><td>Sizes</td><td>11 · 12 · 13 · 15 · 16 · 20 · 26 · 32 · 40</td><td>Body is 16 in marketing, 15 in the product, 13 in dense panels.</td></tr>
@@ -1432,7 +1434,7 @@
 
   <footer class="colophon">
     <p>Set in Geist and Geist Mono. Icons by Lucide. Motion by motion.dev. Issue 01, 16 November 2026.</p>
-    <p class="mono" style="color:#6a6a6a">Made in public · shipped daily</p>
+    <p class="mono" style="color:var(--ash)">Made in public · shipped daily</p>
   </footer>
 </div>
 

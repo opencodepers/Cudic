@@ -8,6 +8,8 @@
 
   var NX = window.CudicNext;
   var e = NX.esc;
+  var starIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+    + '<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>';
 
   NX.add({
     id: 'backgrounds', plan: 105, side: 'server', group: 'Place', title: 'Custom server backgrounds',
@@ -60,7 +62,7 @@
       var s = NX.state.forums;
       var open = s.threads.filter(function (t) { return String(t.id) === String(s.openId); })[0];
       if (open) {
-        return '<button type="button" class="nx-action quiet" data-act="forum-back">← All threads</button>'
+        return '<button type="button" class="nx-action quiet" data-act="forum-back">' + NX.icon('arrow-left') + ' All threads</button>'
           + '<h3 style="margin:12px 0 3px;font:600 .95rem/1.35 var(--font-head);color:var(--text-primary)">' + e(open.title) + '</h3>'
           + '<div class="nx-forum-meta"><span>' + e(open.author) + '</span><span>·</span><span>' + e(open.when) + '</span>'
           + open.tags.map(function (t) { return '<span class="nx-forum-tag">' + e(t) + '</span>'; }).join('') + '</div>'
@@ -72,7 +74,7 @@
       return (s.threads.map(function (t) {
         return '<button type="button" class="nx-forum-row" data-act="forum-open" data-id="' + t.id + '"><span class="nx-forum-copy"><span class="nx-forum-title">' + e(t.title) + '</span>'
           + '<span class="nx-forum-meta"><span>' + e(t.author) + '</span><span>' + e(t.when) + '</span><span>' + t.replies.length + ' replies</span>'
-          + t.tags.map(function (tag) { return '<span class="nx-forum-tag">' + e(tag) + '</span>'; }).join('') + '</span></span><span aria-hidden="true">→</span></button>';
+          + t.tags.map(function (tag) { return '<span class="nx-forum-tag">' + e(tag) + '</span>'; }).join('') + '</span></span><span class="nx-forum-arrow" aria-hidden="true">' + NX.icon('arrow-right') + '</span></button>';
       }).join(''))
         + '<div class="nx-divider"></div>'
         + (s.composing
@@ -121,8 +123,8 @@
       return '<div class="nx-gallery">' + s.items.map(function (item) {
         return '<div class="nx-tile" style="--tile:' + e(item.color) + '">'
           + (item.src ? '<img src="' + e(item.src) + '" alt="' + e(item.label) + '">' : '<b>' + e(item.label) + '</b>')
-          + '<button type="button" class="nx-tile-x" data-act="gallery-remove" data-id="' + e(item.id) + '" aria-label="Remove ' + e(item.label) + '">×</button></div>';
-      }).join('') + '<label class="nx-tile-add" for="nxGalFile">+ Add image</label></div>'
+          + '<button type="button" class="nx-tile-x" data-act="gallery-remove" data-id="' + e(item.id) + '" aria-label="Remove ' + e(item.label) + '">' + NX.icon('x') + '</button></div>';
+      }).join('') + '<label class="nx-tile-add" for="nxGalFile">' + NX.icon('plus') + '<span>Add image</span></label></div>'
         + '<input type="file" id="nxGalFile" accept="image/*" hidden>'
         + '<p class="nx-preview-note">Images are resized to 560px in the browser, then checked against the server budget. Max 6 in this model.</p>';
     },
@@ -300,7 +302,7 @@
         + '<div class="nx-divider"></div>' + NX.members.map(function (m) {
           var on = s.ids.indexOf(m.id) !== -1;
           return '<div class="nx-directory-row"><span class="nx-ava alt">' + e(m.initials) + '</span><div><div class="nx-directory-name">' + e(m.name) + '</div><div class="nx-directory-meta">' + e(m.role) + ' · ' + e(m.joined) + '</div></div>'
-            + '<button type="button" class="nx-star' + (on ? ' on' : '') + '" data-act="fav-toggle" data-id="' + m.id + '" aria-label="' + (on ? 'Remove ' : 'Add ') + e(m.name) + ' from favourites" aria-pressed="' + on + '">' + (on ? '★' : '☆') + '</button></div>';
+            + '<button type="button" class="nx-star' + (on ? ' on' : '') + '" data-act="fav-toggle" data-id="' + m.id + '" aria-label="' + (on ? 'Remove ' : 'Add ') + e(m.name) + ' from favourites" aria-pressed="' + on + '">' + starIcon + '</button></div>';
         }).join('');
     },
     actions: {
@@ -365,7 +367,7 @@
     render: function () {
       var s = NX.state.comp;
       return '<div class="nx-comp"><div class="nx-comp-head"><div><div class="nx-comp-theme">Small worlds</div><p class="nx-poll-meta">Make a playable place in one screen.</p></div><div class="nx-comp-deadline">Closes<br><b>Friday, 18:00</b></div></div>'
-        + (s.submitted ? '<div class="nx-result" style="margin-top:9px"><span class="nx-result-mark">✓</span><div><b>Your entry is in</b><small>You can edit it until the deadline.</small></div></div>'
+        + (s.submitted ? '<div class="nx-result" style="margin-top:9px"><span class="nx-result-mark">' + NX.icon('check') + '</span><div><b>Your entry is in</b><small>You can edit it until the deadline.</small></div></div>'
           : '<div class="nx-row-fields" style="margin-top:9px"><input class="nx-input" id="nxCompTitle" maxlength="80" placeholder="Name your entry"><button type="button" class="nx-action primary" data-act="comp-submit">Enter</button></div>')
         + s.entries.map(function (c) {
           return '<div class="nx-comp-entry"><b>' + e(c.title) + '</b><span>by ' + e(c.author) + '</span><span>' + c.votes + ' votes</span>'
@@ -502,10 +504,10 @@
         var s = NX.state.emoji;
         var input = document.getElementById('nxEmojiCustom');
         var value = (input && input.value || '').trim();
-        if (!value) { NX.toast('Add a glyph or a shortcode.'); return; }
+        if (!value) { NX.toast('Add an emoji or a shortcode.'); return; }
         if (s.pack.length >= 18) { NX.toast('This model holds eighteen emoji.'); return; }
         var code = /^:[^:]+:$/.test(value) ? value.slice(1, -1) : 'custom' + (s.pack.length + 1);
-        var glyph = /^:[^:]+:$/.test(value) ? '◆' : value.slice(0, 8);
+        var glyph = /^:[^:]+:$/.test(value) ? '✨' : value.slice(0, 8);
         s.pack.push({ code: code, glyph: glyph });
         s.selected = code;
         NX.commit('Emoji sent for approval.');
