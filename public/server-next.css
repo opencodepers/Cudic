@@ -1,0 +1,145 @@
+/* file: public/server-next.css
+ * what: the inline Community dock on a server page.
+ * invariants: follows the rail-page tokens; the dock scrolls independently and
+ *   becomes full-width below 620px, with no body scroll behind it. The launcher
+ *   floats above the composer so it never crowds the channel top bar.
+ * see: public/server-next.js, public/server.html, cudic-pages-design.md.
+ */
+.sn-launch {
+  position: fixed; right: 24px; bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  z-index: 70; display: inline-flex; align-items: center; gap: 7px;
+  min-height: 38px; padding: 0 14px; border: 1px solid var(--line);
+  border-radius: 999px; background: var(--panel-raised); color: var(--text-primary);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28); cursor: pointer;
+  font: 600 0.78rem/1 var(--font-head);
+}
+.sn-launch[hidden] { display: none; }
+.sn-launch:hover { border-color: var(--signal); color: var(--signal); }
+.sn-launch:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+.sn-launch svg { width: 16px; height: 16px; flex: none; }
+.sn-backdrop {
+  position: fixed; inset: 0; z-index: 80; background: rgba(8, 9, 10, 0.58);
+  backdrop-filter: blur(2px);
+}
+.sn-dock {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 81;
+  width: min(470px, 100vw); display: flex; flex-direction: column;
+  background: var(--panel); border-left: 1px solid var(--line);
+  box-shadow: -18px 0 60px rgba(0, 0, 0, 0.32);
+}
+.sn-dock[hidden], .sn-backdrop[hidden] { display: none; }
+.sn-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 18px 18px 12px; border-bottom: 1px solid var(--line); flex: none;
+}
+.sn-head h2 {
+  margin: 0; font: 600 1.15rem/1.2 var(--font-head); letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+.sn-head p { margin: 4px 0 0; color: var(--text-tertiary); font-size: 0.75rem; }
+.sn-head button {
+  flex: none; border: 1px solid var(--line); background: var(--panel-raised);
+  color: var(--text-secondary); border-radius: var(--radius-sm); padding: 6px 10px;
+  font: 500 0.75rem/1 var(--font-head); cursor: pointer;
+}
+.sn-top {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 18px; border-bottom: 1px solid var(--line); flex: none;
+  font-size: 0.72rem; color: var(--text-tertiary);
+}
+.sn-top a { color: var(--signal); text-decoration: none; font-weight: 600; }
+.sn-top a:hover { text-decoration: underline; }
+.sn-tabs {
+  display: flex; gap: 4px; overflow-x: auto; padding: 9px 14px;
+  border-bottom: 1px solid var(--line); flex: none; scrollbar-width: thin;
+}
+.sn-tabs button {
+  flex: none; border: 0; background: transparent; color: var(--text-tertiary);
+  padding: 7px 9px; border-radius: var(--radius-sm); cursor: pointer;
+  font: 500 0.74rem/1 var(--font-head); white-space: nowrap;
+}
+.sn-tabs button:hover { color: var(--text-primary); background: var(--panel-raised); }
+.sn-tabs button.on { color: var(--on-signal, #fff); background: var(--signal); }
+.sn-body { flex: 1; overflow-y: auto; padding: 14px 18px 26px; }
+.sn-warning {
+  margin: 12px 18px 0; padding: 11px 12px; border: 1px solid var(--warning, #b8860b);
+  border-radius: var(--radius-sm); background: var(--panel-raised); flex: none;
+}
+.sn-warning b { color: var(--warning, #b8860b); font-size: 0.8rem; }
+.sn-warning p { margin: 5px 0 8px; color: var(--text-primary); font-size: 0.82rem; }
+.sn-warning button, .sn-card button, .sn-item button {
+  border: 1px solid var(--line); background: var(--panel-raised); color: var(--text-primary);
+  border-radius: var(--radius-sm); padding: 6px 9px; cursor: pointer;
+  font: 500 0.74rem/1 var(--font-head);
+}
+.sn-card button:hover, .sn-item button:hover { border-color: var(--text-tertiary); }
+.sn-card {
+  background: var(--panel-raised); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 13px 14px; margin-bottom: 11px;
+}
+.sn-card h3 { margin: 0 0 8px; font: 600 0.86rem/1.3 var(--font-head); color: var(--text-primary); }
+.sn-card h3 + .sn-note { margin-top: -3px; }
+.sn-card .sn-primary { background: var(--signal); border-color: var(--signal); color: var(--on-signal, #fff); margin-top: 4px; }
+.sn-grid { display: grid; gap: 10px; }
+.sn-member {
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 11px 12px; background: var(--panel-raised);
+}
+.sn-member-head { display: flex; align-items: center; gap: 9px; }
+.sn-member-head b { display: block; font: 600 0.86rem/1.3 var(--font-head); color: var(--text-primary); }
+.sn-member-head small { display: block; color: var(--text-tertiary); font-size: 0.7rem; }
+.sn-ava {
+  width: 32px; height: 32px; flex: none; border-radius: 8px; overflow: hidden;
+  display: grid; place-items: center; background: var(--signal-tint); color: var(--signal);
+  font: 600 0.76rem/1 var(--font-head);
+}
+.sn-ava img { width: 100%; height: 100%; object-fit: cover; }
+.sn-role {
+  display: inline-block; margin-top: 3px; font: 600 0.58rem/1 var(--font-mono, monospace);
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary);
+}
+.sn-title-pill {
+  display: inline-block; margin-top: 7px; padding: 2px 7px; border: 1px solid var(--line);
+  border-radius: 999px; color: var(--text-secondary); font-size: 0.68rem;
+}
+.sn-note, .sn-intro { margin: 7px 0 0; color: var(--text-secondary); font-size: 0.78rem; line-height: 1.55; }
+.sn-intro { color: var(--text-tertiary); }
+.sn-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+.sn-tags span { border: 1px solid var(--line); border-radius: 999px; padding: 1px 6px; color: var(--text-tertiary); font-size: 0.64rem; }
+.sn-meta { margin-top: 7px; color: var(--text-tertiary); font-size: 0.68rem; }
+.sn-title-form { display: flex; gap: 4px; margin-top: 8px; }
+.sn-title-form input { min-width: 0; flex: 1; }
+.sn-field { display: block; margin: 9px 0; color: var(--text-tertiary); font-size: 0.7rem; }
+.sn-field input, .sn-field textarea, .sn-card input:not([type="checkbox"]), .sn-card select, .sn-card textarea {
+  display: block; width: 100%; box-sizing: border-box; margin-top: 4px; padding: 7px 8px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  color: var(--text-primary); font: 400 0.8rem/1.4 var(--font-body);
+}
+.sn-field textarea, .sn-card textarea { resize: vertical; }
+.sn-field input:focus, .sn-field textarea:focus, .sn-card input:focus, .sn-card select:focus, .sn-card textarea:focus {
+  outline: 2px solid var(--signal); outline-offset: 1px;
+}
+.sn-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 7px; }
+.sn-row > input, .sn-row > select { flex: 1; min-width: 110px; margin-top: 0 !important; }
+.sn-grow { flex: 1; min-width: 0; }
+.sn-grow b { color: var(--text-primary); font: 600 0.82rem/1.35 var(--font-head); }
+.sn-grow p { margin-bottom: 2px; }
+.sn-item { padding: 9px 0; border-top: 1px solid var(--line); }
+.sn-item:first-of-type { border-top: 0; padding-top: 2px; }
+.sn-vote { min-width: 58px; font-variant-numeric: tabular-nums; }
+.sn-vote.on { border-color: var(--signal); color: var(--signal); background: var(--signal-tint); }
+.sn-spot-name { margin: 0; font: 600 1rem/1.3 var(--font-head); color: var(--text-primary); }
+.sn-prompt { margin: 0; font: 500 0.95rem/1.5 var(--font-head); color: var(--text-primary); }
+.sn-empty { margin: 3px 0; color: var(--text-tertiary); font-size: 0.8rem; line-height: 1.5; }
+.sn-check { display: flex; align-items: center; gap: 7px; margin: 7px 0; color: var(--text-secondary); font-size: 0.8rem; }
+.sn-check input { width: auto !important; margin: 0 !important; }
+.sn-card time { display: block; margin-top: 3px; color: var(--text-tertiary); font: 500 0.68rem/1.4 var(--font-mono, monospace); }
+.sn-status { min-height: 1.2em; padding: 0 18px 14px; color: var(--text-tertiary); font-size: 0.72rem; flex: none; }
+.sn-status.bad { color: var(--danger); }
+@media (max-width: 620px) {
+  .sn-launch { right: 14px; bottom: calc(134px + env(safe-area-inset-bottom, 0px)); }
+  .sn-dock { width: 100vw; border-left: 0; }
+  .sn-body { padding: 12px 14px 24px; }
+  .sn-head, .sn-top { padding-left: 14px; padding-right: 14px; }
+  .sn-warning { margin-left: 14px; margin-right: 14px; }
+}
