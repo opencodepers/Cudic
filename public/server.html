@@ -359,6 +359,7 @@
   async function boot() {
     SID = pathId || new URLSearchParams(location.search).get('id');
     if (!SID) { location.replace('/servers'); return; }
+    try { localStorage.setItem('cudic_last_server', SID); } catch (e) {}
     try { TOKEN = (typeof getAuthToken === 'function') ? await getAuthToken() : null; } catch (e) { TOKEN = null; }
     if (!TOKEN) { location.href = '/login'; return; }
     try {

@@ -12,6 +12,7 @@ fixed. Commits are referenced by short hash.
 
 - A floating **Community** pill at the bottom-right opens a live dock instead of squeezing another button into the server top bar: member cards, your per-server card, spotlight, daily and weekly prompts, suggestions and votes, LFG, game nights, warnings, inactivity and channel labels.
 - The dock resolves the server from the page object or the URL, so `/server/<id>` and `?id=` both keep their id after a refresh.
+- `/server-community` with no `sid` now picks one of the signed-in user's servers from `/api/home` and rewrites the URL, and its content fills the normal page panel instead of shrinking to the width of its tabs.
 - The dock reads and writes the same community-pack API as the full page, including owner/mod boundaries, and keeps the full page one click away in its header.
 
 **Supabase log cleanup: scheduled posts, bad profile IDs and missing media** (`server.js`, `lib/routes/planner.js`, `lib/routes/pack.js`)

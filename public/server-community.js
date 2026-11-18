@@ -4,9 +4,24 @@
  *   status and intro tags, warnings, and the owner's inactivity read.
  * invariants: the API decides who may write; this page only renders the forms
  *   the role allows. Everything user-written is escaped before it reaches HTML.
+ *   With no explicit sid, the page picks one of the signed-in user's servers and
+ *   rewrites the URL, so /server-community is a usable direct link.
  */
 (function () {
-  var SID = new URLSearchParams(location.search).get('sid') || '';
+  function urlSid() {
+    try {
+      var q = new URLSearchParams(location.search);
+      var direct = q.get('sid') || q.get('id') || q.get('server');
+      if (direct) return direct;
+      var fromPath = /^\/server\/([A-Za-z0-9-]{6,50})\/?$/.exec(location.pathname);
+      if (fromPath) return fromPath[1];
+      var fromRef = /\/server\/([A-Za-z0-9-]{6,50})(?:[/?#]|$)/.exec(document.referrer || '');
+      if (fromRef) return fromRef[1];
+      var last = localStorage.getItem('cudic_last_server');
+      return last || '';
+    } catch (e) { return ''; }
+  }
+  var SID = urlSid();
   var T = '', D = null;
   function $(id) { return document.getElementById(id); }
   function apiHost() { return (typeof WS_URL !== 'undefined' && WS_URL) ? WS_URL.replace(/^wss?:\/\//, 'https://') : ''; }
@@ -283,13 +298,31 @@
 
   async function load() {
     try {
-      T = (await token()) || '';
-      if (!T || !SID) { $('cmSub').textContent = 'Sign in and open this page from a server.'; return; }
+      if (!SID) { $('cmSub').textContent = 'No server yet — join or create one first.'; return; }
       D = await req('/api/servers/' + SID + '/community');
       renderAll();
     } catch (e) { $('cmSub').textContent = e.message; }
   }
 
+  async function start() {
+    T = (await token()) || '';
+    if (!T) { $('cmSub').textContent = 'Sign in to open a server community.'; return; }
+    if (!SID) {
+      $('cmSub').textContent = 'Choosing one of your servers…';
+      try {
+        var home = await req('/api/home');
+        var list = (home && home.servers) || [];
+        if (list.length) {
+          SID = list[0].id;
+          var here = new URL(location.href);
+          here.searchParams.set('sid', SID);
+          history.replaceState(null, '', here.pathname + '?' + here.searchParams.toString());
+        }
+      } catch (e) {}
+    }
+    await load();
+  }
+
   document.querySelectorAll('.cm-tab').forEach(function (b) { b.onclick = function () { showTab(b.getAttribute('data-tab')); }; });
-  load();
+  start();
 })();

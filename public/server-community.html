@@ -12,7 +12,8 @@
   <link rel="stylesheet" href="/sidebar.css?v=25">
   <style>
     body { min-height: 100vh; }
-    .cm-wrap { max-width: 1040px; margin: 0 auto; padding: 26px 20px 80px; }
+    .cm-layout { flex: 1; min-width: 0; }
+    .cm-wrap { flex: 1; min-width: 0; min-height: 0; max-width: 1040px; margin: 0 auto; padding: 26px 20px 80px; overflow-y: auto; }
     .cm-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
     .cm-top a { font-size: .8rem; color: var(--text-tertiary); text-decoration: none; }
     .cm-top a:hover { color: var(--text-primary); }
@@ -64,6 +65,7 @@
 <link rel="stylesheet" href="/mobile.css?v=1">
 </head>
 <body data-page="servers">
+<div class="cm-layout page-panel">
 <main class="cm-wrap">
   <div class="cm-top"><a href="/servers">← All servers</a><a id="cmServerLink" href="/servers">Open server</a><a href="/next">Next models</a></div>
   <div class="cm-head">
@@ -90,9 +92,10 @@
   <section class="cm-pane" data-pane="members" id="cmMembers" hidden></section>
   <section class="cm-pane" data-pane="me" id="cmMe" hidden></section>
 </main>
+</div>
 <script src="/config.js?v=2"></script>
 <script src="/auth.js"></script>
 <script src="/sidebar.js?v=31"></script>
-<script src="/server-community.js?v=1"></script>
+<script src="/server-community.js?v=2"></script>
 </body>
 </html>
