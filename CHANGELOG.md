@@ -8,6 +8,13 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Supabase log cleanup: scheduled posts, bad profile IDs and missing media** (`server.js`, `lib/routes/planner.js`, `lib/routes/pack.js`)
+
+- Scheduled messages now join their conversations through the real `scheduled_messages_lobby_fk` constraint, so the planner list and the 30-second send sweep stop returning 400.
+- A public profile URL with a non-UUID id returns 404 before any of its seven reads run, instead of raising `22P02` for every UUID column.
+- An unknown music track or public server now uses `maybeSingle()` and returns 404, not a PostgREST 406.
+- A malformed bearer token is dropped before routing, so a corrupted browser session reads as signed out instead of repeating `bad_jwt` 403s against Supabase.
+
 **Phone shell: app pages fit phones, game player stops collapsing** (`public/mobile.css`, all `public/*.html`)
 
 - Every page now loads a phone-only stylesheet. On phones and coarse-pointer screens the desktop rail becomes a scrollable bottom bar (Home, Games, Chat, Servers and Notifications first, with the account avatar as the profile tab), page panels run edge to edge under the safe area, and the gallery becomes a two-column touch layout. The sheet is scoped to mobile and touch queries, so desktop rails, margins, panels and grids are unchanged.

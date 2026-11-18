@@ -461,7 +461,7 @@ const CSP_REPORT_ONLY = [
       const t = (req.headers.authorization || '').replace('Bearer ', '');
       // Malformed tokens (e.g. ?token=undefined leaking into a header) die
       // here instead of burning a Supabase lookup and noisy 403s.
-      if (!t || t.split('.').length !== 3) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Sign in required.' })); return null; }
+      if (!looksLikeJwt(t)) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Sign in required.' })); return null; }
       const { data: { user }, error } = await supabase.auth.getUser(t);
       if (error || !user) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Sign in required.' })); return null; }
       return user;
@@ -753,12 +753,30 @@ async function createRelease(gameId, ownerId, files, notes, source, commit, test
   };
 }
 
+function looksLikeJwt(token) {
+  const parts = String(token || '').split('.');
+  if (parts.length !== 3 || !parts[0] || !parts[1]) return false;
+  try {
+    const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+    return !!header && typeof header === 'object' && typeof header.alg === 'string';
+  } catch (e) { return false; }
+}
+
+function dropMalformedBearer(req) {
+  const match = /^Bearer\s+(.+)$/i.exec(String(req.headers.authorization || ''));
+  if (!match) return;
+  const token = match[1].trim();
+  // API keys are issued by this server, not Supabase, and never look like JWTs.
+  if (!token || token.startsWith('cudic_') || looksLikeJwt(token)) return;
+  delete req.headers.authorization;
+}
+
 async function userOf(req) {
   const bearer = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
   const headerKey = String(req.headers['x-api-key'] || '').trim();
   const key = headerKey || (bearer.startsWith('cudic_') ? bearer : '');
   if (key) return await userFromApiKey(key);
-  if (!bearer || bearer.split('.').length !== 3) return null;
+  if (!looksLikeJwt(bearer)) return null;
   const { data: { user }, error } = await supabase.auth.getUser(bearer);
   return error ? null : (user || null);
 }
@@ -825,6 +843,10 @@ async function packByKey(key) {
 }
 
 async function handleRequest(req, res) {
+  // A corrupt localStorage session can send three dot-separated segments that
+  // are not a JWT. Drop it at the door so every signed-in route does not call
+  // Supabase and log the same bad_jwt 403 once per request.
+  dropMalformedBearer(req);
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
   // Baseline security headers (no dep). SAMEORIGIN keeps the sandboxed preview working.
@@ -1464,6 +1486,9 @@ async function handleRequest(req, res) {
       const q = new URL(req.url, 'http://localhost').searchParams;
       const userId = q.get('id') || q.get('user_id');
       if (!userId) { res.writeHead(400); res.end(JSON.stringify({ error: 'id required' })); return; }
+      // PostgREST raises 22P02 for a non-UUID here, and every parallel read
+      // below fails the same way. A bad profile link should stay a 404.
+      if (!isUuid(userId)) { res.writeHead(404); res.end(JSON.stringify({ error: 'Not found' })); return; }
       const [profileRes, gamesRes, packsRes, pageRes, badgeRes, folRes, achRes] = await Promise.all([
         supabase.from('users').select('id, user_id, display_name, avatar_url, bio, interests, created_at, pack_slug, equips').eq('id', userId).single(),
         supabase.from('games').select('id, title, play_count').eq('owner_id', userId).eq('published', true).order('updated_at', { ascending: false }).limit(20),
@@ -4242,7 +4267,7 @@ function slugify(s) {
     cors(res);
     const tid = musicPublicMatch[1];
     if (!isUuid(tid)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid track.' })); return; }
-    const { data: tr } = await supabase.from('music_tracks').select('id, title, data').eq('id', tid).single();
+    const { data: tr } = await supabase.from('music_tracks').select('id, title, data').eq('id', tid).maybeSingle();
     if (!tr) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found.' })); return; }
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60' });
     res.end(JSON.stringify({ track: tr }));
@@ -5798,7 +5823,7 @@ setInterval(async () => {
 async function sweepScheduled() {
   try {
     const { data, error } = await supabase.from('scheduled_messages')
-      .select('id, user_id, lobby_id, text, announcement, lobbies!scheduled_messages_lobby_id_fkey(name, kind, server_id, is_private)')
+      .select('id, user_id, lobby_id, text, announcement, lobbies!scheduled_messages_lobby_fk(name, kind, server_id, is_private)')
       .is('sent_at', null).lte('send_at', new Date().toISOString()).limit(20);
     if (error || !data) return;
     for (const row of data) {
