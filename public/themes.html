@@ -126,7 +126,7 @@
         }
         .pack-install.installed { background: var(--panel-raised); color: var(--signal); border: 1px solid var(--signal); cursor: pointer; }
         .price-badge { font-size: 0.75rem; font-weight: 700; color: var(--signal); margin-left: 8px; }
-        .pack-report { background: none; border: none; color: var(--text-tertiary); font-size: 0.72rem; cursor: pointer; padding: 6px 0 0; align-self: flex-start; }
+        .pack-report { background: none; border: none; color: var(--text-tertiary); font-size: 0.72rem; cursor: pointer; padding: 6px 4px; min-height: 28px; align-self: flex-start; }
         .pack-report:hover { color: var(--text-secondary); text-decoration: underline; }
 
         /* ── Builder: tabbed combined panel ── */
@@ -191,12 +191,13 @@
         #packToast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     </style>
 <link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
+<link rel="stylesheet" href="/mobile.css?v=1">
 </head>
 
 <body data-page="themes">
     <div class="themes-layout page-panel">
         <div class="topbar">
-            <h1>Theme packs</h1>
+            <div class="page-title" style="font-family:var(--font-head);font-size:20px;font-weight:600;line-height:normal;margin:0;color:inherit">Theme packs</div>
             <button id="resetPack" class="btn btn-secondary" style="display:none;width:auto">Reset to default</button>
         </div>
         <div class="themes-content">

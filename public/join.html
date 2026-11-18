@@ -39,6 +39,7 @@
     .join-qs label { display: block; font-size: .8rem; color: var(--text-secondary); margin-bottom: 9px; }
     .join-qs input { width: 100%; margin-top: 4px; background: var(--panel-raised); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; color: var(--text-primary); font: inherit; font-size: .84rem; }
   </style>
+<link rel="stylesheet" href="/mobile.css?v=1">
 </head>
 <body data-page="servers">
 <main class="join-wrap"><div class="join-card" id="joinCard">
@@ -69,6 +70,8 @@
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   async function token() { try { if (window.getAuthToken) { var t = await window.getAuthToken(); if (t) return t; } var raw = localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token'); var s = JSON.parse(raw); return (s && s.access_token) || raw; } catch (e) { return null; } }
   function fail(text) { $('joinName').textContent = 'Invite not found'; $('joinMeta').textContent = ''; $('joinMsg').textContent = text; $('joinBtn').disabled = true; }
+
+  if (!code) { fail('This invite link is missing its code.'); return; }
 
   fetch(host + '/api/servers/invite/' + encodeURIComponent(code))
     .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'Invite not found.'); return d; }); })

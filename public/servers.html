@@ -312,6 +312,7 @@
                 "ad ad"
                 "ownhead pubhead"
                 "owngrid pubgrid";
+            grid-template-rows: repeat(4, max-content);
             align-content: start;
             column-gap: 36px;
             width: 100%;
@@ -761,6 +762,7 @@
             position: relative;
             overflow: hidden;
             isolation: isolate;
+            align-self: start;
             padding: 42px 38px 44px;
             border: 1px solid #303566;
             border-radius: 16px;
@@ -1266,6 +1268,7 @@
         .srv-search input {
             width: 100%;
             min-width: 0;
+            height: 100%;
             padding: 0;
             border: 0;
             outline: 0;
@@ -1327,6 +1330,7 @@
                     "owngrid"
                     "pubhead"
                     "pubgrid";
+                grid-template-rows: repeat(6, max-content);
                 column-gap: 0;
                 padding: 18px 16px 40px;
             }
@@ -1339,6 +1343,8 @@
                 display: grid;
                 grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
             }
+
+            .hero { align-self: start; }
         }
 
         @media (max-width: 700px) {
@@ -1368,12 +1374,13 @@
         }
     </style>
 <link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
+<link rel="stylesheet" href="/mobile.css?v=1">
 </head>
 
 <body data-page="servers">
     <div class="servers-layout page-panel">
         <div class="topbar">
-            <h1>Servers</h1>
+            <div class="page-title" style="font-family:var(--font-head);font-size:20px;font-weight:600;line-height:normal;margin:0;color:inherit">Servers</div>
             <div class="srv-top-actions">
                 <div class="srv-invite">
                     <input type="text" id="inviteInput" placeholder="Invite code" aria-label="Invite code"

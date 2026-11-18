@@ -8,6 +8,15 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Phone shell: app pages fit phones, game player stops collapsing** (`public/mobile.css`, all `public/*.html`)
+
+- Every page now loads a phone-only stylesheet. On phones and coarse-pointer screens the desktop rail becomes a scrollable bottom bar (Home, Games, Chat, Servers and Notifications first, with the account avatar as the profile tab), page panels run edge to edge under the safe area, and the gallery becomes a two-column touch layout. The sheet is scoped to mobile and touch queries, so desktop rails, margins, panels and grids are unchanged.
+- The game player gets its own full-width touch layout: the rail is hidden, `.game-layout` no longer keeps its desktop `width: 0`, and the player fills the phone instead of leaving the blue page background with only the rail visible.
+
+**Next server slate: every unshipped move is on the page** (`public/next.html`, `public/next.css`, `public/next-slate.js`)
+
+- `/next` now indexes the 68 server moves from the 101–200 slate that are unshipped or partial and do not yet have a working model. The 15 server models above cover the rest of the 83 incomplete server items; the 17 fully shipped rows are omitted. Search and S/M/L filters narrow the slate, and each row opens to its dependency and risk.
+
 **Next workspace: thirty working models** (`public/next.html`, `public/next.css`, `public/next-core.js`, `public/next-chat.js`, `public/next-server.js`, `public/next.js`)
 
 - A new `/next` workspace turns the thirty-item chat/server slate into interactive specimens. A searchable index groups the work into Talk, Trust, Place, People and Play; each specimen has a live control, a one-sentence rationale, two acceptance checks and its dependency. Chat specimens cover threads, link previews, interactive messages, custom reactions, DM typing previews, DM polls, syntax colouring, catch-up summaries, notification intelligence, smart replies, translation, channel permissions, the permission simulator, role inheritance and the moderation builder. Server specimens cover backgrounds, forum channels, galleries, the member directory, the Minecraft widget, tags, age labels, server statuses, favourites, activity, profile colours, competitions, teams, tournaments and custom emoji.

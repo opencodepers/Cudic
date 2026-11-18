@@ -1,0 +1,279 @@
+/* file: public/mobile.css
+ * what: Phone-only shell for the classic pages. The desktop rail becomes a
+ *   four-tab bottom bar with the account avatar as the fifth tab; page panels
+ *   run edge to edge; the game player becomes a standalone full-width screen.
+ * invariants: every shell rule is inside the phone/coarse-pointer query, so
+ *   desktop layout and desktop spacing never change. Uses the existing
+ *   sidebar markup and tokens, no extra navigation markup.
+ * see: public/sidebar.css, public/view.html, public/games.html
+ */
+
+@media (max-width: 760px), (max-width: 900px) and (pointer: coarse) {
+  body:has(> nav.sidebar) {
+    flex-direction: column;
+    overflow-x: hidden;
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+
+  /* The desktop rail becomes the bottom bar. Only the core destinations are
+     visible; the account row supplies the fifth tab. */
+  body:has(> nav.sidebar) > nav.sidebar {
+    position: fixed;
+    inset: auto 0 0 0;
+    width: 100%;
+    height: calc(64px + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+    z-index: 1000;
+  }
+  body:has(> nav.sidebar) > nav.sidebar .sidebar-nav-card {
+    width: 80%;
+    height: 64px;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    border: 0;
+    border-radius: 0;
+  }
+  body:has(> nav.sidebar) > nav.sidebar .sidebar-nav-card::-webkit-scrollbar { display: none; }
+  body:not(:has(> #accountRow)) > nav.sidebar .sidebar-nav-card { width: 100%; }
+  body:has(> nav.sidebar) > nav.sidebar .rail-brand,
+  body:has(> nav.sidebar) > nav.sidebar .nav-section-label,
+  body:has(> nav.sidebar) > nav.sidebar #serversSection { display: none; }
+  body:has(> nav.sidebar) > nav.sidebar .sidebar-item {
+    display: flex;
+    flex: 0 0 54px;
+    width: 54px;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    padding: 7px 2px 5px;
+    border: 0;
+    border-top: 2px solid transparent;
+    color: var(--text-secondary);
+  }
+  body:has(> nav.sidebar) > nav.sidebar .sidebar-item.active {
+    border-top-color: var(--signal);
+    background: var(--signal-tint);
+  }
+  /* The four core destinations and alerts read first; secondary destinations
+     stay one swipe away instead of being removed from phone navigation. */
+  body:has(> nav.sidebar) > nav.sidebar .sidebar-item[data-p="home"] { order: 1; }
+  body:has(> nav.sidebar) > nav.sidebar .sidebar-item[data-p="games"] { order: 2; }
+  body:has(> nav.sidebar) > nav.sidebar .sidebar-item[data-p="chat"] { order: 3; }
+  body:has(> nav.sidebar) > nav.sidebar .sidebar-item[data-p="servers"] { order: 4; }
+  body:has(> nav.sidebar) > nav.sidebar .sidebar-item[data-p="notifs"] { order: 5; }
+  body:has(> nav.sidebar) > nav.sidebar .sidebar-item[data-p="discord"],
+  body:has(> nav.sidebar) > nav.sidebar .sidebar-item[data-p="github"] { order: 20; }
+  body:has(> nav.sidebar) > nav.sidebar .sidebar-item span {
+    display: block;
+    opacity: 1;
+    max-width: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
+    font-size: 0.58rem;
+    line-height: 1.15;
+  }
+  body:has(> nav.sidebar) > nav.sidebar .sidebar-item svg {
+    width: 22px;
+    height: 22px;
+    transform: none;
+  }
+
+  /* Avatar/profile tab. The account row keeps its existing click target and
+     login behaviour; only its phone presentation changes. */
+  body:has(> nav.sidebar) > #accountRow {
+    position: fixed;
+    left: auto;
+    right: 0;
+    bottom: 0;
+    width: 20%;
+    height: calc(64px + env(safe-area-inset-bottom));
+    padding: 7px 2px calc(5px + env(safe-area-inset-bottom));
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 3px;
+    background: var(--panel);
+    border: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 0;
+    z-index: 1001;
+  }
+  body:has(> nav.sidebar) > #accountRow .ava-wrap,
+  body:has(> nav.sidebar) > #accountRow .avatar {
+    width: 23px;
+    height: 23px;
+    font-size: 0.62rem;
+  }
+  body:has(> nav.sidebar) > #accountRow #sbDot {
+    width: 8px;
+    height: 8px;
+    border-width: 1px;
+  }
+  body:has(> nav.sidebar) > #accountRow .account-name,
+  body:has(> nav.sidebar) > #accountRow .account-status,
+  body:has(> nav.sidebar) > #accountRow .iconbtn,
+  body:has(> nav.sidebar) > #accountRow #logoutBtn { display: none !important; }
+  body:has(> nav.sidebar) > #accountRow::after {
+    content: "You";
+    font-size: 0.6rem;
+    line-height: 1.15;
+    color: var(--text-secondary);
+  }
+
+  /* Page surfaces fill the phone. Internal scrollers keep working; only the
+     desktop margins, border and radius are removed. */
+  body:has(> nav.sidebar) > .page-panel {
+    flex: 1;
+    /* Quotes/customize set width:0 inline for desktop flex sizing. */
+    width: 100% !important;
+    margin: 0;
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+  }
+  body:has(> nav.sidebar) > .page-panel > .topbar { padding: 14px 16px; }
+  body:has(> nav.sidebar) .topbar h1,
+  body:has(> nav.sidebar) .topbar .page-title { font-size: 1.1rem; }
+  body:has(> nav.sidebar) > .page-panel > .tabs {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+    overflow-x: auto;
+  }
+
+  /* Shared page padding: desktop uses generous gutters; phones need the
+     content, not the gutter. */
+  body:has(> nav.sidebar) .hub-scroll,
+  body:has(> nav.sidebar) .games-content,
+  body:has(> nav.sidebar) .servers-content,
+  body:has(> nav.sidebar) .profile-content,
+  body:has(> nav.sidebar) .forums-content,
+  body:has(> nav.sidebar) .mod-content,
+  body:has(> nav.sidebar) .ev-content,
+  body:has(> nav.sidebar) .nx-scroll {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  body:has(> nav.sidebar) .hub-scroll { padding-top: 18px; padding-bottom: 28px; }
+  body:has(> nav.sidebar) .profile-content { padding-top: 18px; padding-bottom: 32px; }
+  body:has(> nav.sidebar) .profile-card { padding: 18px; }
+  body:has(> nav.sidebar) .servers-content { padding-top: 16px; padding-bottom: 32px; }
+  body:has(> nav.sidebar) .forums-content { padding-top: 18px; padding-bottom: 44px; }
+  body:has(> nav.sidebar) .chat-layout { width: 100%; }
+  body:has(> nav.sidebar) .chat-main { min-width: 0; }
+  body:has(> nav.sidebar) .chat-sidebar,
+  body:has(> nav.sidebar) .server-sidebar { width: min(88vw, 330px); }
+  body:has(> nav.sidebar) .music-layout { width: 100%; }
+
+  /* Collections and any other direct `.wrap` page has no page-panel to size
+     itself, so let the document scroll and keep the bar clear. */
+  body:has(> nav.sidebar):has(> .wrap) {
+    display: block;
+    height: auto;
+    min-height: 100dvh;
+    overflow-y: auto;
+    padding-bottom: 0;
+  }
+  body:has(> nav.sidebar) > .wrap {
+    padding: 24px 16px calc(84px + env(safe-area-inset-bottom));
+  }
+
+  /* Gallery: two comfortable columns instead of one oversized desktop card. */
+  body[data-page="games"] .games-layout > .topbar { padding: 13px 16px; }
+  body[data-page="games"] .games-layout > .tabs { padding: 0 14px !important; }
+  body[data-page="games"] .games-layout .games-content { padding: 14px 14px 22px; }
+  body[data-page="games"] .games-layout .hero { padding: 22px 18px; }
+  body[data-page="games"] .games-layout .hero h1 { font-size: 1.45rem; }
+  body[data-page="games"] .games-layout .hero p { font-size: 0.84rem; margin-bottom: 13px; }
+  body[data-page="games"] .games-layout .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  body[data-page="games"] .games-layout .game-thumb { aspect-ratio: 16 / 9; }
+  body[data-page="games"] .games-layout .game-body { padding: 8px 10px 6px; gap: 2px; }
+  body[data-page="games"] .games-layout .game-title { font-size: 0.82rem; }
+  body[data-page="games"] .games-layout .game-date,
+  body[data-page="games"] .games-layout .game-creator-id,
+  body[data-page="games"] .games-layout .game-desc,
+  body[data-page="games"] .games-layout .game-foot .plays { display: none; }
+  body[data-page="games"] .games-layout .game-creator { gap: 5px; margin-top: 2px; }
+  body[data-page="games"] .games-layout .game-creator-avatar { width: 20px; height: 20px; font-size: 0.56rem; }
+  body[data-page="games"] .games-layout .game-creator-name { font-size: 0.7rem; }
+  body[data-page="games"] .games-layout .game-foot { padding: 0 10px 10px; gap: 6px; flex-wrap: wrap; }
+  body[data-page="games"] .games-layout .game-foot .btn { flex: 1 1 auto; padding: 8px 5px; font-size: 0.72rem; }
+  body[data-page="games"] .games-layout .browsebar { gap: 8px; }
+  body[data-page="games"] .games-layout .browsebar .find { order: 3; flex-basis: 100%; }
+  body[data-page="games"] .games-layout .browsebar .sortsel { margin-left: auto; }
+  body[data-page="games"] .games-layout .continue-strip { grid-auto-columns: 78%; }
+  body[data-page="games"] .games-layout .prompt-card { padding: 14px; }
+  body[data-page="games"] .games-layout .empty-wrap { min-height: 300px; }
+
+  body:has(> nav.sidebar) #seatBanner { left: 0; }
+  body:has(> nav.sidebar) #railTip { display: none !important; }
+}
+
+/* The player is a full-width standalone screen on every touch device, not a
+   desktop page squeezed beside a rail. This also closes the old width:0
+   collapse that left only the blue page background visible. */
+@media (pointer: coarse) {
+  body:has(#playerCard) {
+    padding-bottom: 0;
+    overflow-y: auto;
+  }
+  body:has(#playerCard) > nav.sidebar,
+  body:has(#playerCard) > #accountRow { display: none !important; }
+  body:has(#playerCard) > .game-layout {
+    width: 100%;
+    min-height: 100dvh;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+  }
+  body:has(#playerCard) .game-content {
+    padding: 8px 8px calc(18px + env(safe-area-inset-bottom));
+  }
+  body:has(#playerCard) .game-head {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    gap: 6px;
+    padding: 8px 2px;
+    margin-bottom: 8px;
+    background: color-mix(in srgb, var(--panel) 88%, transparent);
+    backdrop-filter: blur(8px);
+  }
+  body:has(#playerCard) .game-head h1 { font-size: 1rem; }
+  body:has(#playerCard) .game-head .btn { padding: 8px 10px; font-size: 0.76rem; }
+  body:has(#playerCard) .game-head .author { order: 10; flex-basis: 100%; }
+  body:has(#playerCard) .game-head .spacer { display: none; }
+  body:has(#playerCard) .game-grid { gap: 12px; }
+  body:has(#playerCard) .player-card {
+    height: min(70dvh, 620px);
+    min-height: 300px;
+    margin: 0;
+    border-radius: 12px;
+  }
+  body:has(#playerCard) .side-card { padding: 16px; }
+}
+
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 520px) {
+  body:has(#playerCard) .game-content { padding: 0; }
+  body:has(#playerCard) .game-head { display: none; }
+  body:has(#playerCard) .player-card {
+    height: 100dvh;
+    min-height: 0;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+  }
+}

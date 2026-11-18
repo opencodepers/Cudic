@@ -46,6 +46,7 @@ input[type=text]:focus,select:focus,textarea:focus{border-color:var(--signal)}
 </style>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="/mobile.css?v=1">
 </head>
 <body>
 <nav class="sidebar" id="sidebar" aria-label="Main"></nav>
@@ -63,8 +64,8 @@ input[type=text]:focus,select:focus,textarea:focus{border-color:var(--signal)}
   <div class="card" id="mineCard">
     <h2>My collections</h2>
     <div class="newrow">
-      <input type="text" id="newTitle" placeholder="New collection name" maxlength="80">
-      <select id="newVis"><option value="public">Public</option><option value="unlisted">Unlisted</option><option value="private">Private</option></select>
+      <input type="text" id="newTitle" aria-label="Collection name" placeholder="New collection name" maxlength="80">
+      <select id="newVis" aria-label="Collection visibility"><option value="public">Public</option><option value="unlisted">Unlisted</option><option value="private">Private</option></select>
       <button class="btn primary" id="createBtn">Create</button>
     </div>
     <div id="mineList" style="margin-top:10px"></div>

@@ -66,7 +66,7 @@ body{font-family:'Satoshi',sans-serif;background:var(--ed-bg);color:var(--ed-tex
 .nav-btn{color:var(--ed-text-dim);text-decoration:none;font-size:.75rem;font-weight:500;padding:4px 8px;border-radius:var(--ed-radius)}
 .nav-btn:hover{color:var(--ed-bright);background:color-mix(in srgb, var(--ed-text) 8%, transparent)}
 .sep{width:1px;height:16px;background:var(--ed-border);margin:0 2px}
-.title-input{background:transparent;border:none;color:var(--ed-text);font-size:.78rem;font-weight:500;font-family:inherit;width:200px;outline:none;padding:3px 8px;border-radius:var(--ed-radius);text-align:center}
+.title-input{background:transparent;border:none;color:var(--ed-text);font-size:.78rem;font-weight:500;font-family:inherit;width:200px;min-height:28px;outline:none;padding:3px 8px;border-radius:var(--ed-radius);text-align:center}
 .title-input:focus{background:color-mix(in srgb, var(--ed-text) 8%, transparent)}
 .spacer{flex:1}
 .btn{padding:4px 12px;border-radius:var(--ed-radius);border:1px solid var(--ed-border);background:color-mix(in srgb, var(--ed-text) 6%, transparent);color:var(--ed-text);font-size:.72rem;font-weight:500;cursor:pointer;font-family:inherit}
@@ -93,14 +93,14 @@ body{font-family:'Satoshi',sans-serif;background:var(--ed-bg);color:var(--ed-tex
 .flexlayout__tabset_tabbar_outer{background-color:var(--ed-panel)}
 .flexlayout__tabset-selected{background-color:var(--ed-bg)}
 .activity{width:var(--ed-activity-w);flex-shrink:0;background:var(--ed-panel);border-right:1px solid var(--ed-border);display:flex;flex-direction:column;align-items:center;padding:6px 0;gap:2px}
-.act-btn{width:calc(var(--ed-act-btn) - 4px);height:var(--ed-act-btn);display:flex;align-items:center;justify-content:center;background:none;border:none;border-left:2px solid transparent;color:var(--ed-text-dim);cursor:pointer}
+.act-btn{width:calc(var(--ed-act-btn) - 4px);height:var(--ed-act-btn);min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;background:none;border:none;border-left:2px solid transparent;color:var(--ed-text-dim);cursor:pointer}
 .act-btn:hover{color:var(--ed-bright)}
 .act-btn.active{color:var(--ed-bright);border-left-color:var(--ed-accent)}
 .act-btn svg{width:23px;height:23px;stroke:currentColor;stroke-width:1.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .act-sp{flex:1}
 .files{width:100%;height:100%;background:var(--ed-panel);display:flex;flex-direction:column;overflow:hidden}
 .files-head{padding:8px 14px;font-size:.66rem;font-weight:600;color:var(--ed-text-dim);text-transform:uppercase;letter-spacing:.06em;display:flex;justify-content:space-between;align-items:center}
-.files-head button{background:none;border:none;color:var(--ed-text-dim);font-size:.9rem;cursor:pointer;padding:0 4px}
+.files-head button{background:none;border:none;color:var(--ed-text-dim);font-size:.9rem;cursor:pointer;padding:0 4px;min-width:24px;min-height:24px}
 .files-head button:hover{color:var(--ed-bright)}
 #fileList{flex:1;overflow-y:auto;padding:0 6px 8px}
 .f-item{display:flex;align-items:center;gap:7px;padding:4px 8px;border-radius:var(--ed-radius);cursor:pointer;font-size:.78rem;color:#aaa}
@@ -178,13 +178,15 @@ body{font-family:'Satoshi',sans-serif;background:var(--ed-bg);color:var(--ed-tex
 .thumb-upload img{max-width:100%;border-radius:var(--ed-radius);display:none}
 .modal-row{display:flex;gap:8px;justify-content:flex-end}
 </style>
+<link rel="stylesheet" href="/mobile.css?v=1">
 </head>
 <body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0">Cudic Studio</h1>
 <div class="topbar">
   <span class="brand">cudic</span>
   <a class="nav-btn" href="/games">Gallery</a>
   <div class="sep"></div>
-  <input class="title-input" id="gameTitle" value="Untitled Game" maxlength="60">
+  <input class="title-input" id="gameTitle" aria-label="Game title" value="Untitled Game" maxlength="60">
   <div class="spacer"></div>
   <button class="btn run" id="btnRun">Run</button>
   <button class="btn" id="btnStop">Stop</button>
@@ -215,9 +217,9 @@ body{font-family:'Satoshi',sans-serif;background:var(--ed-bg);color:var(--ed-tex
           <div style="margin-top:6px;color:#8b8b96;line-height:1.5">fetch() and WebSocket just work. Their server must allow CORS. https pages need https/wss URLs. Add npm packages via the importmap in index.html, e.g.</div>
           <pre>"three": "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js"</pre>
           <div>
-            <button data-snippet="fetch">+ fetch</button>
-            <button data-snippet="ws">+ websocket</button>
-            <button data-snippet="loop">+ game loop</button>
+            <button data-snippet="fetch" aria-label="Insert fetch example">+ fetch</button>
+            <button data-snippet="ws" aria-label="Insert WebSocket example">+ websocket</button>
+            <button data-snippet="loop" aria-label="Insert game loop example">+ game loop</button>
           </div>
         </details>
       </div>
@@ -303,7 +305,7 @@ body{font-family:'Satoshi',sans-serif;background:var(--ed-bg);color:var(--ed-tex
     <label>Thumbnail</label>
     <div class="thumb-upload" id="thumbUpload">
       <span id="thumbPlaceholder">Click to upload cover image</span>
-      <img id="thumbPreview" alt="">
+      <img id="thumbPreview" alt="" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=">
     </div>
     <input type="file" id="thumbInput" accept="image/*" style="display:none">
     <div class="modal-row">

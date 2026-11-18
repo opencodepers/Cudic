@@ -75,12 +75,13 @@
     }
   </style>
 <link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
+<link rel="stylesheet" href="/mobile.css?v=1">
 </head>
 
 <body data-page="forums">
   <div class="forums-layout page-panel ck ck-page">
     <div class="topbar">
-      <h1>Forums</h1>
+      <div class="page-title" style="font-family:var(--font-head);font-size:32px;font-weight:800;line-height:1.15;letter-spacing:-.01em;margin:0;color:inherit">Forums</div>
       <div style="flex:1"></div>
       <button class="ck-btn ck-btn-primary ck-btn-sm" id="newBtn" type="button">New thread</button>
     </div>
@@ -343,7 +344,7 @@
       var t = current.thread;
       var u = t.users || {};
       var opThread = me && me === t.user_id;
-      threadCard.innerHTML = '<h1 style="margin:0 0 10px">' + esc(t.title) + '</h1>'
+      threadCard.innerHTML = '<h2 style="margin:0 0 10px;font-size:2rem;font-weight:800;line-height:1.15;letter-spacing:-.01em">' + esc(t.title) + '</h2>'
         + '<div class="f-meta" style="margin-bottom:14px">' + ava(u) + '<b>' + esc(u.display_name || 'Unknown') + '</b>'
         + catBadge(t.category)
         + '<span class="ck-muted">started ' + rel(t.created_at) + '</span></div>'
