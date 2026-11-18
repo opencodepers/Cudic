@@ -459,6 +459,9 @@ const CSP_REPORT_ONLY = [
 // ── Shared request helpers (hoisted from handleRequest for route modules) ──
     async function requireUser(req, res) {
       const t = (req.headers.authorization || '').replace('Bearer ', '');
+      // A 401 still needs CORS headers, otherwise the browser hides the real
+      // message and reports it as "Failed to fetch".
+      cors(res);
       // Malformed tokens (e.g. ?token=undefined leaking into a header) die
       // here instead of burning a Supabase lookup and noisy 403s.
       if (!looksLikeJwt(t)) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Sign in required.' })); return null; }

@@ -90,6 +90,12 @@
     statusBox.className = 'sn-status' + (bad ? ' bad' : '');
   }
 
+  async function authReady() {
+    var p = page();
+    if (!p || !p.ready || typeof p.ready.then !== 'function') return true;
+    try { return !!(await p.ready); } catch (e) { return false; }
+  }
+
   async function req(path, opts) {
     opts = opts || {};
     opts.headers = auth(opts.headers || {});
@@ -283,6 +289,10 @@
   async function load() {
     if (!sid()) { status('Could not read this server. Reload the page and try again.', true); return false; }
     status('Loading community…');
+    if (!(await authReady())) {
+      status('Session expired — reload the page and sign in again.', true);
+      return false;
+    }
     try {
       D = await req('/api/servers/' + encodeURIComponent(sid()) + '/community');
       status('');

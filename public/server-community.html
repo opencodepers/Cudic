@@ -17,6 +17,9 @@
     .cm-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
     .cm-top a { font-size: .8rem; color: var(--text-tertiary); text-decoration: none; }
     .cm-top a:hover { color: var(--text-primary); }
+    .cm-top a.cm-back { display: inline-flex; align-items: center; gap: 6px; background: var(--panel-raised); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 11px; color: var(--text-primary); font: 600 .78rem/1 var(--font-head); }
+    .cm-top a.cm-back:hover { border-color: var(--text-tertiary); }
+    .cm-top a.cm-back svg { width: 15px; height: 15px; flex: none; }
     .cm-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 10px 0 18px; }
     .cm-head h1 { font: 600 1.7rem/1.1 var(--font-head); letter-spacing: -.02em; margin: 0; }
     .cm-sub { color: var(--text-tertiary); font-size: .82rem; margin-top: 6px; }
@@ -67,7 +70,7 @@
 <body data-page="servers">
 <div class="cm-layout page-panel">
 <main class="cm-wrap">
-  <div class="cm-top"><a href="/servers">← All servers</a><a id="cmServerLink" href="/servers">Open server</a><a href="/next">Next models</a></div>
+  <div class="cm-top"><a class="cm-back" id="cmBack" href="/servers" aria-label="Back to server"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path></svg><span>Back</span></a><a id="cmServerLink" href="/servers">Open server</a><a href="/next">Next models</a></div>
   <div class="cm-head">
     <div>
       <h1 id="cmName">Community</h1>
@@ -95,7 +98,6 @@
 </div>
 <script src="/config.js?v=2"></script>
 <script src="/auth.js"></script>
-<script src="/sidebar.js?v=31"></script>
-<script src="/server-community.js?v=2"></script>
+<script src="/server-community.js?v=3"></script>
 </body>
 </html>

@@ -286,6 +286,12 @@
   var $ = function (id) { return document.getElementById(id); };
   var apiHost = (typeof WS_URL !== 'undefined' && WS_URL) ? WS_URL.replace(/^wss?:\/\//, 'https://') : '';
   var TOKEN = null, ME = null, MYNAME = 'You', MYAVA = null;
+  var readyResolve;
+  var ready = new Promise(function (resolve) { readyResolve = resolve; });
+  function markReady(ok) {
+    if (!readyResolve) return;
+    var resolve = readyResolve; readyResolve = null; resolve(!!ok);
+  }
   var srv = null, chans = [], folders = [], serverTheme = {}, current = null, myRole = null, nickMap = {};
   var ws = null, wsReady = false, pendingJoin = null, reconnectTries = 0;
   var mEl = $('messages'), myReacts = {};
@@ -358,15 +364,16 @@
 
   async function boot() {
     SID = pathId || new URLSearchParams(location.search).get('id');
-    if (!SID) { location.replace('/servers'); return; }
+    if (!SID) { markReady(false); location.replace('/servers'); return; }
     try { localStorage.setItem('cudic_last_server', SID); } catch (e) {}
     try { TOKEN = (typeof getAuthToken === 'function') ? await getAuthToken() : null; } catch (e) { TOKEN = null; }
-    if (!TOKEN) { location.href = '/login'; return; }
+    if (!TOKEN) { markReady(false); location.href = '/login'; return; }
     try {
       var s = await fetch(apiHost + '/api/session', { headers: authHeaders() }).then(r => r.json());
       ME = s && s.user && s.user.id;
-      if (!ME) { location.href = '/login'; return; }
-    } catch (e) { location.href = '/login'; return; }
+      if (!ME) { markReady(false); location.href = '/login'; return; }
+      markReady(true);
+    } catch (e) { markReady(false); location.href = '/login'; return; }
     // Own name/avatar for optimistic rendering.
     try {
       var p = await fetch(apiHost + '/api/profile', { headers: authHeaders() }).then(r => r.json());
@@ -950,6 +957,7 @@
     get me() { return ME; },
     get sid() { return SID; },
     get role() { return myRole; },
+    ready: ready,
     apiHost: apiHost,
     headers: authHeaders,
     esc: esc,
@@ -974,7 +982,7 @@
   </script>
 <script src="/server-batch.js?v=1"></script>
 <script src="/server-tools.js?v=1"></script>
-<script src="/server-next.js?v=2"></script>
+<script src="/server-next.js?v=3"></script>
 <script src="/server-hq.js?v=1"></script>
 <script src="/cudic-modals.js?v=3"></script></body>
 </html>

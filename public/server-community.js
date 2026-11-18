@@ -287,18 +287,27 @@
     document.querySelectorAll('.cm-pane').forEach(function (s) { s.hidden = s.getAttribute('data-pane') !== name; });
   }
 
+  function syncLinks() {
+    if (!SID) return;
+    var back = $('cmBack');
+    if (back) back.href = '/server/' + encodeURIComponent(SID);
+    var open = $('cmServerLink');
+    if (open) open.href = '/server/' + encodeURIComponent(SID);
+  }
+
   function renderAll() {
+    syncLinks();
     $('cmName').textContent = D.server.name || 'Community';
     $('cmSub').textContent = D.roster.length + ' member' + (D.roster.length === 1 ? '' : 's') + ' · ' + D.suggestions.length + ' suggestion' + (D.suggestions.length === 1 ? '' : 's') + ' · ' + D.nights.length + ' upcoming';
     $('cmRole').hidden = false;
     $('cmRole').textContent = D.role + ' view';
-    $('cmServerLink').href = '/server/' + encodeURIComponent(SID);
     renderWarnings(); renderOverview(); renderSuggestions(); renderLfg(); renderNights(); renderMembers(); renderMe();
   }
 
   async function load() {
     try {
       if (!SID) { $('cmSub').textContent = 'No server yet — join or create one first.'; return; }
+      syncLinks();
       D = await req('/api/servers/' + SID + '/community');
       renderAll();
     } catch (e) { $('cmSub').textContent = e.message; }
@@ -314,6 +323,7 @@
         var list = (home && home.servers) || [];
         if (list.length) {
           SID = list[0].id;
+          syncLinks();
           var here = new URL(location.href);
           here.searchParams.set('sid', SID);
           history.replaceState(null, '', here.pathname + '?' + here.searchParams.toString());
