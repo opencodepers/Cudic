@@ -5,7 +5,8 @@
  */
 
 [hidden] { display: none !important; }
-.projects-layout { min-width: 0; }
+.projects-layout { flex-direction: column; min-width: 0; }
+.projects-topbar { flex: none; }
 
 .projects-top-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
 .projects-cycle {

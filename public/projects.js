@@ -25,6 +25,9 @@
   CATEGORIES.forEach(function (category) { CATEGORY_LABELS[category.id] = category.label; });
 
   var Motion = window.Motion || null;
+  var API_BASE = (typeof WS_URL !== 'undefined' && WS_URL)
+    ? WS_URL.replace(/^wss?:\/\//, 'https://')
+    : '';
   var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var toastTimer = 0;
   var searchTimer = 0;
@@ -32,6 +35,7 @@
   var state = {
     session: null,
     user: null,
+    token: '',
     projects: [],
     sort: 'week',
     category: 'all',
@@ -68,15 +72,20 @@
     var opts = options || {};
     var headers = Object.assign({ Accept: 'application/json' }, opts.headers || {});
     if (opts.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
-    return fetch(path, Object.assign({ credentials: 'same-origin', cache: 'no-store' }, opts, { headers: headers }))
+    if (state.token && !headers.Authorization) headers.Authorization = 'Bearer ' + state.token;
+    return fetch(API_BASE + path, Object.assign({ credentials: 'same-origin', cache: 'no-store' }, opts, { headers: headers }))
       .then(function (response) {
         return response.text().then(function (text) {
           var data = {};
           try { data = text ? JSON.parse(text) : {}; } catch (err) { data = { error: text.slice(0, 180) }; }
           if (!response.ok) {
-            var error = new Error(data.text || data.error || 'That request did not go through.');
+            var detail = data.text || data.error || data.message;
+            if (detail && typeof detail === 'object') detail = detail.message || JSON.stringify(detail);
+            var error = new Error(typeof detail === 'string' && detail
+              ? detail
+              : 'That request did not go through (' + response.status + ').');
             error.status = response.status;
-            error.code = data.error;
+            if (typeof data.error === 'string') error.code = data.error;
             throw error;
           }
           return data;
@@ -871,9 +880,11 @@
       var session = await getSession();
       state.session = session && session.user ? session : null;
       state.user = state.session ? state.session.user : null;
+      state.token = state.session && state.session.access_token ? state.session.access_token : '';
     } catch (err) {
       state.session = null;
       state.user = null;
+      state.token = '';
     }
   }
 
