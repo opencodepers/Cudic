@@ -20,6 +20,169 @@
   var filter = 'all';
   var query = '';
   var active = '';
+  var commentsHost = document.getElementById('nxComments');
+  var commentsCache = {};
+  var commentsLoading = {};
+  var commentsError = {};
+  var commentRequests = {};
+  var commentDrafts = {};
+  var session = null;
+  var sessionKnown = false;
+
+  function apiHost() {
+    return (typeof WS_URL !== 'undefined' && WS_URL) ? WS_URL.replace(/^wss?:\/\//, 'https://') : '';
+  }
+
+  function initials(name) {
+    var parts = String(name || '?').trim().split(/\s+/);
+    return parts.slice(0, 2).map(function (part) { return part.charAt(0); }).join('').toUpperCase() || '?';
+  }
+
+  function formatWhen(value) {
+    var when = new Date(value);
+    if (!value || isNaN(when.getTime())) return '';
+    try {
+      return when.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    } catch (err) {
+      return when.toLocaleString();
+    }
+  }
+
+  function commentListHtml(comments) {
+    if (!comments.length) return '<p class="nx-comments-empty">No comments yet. Start the conversation.</p>';
+    return comments.map(function (comment) {
+      var name = comment.display_name || 'Someone';
+      var avatar = comment.avatar_url && /^https?:\/\//i.test(String(comment.avatar_url))
+        ? '<img src="' + e(comment.avatar_url) + '" alt="" loading="lazy">'
+        : e(initials(name));
+      return '<article class="nx-comment">'
+        + '<span class="nx-ava">' + avatar + '</span>'
+        + '<div class="nx-comment-main"><div class="nx-comment-head"><b>' + e(name) + '</b>'
+        + '<time datetime="' + e(comment.created_at) + '">' + e(formatWhen(comment.created_at)) + '</time></div>'
+        + '<p class="nx-comment-body">' + e(comment.body) + '</p></div></article>';
+    }).join('');
+  }
+
+  function commentFormHtml(feature) {
+    if (!sessionKnown) return '<div class="nx-comments-signin" role="status">Checking sign-in…</div>';
+    if (!session) {
+      var back = '/next#' + feature.id;
+      return '<div class="nx-comments-signin">Sign in to add a comment. <a href="/login?next=' + encodeURIComponent(back) + '">Sign in</a></div>';
+    }
+    return '<div class="nx-comments-form">'
+      + '<label class="nx-sr" for="nxCommentBody">Comment on ' + e(feature.title) + '</label>'
+      + '<textarea class="nx-textarea" id="nxCommentBody" maxlength="600" rows="3" placeholder="Would this help your room? What would you change?">' + e(commentDrafts[feature.id] || '') + '</textarea>'
+      + '<div class="nx-comments-actions"><span class="nx-comments-hint" id="nxCommentMsg" aria-live="polite">Signed in.</span>'
+      + '<button class="nx-action primary" id="nxCommentSend" type="button">Post comment</button></div></div>';
+  }
+
+  function renderComments(featureId) {
+    if (!commentsHost) return;
+    var feature = NX.byId(featureId);
+    if (!feature) { commentsHost.innerHTML = ''; return; }
+    var cached = commentsCache[featureId];
+    var count = cached ? cached.length : 0;
+    var list;
+    if (cached) list = commentListHtml(cached);
+    else if (commentsError[featureId]) {
+      list = '<p class="nx-comments-empty is-error">' + e(commentsError[featureId])
+        + ' <button type="button" class="nx-action quiet" data-comment-retry>Try again</button></p>';
+    } else list = '<p class="nx-comments-empty">Loading comments…</p>';
+    commentsHost.innerHTML = '<div class="nx-comments-head"><div><h3 id="nxCommentsTitle">Comments</h3>'
+      + '<p>Would this move help your room? Say what works and what would get in the way.</p></div>'
+      + '<span class="nx-badge" id="nxCommentCount">' + (cached ? count + (count === 1 ? ' comment' : ' comments') : '…') + '</span></div>'
+      + commentFormHtml(feature)
+      + '<div class="nx-comment-list" id="nxCommentList">' + list + '</div>';
+  }
+
+  function loadComments(featureId) {
+    if (!featureId || commentsLoading[featureId]) return;
+    var request = (commentRequests[featureId] || 0) + 1;
+    commentRequests[featureId] = request;
+    commentsLoading[featureId] = true;
+    delete commentsError[featureId];
+    if (active === featureId) renderComments(featureId);
+    fetch(apiHost() + '/api/next/comments?feature=' + encodeURIComponent(featureId))
+      .then(function (response) {
+        return response.json().catch(function () { return {}; }).then(function (data) {
+          return { ok: response.ok, data: data || {} };
+        });
+      })
+      .then(function (out) {
+        if (commentRequests[featureId] !== request) return;
+        delete commentsLoading[featureId];
+        if (!out.ok) commentsError[featureId] = out.data.text || out.data.error || 'Could not load comments.';
+        else commentsCache[featureId] = Array.isArray(out.data.comments) ? out.data.comments : [];
+        if (active === featureId) renderComments(featureId);
+      })
+      .catch(function () {
+        if (commentRequests[featureId] !== request) return;
+        delete commentsLoading[featureId];
+        commentsError[featureId] = 'Could not load comments. Check your connection.';
+        if (active === featureId) renderComments(featureId);
+      });
+  }
+
+  function ensureComments(featureId) {
+    if (commentsCache[featureId] || commentsLoading[featureId] || commentsError[featureId]) return;
+    loadComments(featureId);
+  }
+
+  function postComment(featureId) {
+    var input = document.getElementById('nxCommentBody');
+    var message = document.getElementById('nxCommentMsg');
+    var button = document.getElementById('nxCommentSend');
+    if (!input || !session || !session.access_token) return;
+    var text = input.value.trim();
+    if (!text) {
+      if (message) { message.textContent = 'Write a comment first.'; message.classList.add('is-error'); }
+      input.focus();
+      return;
+    }
+    if (button) { button.disabled = true; button.textContent = 'Posting…'; }
+    if (message) { message.textContent = 'Posting…'; message.classList.remove('is-error'); }
+    fetch(apiHost() + '/api/next/comments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+      body: JSON.stringify({ feature_id: featureId, body: text }),
+    })
+      .then(function (response) {
+        return response.json().catch(function () { return {}; }).then(function (data) {
+          return { ok: response.ok, data: data || {} };
+        });
+      })
+      .then(function (out) {
+        if (!out.ok || out.data.error) throw new Error(out.data.text || out.data.error || 'Could not post the comment.');
+        if (out.data.comment) {
+          commentsCache[featureId] = [out.data.comment].concat(commentsCache[featureId] || []);
+          delete commentDrafts[featureId];
+          if (active === featureId) renderComments(featureId);
+          NX.toast('Comment posted.');
+        }
+      })
+      .catch(function (err) {
+        if (active !== featureId) return;
+        var msg = document.getElementById('nxCommentMsg');
+        var btn = document.getElementById('nxCommentSend');
+        if (msg) { msg.textContent = err.message || 'Could not post the comment.'; msg.classList.add('is-error'); }
+        if (btn) { btn.disabled = false; btn.textContent = 'Post comment'; }
+      });
+  }
+
+  function initSession() {
+    var ready;
+    try { ready = typeof getSession === 'function' ? getSession() : null; }
+    catch (err) { ready = null; }
+    Promise.resolve(ready).then(function (value) {
+      session = value || null;
+      sessionKnown = true;
+      if (active) renderComments(active);
+    }).catch(function () {
+      session = null;
+      sessionKnown = true;
+      if (active) renderComments(active);
+    });
+  }
 
   function sideLabel(feature) { return feature.side === 'chat' ? 'Chat & community' : 'Server'; }
 
@@ -120,6 +283,8 @@
     renderJump();
     if (jump) jump.value = id;
     renderStage();
+    renderComments(id);
+    ensureComments(id);
     if (options && options.scroll && window.innerWidth <= 980) {
       stage.scrollIntoView({ block: 'start' });
     }
@@ -194,6 +359,23 @@
     if (feature && typeof feature.input === 'function') feature.input(input, path);
   });
 
+  if (commentsHost) {
+    commentsHost.addEventListener('input', function (event) {
+      if (event.target && event.target.id === 'nxCommentBody' && active) {
+        commentDrafts[active] = event.target.value;
+      }
+    });
+    commentsHost.addEventListener('click', function (event) {
+      var retry = event.target.closest('[data-comment-retry]');
+      if (retry && active) {
+        delete commentsError[active];
+        loadComments(active);
+        return;
+      }
+      if (event.target.closest('#nxCommentSend')) postComment(active);
+    });
+  }
+
   var resetArmed = false;
   var resetTimer = 0;
   if (reset) {
@@ -231,6 +413,7 @@
   var initial = location.hash.replace(/^#/, '');
   if (!NX.byId(initial)) initial = features[0] && features[0].id;
   active = initial;
+  initSession();
   renderJump();
   if (search) search.value = '';
   selectFeature(initial);

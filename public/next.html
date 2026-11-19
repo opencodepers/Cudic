@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
   <link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
   <link rel="stylesheet" href="/sidebar.css?v=25">
-  <link rel="stylesheet" href="/next.css?v=3">
+  <link rel="stylesheet" href="/next.css?v=4">
 <link rel="stylesheet" href="/mobile.css?v=1">
 </head>
 <body data-page="next">
@@ -69,7 +69,10 @@
         <p class="nx-index-empty" id="nxEmpty" hidden>No feature matches that search.</p>
       </aside>
 
-      <section class="nx-stage" id="nxStage" aria-labelledby="nxStageTitle"></section>
+      <div class="nx-stage-column">
+        <section class="nx-stage" id="nxStage" aria-labelledby="nxStageTitle"></section>
+        <section class="nx-comments" id="nxComments" aria-label="Comments"></section>
+      </div>
     </div>
 
     <section class="nx-slate" aria-labelledby="nxSlateTitle">
@@ -100,7 +103,7 @@
     </section>
 
     <footer class="nx-foot">
-      <p><b>Model, not migration.</b> Every interaction writes to this browser so you can test the shape without touching a live server. The production path and the gate are on each specimen.</p>
+      <p><b>Model, not migration.</b> The specimens write to this browser so you can test the shape without touching a live server. Comments are the exception: they are shared and saved so the feedback reaches us. The production path and the gate are on each specimen.</p>
       <p class="nx-foot-mono">cudic next · 30 moves + 68 on the slate · built to be judged</p>
     </footer>
   </main>
@@ -114,7 +117,7 @@
 <script src="/next-core.js?v=2"></script>
 <script src="/next-chat.js?v=2"></script>
 <script src="/next-server.js?v=2"></script>
-<script src="/next.js?v=2"></script>
+<script src="/next.js?v=3"></script>
 <script src="/next-slate.js?v=1"></script>
 </body>
 </html>

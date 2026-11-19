@@ -8,6 +8,11 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Next comments: feedback under every model** (`public/next.html`, `public/next.js`, `public/next.css`, `lib/routes/next.js`, `supabase/migrations/20261119120000_next_comments.sql`)
+
+- Every Next specimen now has a comment thread directly under the stage. The thread follows the selected feature, keeps a draft while you move between features, and shows the live count.
+- Reads are public. Posting requires a signed-in, confirmed account and is capped at 20 comments an hour; `next_comments` is additive and RLS-closed, and the API answers 503 until the migration runs.
+
 **Community reliability: direct page loads, CORS and UTC event times** (`public/server-community.js`, `public/server-community.html`, `public/server-next.js`, `public/server.html`, `lib/routes/pack.js`, `server.js`)
 
 - `/server-community` now gets its session from `auth.js` after the rail was removed, so a valid signed-in browser no longer lands on “Sign in to open a server community.”

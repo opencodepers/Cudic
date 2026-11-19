@@ -205,7 +205,7 @@ async function activeBan(userId, kind) {
 // Route modules are instantiated at the bottom, after every helper and
 // map they close over exists (they still run inside handleRequest).
 let messageRoutes = null, serverRoutes = null, chatRoutes = null;
-let githubRoutes = null, gamesRoutes = null, modRoutes = null, extrasRoutes = null, communityRoutes = null, plannerRoutes = null, customizeRoutes = null, hqRoutes = null, hubRoutes = null, kitRoutes = null, packRoutes = null, batchRoutes = null;
+let githubRoutes = null, gamesRoutes = null, modRoutes = null, extrasRoutes = null, communityRoutes = null, plannerRoutes = null, customizeRoutes = null, hqRoutes = null, hubRoutes = null, kitRoutes = null, packRoutes = null, batchRoutes = null, nextRoutes = null;
 
 const PORT = process.env.PORT || 3000;
 
@@ -2669,6 +2669,12 @@ function slugify(s) {
 
 
   // ── API: my conversations (chat sidebar) ───────────────────────
+  // ── next routes: comments on the /next models ─────────────────
+  if (nextRoutes && nextRoutes.matches(url.pathname)) {
+    await nextRoutes.handle(req, res, url);
+    if (res.headersSent) return;
+  }
+
   // ── extras routes: lib/routes/extras.js ───────────────────────
   if (extrasRoutes && extrasRoutes.matches(url.pathname)) {
     await extrasRoutes.handle(req, res, url);
@@ -5959,6 +5965,9 @@ communityRoutes = require('./lib/routes/community')({
 });
 extrasRoutes = require('./lib/routes/extras')({
   supabase, cors, requireUser, needVerified, readBody, isUuid, canSeeLobby, rateLimit,
+});
+nextRoutes = require('./lib/routes/next')({
+  supabase, cors, requireUser, needVerified, readBody, rateLimit,
 });
 hqRoutes = require('./lib/routes/hq')({
   supabase, cors, requireUser, needVerified, readBody, isUuid, serverRole,
