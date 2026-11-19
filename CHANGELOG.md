@@ -8,6 +8,13 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Community reliability: direct page loads, CORS and UTC event times** (`public/server-community.js`, `public/server-community.html`, `public/server-next.js`, `public/server.html`, `lib/routes/pack.js`, `server.js`)
+
+- `/server-community` now gets its session from `auth.js` after the rail was removed, so a valid signed-in browser no longer lands on “Sign in to open a server community.”
+- Community API responses and 401s now carry CORS, replacing the browser’s “Failed to fetch” with the real status.
+- The full page runs without the site rail and keeps a Back button to the server. LFG and game-night start fields are entered in local time and converted to ISO UTC before they are sent, so schedules no longer shift by the server’s timezone.
+- A URL with no `sid` prefers the last server you opened only while it is still in your server list, then falls back to the first server.
+
 **Community dock: ten server tools now open inside the server page** (`public/server.html`, `public/server-next.js`, `public/server-next.css`)
 
 - A floating **Community** pill at the bottom-right opens a live dock instead of squeezing another button into the server top bar: member cards, your per-server card, spotlight, daily and weekly prompts, suggestions and votes, LFG, game nights, warnings, inactivity and channel labels.

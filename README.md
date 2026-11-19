@@ -18,8 +18,14 @@
 | `/themes` | Theme pack store |
 | `/profile` | Profile (display name, avatar, bio, interests, theme, likes) |
 | `/servers` `/moderate` `/music` | Community servers, moderation queue, account music tracks |
+| `/server-community` | Community pack for one server: member cards, prompts, spotlight, suggestions, LFG, nights, warnings, inactivity and labels |
+| `/preview/<id>` | Public server preview and public game-night event |
 
 Two editors exist: `/editor` (classic, dark) and `/studio` (workbench, dark IDE chrome). `design.md` v2 governs the classic pages; both editors stay dark.
+
+### Community pack
+
+Every server has a community layer, opened from the floating **Community** pill on `/server/<id>` or at `/server-community?sid=<id>`. The dock carries ten tools: members, your card, spotlight, prompts, suggestions, LFG, nights, warnings, inactivity and channel labels. The full page keeps the reader-facing overview and longer forms; both read and write the same role-checked `/api/servers/<id>/community` API. See [`docs #community-pack`](https://cudic.vercel.app/docs#community-pack).
 
 ## Stack
 
