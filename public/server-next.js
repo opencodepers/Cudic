@@ -69,6 +69,11 @@
     var el = document.getElementById(id);
     return el ? el.value : '';
   }
+  function isoWhen(v) {
+    if (!v) return null;
+    var d = new Date(v);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  }
   function when(iso) {
     if (!iso) return '';
     var d = new Date(iso);
@@ -342,11 +347,11 @@
       } else if (act === 'vote') {
         await req(p + '/suggestions/' + encodeURIComponent(el.getAttribute('data-id')) + '/vote', { method: 'POST' });
       } else if (act === 'lfg-post') {
-        await req(p + '/lfg', { method: 'POST', body: JSON.stringify({ game: val('snLfgGame'), note: val('snLfgNote'), slots: val('snLfgSlots'), starts_at: val('snLfgWhen') || null }) });
+        await req(p + '/lfg', { method: 'POST', body: JSON.stringify({ game: val('snLfgGame'), note: val('snLfgNote'), slots: val('snLfgSlots'), starts_at: isoWhen(val('snLfgWhen')) }) });
       } else if (act === 'lfg-del') {
         await req(p + '/lfg/' + encodeURIComponent(el.getAttribute('data-id')), { method: 'DELETE' });
       } else if (act === 'night-post') {
-        await req(p + '/nights', { method: 'POST', body: JSON.stringify({ title: val('snNightTitle'), game: val('snNightGame'), note: val('snNightNote'), starts_at: val('snNightWhen'), is_public: document.getElementById('snNightPublic').checked }) });
+        await req(p + '/nights', { method: 'POST', body: JSON.stringify({ title: val('snNightTitle'), game: val('snNightGame'), note: val('snNightNote'), starts_at: isoWhen(val('snNightWhen')), is_public: document.getElementById('snNightPublic').checked }) });
       } else if (act === 'night-del') {
         await req(p + '/nights/' + encodeURIComponent(el.getAttribute('data-id')), { method: 'DELETE' });
       } else if (act === 'title-save') {

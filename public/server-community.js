@@ -17,8 +17,7 @@
       if (fromPath) return fromPath[1];
       var fromRef = /\/server\/([A-Za-z0-9-]{6,50})(?:[/?#]|$)/.exec(document.referrer || '');
       if (fromRef) return fromRef[1];
-      var last = localStorage.getItem('cudic_last_server');
-      return last || '';
+      return '';
     } catch (e) { return ''; }
   }
   var SID = urlSid();
@@ -26,7 +25,25 @@
   function $(id) { return document.getElementById(id); }
   function apiHost() { return (typeof WS_URL !== 'undefined' && WS_URL) ? WS_URL.replace(/^wss?:\/\//, 'https://') : ''; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  async function token() { try { if (window.getAuthToken) { var t = await window.getAuthToken(); if (t) return t; } var raw = localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token'); var s = JSON.parse(raw); return (s && s.access_token) || raw; } catch (e) { return null; } }
+  async function token() {
+    try {
+      if (window.getAuthToken) { var t = await window.getAuthToken(); if (t) return t; }
+      // This page no longer loads sidebar.js, which owns getAuthToken. auth.js
+      // still exposes getSession, so use that before the localStorage fallback.
+      if (typeof window.getSession === 'function') {
+        var session = await window.getSession();
+        if (session && session.access_token) return session.access_token;
+      }
+      var raw = localStorage.getItem('sb-qgcydphkaujomxyzwcht-auth-token');
+      var s = JSON.parse(raw);
+      return (s && s.access_token) || raw;
+    } catch (e) { return null; }
+  }
+  function isoWhen(v) {
+    if (!v) return null;
+    var d = new Date(v);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  }
   async function req(path, opts) {
     opts = opts || {};
     opts.headers = Object.assign({ Authorization: 'Bearer ' + T }, opts.headers || {});
@@ -168,7 +185,7 @@
     $('cmLfg').innerHTML = html;
     $('lfgPost').onclick = async function () {
       try {
-        await req('/api/servers/' + SID + '/lfg', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ game: $('lfgGame').value, note: $('lfgNote').value, slots: $('lfgSlots').value, starts_at: $('lfgWhen').value || null }) });
+        await req('/api/servers/' + SID + '/lfg', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ game: $('lfgGame').value, note: $('lfgNote').value, slots: $('lfgSlots').value, starts_at: isoWhen($('lfgWhen').value) }) });
         await load();
       } catch (e) { msg('lfgMsg', e.message, true); }
     };
@@ -194,7 +211,7 @@
     if (D.mod) {
       $('nightPost').onclick = async function () {
         try {
-          await req('/api/servers/' + SID + '/nights', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: $('nightTitle').value, game: $('nightGame').value, note: $('nightNote').value, starts_at: $('nightWhen').value, is_public: $('nightPublic').checked }) });
+          await req('/api/servers/' + SID + '/nights', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: $('nightTitle').value, game: $('nightGame').value, note: $('nightNote').value, starts_at: isoWhen($('nightWhen').value), is_public: $('nightPublic').checked }) });
           await load();
         } catch (e) { msg('nightMsg', e.message, true); }
       };
@@ -321,8 +338,11 @@
       try {
         var home = await req('/api/home');
         var list = (home && home.servers) || [];
-        if (list.length) {
-          SID = list[0].id;
+        var preferred = '';
+        try { preferred = localStorage.getItem('cudic_last_server') || ''; } catch (e) {}
+        var chosen = list.find(function (s) { return s.id === preferred; }) || list[0];
+        if (chosen) {
+          SID = chosen.id;
           syncLinks();
           var here = new URL(location.href);
           here.searchParams.set('sid', SID);
