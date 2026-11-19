@@ -1,12 +1,11 @@
 name: Discord updates
 
-# Every push to main goes out to #updates using the `Updates:` line written in
-# the commit — a hand-written sentence, no model and no key. Only main, because
-# the same commit is pushed to master as well and the channel should hear each
-# change once.
+# Every push to master goes out to #updates using the `Updates:` line written in
+# the commit — a hand-written sentence, no model and no key. Render, Vercel
+# production and this workflow all track master, so one push ships once.
 on:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 
 permissions:

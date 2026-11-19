@@ -38,8 +38,9 @@ Most wasted hours in this repo are one of these ten, skipped:
    `public/cudic_sfpng.png`.
 8. **Gitignored:** `public/studio/`, `tests/`, `.freebuff/`, `.agents/`. Test
    edits are local proof, never a shipped change.
-9. **Push both deploy targets:** `git push origin master master:main` — Render
-   builds `master`, Vercel builds `main`. Commit and push only when asked.
+9. **Push the one deploy branch:** `git push origin master` — Render, Vercel
+   production and the Discord updates workflow all track `master`. Commit and
+   push only when asked.
 10. **Every commit hash and Section 16 here is a snapshot.** `git log -5` wins.
 
 ### Before adding anything
@@ -70,12 +71,10 @@ allowlist or a cap. Never filter message text to a fixed emoji set.
 Newest last. Each one is a rule that only exists because someone got it wrong;
 append the next one instead of quietly fixing it and moving on.
 
-1. **Pushed `master` alone and called it shipped.** The push reached
-   `refs/heads/master` only, so `main` stayed on the previous commit: Vercel
-   never rebuilt and the `Discord updates` workflow (triggers on `main` alone)
-   never ran, while Render rebuilding `master` made the change look live.
-   Push `git push origin master master:main` in one command, then read
-   `git ls-remote --heads origin main master` back and see the same sha twice.
+1. **Deployed from two branches.** For a while Render built `master` while
+   Vercel and the `Discord updates` workflow only watched `main`, so one push
+   never shipped everything. Both deploy targets and the workflow now track
+   `master`; `git push origin master` is the whole deploy.
 2. **Committed without the `Updates:` line.** `tools/discord-update.mjs` posts
    only a hand-written `Updates:` sentence from the commit body. The workflow
    still reports success and prints "Nothing in this push to talk about", so a
@@ -108,8 +107,8 @@ theme packs, and a VS Code workbench shell at `/studio`.
 - **Not open source.** `README.md` is an all-rights-reserved notice. Don't publish,
   fork, or paste this code anywhere.
 - Repo: **`opencodepers/Cudic`** (remote `origin`, also aliased `neworigin`).
-  Local work is `master`; `main` mirrors it for Vercel, so
-  `git push origin master master:main` keeps both correct.
+  Local work is `master`; Render, Vercel production and the Discord updates
+  workflow all track it.
 - Split deploy: static frontend on **Vercel**, Node API/WS on **Render**.
 
 ### Two editors, don't confuse them
@@ -267,9 +266,9 @@ npm run build        # vite build (lib IIFE) → ../public/islands/  (~5s, 657KB
      exactly what to open and what should happen, and commit only after they
      confirm. A green suite cannot see the page you just moved. Chores (typo,
      comment, docs-only) may go in on a green suite without that wait.
-  5. **Push both deploy targets, and only the right files.**
-     `git push origin master master:main` — Render builds `master`, Vercel
-     builds `main`. Read `git status` first: `tests/`, `.env*`, `public/studio/`,
+  5. **Push the deploy branch, and only the right files.**
+     `git push origin master` — Render and Vercel production both build `master`,
+     and the Discord updates workflow watches it. Read `git status` first: `tests/`, `.env*`, `public/studio/`,
      `public/game/` + `public/arcade.html` (generated at deploy time),
      `.freebuff/`, `.agents/`, `.mcp.json`, runtime state (`weekly.json`,
      `.discord-status.json`, `*.db*`) and scratch images (`banner-*.png`,
@@ -1739,10 +1738,9 @@ Then the page itself still has to look and behave like the others:
   cannot resolve it. Publishing needs 2FA or a bypass-2FA token, and such a
   token cannot be scoped to a package that does not exist yet — that failure is
   a **404**, not a 403.
-- **Deploy targets differ**: Render builds `master`; Vercel production builds
-  `main`. Push both (`git push origin master master:main`) or the site keeps serving the
-  previous build while the API is current. Confirm with `gh api …/deployments`
-  (`environment: Production`) plus a cache-busted fetch.
+- **Deploy targets share one branch**: Render and Vercel production both build
+  `master`. One `git push origin master` ships both. Confirm with
+  `gh api …/deployments` (`environment: Production`) plus a cache-busted fetch.
 
 ---
 
@@ -1758,10 +1756,9 @@ Then the page itself still has to look and behave like the others:
 Render env vars are set in the dashboard, not files:
 `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`, `PORT`.
 
-Render builds `master`. **Vercel production builds `main`** — pushes to
-`master` alone only create Preview deployments, so the site silently keeps the
-old build while Render is current. Push both branches, verify locally first, and
-confirm the production deploy before claiming a page is live.
+Render and Vercel production both build `master`. One `git push origin master`
+ships the API and the site together; verify locally first and confirm the
+production deploy before claiming a page is live.
 
 ---
 
