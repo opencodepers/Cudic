@@ -8,6 +8,13 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Projects board: a weekly public leaderboard for things made anywhere** (`public/projects.html`, `public/projects.css`, `public/projects.js`, `lib/routes/projects.js`, `supabase/migrations/20261119130000_projects.sql`)
+
+- A new `/projects` board lists websites, games, tools and other projects from anywhere, not only Cudic. Submit from the topbar or hero, filter by category, search names/tags/domains, and sort by this week or all time. No paid placement or paid ranking.
+- Signed-in, confirmed accounts get one up/down vote per project per week, changeable or removable. Weekly score is net votes since Monday 00:00 UTC; the lifetime upvotes/downvotes stay on the project row and the detail page, so a weekly reset never erases the original score. Owners cannot vote on their own project.
+- Each project has a detail page with the full description, outbound link, maker, weekly/all-time scores and a comment thread. Reads are public; writes require a signed-in, confirmed account. `projects`, `project_votes` and `project_comments` are additive and RLS-closed, and `cast_project_vote` updates the weekly row and lifetime counters atomically.
+- The board uses Motion (`motion.dev`) for the first-card reveal and vote feedback, with reduced-motion support; the page and its state remain usable if the library does not load.
+
 **Next comments: feedback under every model** (`public/next.html`, `public/next.js`, `public/next.css`, `lib/routes/next.js`, `supabase/migrations/20261119120000_next_comments.sql`)
 
 - Every Next specimen now has a comment thread directly under the stage. The thread follows the selected feature, keeps a draft while you move between features, and shows the live count.

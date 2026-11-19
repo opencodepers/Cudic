@@ -30,6 +30,8 @@
     { "source": "/server-customize", "destination": "/server-customize.html" },
     { "source": "/server-community", "destination": "/server-community.html" },
     { "source": "/next", "destination": "/next.html" },
+    { "source": "/projects", "destination": "/projects.html" },
+    { "source": "/projects/:slug", "destination": "/projects.html" },
     { "source": "/server-preview", "destination": "/server-preview.html" },
     { "source": "/preview/:id", "destination": "/server-preview.html" },
     { "source": "/join", "destination": "/join.html" },

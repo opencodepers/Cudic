@@ -205,7 +205,7 @@ async function activeBan(userId, kind) {
 // Route modules are instantiated at the bottom, after every helper and
 // map they close over exists (they still run inside handleRequest).
 let messageRoutes = null, serverRoutes = null, chatRoutes = null;
-let githubRoutes = null, gamesRoutes = null, modRoutes = null, extrasRoutes = null, communityRoutes = null, plannerRoutes = null, customizeRoutes = null, hqRoutes = null, hubRoutes = null, kitRoutes = null, packRoutes = null, batchRoutes = null, nextRoutes = null;
+let githubRoutes = null, gamesRoutes = null, modRoutes = null, extrasRoutes = null, communityRoutes = null, plannerRoutes = null, customizeRoutes = null, hqRoutes = null, hubRoutes = null, kitRoutes = null, packRoutes = null, batchRoutes = null, nextRoutes = null, projectsRoutes = null;
 
 const PORT = process.env.PORT || 3000;
 
@@ -2675,6 +2675,12 @@ function slugify(s) {
     if (res.headersSent) return;
   }
 
+  // ── project board: /api/projects ──────────────────────────────
+  if (projectsRoutes && projectsRoutes.matches(url.pathname)) {
+    await projectsRoutes.handle(req, res, url);
+    if (res.headersSent) return;
+  }
+
   // ── extras routes: lib/routes/extras.js ───────────────────────
   if (extrasRoutes && extrasRoutes.matches(url.pathname)) {
     await extrasRoutes.handle(req, res, url);
@@ -4586,6 +4592,11 @@ function slugify(s) {
   if (url.pathname === '/next') {
     url.pathname = '/next.html';
   }
+
+  // ── Project board: this week's community projects ─────────────
+  if (url.pathname === '/projects' || url.pathname.startsWith('/projects/')) {
+    url.pathname = '/projects.html';
+  }
   if (url.pathname === '/server-preview' || url.pathname.startsWith('/preview/')) {
     url.pathname = '/server-preview.html';
   }
@@ -5968,6 +5979,9 @@ extrasRoutes = require('./lib/routes/extras')({
 });
 nextRoutes = require('./lib/routes/next')({
   supabase, cors, requireUser, needVerified, readBody, rateLimit,
+});
+projectsRoutes = require('./lib/routes/projects')({
+  supabase, cors, requireUser, needVerified, readBody, rateLimit, userOf, digestWeekStart,
 });
 hqRoutes = require('./lib/routes/hq')({
   supabase, cors, requireUser, needVerified, readBody, isUuid, serverRole,

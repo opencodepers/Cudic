@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<!-- file: public/projects.html
+     what: the public weekly project board, project detail view and submit dialog.
+     invariants: shared rail-page shell; reads are public, writes need a confirmed session;
+     content stays visible and usable without JS or Motion. -->
+<html lang="en">
+<head>
+  <script src="/consent.js?v=1"></script>
+  <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Projects — Cudic</title>
+  <meta name="description" content="A weekly board for websites, games, tools and other things people made anywhere. Upvote, downvote, comment, and submit your own.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Cudic">
+  <meta property="og:title" content="Projects — Cudic">
+  <meta property="og:description" content="A weekly board for things people made anywhere. The highest upvotes rank highest.">
+  <meta property="og:url" content="https://cudic.vercel.app/projects">
+  <meta property="og:image" content="https://cudic.vercel.app/og.png?v=2">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://cudic.vercel.app/projects">
+  <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="/sidebar.css?v=25">
+  <link rel="stylesheet" href="/projects.css?v=1">
+  <link rel="stylesheet" href="/mobile.css?v=1">
+</head>
+<body data-page="projects">
+<div class="page-panel projects-layout">
+  <header class="topbar projects-topbar">
+    <h1>Projects</h1>
+    <div class="projects-top-actions">
+      <span class="projects-cycle" id="cyclePill">This week</span>
+      <button class="btn btn-primary" id="openProjectDialog" type="button">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        Submit a project
+      </button>
+    </div>
+  </header>
+
+  <main class="projects-scroll" id="projectsScroll">
+    <section class="projects-hero" id="boardHero" aria-labelledby="boardHeroTitle">
+      <div class="projects-hero-copy">
+        <h2 id="boardHeroTitle">Built anywhere.<br>Ranked here.</h2>
+        <p class="projects-lede">A board for the websites, games, tools and odd little things people made anywhere. The highest upvotes rank highest, and the weekly race starts over every Monday.</p>
+        <div class="projects-hero-actions">
+          <button class="btn btn-primary" id="heroSubmit" type="button">Put something on the board</button>
+          <a class="btn btn-secondary" href="#board">Browse this week</a>
+        </div>
+        <dl class="projects-hero-stats" aria-label="Board totals">
+          <div><dt id="statProjects">—</dt><dd>projects</dd></div>
+          <div><dt id="statVotes">—</dt><dd>votes this week</dd></div>
+          <div><dt id="statAllTime">—</dt><dd>all-time upvotes</dd></div>
+        </dl>
+      </div>
+      <aside class="projects-cycle-card" aria-label="Weekly cycle">
+        <div class="projects-cycle-head">
+          <span class="projects-mono">This cycle</span>
+          <span class="projects-live"><i aria-hidden="true"></i>Live</span>
+        </div>
+        <b class="projects-countdown" id="resetCountdown">—</b>
+        <p class="projects-cycle-date" id="resetDate">The board resets Monday at 00:00 UTC.</p>
+        <div class="projects-cycle-track" aria-hidden="true"><span id="cycleMeter"></span></div>
+        <p class="projects-cycle-note">Weekly score resets. The original score stays on every project page.</p>
+      </aside>
+    </section>
+
+    <section class="projects-board" id="board" aria-labelledby="boardTitle">
+      <aside class="projects-filters" aria-label="Filter projects">
+        <div class="projects-filter-block">
+          <label class="projects-filter-label" for="projectSearch">Search</label>
+          <div class="projects-search">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+            <input id="projectSearch" type="search" autocomplete="off" placeholder="Name, tag or domain">
+          </div>
+        </div>
+        <div class="projects-filter-block">
+          <span class="projects-filter-label">Ranking</span>
+          <div class="projects-sort" role="group" aria-label="Ranking period">
+            <button class="projects-sort-btn is-on" type="button" data-sort="week" aria-pressed="true">This week</button>
+            <button class="projects-sort-btn" type="button" data-sort="all" aria-pressed="false">All time</button>
+          </div>
+        </div>
+        <div class="projects-filter-block">
+          <span class="projects-filter-label">Category</span>
+          <div class="projects-categories" id="categoryList"></div>
+        </div>
+        <p class="projects-filter-note"><b>One vote per project each week.</b> Change it or clear it any time. You cannot vote on your own project.</p>
+      </aside>
+
+      <div class="projects-feed">
+        <header class="projects-feed-head">
+          <div>
+            <h2 id="boardTitle">This week's board</h2>
+            <p id="boardSub">Ranked by net votes since Monday 00:00 UTC.</p>
+          </div>
+          <span class="projects-count" id="boardCount">—</span>
+        </header>
+        <div class="projects-list" id="projectList" aria-live="polite">
+          <div class="project-skeleton" aria-hidden="true"><span class="sk-rank"></span><span class="sk-art"></span><span class="sk-lines"></span><span class="sk-side"></span></div>
+          <div class="project-skeleton" aria-hidden="true"><span class="sk-rank"></span><span class="sk-art"></span><span class="sk-lines"></span><span class="sk-side"></span></div>
+          <div class="project-skeleton" aria-hidden="true"><span class="sk-rank"></span><span class="sk-art"></span><span class="sk-lines"></span><span class="sk-side"></span></div>
+        </div>
+        <div class="projects-empty" id="projectEmpty" hidden>
+          <div class="projects-empty-mark" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h10M4 17h7"/><path d="M17 12v7M13.5 15.5h7"/></svg>
+          </div>
+          <h3>No projects here yet</h3>
+          <p id="projectEmptyText">Be the first to put something on this board.</p>
+          <button class="btn btn-primary" type="button" data-open-submit>Submit a project</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="project-detail" id="projectDetail" hidden aria-live="polite"></section>
+
+    <footer class="projects-foot">
+      <p>Built anywhere, ranked here. No paid placement, no paid ranking.</p>
+      <a href="/docs#projects">How the board works</a>
+    </footer>
+  </main>
+</div>
+
+<dialog class="project-dialog" id="projectDialog" aria-labelledby="projectDialogTitle">
+  <form class="project-form" id="projectForm" novalidate>
+    <header class="project-dialog-head">
+      <div>
+        <h2 id="projectDialogTitle">Submit a project</h2>
+        <p>Anything you made, anywhere. It does not have to be built on Cudic.</p>
+      </div>
+      <button class="project-dialog-close" type="button" id="closeProjectDialog" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
+    </header>
+
+    <div class="project-form-note" id="projectFormAuth">
+      Sign in to submit a project. <a href="/login?next=/projects">Sign in</a>
+    </div>
+
+    <div class="project-form-grid">
+      <label class="project-field project-field-wide">
+        <span>Project name <b>required</b></span>
+        <input name="name" id="projectName" type="text" maxlength="80" autocomplete="off" required>
+      </label>
+      <label class="project-field project-field-wide">
+        <span>Project URL <b>required</b></span>
+        <input name="url" id="projectUrl" type="url" maxlength="500" inputmode="url" placeholder="https://" required>
+      </label>
+      <label class="project-field project-field-wide">
+        <span>One-line pitch</span>
+        <input name="tagline" id="projectTagline" type="text" maxlength="140" autocomplete="off" placeholder="What is it, in one line?">
+      </label>
+      <label class="project-field project-field-wide">
+        <span>Description</span>
+        <textarea name="description" id="projectDescription" rows="4" maxlength="2800" placeholder="What did you make, why, and what should someone try first?"></textarea>
+      </label>
+      <label class="project-field">
+        <span>Category</span>
+        <select name="category" id="projectCategory">
+          <option value="game">Game</option>
+          <option value="tool">Tool</option>
+          <option value="site" selected>Site</option>
+          <option value="app">App</option>
+          <option value="art">Art</option>
+          <option value="writing">Writing</option>
+          <option value="music">Music</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
+      <label class="project-field">
+        <span>Tags <small>comma separated, up to 5</small></span>
+        <input name="tags" id="projectTags" type="text" maxlength="160" autocomplete="off" placeholder="puzzle, webgl, solo">
+      </label>
+      <label class="project-field project-field-wide">
+        <span>Preview image URL <small>optional</small></span>
+        <input name="image_url" id="projectImage" type="url" maxlength="500" inputmode="url" placeholder="https://…/preview.png">
+      </label>
+    </div>
+
+    <p class="project-form-msg" id="projectFormMsg" role="alert"></p>
+    <div class="project-dialog-actions">
+      <span class="projects-mono">Public board · no paid placement</span>
+      <button class="btn btn-secondary" type="button" id="cancelProjectDialog">Cancel</button>
+      <button class="btn btn-primary" type="submit" id="projectSubmit">Submit for review</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="project-toast" id="projectToast" role="status" aria-live="polite" aria-hidden="true"></div>
+
+<script src="/config.js"></script>
+<script src="/auth.js"></script>
+<script src="/sidebar.js?v=32"></script>
+<script src="https://cdn.jsdelivr.net/npm/motion@14.4.0/dist/motion.js"></script>
+<script src="/projects.js?v=1"></script>
+</body>
+</html>

@@ -230,7 +230,7 @@ npm run build        # vite build (lib IIFE) → ../public/islands/  (~5s, 657KB
   then commit the bundle. Bump `islands.js?v=8` + `cudic-islands.css?v=8`
   on the pages that use it after rebuilding.
 - Bump `sidebar.css?v=25` across all pages when editing `public/sidebar.css`
-  — pages cache CSS aggressively. Same for `sidebar.js?v=31` /
+  — pages cache CSS aggressively. Same for `sidebar.js?v=32` /
   `client.js?v=18` after editing those. New shared scripts take `?v=1`
   (`ctheme.js`, `csel.js`).
 - **Test suite exists**: `python tests/run_tests.py` (stdlib `unittest`, every
@@ -419,6 +419,13 @@ GET  /api/activity?limit=         ← PUBLIC recent activity feed
 GET  /api/ops/status              ← mod-only health counts (page: /ops)
 GET  /api/push/config             ← PUBLIC push key + enabled flag
 POST /api/push/subscribe|unsubscribe|test
+GET  /api/projects               ← PUBLIC weekly project board; includes weekly
+                                  score, lifetime counts, owner flag, comments
+GET  /api/projects/:id|slug      ← PUBLIC one project + weekly/all-time scores
+POST /api/projects               ← signed-in+verified submit (5/day); external URL
+POST /api/projects/:id|slug/vote ← signed-in+verified, one vote/project/week;
+                                  owner blocked; RPC updates lifetime counters
+GET|POST /api/projects/:id|slug/comments ← public read; signed-in+verified post
 GET  /api/games                 GET|POST /api/games     GET /api/games/mine
 GET  /api/games/:id/thumbnail   ← card art as real image bytes (1-day cache)
 GET  /api/games/:id/live        ← in-memory room head-count (`{playing}`) for the
@@ -788,7 +795,10 @@ Supabase project `opimjwmgmzwapkzgxvhk`.
 Tables: `users`, `lobbies`, `messages`, `games`, `game_comments`, `servers`,
 `server_members`, `active_sessions`, `game_saves`, `game_scores` (leaderboards;
 migration/game-scores.sql, RLS closed — reached only through server.js),
-`notifications`. Trigger `on_auth_user_created` creates the profile on signup.
+`notifications`, `projects`, `project_votes`, `project_comments` (weekly board;
+migration/20261119130000_projects.sql, RLS closed — reached only through
+`lib/routes/projects.js`). Trigger `on_auth_user_created` creates the profile on
+signup.
 
 **Chat history is permanent.** Nothing deletes `messages` except the moderator
 `delete_message` action. `lobbies.persistent` is vestigial (the old 2h sweeper
@@ -806,6 +816,7 @@ Migrations:
 - `20261003130000_avatars.sql` — public `avatars` storage bucket + policies
 - `20261003140000_server_rules.sql` — `servers.rules`, `server_members.rules_accepted_at` (grandfathered); server create endpoint reads channel bundles from the `SERVER_TEMPLATES` map in `server.js` (`GET /api/server-templates` serves the picker)
 - `20261029120000_follows_badges.sql` — `follows`, `user_badges` (PK `(user_id, code)`), `activity` (feed, FK `activity_user_fk`), `users.equips jsonb` — all RLS-locked, **no policies** (service-role only, same shape as `active_sessions`)
+- `20261119130000_projects.sql` — `projects`, `project_votes` (PK `(project_id, user_id, week_start)`), `project_comments`; all RLS-locked, plus `cast_project_vote()` which atomically moves the weekly vote and lifetime up/down counters
 
 ### Awards (badges / flairs / titles — static catalog in `server.js`)
 
@@ -1515,7 +1526,7 @@ grid-led, Geist everywhere. Read it before building any public surface. Headline
 9. **Bash, not PowerShell** — `&&`, `$(...)` and POSIX paths work. A note here
   saying otherwise is stale (section 0.2).
 10. **CSS/JS cache** — bump the `?v=` on every page after editing a shared file.
-  Current: `sidebar.css?v=25`, `sidebar.js?v=31`, `client.js?v=18`,
+  Current: `sidebar.css?v=25`, `sidebar.js?v=32`, `client.js?v=18`,
   `islands.js?v=8`, `docpage.css?v=7` (new shared scripts start at `?v=1`).
   `tools/check-docs.py` fails when this line and the pages disagree.
 11. **Restart the server** after any `server.js` edit; **rebuild Studio** after any
