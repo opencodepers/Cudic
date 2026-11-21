@@ -8,6 +8,12 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Next: shipped models are tagged, and the index rolls at 50** (`public/next.html`, `public/next.js`, `public/next-core.js`, `public/next-server.js`, `public/next.css`)
+
+- A model that has already shipped now carries a **Shipped** tag in the index row and the stage kicker. Shipping one is a one-line change: add `added: 'YYYY-MM-DD'` to its feature object.
+- The index renders at most 50 models. When a new model takes the registry past 50, the oldest shipped model retires first (ties follow registration order); unshipped ideas only retire if nothing shipped is left to remove.
+- Topbar, tab, intro, jump and footer counts now read from the visible registry instead of fixed numbers, searching `shipped` finds tagged models, and deep links to a retired model fall back to the first visible one.
+
 **Post-audit fixes: ads wait for consent, brand sheet labelled, gallery and docs accessibility** (`public/brand-app.html`, `public/ads.js`, `public/games.html`, `public/docs.html`, `public/docpage.js`, `DESIGN.md`)
 
 - Ad zones on `/games` and `/docs` now load only after **advertising** consent. The banner/native tags moved from inline `<script>`s in the markup to `data-ad-key` / `data-ad-script` frames that `/ads.js` fills; before consent the frame is hidden, after consent the same cookie and `cudic-consent` event drive injection, and an unfilled slot still collapses.

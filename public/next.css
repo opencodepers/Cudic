@@ -147,6 +147,13 @@
   display: block; font: 500 0.8rem/1.3 var(--font-head);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.nx-row-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.nx-row-line .nx-row-title { flex: 1 1 auto; min-width: 0; }
+.nx-row-tag {
+  flex: none; display: inline-flex; align-items: center; min-height: 18px; padding: 0 5px;
+  border: 1px solid var(--success); border-radius: 4px; color: var(--success);
+  font: 500 0.58rem/1.2 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase;
+}
 .nx-row-meta {
   display: block; margin-top: 2px; color: var(--text-tertiary);
   font: 400 0.66rem/1.3 var(--font-mono); letter-spacing: 0.01em;

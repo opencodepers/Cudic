@@ -1,6 +1,6 @@
 /* file: public/next-core.js
  * what: Shared model, seed state, formatting helpers and feature registry for the Next workspace.
- * invariants: every feature reads NX.state at render time (never captures it), and every write goes through NX.commit so the model persists.
+ * invariants: every feature reads NX.state at render time (never captures it), every write goes through NX.commit so the model persists, and the index never renders more than NX.MAX_MODELS (50) — the oldest shipped models roll off first.
  * see: public/next.html, public/next.css.
  */
 (function () {
@@ -9,6 +9,43 @@
   var NX = window.CudicNext = window.CudicNext || {};
   NX.features = NX.features || [];
   NX.add = function (feature) { NX.features.push(feature); };
+
+  /*
+   * A feature carries `added: 'YYYY-MM-DD'` once it ships. The index tags it,
+   * and when the registry passes NX.MAX_MODELS the oldest `added` models retire
+   * first, so the page stays a forward-looking 50. Features without a ship date
+   * only retire if there is nothing shipped left to remove.
+   */
+  NX.MAX_MODELS = 50;
+  NX.retired = [];
+  NX.visibleFeatures = function () {
+    var all = NX.features;
+    var overflow = all.length - NX.MAX_MODELS;
+    NX.retired = [];
+    if (overflow <= 0) return all.slice();
+
+    var shipped = all.map(function (feature, index) {
+      return { feature: feature, index: index };
+    }).filter(function (row) { return !!row.feature.added; });
+    shipped.sort(function (a, b) {
+      if (a.feature.added !== b.feature.added) return String(a.feature.added) < String(b.feature.added) ? -1 : 1;
+      return a.index - b.index;
+    });
+
+    var retired = {};
+    var retiredCount = 0;
+    shipped.slice(0, overflow).forEach(function (row) {
+      retired[row.feature.id] = true;
+      retiredCount++;
+    });
+    for (var i = 0; i < all.length && retiredCount < overflow; i++) {
+      if (retired[all[i].id]) continue;
+      retired[all[i].id] = true;
+      retiredCount++;
+    }
+    NX.retired = Object.keys(retired);
+    return all.filter(function (feature) { return !retired[feature.id]; });
+  };
   NX.byId = function (id) {
     for (var i = 0; i < NX.features.length; i++) if (NX.features[i].id === id) return NX.features[i];
     return null;

@@ -16,7 +16,7 @@
   var e = NX.esc;
   var chevronLeft = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m15 18-6-6 6-6"/></svg>';
   var chevronRight = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 18 6-6-6-6"/></svg>';
-  var features = NX.features;
+  var features = NX.visibleFeatures();
   var filter = 'all';
   var query = '';
   var active = '';
@@ -186,11 +186,36 @@
 
   function sideLabel(feature) { return feature.side === 'chat' ? 'Chat & community' : 'Server'; }
 
+  function isVisible(id) {
+    return features.some(function (feature) { return feature.id === id; });
+  }
+
+  function setText(id, value) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = value;
+  }
+
+  function syncChrome() {
+    var total = features.length;
+    var chat = features.filter(function (feature) { return feature.side === 'chat'; }).length;
+    setText('nxModelCount', total);
+    setText('nxCountAll', total);
+    setText('nxCountChat', chat);
+    setText('nxCountServer', total - chat);
+    setText('nxStatChat', chat);
+    setText('nxStatServer', total - chat);
+    setText('nxIntroTotal', total);
+    setText('nxFootTotal', total);
+    var browser = document.querySelector('.nx-browser');
+    if (browser) browser.setAttribute('aria-label', 'All ' + total + ' features');
+    if (search) search.placeholder = 'Search the ' + total;
+  }
+
   function matches(feature) {
     if (filter !== 'all' && feature.side !== filter) return false;
     var q = query.trim().toLowerCase();
     if (!q) return true;
-    return [feature.title, feature.blurb, feature.group, feature.why, 'plan ' + feature.plan, String(feature.plan)]
+    return [feature.title, feature.blurb, feature.group, feature.why, 'plan ' + feature.plan, String(feature.plan), feature.added ? 'added shipped' : '']
       .join(' ').toLowerCase().indexOf(q) !== -1;
   }
 
@@ -213,7 +238,8 @@
           var isActive = feature.id === active;
           return '<button type="button" class="nx-row" data-id="' + e(feature.id) + '" aria-current="' + isActive + '">'
             + '<span class="nx-row-no">' + String(features.indexOf(feature) + 1).padStart(2, '0') + '</span>'
-            + '<span class="nx-row-copy"><span class="nx-row-title">' + e(feature.title) + '</span>'
+            + '<span class="nx-row-copy"><span class="nx-row-line"><span class="nx-row-title">' + e(feature.title) + '</span>'
+            + (feature.added ? '<span class="nx-row-tag" title="Already added to Cudic">Shipped</span>' : '') + '</span>'
             + '<span class="nx-row-meta">Plan #' + feature.plan + ' · ' + e(sideLabel(feature)) + '</span></span>'
             + '<span class="nx-row-pip" aria-hidden="true"></span></button>';
         }).join('') + '</div>';
@@ -250,7 +276,8 @@
       + '<button type="button" class="nx-step" id="nxPrev" aria-label="Previous feature"' + (order === 0 ? ' disabled' : '') + '>' + chevronLeft + '</button>'
       + '<button type="button" class="nx-step" id="nxNext" aria-label="Next feature"' + (order === features.length - 1 ? ' disabled' : '') + '>' + chevronRight + '</button>'
       + '</div>'
-      + '<div class="nx-stage-kicker"><span class="nx-stage-no">' + String(order + 1).padStart(2, '0') + '</span>' + e(sideLabel(feature)) + ' · ' + e(feature.group) + '</div>'
+      + '<div class="nx-stage-kicker"><span class="nx-stage-no">' + String(order + 1).padStart(2, '0') + '</span>' + e(sideLabel(feature)) + ' · ' + e(feature.group)
+      + (feature.added ? ' <span class="nx-badge ok" title="Already added to Cudic">Shipped</span>' : '') + '</div>'
       + '<h2 id="nxStageTitle">' + e(feature.title) + '</h2>'
       + '<p class="nx-stage-blurb">' + e(feature.blurb) + '</p></header>'
       + '<div class="nx-stage-grid"><div class="nx-demo"><div class="nx-demo-head"><div><div class="nx-demo-title">Live specimen</div>'
@@ -279,7 +306,7 @@
   NX.rerender = renderStage;
 
   function selectFeature(id, options) {
-    if (!NX.byId(id)) id = features[0] && features[0].id;
+    if (!isVisible(id)) id = features[0] && features[0].id;
     if (!id) return;
     active = id;
     if (location.hash !== '#' + id) history.replaceState(null, '', '#' + id);
@@ -411,12 +438,13 @@
 
   window.addEventListener('hashchange', function () {
     var id = location.hash.replace(/^#/, '');
-    if (NX.byId(id) && id !== active) selectFeature(id);
+    if (isVisible(id) && id !== active) selectFeature(id);
   });
 
   var initial = location.hash.replace(/^#/, '');
-  if (!NX.byId(initial)) initial = features[0] && features[0].id;
+  if (!isVisible(initial)) initial = features[0] && features[0].id;
   active = initial;
+  syncChrome();
   initSession();
   renderJump();
   if (search) search.value = '';

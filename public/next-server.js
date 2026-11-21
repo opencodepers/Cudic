@@ -12,7 +12,7 @@
     + '<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>';
 
   NX.add({
-    id: 'backgrounds', plan: 105, side: 'server', group: 'Place', title: 'Custom server backgrounds',
+    id: 'backgrounds', plan: 105, side: 'server', group: 'Place', title: 'Custom server backgrounds', added: '2026-11-20',
     blurb: 'Give the server a room, not just an icon. Art is uploaded once, cropped for the header, and checked for readable text.',
     why: 'A server is a place before it is a feature list. One strong background does more for belonging than ten settings — provided the name stays readable and the art can be removed.',
     proof: ['The server name stays readable at 4.5:1 over every approved crop.', 'Removing the art returns the flat fallback, not a broken header.'],
@@ -271,7 +271,7 @@
   });
 
   NX.add({
-    id: 'status', plan: 129, side: 'server', group: 'People', title: 'Server status messages',
+    id: 'status', plan: 129, side: 'server', group: 'People', title: 'Server status messages', added: '2026-11-15',
     blurb: 'A 60-character note that says what you are doing here, not who you are everywhere. Visible only inside this server.',
     why: 'A global status is a broadcast. A server status is a room signal: “here to build”, “testing the lift”, “just reading”. The scope is the feature.',
     proof: ['The status is scoped to the server and disappears from the member list when cleared.', 'It is text and one emoji, never a remote image.'],
@@ -519,7 +519,7 @@
   /* ── Batch 2: the join funnel, organisation, play and the owner desk ─────── */
 
   NX.add({
-    id: 'preview', plan: 184, side: 'server', group: 'Place', title: 'Server preview before joining',
+    id: 'preview', plan: 184, side: 'server', group: 'Place', title: 'Server preview before joining', added: '2026-11-15',
     blurb: 'See the room before the door: banner, public channels, rules and member count, with Join at the end instead of a bare modal.',
     why: 'A join modal tells you a name and a member count. A preview page tells you whether you belong, and it is the cheapest raid filter we have: the public surface never names a private channel.',
     proof: ['Only public channels appear in the preview.', 'Joining from the preview writes the same membership row as the join modal.'],
@@ -583,7 +583,7 @@
   });
 
   NX.add({
-    id: 'joinq', plan: 191, side: 'server', group: 'Place', title: 'Custom join questions',
+    id: 'joinq', plan: 191, side: 'server', group: 'Place', title: 'Custom join questions', added: '2026-11-15',
     blurb: 'One to three questions before joining. Answers are visible to mods only and deleted with the membership.',
     why: 'A question is a filter that respects the person answering it: it stops the raid and starts the introduction at once. It only works if the answer is treated as personal data, not as a profile field.',
     proof: ['A member can still join without answering.', 'Answers never appear on the public preview or the member card.'],
@@ -616,7 +616,7 @@
   });
 
   NX.add({
-    id: 'channels-order', plan: 113, side: 'server', group: 'Place', title: 'Custom channel ordering',
+    id: 'channels-order', plan: 113, side: 'server', group: 'Place', title: 'Custom channel ordering', added: '2026-11-15',
     blurb: 'Put channels and folders in the order the server actually reads. Each move saves on its own row.',
     why: 'A sidebar is a map, and every server walks through it differently. Ordering is the cheapest customisation that changes how a room feels day to day.',
     proof: ['A move persists after a reload.', 'Two mods moving different rows both keep their change.'],
@@ -652,7 +652,7 @@
   }
 
   NX.add({
-    id: 'channel-tags', plan: 123, side: 'server', group: 'Place', title: 'Channel tags',
+    id: 'channel-tags', plan: 123, side: 'server', group: 'Place', title: 'Channel tags', added: '2026-11-15',
     blurb: 'Short tags on a channel, filterable in the list. Three tags, twelve characters each, sanitised like a name.',
     why: 'A channel name can only say so much. Tags make the list sortable without adding folders, and a capped vocabulary keeps search honest.',
     proof: ['A fourth tag is refused, not silently dropped.', 'The tag filter and the channel row agree on the same string.'],
@@ -696,7 +696,7 @@
   });
 
   NX.add({
-    id: 'spotlights', plan: 138, side: 'server', group: 'People', title: 'Community member spotlights',
+    id: 'spotlights', plan: 138, side: 'server', group: 'People', title: 'Community member spotlights', added: '2026-11-15',
     blurb: 'A mod picks a member or a creation and the server posts a card. The member agrees before their name goes up.',
     why: 'A spotlight is the warmest thing a mod can do with machinery we already have: it reuses the system-post path and turns one person’s work into the room’s memory. Consent is the whole difference between recognition and exposure.',
     proof: ['A member who has not opted in never appears in the picker.', 'The posted card carries one creation and no contact detail.'],
@@ -728,7 +728,7 @@
   });
 
   NX.add({
-    id: 'mod-dashboard', plan: 193, side: 'server', group: 'People', title: 'Moderation dashboard',
+    id: 'mod-dashboard', plan: 193, side: 'server', group: 'People', title: 'Moderation dashboard', added: '2026-11-15',
     blurb: 'Reports, the last actions, slow mode and mutes on one page — reports only, never messages.',
     why: 'Moderation fails quietly when the queue is spread across three screens. One desk with a count and one action per row is the difference between a mod working and a mod guessing.',
     proof: ['A resolved report leaves the queue and lands in the log.', 'The desk never reads a DM; it reads reports and actions only.'],
@@ -770,7 +770,7 @@
   }
 
   NX.add({
-    id: 'lfg', plan: 156, side: 'server', group: 'Play', title: 'Looking-for-group board',
+    id: 'lfg', plan: 156, side: 'server', group: 'Play', title: 'Looking-for-group board', added: '2026-11-15',
     blurb: 'Posts that say “two more for a run”: game, time zone, slots and a join button. Members only, and no DMs until both people opt in.',
     why: 'The hardest part of a small server is starting. A board turns “anyone around?” into a post with a time and a count, without opening a private channel for every attempt.',
     proof: ['A post fills up and closes itself at the slot count.', 'Chat stays in the server until both people allow DMs.'],
@@ -812,7 +812,7 @@
   });
 
   NX.add({
-    id: 'server-info', plan: 162, side: 'server', group: 'Play', title: 'Game server connection info',
+    id: 'server-info', plan: 162, side: 'server', group: 'Play', title: 'Game server connection info', added: '2026-11-15',
     blurb: 'An address, a port and a copy button on the server page — set by the owner, never inferred.',
     why: 'The address is the shortest path from a Cudic server to the game. It is also a home IP if the owner runs it from a bedroom, so the field warns before it saves and the public card is a second, explicit toggle.',
     proof: ['Only an owner can set or clear the address.', 'Publishing to the public card is a separate choice, off by default.'],
@@ -845,7 +845,7 @@
   });
 
   NX.add({
-    id: 'game-nights', plan: 170, side: 'server', group: 'Play', title: 'Community game nights',
+    id: 'game-nights', plan: 170, side: 'server', group: 'Play', title: 'Community game nights', added: '2026-11-15',
     blurb: 'A recurring event with a game attached: RSVP, cancel one week, and the series carries on.',
     why: 'A weekly night is the cheapest habit a server can build. Recurrence is also where events usually break: a cancelled week must not reappear when the next one is generated.',
     proof: ['Cancelling one week leaves the series and the other weeks intact.', 'RSVP counts reset per occurrence, not per series.'],
