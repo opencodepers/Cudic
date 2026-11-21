@@ -110,33 +110,33 @@ begin
     if v_old is not null then
       delete from public.project_votes
        where project_id = p_project and user_id = p_user and week_start = p_week;
-      update public.projects
-         set upvotes = greatest(0, upvotes - (case when v_old = 1 then 1 else 0 end)),
-             downvotes = greatest(0, downvotes - (case when v_old = -1 then 1 else 0 end)),
+      update public.projects as p
+         set upvotes = greatest(0, p.upvotes - (case when v_old = 1 then 1 else 0 end)),
+             downvotes = greatest(0, p.downvotes - (case when v_old = -1 then 1 else 0 end)),
              updated_at = now()
-       where id = p_project;
+       where p.id = p_project;
     end if;
   elsif v_old is null then
     insert into public.project_votes (project_id, user_id, vote, week_start)
     values (p_project, p_user, p_vote, p_week);
-    update public.projects
-       set upvotes = upvotes + (case when p_vote = 1 then 1 else 0 end),
-           downvotes = downvotes + (case when p_vote = -1 then 1 else 0 end),
+    update public.projects as p
+       set upvotes = p.upvotes + (case when p_vote = 1 then 1 else 0 end),
+           downvotes = p.downvotes + (case when p_vote = -1 then 1 else 0 end),
            updated_at = now()
-     where id = p_project;
+     where p.id = p_project;
   else
     update public.project_votes
        set vote = p_vote, updated_at = now()
      where project_id = p_project and user_id = p_user and week_start = p_week;
-    update public.projects
-       set upvotes = greatest(0, upvotes
+    update public.projects as p
+       set upvotes = greatest(0, p.upvotes
              + (case when p_vote = 1 then 1 else 0 end)
              - (case when v_old = 1 then 1 else 0 end)),
-           downvotes = greatest(0, downvotes
+           downvotes = greatest(0, p.downvotes
              + (case when p_vote = -1 then 1 else 0 end)
              - (case when v_old = -1 then 1 else 0 end)),
            updated_at = now()
-     where id = p_project;
+     where p.id = p_project;
   end if;
 
   return query
@@ -149,7 +149,7 @@ begin
       coalesce((
         select pv2.vote
           from public.project_votes pv2
-         where pv2.project_id = p.id
+         where pv2.project_id = p_project
            and pv2.user_id = p_user
            and pv2.week_start = p_week
       ), 0)::smallint

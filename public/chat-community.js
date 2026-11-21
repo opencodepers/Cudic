@@ -60,7 +60,7 @@
       html += '<span style="display:inline-flex;align-items:center;gap:2px">'
         + '<button type="button" class="btn btn-secondary" data-cc-filter="' + esc(f.id) + '" style="padding:3px 8px;font-size:0.72rem' + (active === f.id ? ';border-color:var(--signal)' : '') + '">'
         + esc(f.name) + ' ' + n + '</button>'
-        + '<button type="button" title="Delete folder" data-cc-del="' + esc(f.id) + '" style="background:none;border:0;color:var(--text-tertiary);cursor:pointer;font-size:0.7rem">×</button></span>';
+        + '<button type="button" title="Delete folder" aria-label="Delete folder" data-cc-del="' + esc(f.id) + '" style="background:none;border:0;color:var(--text-tertiary);cursor:pointer"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></span>';
     });
     html += '</div>';
     if (dm) {
@@ -70,7 +70,7 @@
       folders.forEach(function (f) {
         var inside = items.some(function (i) { return i.folder_id === f.id && i.lobby_id === cur.id; });
         html += '<button type="button" class="btn btn-secondary" data-cc-file="' + esc(f.id) + '" data-cc-in="' + (inside ? '1' : '0') + '" style="padding:3px 8px;font-size:0.72rem">'
-          + (inside ? '✓ ' : '+ ') + esc(f.name) + '</button>';
+          + (inside ? '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg> ' : '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> ') + esc(f.name) + '</button>';
       });
       html += '</div>';
       html += '<button type="button" class="btn btn-secondary" data-cc="card" style="padding:4px 9px;font-size:0.74rem">Open profile card</button>';

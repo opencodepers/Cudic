@@ -151,6 +151,10 @@
         .features .feat:nth-child(4){transition-delay:160ms}
         .features .feat:nth-child(5){transition-delay:200ms}
         .features .feat:nth-child(6){transition-delay:240ms}
+        .features .feat:nth-child(7){transition-delay:280ms}
+        .features .feat:nth-child(8){transition-delay:320ms}
+        .features .feat:nth-child(9){transition-delay:360ms}
+        .features .feat:nth-child(10){transition-delay:400ms}
         section.block .kick{display:flex;align-items:center;gap:8px;font-family:"Geist Mono",ui-monospace,monospace;font-size:11px;color:var(--mute);letter-spacing:.08em;text-transform:uppercase;margin:0 0 10px}
         section.block .kick img{width:14px;height:14px;display:block;image-rendering:pixelated}
         section.block h2{font-weight:500;font-size:2rem;letter-spacing:-.02em;margin:0 0 12px;text-wrap:balance}
@@ -357,8 +361,26 @@
         </section>
 
         <section class="block">
+            <p class="kick"><img src="/cudic-assets/icons/svg/game/gamepad.svg" alt="">Servers</p>
+            <h2 data-n="04">Inside a server</h2>
+            <p class="lead2">Ten server moves that are already live: a public front door, an ordered channel list, and the tools an owner actually needs.</p>
+            <div class="features">
+                <div class="feat"><span class="mono">PREVIEW</span><h3>See the room first</h3><p>A public preview page with the channels, rules, upcoming events and one Join button. Private channels never reach it.</p></div>
+                <div class="feat"><span class="mono">WELCOME</span><h3>A page, not a modal</h3><p>An invite opens a real welcome page: banner, tags, rules and a single Join button at the end. Same gate, better front door.</p></div>
+                <div class="feat"><span class="mono">JOIN</span><h3>Ask before you let them in</h3><p>Up to three questions at the door. Answers go to the owner and mods, and leave with the membership.</p></div>
+                <div class="feat"><span class="mono">ORDER</span><h3>Arrange the rail</h3><p>Channels and folders move in the order the room reads. Each move saves on its own row, so two mods cannot overwrite each other.</p></div>
+                <div class="feat"><span class="mono">TAGS</span><h3>Tags that filter</h3><p>Three short tags per channel, twelve characters each and sanitised like a name, filterable in the channel list.</p></div>
+                <div class="feat"><span class="mono">SPOTLIGHT</span><h3>Put a member on the wall</h3><p>A mod picks a member's creation and the server posts a card - only after that member opts in.</p></div>
+                <div class="feat"><span class="mono">LFG</span><h3>Fill the last slot</h3><p>A post carries the game, a start time, a slot count and a Join button. Members only, and no DMs until both sides opt in.</p></div>
+                <div class="feat"><span class="mono">CONNECT</span><h3>The address, in one click</h3><p>Owners set the game address and a note; the server card shows it with Copy, and listing it publicly is a separate choice.</p></div>
+                <div class="feat"><span class="mono">NIGHTS</span><h3>A night that recurs</h3><p>Weekly game nights with RSVP. Cancel one week and the series carries on; the cancelled week never comes back.</p></div>
+                <div class="feat"><span class="mono">MODERATION</span><h3>One desk for the queue</h3><p>Reports, resolved actions, slow mode and mutes on one page. It reads reports and actions only - never a DM.</p></div>
+            </div>
+        </section>
+
+        <section class="block">
             <p class="kick"><img src="/cudic-assets/icons/svg/files/file.svg" alt="">Resources</p>
-            <h2 data-n="04">Learn</h2>
+            <h2 data-n="05">Learn</h2>
             <p class="lead2">Step-by-step guides and full reference docs.</p>
             <div class="cards">
                 <a class="card" href="/cookbook/"><span class="mono">COOKBOOK</span><h3>Build real games</h3><p>Platformers, clickers, canvas art, cloud saves, and multiplayer — pasteable, runnable pages.</p></a>
@@ -368,7 +390,7 @@
         </section>
     <section class="block">
         <p class="kick"><img src="/cudic-assets/icons/svg/status/info.svg" alt="">About</p>
-        <h2 data-n="05">About Cudic</h2>
+        <h2 data-n="06">About Cudic</h2>
         <p class="lead2">Cudic is a place to hang out and a place to build. It combines a chat and community layer with a full browser-based game studio, a gallery of playable games, theme packs that restyle the whole site, and a small currency for rewarding the people who make things. Everything runs in the browser, so there is nothing to install, nothing to build, and nothing to host. You open a tab and start.</p>
         <p class="lead2">The studio is a real workbench, not a toy. It has a file explorer, editor tabs, a live preview that assembles your files into a working page, and a command palette for every action. You can write HTML, CSS, and JavaScript by hand, import existing files or whole folders, or bring a Scratch project across and keep editing it. Python runs in the browser through WebAssembly, and npm packages resolve from a public CDN, so the same code that works in the preview works in the published game.</p>
         <p class="lead2">Games publish to a shared gallery with permanent pages, card art, comments, likes, and remix. A game you publish can be forked by anyone, with credit carried up the chain forever. Progress saves follow the player's account across sessions and devices, and multiplayer rooms let people play together in real time without extra downloads or accounts at other services. Guests can play along, and signed-in players appear with their account name, which the server sets so nobody can fake it.</p>
@@ -376,7 +398,7 @@
 
     <section class="block">
         <p class="kick"><img src="/cudic-assets/icons/svg/status/help.svg" alt="">FAQ</p>
-        <h2 data-n="06">Frequently asked</h2>
+        <h2 data-n="07">Frequently asked</h2>
         <div class="cards">
             <div class="card"><span class="mono">Q</span><h3>Do I need to install anything?</h3><p>No. Cudic runs entirely in the browser. Open the site, sign in or continue as a guest, and start building or playing.</p></div>
             <div class="card"><span class="mono">Q</span><h3>Is it free?</h3><p>Yes. There is no paid tier and no subscription. Coins are earned, not bought, and theme packs are priced in coins.</p></div>

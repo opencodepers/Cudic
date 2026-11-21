@@ -58,8 +58,8 @@
     if (!box) return;
     box.innerHTML = order.map(function (k, i) {
       return '<div class="cz-layout-item"><span class="grow">' + (k === 'sidebar' ? 'Conversation list' : 'Message pane') + '</span>'
-        + '<button type="button" data-move="' + i + '" data-dir="-1" ' + (i === 0 ? 'disabled' : '') + '>↑</button>'
-        + '<button type="button" data-move="' + i + '" data-dir="1" ' + (i === order.length - 1 ? 'disabled' : '') + '>↓</button></div>';
+        + '<button type="button" data-move="' + i + '" data-dir="-1" aria-label="Move up" ' + (i === 0 ? 'disabled' : '') + '><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>'
+        + '<button type="button" data-move="' + i + '" data-dir="1" aria-label="Move down" ' + (i === order.length - 1 ? 'disabled' : '') + '><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button></div>';
     }).join('');
     box.querySelectorAll('[data-move]').forEach(function (b) {
       b.onclick = function () {
@@ -74,7 +74,7 @@
     var box = $('savedLayouts'), saved = (prefs.layout && prefs.layout.saved) || {};
     var keys = Object.keys(saved);
     box.innerHTML = keys.length ? keys.map(function (k) {
-      return '<div class="cz-list-row"><span class="grow">' + esc(k) + '</span><button type="button" data-apply="' + esc(k) + '">Apply</button><button type="button" data-del="' + esc(k) + '">×</button></div>';
+      return '<div class="cz-list-row"><span class="grow">' + esc(k) + '</span><button type="button" data-apply="' + esc(k) + '">Apply</button><button type="button" data-del="' + esc(k) + '" aria-label="Delete saved layout"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>';
     }).join('') : '<div style="color:var(--text-tertiary)">No named layouts.</div>';
     box.querySelectorAll('[data-apply]').forEach(function (b) {
       b.onclick = function () { order = (saved[b.getAttribute('data-apply')] || ['sidebar', 'main']).slice(); paintOrder(); cache(); };
@@ -135,7 +135,7 @@
       $('themeList').innerHTML = rows.length ? rows.map(function (t) {
         return '<div class="cz-list-row"><span style="width:16px;height:16px;border-radius:4px;background:' + esc((t.manifest && t.manifest.accent) || '#888') + '"></span>'
           + '<span class="grow">' + esc(t.name) + '</span><button type="button" data-pub="' + t.id + '" data-on="' + (t.published ? '1' : '0') + '">' + (t.published ? 'Unpublish' : 'Publish') + '</button>'
-          + '<button type="button" data-tdel="' + t.id + '">×</button></div>';
+          + '<button type="button" data-tdel="' + t.id + '" aria-label="Delete theme"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>';
       }).join('') : '<div style="color:var(--text-tertiary)">No custom themes yet.</div>';
       $('themeList').querySelectorAll('[data-pub]').forEach(function (b) {
         b.onclick = async function () {
@@ -157,9 +157,9 @@
       $('widgetList').innerHTML = widgetRows.length ? widgetRows.map(function (w, i) {
         var label = w.kind + ': ' + (w.config && (w.config.text || w.config.label || w.config.code) || 'latest games');
         return '<div class="cz-list-row"><span class="grow">' + esc(label) + '</span>'
-          + '<button type="button" data-wmove="' + i + '" data-dir="-1" ' + (i === 0 ? 'disabled' : '') + '>↑</button>'
-          + '<button type="button" data-wmove="' + i + '" data-dir="1" ' + (i === widgetRows.length - 1 ? 'disabled' : '') + '>↓</button>'
-          + '<button type="button" data-wdel="' + w.id + '">×</button></div>';
+          + '<button type="button" data-wmove="' + i + '" data-dir="-1" aria-label="Move widget up" ' + (i === 0 ? 'disabled' : '') + '><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>'
+          + '<button type="button" data-wmove="' + i + '" data-dir="1" aria-label="Move widget down" ' + (i === widgetRows.length - 1 ? 'disabled' : '') + '><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button>'
+          + '<button type="button" data-wdel="' + w.id + '" aria-label="Delete widget"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>';
       }).join('') : '<div style="color:var(--text-tertiary)">No profile widgets.</div>';
       $('widgetList').querySelectorAll('[data-wmove]').forEach(function (b) {
         b.onclick = function () {

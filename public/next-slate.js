@@ -10,6 +10,7 @@
   var items = [
   {
     "n": 101,
+    "status": "partial",
     "title": "Custom server banners",
     "section": "Server customisation",
     "effort": "S",
@@ -80,6 +81,7 @@
   },
   {
     "n": 110,
+    "status": "added",
     "title": "Customisable server welcome page",
     "section": "Server customisation",
     "effort": "S–M",
@@ -90,6 +92,7 @@
   },
   {
     "n": 113,
+    "status": "added",
     "title": "Custom channel ordering",
     "section": "Channels and organisation",
     "effort": "S",
@@ -100,6 +103,7 @@
   },
   {
     "n": 114,
+    "status": "partial",
     "title": "Channel descriptions with images",
     "section": "Channels and organisation",
     "effort": "M",
@@ -140,6 +144,7 @@
   },
   {
     "n": 122,
+    "status": "modelled",
     "title": "Custom channel permissions",
     "section": "Channels and organisation",
     "effort": "L",
@@ -150,6 +155,7 @@
   },
   {
     "n": 123,
+    "status": "added",
     "title": "Channel tags",
     "section": "Channels and organisation",
     "effort": "S",
@@ -220,6 +226,7 @@
   },
   {
     "n": 138,
+    "status": "added",
     "title": "Community member spotlights",
     "section": "Member profiles and community",
     "effort": "S",
@@ -240,6 +247,7 @@
   },
   {
     "n": 141,
+    "status": "modelled",
     "title": "Server polls",
     "section": "Server engagement",
     "effort": "M",
@@ -370,6 +378,7 @@
   },
   {
     "n": 156,
+    "status": "added",
     "title": "Looking-for-group board",
     "section": "Gaming features",
     "effort": "M",
@@ -400,6 +409,7 @@
   },
   {
     "n": 160,
+    "status": "partial",
     "title": "Community gaming leaderboards",
     "section": "Gaming features",
     "effort": "M",
@@ -410,6 +420,7 @@
   },
   {
     "n": 162,
+    "status": "added",
     "title": "Game server connection info",
     "section": "Gaming features",
     "effort": "S",
@@ -420,6 +431,7 @@
   },
   {
     "n": 163,
+    "status": "modelled",
     "title": "Gaming screenshot galleries",
     "section": "Gaming features",
     "effort": "L",
@@ -470,6 +482,7 @@
   },
   {
     "n": 170,
+    "status": "added",
     "title": "Community game nights",
     "section": "Gaming features",
     "effort": "S",
@@ -490,6 +503,7 @@
   },
   {
     "n": 173,
+    "status": "modelled",
     "title": "Custom reaction sets",
     "section": "Messaging and interaction",
     "effort": "M",
@@ -500,6 +514,7 @@
   },
   {
     "n": 174,
+    "status": "modelled",
     "title": "Interactive message buttons",
     "section": "Messaging and interaction",
     "effort": "L",
@@ -510,6 +525,7 @@
   },
   {
     "n": 175,
+    "status": "modelled",
     "title": "Message polls",
     "section": "Messaging and interaction",
     "effort": "M",
@@ -520,6 +536,7 @@
   },
   {
     "n": 177,
+    "status": "partial",
     "title": "Pinned message collections",
     "section": "Messaging and interaction",
     "effort": "S–M",
@@ -550,6 +567,7 @@
   },
   {
     "n": 180,
+    "status": "modelled",
     "title": "Threaded conversations",
     "section": "Messaging and interaction",
     "effort": "L",
@@ -560,6 +578,7 @@
   },
   {
     "n": 184,
+    "status": "added",
     "title": "Server preview before joining",
     "section": "Server discovery and identity",
     "effort": "S–M",
@@ -610,6 +629,7 @@
   },
   {
     "n": 191,
+    "status": "added",
     "title": "Custom join questions",
     "section": "Server owner tools",
     "effort": "M",
@@ -630,6 +650,7 @@
   },
   {
     "n": 193,
+    "status": "added",
     "title": "Moderation dashboard",
     "section": "Server owner tools",
     "effort": "M",
@@ -680,6 +701,7 @@
   },
   {
     "n": 200,
+    "status": "partial",
     "title": "Server backup and restore",
     "section": "Server owner tools",
     "effort": "—",
@@ -711,15 +733,18 @@
     if (filter !== 'all' && effortGroup(item.effort) !== filter) return false;
     var q = query.trim().toLowerCase();
     if (!q) return true;
-    return [item.n, item.title, item.section, item.effort, item.what, item.needs, item.risk]
+    return [item.n, item.title, item.section, item.effort, item.what, item.needs, item.risk, item.status || '']
       .join(' ').toLowerCase().indexOf(q) !== -1;
   }
 
   function row(item) {
     return '<details class="nx-slate-item" data-plan="' + item.n + '">'
       + '<summary><span class="nx-slate-no">' + String(item.n) + '</span>'
-      + '<span class="nx-slate-copy"><span class="nx-slate-title">' + NX.esc(item.title) + '</span>'
-      + '<span class="nx-slate-meta">' + NX.esc(item.section) + ' · ' + NX.esc(item.effort) + (item.partial ? ' · partial' : '') + '</span></span>'
+      + '<span class="nx-slate-copy"><span class="nx-slate-title">' + NX.esc(item.title)
+      + (item.status === 'added' ? '<span class="nx-slate-flag added">Added</span>'
+        : item.status === 'partial' ? '<span class="nx-slate-flag partial">Partial</span>'
+        : item.status === 'modelled' ? '<span class="nx-slate-flag modelled">Modelled</span>' : '') + '</span>'
+      + '<span class="nx-slate-meta">' + NX.esc(item.section) + ' · ' + NX.esc(item.effort) + '</span></span>'
       + '<svg class="nx-slate-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 18 6-6-6-6"/></svg></summary>'
       + '<div class="nx-slate-body"><p>' + NX.esc(item.what) + '</p>'
       + '<dl class="nx-slate-facts"><div><dt>Needs</dt><dd>' + NX.esc(item.needs || 'Nothing') + '</dd></div><div><dt>Risk</dt><dd>' + NX.esc(item.risk) + '</dd></div></dl>'

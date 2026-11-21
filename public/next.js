@@ -198,10 +198,14 @@
     if (!index) return;
     var visible = features.filter(matches);
     var groups = [];
+    var byName = {};
     visible.forEach(function (feature) {
-      var group = groups[groups.length - 1];
-      if (!group || group.name !== feature.group) groups.push({ name: feature.group, items: [feature] });
-      else group.items.push(feature);
+      var group = byName[feature.group];
+      if (!group) {
+        group = byName[feature.group] = { name: feature.group, items: [] };
+        groups.push(group);
+      }
+      group.items.push(feature);
     });
     index.innerHTML = groups.map(function (group) {
       return '<div class="nx-group"><div class="nx-group-label">' + e(group.name) + '</div>'

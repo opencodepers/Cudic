@@ -175,7 +175,7 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();win
 <body data-page="games">
   <div class="game-layout page-panel"><div class="game-content" id="content" style="display:none">
     <div class="game-head">
-      <a class="btn btn-secondary" href="/games" style="padding:9px 14px">&larr; Gallery</a>
+      <a class="btn btn-secondary" href="/games" style="padding:9px 14px"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>Gallery</a>
       <h1 id="gameTitle">Loading…</h1>
       <span id="playtestBadge" class="live-pill" style="display:none">Playtest build</span>
       <div class="author"><div class="author-avatar" id="authorAvatar">?</div><span id="authorName"></span><button class="btn btn-secondary" id="followAuthorBtn" style="display:none;padding:5px 12px;font-size:0.72rem" title="Follow this creator — their new games land on your homepage shelf">Follow</button></div>
@@ -191,7 +191,7 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();win
       <button class="btn btn-secondary" id="collBtn" style="display:none">Save</button>
       <button class="btn btn-secondary" id="inviteBtn" style="display:none" title="Invite a friend into your multiplayer room">Invite</button>
       <div data-island="report-button" id="islReportSlot" style="display:none"></div>
-      <button class="btn btn-secondary" id="jamBtn" style="display:none" title="Vote for this game in this week's jam">⬆ <span id="jamCount">0</span></button>
+      <button class="btn btn-secondary" id="jamBtn" style="display:none" title="Vote for this game in this week's jam" aria-label="Vote for this game in this week's jam"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:4px"><path d="M7 10v11H4V10h3Zm0 0 4-8a2 2 0 0 1 3 2v4h5a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 18 19h-5"/></svg><span id="jamCount">0</span></button>
       <button class="btn btn-secondary" id="likeBtn" style="display:none" title="Like this game">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:-2px"><path d="M12 20s-7-4.6-7-9.3A4.2 4.2 0 0 1 12 8a4.2 4.2 0 0 1 7 2.7C19 15.4 12 20 12 20Z"/></svg>
         <span id="likeCount">0</span>
@@ -590,7 +590,7 @@ setInterval(function () {
                     .then(function (d2) {
                       invitings = false; b.disabled = false;
                       if (d2.error) { alert(d2.error); return; }
-                      b.textContent = 'Sent ✓';
+                      b.textContent = 'Sent';
                       setTimeout(function () { b.textContent = 'Invite'; }, 1600);
                     })
                     .catch(function () { invitings = false; b.disabled = false; });
@@ -940,7 +940,7 @@ setInterval(function () {
       var btn = document.getElementById('followAuthorBtn');
       if (!btn || !author.id) return;
       var viewerFollows = false;
-      function paint() { btn.textContent = viewerFollows ? 'Following ✓' : 'Follow'; btn.style.display = ''; }
+      function paint() { btn.innerHTML = viewerFollows ? 'Following <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-left:4px"><path d="M20 6 9 17l-5-5"/></svg>' : 'Follow'; btn.style.display = ''; }
       getSession().then(function (s) {
         if (s && s.uid === author.id) return; // your own game: no follow yourself
         if (!s) { paint(); return; }
@@ -972,7 +972,9 @@ setInterval(function () {
       var voted = false;
       function paint(v) {
         cnt.textContent = v.count;
-        btn.innerHTML = v.voted ? '✓ Voted · ' + v.count : '⬆ Vote · ' + v.count;
+        btn.innerHTML = v.voted
+          ? '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:4px"><path d="M20 6 9 17l-5-5"/></svg>Voted · ' + v.count
+          : '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:4px"><path d="M7 10v11H4V10h3Zm0 0 4-8a2 2 0 0 1 3 2v4h5a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 18 19h-5"/></svg>Vote · ' + v.count;
         voted = !!v.voted;
         btn.style.display = '';
       }
@@ -1644,8 +1646,9 @@ setInterval(function () {
           go.className = 'btn btn-primary';
           go.style.cssText = 'margin-left:12px;padding:6px 14px;font-size:0.8rem;text-decoration:none';
           var x = document.createElement('button');
-          x.textContent = '×'; x.setAttribute('aria-label', 'Dismiss');
-          x.style.cssText = 'background:none;border:none;color:var(--text-tertiary);font-size:1rem;cursor:pointer;margin-left:8px';
+          x.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>';
+          x.setAttribute('aria-label', 'Dismiss');
+          x.style.cssText = 'display:inline-flex;align-items:center;background:none;border:none;color:var(--text-tertiary);cursor:pointer;margin-left:8px';
           x.onclick = function () { n.remove(); };
           n.appendChild(sp); n.appendChild(go); n.appendChild(x);
           document.body.appendChild(n);

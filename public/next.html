@@ -6,14 +6,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Next — Cudic</title>
-  <meta name="description" content="Cudic Next: thirty working models plus the unshipped server slate for chat, trust and server communities.">
+  <meta name="description" content="Cudic Next: forty working models plus the unshipped server slate for chat, trust and server communities.">
   <meta name="robots" content="noindex">
   <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
   <link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
   <link rel="stylesheet" href="/sidebar.css?v=25">
-  <link rel="stylesheet" href="/next.css?v=4">
+  <link rel="stylesheet" href="/next.css?v=5">
 <link rel="stylesheet" href="/mobile.css?v=1">
 </head>
 <body data-page="next">
@@ -21,7 +21,7 @@
   <header class="topbar nx-topbar">
     <h1>Next</h1>
     <div class="nx-top-actions">
-      <span class="nx-status"><span class="nx-status-dot" aria-hidden="true"></span>30 working models · 68 on the slate</span>
+      <span class="nx-status"><span class="nx-status-dot" aria-hidden="true"></span>40 working models · 68 on the slate</span>
       <button class="btn btn-secondary nx-reset" id="nxReset" type="button">Reset models</button>
     </div>
   </header>
@@ -31,11 +31,11 @@
       <div class="nx-intro-copy">
         <p class="nx-eyebrow">Product model · 2026</p>
         <h2 id="nxIntroTitle">Make the room feel alive.</h2>
-        <p class="nx-lede">Thirty working models across chat and servers, arranged by the job they do. Pick one, use it, and read the ship gate beside it. The 68 unshipped server moves that do not have a model yet are indexed below, with their dependency and risk.</p>
+        <p class="nx-lede">Forty working models across chat and servers, arranged by the job they do. Pick one, use it, and read the ship gate beside it. The 68 unshipped or partial server moves are indexed below with their dependency and risk, and the ten that now have a model are flagged Added.</p>
       </div>
       <dl class="nx-intro-stats" aria-label="Scope">
         <div><dt>15</dt><dd>chat &amp; community</dd></div>
-        <div><dt>15</dt><dd>server</dd></div>
+        <div><dt>25</dt><dd>server</dd></div>
         <div><dt>2</dt><dd>foundations first</dd></div>
         <div><dt>68</dt><dd>on the server slate</dd></div>
       </dl>
@@ -57,12 +57,12 @@
           <label class="nx-sr" for="nxSearch">Search features</label>
           <div class="nx-search">
             <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            <input id="nxSearch" type="search" placeholder="Search the thirty" autocomplete="off">
+            <input id="nxSearch" type="search" placeholder="Search the forty" autocomplete="off">
           </div>
           <div class="nx-seg" role="tablist" aria-label="Filter features">
-            <button type="button" role="tab" data-filter="all" aria-selected="true">All <span>30</span></button>
+            <button type="button" role="tab" data-filter="all" aria-selected="true">All <span>40</span></button>
             <button type="button" role="tab" data-filter="chat" aria-selected="false">Chat <span>15</span></button>
-            <button type="button" role="tab" data-filter="server" aria-selected="false">Server <span>15</span></button>
+            <button type="button" role="tab" data-filter="server" aria-selected="false">Server <span>25</span></button>
           </div>
         </div>
         <nav class="nx-index" id="nxIndex" aria-label="Feature list"></nav>
@@ -80,7 +80,7 @@
         <div>
           <p class="nx-eyebrow">The rest of the server slate</p>
           <h2 id="nxSlateTitle">Still to ship.</h2>
-          <p class="nx-slate-lede">The 15 server models above cover the unshipped items that already have a shape. These 68 are the other unshipped or partial server moves in the plan — read them, search them, and open one for its dependency and risk.</p>
+          <p class="nx-slate-lede">The 25 server models above cover the moves that already have a shape. These 68 are the remaining unshipped or partial server items — read them, search them, and open one for its dependency and risk. Added means a working model exists above; Modelled means an existing chat specimen already covers the shape.</p>
         </div>
         <div class="nx-slate-tools">
           <label class="nx-sr" for="nxSlateSearch">Search the unshipped server slate</label>
@@ -104,7 +104,7 @@
 
     <footer class="nx-foot">
       <p><b>Model, not migration.</b> The specimens write to this browser so you can test the shape without touching a live server. Comments are the exception: they are shared and saved so the feedback reaches us. The production path and the gate are on each specimen.</p>
-      <p class="nx-foot-mono">cudic next · 30 moves + 68 on the slate · built to be judged</p>
+      <p class="nx-foot-mono">cudic next · 40 moves + 68 on the slate · built to be judged</p>
     </footer>
   </main>
 </div>
@@ -114,10 +114,10 @@
 <script src="/config.js"></script>
 <script src="/auth.js"></script>
 <script src="/sidebar.js?v=32"></script>
-<script src="/next-core.js?v=2"></script>
+<script src="/next-core.js?v=3"></script>
 <script src="/next-chat.js?v=2"></script>
-<script src="/next-server.js?v=2"></script>
-<script src="/next.js?v=3"></script>
-<script src="/next-slate.js?v=1"></script>
+<script src="/next-server.js?v=3"></script>
+<script src="/next.js?v=4"></script>
+<script src="/next-slate.js?v=2"></script>
 </body>
 </html>

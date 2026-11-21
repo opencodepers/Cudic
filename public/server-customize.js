@@ -30,6 +30,7 @@
     var app = results[0], ch = results[1], fo = results[2], ba = results[3], cm = results[4], we = results[5], me = results[6];
     $('srvAccent').value = (app.theme && app.theme.accent) || '#FF8C1A';
     $('srvBanner').value = (app.theme && app.theme.background) || '';
+    $('srvHeaderBanner').value = (app.theme && app.theme.banner) || '';
     paintPreview();
     channels = ch.channels || []; folders = fo.folders || []; badges = ba.badges || [];
     commands = cm.commands || []; members = me.members || [];
@@ -40,13 +41,18 @@
   }
   function paintPreview() {
     var bg = $('srvBanner').value.trim();
-    $('srvPreview').style.backgroundImage = bg ? 'linear-gradient(rgba(13,14,16,.68),rgba(13,14,16,.68)),url("' + bg.replace(/"/g, '') + '")' : 'linear-gradient(90deg,' + $('srvAccent').value + ' 0 18%,var(--panel-raised) 18%)';
+    var header = $('srvHeaderBanner').value.trim();
+    var accent = $('srvAccent').value;
+    $('srvPreview').style.backgroundImage = bg ? 'linear-gradient(rgba(13,14,16,.68),rgba(13,14,16,.68)),url("' + bg.replace(/"/g, '') + '")' : 'linear-gradient(90deg,' + accent + ' 0 18%,var(--panel-raised) 18%)';
+    $('srvHeaderPreview').style.backgroundImage = header
+      ? 'linear-gradient(180deg,rgba(9,10,14,.12),rgba(9,10,14,.62)),url("' + header.replace(/"/g, '') + '")'
+      : 'linear-gradient(105deg,' + accent + ' 0%,rgba(24,20,40,.92) 55%,rgba(13,14,16,.96) 100%)';
   }
   function paintFolders() {
     var roots = folders.filter(function (f) { return !f.parent_id; });
     $('folderList').innerHTML = roots.length ? roots.map(function (f) {
       var kids = folders.filter(function (k) { return k.parent_id === f.id; });
-      return '<div class="cz-list-row"><span class="grow"><b>' + esc(f.name) + '</b>' + (kids.length ? ' · ' + kids.map(function (k) { return esc(k.name); }).join(', ') : '') + '</span><button type="button" data-fdel="' + f.id + '">×</button></div>';
+      return '<div class="cz-list-row"><span class="grow"><b>' + esc(f.name) + '</b>' + (kids.length ? ' · ' + kids.map(function (k) { return esc(k.name); }).join(', ') : '') + '</span><button type="button" data-fdel="' + f.id + '" aria-label="Delete folder"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>';
     }).join('') : '<div style="color:var(--text-tertiary)">No folders yet.</div>';
     $('folderList').querySelectorAll('[data-fdel]').forEach(function (b) { b.onclick = function () { delFolder(b.getAttribute('data-fdel')); }; });
     $('folderParent').innerHTML = '<option value="">Top level</option>' + roots.map(function (f) { return '<option value="' + f.id + '">' + esc(f.name) + '</option>'; }).join('');
@@ -59,13 +65,13 @@
   }
   function paintBadges() {
     $('badgeList').innerHTML = badges.length ? badges.map(function (b) {
-      return '<div class="cz-list-row"><span style="width:16px;height:16px;border-radius:50%;background:' + esc(b.colour) + ';display:inline-grid;place-items:center;font-size:10px">' + esc(b.icon) + '</span><span class="grow">' + esc(b.name) + '</span><button type="button" data-bdel="' + b.id + '">×</button></div>';
+      return '<div class="cz-list-row"><span style="width:16px;height:16px;border-radius:50%;background:' + esc(b.colour) + ';display:inline-grid;place-items:center;font-size:10px">' + esc(b.icon) + '</span><span class="grow">' + esc(b.name) + '</span><button type="button" data-bdel="' + b.id + '" aria-label="Delete badge"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>';
     }).join('') : '<div style="color:var(--text-tertiary)">No custom badges.</div>';
     $('badgeList').querySelectorAll('[data-bdel]').forEach(function (x) { x.onclick = function () { delBadge(x.getAttribute('data-bdel')); }; });
   }
   function paintCommands() {
     $('cmdList').innerHTML = commands.length ? commands.map(function (c) {
-      return '<div class="cz-list-row"><b style="font-family:var(--font-mono,monospace)">' + esc(c.trigger) + '</b><span class="grow">' + esc(c.response) + ' · ' + c.cooldown + 's</span><button type="button" data-cdel="' + c.id + '">×</button></div>';
+      return '<div class="cz-list-row"><b style="font-family:var(--font-mono,monospace)">' + esc(c.trigger) + '</b><span class="grow">' + esc(c.response) + ' · ' + c.cooldown + 's</span><button type="button" data-cdel="' + c.id + '" aria-label="Delete command"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>';
     }).join('') : '<div style="color:var(--text-tertiary)">No commands.</div>';
     $('cmdList').querySelectorAll('[data-cdel]').forEach(function (x) { x.onclick = function () { delCmd(x.getAttribute('data-cdel')); }; });
   }
@@ -79,9 +85,9 @@
     $('backServer').href = '/server/' + encodeURIComponent(SID);
     try { await loadAll(); $('scBody').hidden = false; }
     catch (e) { gate(e.message); return; }
-    $('srvAccent').oninput = paintPreview; $('srvBanner').oninput = paintPreview;
+    $('srvAccent').oninput = paintPreview; $('srvBanner').oninput = paintPreview; $('srvHeaderBanner').oninput = paintPreview;
     $('saveAppearance').onclick = async function () {
-      try { await req('/api/servers/' + SID + '/appearance', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accent: $('srvAccent').value, background: $('srvBanner').value.trim() }) }); msg('appearanceMsg', 'Appearance saved.'); }
+      try { await req('/api/servers/' + SID + '/appearance', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accent: $('srvAccent').value, background: $('srvBanner').value.trim(), banner: $('srvHeaderBanner').value.trim() }) }); msg('appearanceMsg', 'Appearance saved.'); }
       catch (e) { msg('appearanceMsg', e.message, true); }
     };
     $('addFolder').onclick = async function () {

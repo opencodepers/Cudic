@@ -115,7 +115,8 @@
     plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
     'arrow-left': '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
     'arrow-right': '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
-    alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>'
+    alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    grip: '<path d="M9 5h.01"/><path d="M9 12h.01"/><path d="M9 19h.01"/><path d="M15 5h.01"/><path d="M15 12h.01"/><path d="M15 19h.01"/>'
   };
   NX.icon = function (name) {
     var path = ICON_PATHS[name];
@@ -298,6 +299,35 @@
         { code: 'bug', glyph: '🐛' },
         { code: 'gg', glyph: '✅' }
       ]
+    },
+    preview: { joined: false, triedPrivate: false, banner: '#20334d' },
+    welcome: { banner: '#143327', rules: true },
+    joinq: { why: '', games: 'Mosslight', sent: false, modView: false },
+    order: {
+      list: ['#general', '#build-log', '#art', '#staff', '#off-topic'],
+      last: ''
+    },
+    chantags: { on: ['build', 'help'] },
+    lfg: {
+      game: 'Neon Drift',
+      slots: '2',
+      joined: [],
+      posts: [
+        { id: 'l1', game: 'Neon Drift', when: 'Tonight · 20:00 GMT', have: 2, need: 4, by: 'Theo' },
+        { id: 'l2', game: 'Mosslight SMP', when: 'Sat · 18:00 GMT', have: 3, need: 3, by: 'Priya' }
+      ]
+    },
+    spotlight: { picked: '', posted: false, optedIn: true },
+    conn: { address: 'play.mosslight.gg', port: '25565', owner: true, listed: false },
+    nights: { rsvp: false, cancelled: false },
+    dash: {
+      slow: false,
+      open: [
+        { id: 'd1', kind: 'Link', target: '#general', by: 'auto-rule r1', age: '2m' },
+        { id: 'd2', kind: 'Spam', target: '#build-log', by: 'auto-rule r3', age: '9m' },
+        { id: 'd3', kind: 'Report', target: 'message · #art', by: 'Priya', age: '31m' }
+      ],
+      resolved: []
     }
   };
   NX.defaults = DEFAULTS;

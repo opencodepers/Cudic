@@ -196,7 +196,7 @@
                 } else if (token && !(d.top || []).length) {
                     document.getElementById('mineWrap').innerHTML = '';
                 } else if (token && d.me === null) {
-                    document.getElementById('mineWrap').innerHTML = '<div class="yourow"><div>You have no points yet this week</div><div><a href="/games" style="color:var(--signal,#b8f23a);text-decoration:none;font-weight:700">Get players →</a></div></div>';
+                    document.getElementById('mineWrap').innerHTML = '<div class="yourow"><div>You have no points yet this week</div><div><a href="/games" style="color:var(--signal,#b8f23a);text-decoration:none;font-weight:700">Get players <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-left:4px"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div></div>';
                 }
                 var past = document.getElementById('pastWinners');
                 past.innerHTML = '';

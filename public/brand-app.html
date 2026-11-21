@@ -6,8 +6,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="color-scheme" content="light dark" />
 <meta name="theme-color" content="#B0C4DE" />
-<title>Cudic — brand app, issue 01</title>
-<meta name="description" content="Cudic brand app — identity, colour, type, motion and voice. Self-contained single file." />
+<title>Cudic — brand sheet, issue 01 (archive)</title>
+<meta name="description" content="Cudic brand sheet, issue 01 — an archive of the pre-v2 orange-on-steel identity. Superseded by DESIGN.md v2 (ink, cream, lime)." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -98,21 +98,21 @@
   .rail-logo {
     width: 26px; height: 26px; margin: 2px auto 14px;
     border-radius: 6px; display: block; overflow: hidden;
-    text-decoration: none; will-change: transform;
+    text-decoration: none;
   }
   .rail-logo img { width: 100%; height: 100%; display: block; }
   .rail-nav { position: relative; display: flex; flex-direction: column; gap: 2px; }
   .rail-ind {
-    position: absolute; left: 0; top: 0; width: 3px; height: 38px;
-    background: var(--signal); pointer-events: none; will-change: transform;
+    position: absolute; left: 0; top: 0; width: 3px; height: 44px;
+    background: var(--signal); pointer-events: none;
   }
   .rail-link {
     position: relative; display: grid; place-items: center;
-    width: 100%; height: 38px; color: var(--ash);
+    width: 100%; height: 44px; color: var(--ash);
     text-decoration: none; border: 0; background: none; padding: 0;
     transition: background-color 180ms ease-out, color 180ms ease-out;
   }
-  .rail-link svg { width: 20px; height: 20px; will-change: transform; }
+  .rail-link svg { width: 20px; height: 20px; }
   .rail-link:hover { color: var(--white); background: var(--raise); }
   .rail-link.is-on { color: var(--signal); background: var(--tint); }
   .rail-link.is-on:hover { color: var(--signal); }
@@ -132,7 +132,6 @@
     box-shadow: 0 26px 70px -34px rgba(24, 38, 58, 0.55), 0 2px 6px rgba(24, 38, 58, 0.12);
     overflow: clip;
     position: relative;
-    will-change: transform, opacity;
   }
   .panel-h {
     position: sticky; top: 0; z-index: 5;
@@ -173,6 +172,11 @@
   .sec-h h2 { font-size: 26px; font-weight: 600; letter-spacing: -0.025em; }
   .lede { color: var(--ash); font-size: 15px; line-height: 1.6; max-width: 66ch; margin-bottom: 26px; text-wrap: pretty; }
   .lede b { color: var(--white); font-weight: 500; }
+  .archive-note {
+    margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--line);
+    max-width: 52ch; color: var(--ash); font-size: 11.5px; line-height: 1.65;
+  }
+  .archive-note code { font-family: var(--mono); font-size: 11px; color: var(--white); }
 
   /* ---------------- hero ---------------- */
   .hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); gap: 30px; align-items: start; }
@@ -247,8 +251,8 @@
   .mark-stage--light { background: var(--underground); }
   .mark-stage--dark { background: #1a1a1a; }
   .appicon {
-    width: 84px; height: 84px; border-radius: 18px; overflow: hidden;
-    display: block; will-change: transform;
+    width: 84px; height: 84px;    border-radius: 18px; overflow: hidden;
+    display: block;
   }
   .appicon img { width: 100%; height: 100%; display: block; }
   .mark-variants { display: flex; align-items: flex-start; gap: 26px; }
@@ -258,7 +262,7 @@
     text-transform: uppercase; color: #4a5c75;
   }
   .h-mark { width: 22px; height: 22px; border-radius: 5px; display: block; flex: none; }
-  .cube-big { width: 96px; height: 96px; color: var(--lime); will-change: transform; }
+  .cube-big { width: 96px; height: 96px; color: var(--lime); }
   .mark-cap { padding: 12px 14px; border-top: 1px solid var(--line); }
   .mark-cap b { display: block; font-size: 13.5px; font-weight: 500; margin-bottom: 2px; }
   .mark-cap span { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mute); }
@@ -268,7 +272,7 @@
   .sw {
     text-align: left; border: 1px solid var(--line); border-radius: var(--r-lg);
     background: var(--panel); padding: 0; overflow: hidden; cursor: pointer;
-    color: inherit; font-family: inherit; will-change: transform;
+    color: inherit; font-family: inherit;
   }
   .sw:hover { border-color: #4c4c4c; }
   .sw-chip { height: 84px; display: block; position: relative; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
@@ -329,7 +333,6 @@
     width: 44px; height: 44px; border-radius: 10px; background: var(--signal);
     display: grid; place-items: center; color: var(--on-signal);
     font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em;
-    will-change: transform;
   }
   .demo-rail { position: absolute; inset: 27px 8px auto; height: 1px; background: #3a3a3a; }
   .demo-acts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -655,9 +658,544 @@
   .part-stage { display: grid; place-items: center; padding: 22px 14px; background: #1e1e1e; }
   .part-cap { padding: 10px 12px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mute); }
 
+  /* ---------------- UI bench: motion studies + 30 small parts ---------------- */
+  .ui-sub { display: flex; align-items: baseline; gap: 12px; margin: 30px 0 7px; flex-wrap: wrap; }
+  .ui-sub h3 { font-size: 18px; font-weight: 600; letter-spacing: -.02em; }
+  .ui-sub p { color: var(--ash); font-size: 13px; line-height: 1.45; }
+  .ui-features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+  .ui-feature { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); overflow: hidden; display: grid; grid-template-rows: minmax(200px, 1fr) auto; }
+  .ui-feature-stage { position: relative; display: grid; place-items: center; min-height: 210px; padding: 22px; background: #1a1a1a; overflow: hidden; isolation: isolate; }
+  .ui-feature-stage::before { content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; background: radial-gradient(68% 76% at 50% 0%, rgba(255, 140, 26, .1), transparent 68%); }
+  .ui-feature-copy { display: grid; gap: 5px; padding: 13px 15px 15px; border-top: 1px solid var(--line); }
+  .ui-feature-copy .mono { color: var(--signal); font-size: 11px; }
+  .ui-feature-copy h3 { font-size: 15px; font-weight: 500; letter-spacing: -.01em; }
+  .ui-feature-copy p { font-size: 12.5px; line-height: 1.5; color: var(--ash); }
+  .ui-feature-copy code { font-family: var(--mono); font-size: 11px; color: var(--mute); letter-spacing: .04em; }
+
+  /* Study 1 — a real Lucide icon with four independent moving parts ------ */
+  .svg-scene { position: relative; z-index: 1; width: min(100%, 300px); height: auto; overflow: visible; color: var(--signal); }
+  .svg-scene:focus-visible { outline: 2px solid var(--signal); outline-offset: 8px; border-radius: 999px; }
+
+  .svg-scene .scene-halo { fill: url(#ui-halo); transform-box: view-box; transform-origin: 110px 70px; animation: ui-halo 5.6s ease-in-out infinite; }
+  .svg-scene .scene-ring { fill: none; stroke: #383838; stroke-width: 1; }
+  .svg-scene .scene-ring--dash { fill: none; stroke: #4c4c4c; stroke-width: 1; stroke-dasharray: 2 6; transform-box: view-box; transform-origin: 110px 70px; animation: ui-spin 30s linear infinite; }
+  .svg-scene .scene-arc { fill: none; stroke: var(--signal); stroke-width: 1.6; stroke-linecap: round; stroke-dasharray: 42 247; opacity: .5; transform-box: view-box; transform-origin: 110px 70px; animation: ui-spin 7s cubic-bezier(.45, 0, .55, 1) infinite; }
+  .svg-scene .scene-ripple { fill: none; stroke: var(--signal); stroke-width: 1; opacity: 0; transform-box: view-box; transform-origin: 110px 70px; animation: ui-ripple 4.2s cubic-bezier(.2, .7, .4, 1) infinite; }
+  .svg-scene .scene-ripple.is-two { animation-delay: 1.4s; }
+  .svg-scene .scene-ripple.is-three { animation-delay: 2.8s; }
+  .svg-scene .scene-orbit { transform-box: view-box; transform-origin: 110px 70px; animation: ui-spin 9s linear infinite; }
+  .svg-scene .scene-orbit circle { fill: var(--signal); }
+  .svg-scene .scene-orbit .trail { opacity: .38; }
+  .svg-scene .scene-orbit .trail--far { opacity: .15; }
+
+  .svg-scene .scene-mark { transform-box: view-box; transform-origin: 110px 70px; filter: drop-shadow(0 0 5px rgba(255, 140, 26, .16)); transition: transform 560ms cubic-bezier(.34, 1.45, .64, 1), filter 420ms ease-out; }
+  .svg-scene .mark-icon { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .svg-scene .mark-ghost { stroke: rgba(255, 255, 255, .09); stroke-width: 1.15; transition: stroke 420ms ease-out; }
+  .svg-scene .mark-draw { stroke: var(--signal); stroke-width: 1.15; }
+  .svg-scene .mark-draw > :is(path, circle) { stroke-dasharray: 1; stroke-dashoffset: 1; animation: ui-trace .68s cubic-bezier(.66, 0, .34, 1) both; }
+  .svg-scene .mark-draw > :nth-child(1) { animation-delay: .12s; }
+  .svg-scene .mark-draw > :nth-child(2) { animation-delay: .66s; }
+  .svg-scene .mark-draw > :nth-child(3) { animation-delay: .82s; }
+  .svg-scene .mark-draw > :nth-child(4) { animation-delay: .98s; }
+  .svg-scene .mark-chase { stroke: #ffe6c7; stroke-width: 1.15; opacity: 0; animation: ui-chase-in .6s ease-out 1.2s forwards; }
+  .svg-scene .mark-chase > :is(path, circle) { stroke-dasharray: .16 .84; animation: ui-chase 4.2s linear infinite; }
+  .svg-scene .mark-chase > :nth-child(2) { animation-delay: -.4s; }
+  .svg-scene .mark-chase > :nth-child(3) { animation-delay: -.9s; }
+  .svg-scene .mark-chase > :nth-child(4) { animation-delay: -1.5s; }
+
+  .svg-scene:hover .scene-mark, .svg-scene:focus-visible .scene-mark { transform: rotate(-2.5deg) scale(1.07); filter: drop-shadow(0 0 11px rgba(255, 140, 26, .5)); }
+  .svg-scene:hover .scene-arc, .svg-scene:focus-visible .scene-arc { animation-duration: 2.4s; opacity: .85; }
+  .svg-scene:hover .scene-orbit, .svg-scene:focus-visible .scene-orbit { animation-duration: 2.6s; }
+  .svg-scene:hover .scene-ring--dash, .svg-scene:focus-visible .scene-ring--dash { animation-duration: 8s; }
+  .svg-scene:hover .scene-ripple, .svg-scene:focus-visible .scene-ripple { animation-duration: 2.1s; }
+  .svg-scene:hover .mark-chase > :is(path, circle), .svg-scene:focus-visible .mark-chase > :is(path, circle) { animation-duration: 1.5s; }
+  .svg-scene:hover .mark-ghost, .svg-scene:focus-visible .mark-ghost { stroke: rgba(255, 255, 255, .16); }
+
+  @keyframes ui-spin { to { transform: rotate(360deg); } }
+  @keyframes ui-halo { 0%, 100% { opacity: .5; transform: scale(.94); } 50% { opacity: 1; transform: scale(1.05); } }
+  @keyframes ui-trace { to { stroke-dashoffset: 0; } }
+  @keyframes ui-chase { to { stroke-dashoffset: -1; } }
+  @keyframes ui-chase-in { to { opacity: .95; } }
+  @keyframes ui-ripple { 0% { transform: scale(.8); opacity: 0; } 14% { opacity: .34; } 100% { transform: scale(1.55); opacity: 0; } }
+
+  .icon-reveal-row { position: relative; z-index: 1; display: flex; gap: 9px; flex-wrap: wrap; justify-content: center; }
+  .icon-reveal { position: relative; width: 78px; height: 44px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: #242424; color: var(--ash); overflow: hidden; cursor: pointer; font: inherit; transition: border-color 180ms ease-out, background-color 180ms ease-out, color 180ms ease-out; }
+  .icon-reveal:hover, .icon-reveal:focus-visible { border-color: rgba(255, 140, 26, .55); background: var(--tint); color: var(--signal); }
+  .icon-reveal::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--signal); transform: scaleX(0); transform-origin: 0 50%; transition: transform 360ms cubic-bezier(.22, 1, .36, 1) 60ms; }
+  .icon-reveal .ir-icon, .icon-reveal .ir-label { position: absolute; inset: 0; display: grid; place-items: center; }
+  .icon-reveal .ir-icon { transition: opacity 200ms ease-out, transform 460ms cubic-bezier(.34, 1.4, .64, 1), filter 240ms ease-out; }
+  .icon-reveal .ir-icon svg { width: 19px; height: 19px; }
+  .icon-reveal .ir-label { opacity: 0; transform: translateY(10px) scale(.94); filter: blur(4px); color: var(--white); font: 500 11px/1.2 var(--sans); letter-spacing: -.01em; text-align: center; padding: 0 5px; transition: opacity 220ms ease-out 50ms, transform 460ms cubic-bezier(.22, 1, .36, 1) 50ms, filter 300ms ease-out 50ms; }
+  .icon-reveal:hover .ir-icon, .icon-reveal:focus-visible .ir-icon { opacity: 0; transform: translateY(-10px) rotate(-16deg) scale(.6); filter: blur(1.6px); }
+  .icon-reveal:hover .ir-label, .icon-reveal:focus-visible .ir-label { opacity: 1; transform: none; filter: none; }
+  .icon-reveal:hover::after, .icon-reveal:focus-visible::after { transform: scaleX(1); }
+
+  .ui-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+  .ui-bit { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); overflow: hidden; display: grid; grid-template-rows: minmax(96px, 1fr) auto; }
+  .ui-stage { position: relative; display: grid; place-items: center; min-height: 100px; padding: 14px; background: #1e1e1e; overflow: hidden; }
+  .ui-name { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 9px 11px; border-top: 1px solid var(--line); }
+  .ui-name b { font-size: 12px; font-weight: 500; letter-spacing: -.01em; }
+  .ui-name span { font: 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
+
+  .ui-toggle { width: 38px; height: 22px; padding: 2px; border: 1px solid #4a4a4a; border-radius: 999px; background: #333; cursor: pointer; transition: border-color 160ms ease-out, background-color 160ms ease-out; }
+  .ui-toggle span { display: block; width: 16px; height: 16px; border-radius: 50%; background: var(--ash); transition: transform 220ms cubic-bezier(.22, 1, .36, 1), background-color 220ms ease-out; }
+  .ui-toggle.is-on { border-color: rgba(255, 140, 26, .55); background: var(--tint); }
+  .ui-toggle.is-on span { transform: translateX(16px); background: var(--signal); }
+
+  .ui-check { display: flex; align-items: center; gap: 8px; color: var(--ash); font-size: 12px; cursor: pointer; }
+  .ui-check input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .ui-check .box { width: 17px; height: 17px; display: grid; place-items: center; border: 1px solid #4a4a4a; border-radius: 4px; transition: border-color 160ms ease-out, background-color 160ms ease-out; }
+  .ui-check .box svg { width: 12px; height: 12px; opacity: 0; stroke-dasharray: 20; stroke-dashoffset: 20; transition: opacity 120ms ease-out, stroke-dashoffset 220ms ease-out; }
+  .ui-check input:checked + .box { border-color: var(--signal); background: var(--signal); color: var(--on-signal); }
+  .ui-check input:checked + .box svg { opacity: 1; stroke-dashoffset: 0; }
+  .ui-check input:focus-visible + .box { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+  .ui-radio { display: flex; align-items: center; gap: 8px; color: var(--ash); font-size: 12px; cursor: pointer; }
+  .ui-radio input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .ui-radio .dot { width: 16px; height: 16px; display: grid; place-items: center; border: 1px solid #4a4a4a; border-radius: 50%; transition: border-color 160ms ease-out; }
+  .ui-radio .dot::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--signal); transform: scale(0); transition: transform 180ms cubic-bezier(.22, 1, .36, 1); }
+  .ui-radio input:checked + .dot { border-color: var(--signal); }
+  .ui-radio input:checked + .dot::after { transform: scale(1); }
+  .ui-radio input:focus-visible + .dot { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+  .ui-seg { display: flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 6px; background: #242424; }
+  .ui-seg button { padding: 5px 7px; border: 0; border-radius: 4px; background: none; color: var(--ash); font: 11px var(--mono); cursor: pointer; transition: color 140ms ease-out, background-color 140ms ease-out; }
+  .ui-seg button:hover { color: var(--white); }
+  .ui-seg button.is-on { background: var(--tint); color: var(--signal); }
+
+  .ui-search { width: 170px; display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: #242424; transition: border-color 160ms ease-out, box-shadow 160ms ease-out; }
+  .ui-search svg { width: 14px; height: 14px; flex: none; color: var(--mute); }
+  .ui-search input { width: 100%; min-width: 0; padding: 0; border: 0; outline: 0; background: none; color: var(--white); font: 12px var(--sans); }
+  .ui-search:focus-within { border-color: rgba(255, 140, 26, .6); box-shadow: 0 0 0 2px var(--tint); }
+
+  .ui-avatars { display: flex; padding-left: 7px; }
+  .ui-avatars span { width: 26px; height: 26px; margin-left: -7px; display: grid; place-items: center; border: 2px solid #1e1e1e; border-radius: 50%; background: #3a3a3a; color: var(--white); font: 10px var(--mono); }
+  .ui-avatars span:first-child { background: linear-gradient(135deg, #FFB057, var(--signal) 60%, #B85F00); color: var(--on-signal); }
+  .ui-avatars span:last-child { background: #242424; color: var(--ash); }
+
+  .ui-status { display: inline-flex; align-items: center; gap: 7px; color: var(--ash); font: 10px var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+  .ui-status i { width: 6px; height: 6px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 3px rgba(163, 230, 53, .12); animation: ui-pulse 1.8s ease-in-out infinite; }
+  @keyframes ui-pulse { 50% { box-shadow: 0 0 0 6px rgba(163, 230, 53, 0); } }
+
+  .ui-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border: 1px solid rgba(255, 140, 26, .4); border-radius: 999px; background: var(--tint); color: var(--signal); font: 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+  .ui-chip svg { width: 11px; height: 11px; }
+
+  .ui-progress { width: 150px; height: 6px; border-radius: 999px; background: #333; overflow: hidden; }
+  .ui-progress span { display: block; width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--signal), #FFC06A); transform: scaleX(.68); transform-origin: left; animation: ui-progress 2.8s ease-in-out infinite alternate; }
+  @keyframes ui-progress { to { transform: scaleX(.88); } }
+
+  .ui-skeleton { width: 160px; display: grid; gap: 6px; }
+  .ui-skeleton i { height: 7px; border-radius: 4px; background: linear-gradient(90deg, #333 25%, #474747 50%, #333 75%); background-size: 200% 100%; animation: ui-shimmer 1.7s linear infinite; }
+  .ui-skeleton i:nth-child(2) { width: 78%; }
+  .ui-skeleton i:nth-child(3) { width: 52%; }
+  @keyframes ui-shimmer { to { background-position: -200% 0; } }
+
+  .ui-toast { display: flex; align-items: center; gap: 7px; padding: 8px 10px; border: 1px solid #3d3d3d; border-radius: 7px; background: #111; color: var(--white); font-size: 11px; box-shadow: 0 14px 26px -18px rgba(0, 0, 0, .9); }
+  .ui-toast svg { width: 13px; height: 13px; color: var(--lime); }
+
+  .ui-bell { position: relative; width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 6px; background: #242424; color: var(--ash); cursor: pointer; }
+  .ui-bell svg { width: 15px; height: 15px; }
+  .ui-bell:hover { color: var(--white); border-color: #4a4a4a; }
+  .ui-badge { position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: var(--signal); color: var(--on-signal); font: 600 9px/16px var(--mono); text-align: center; }
+  .ui-dot { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--signal); box-shadow: 0 0 0 2px #242424; }
+
+  .ui-tip-wrap { position: relative; display: inline-flex; }
+  .ui-icon-btn { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 5px; background: #242424; color: var(--ash); cursor: pointer; }
+  .ui-icon-btn svg { width: 14px; height: 14px; }
+  .ui-tip { position: absolute; bottom: calc(100% + 6px); left: 50%; padding: 4px 7px; border: 1px solid #3d3d3d; border-radius: 5px; background: #111; color: var(--white); font: 10px var(--mono); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; opacity: 0; pointer-events: none; transform: translate(-50%, 4px); transition: opacity 150ms ease-out, transform 200ms cubic-bezier(.22, 1, .36, 1); }
+  .ui-tip-wrap:hover .ui-tip, .ui-tip-wrap:focus-within .ui-tip { opacity: 1; transform: translate(-50%, 0); }
+
+  .ui-select { display: flex; align-items: center; gap: 14px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: #242424; color: var(--white); font-size: 12px; cursor: pointer; }
+  .ui-select svg { width: 13px; height: 13px; color: var(--mute); transition: color 160ms ease-out, transform 200ms ease-out; }
+  .ui-select:hover svg { color: var(--signal); transform: rotate(180deg); }
+
+  .ui-crumbs { display: flex; align-items: center; gap: 6px; color: var(--mute); font-size: 11px; }
+  .ui-crumbs b { color: var(--white); font-weight: 500; }
+  .ui-crumbs svg { width: 11px; height: 11px; color: #555; }
+
+  .ui-pages { display: flex; align-items: center; gap: 3px; }
+  .ui-pages button { width: 24px; height: 24px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: #242424; color: var(--ash); font: 11px var(--mono); cursor: pointer; }
+  .ui-pages button:hover { color: var(--white); border-color: #4a4a4a; }
+  .ui-pages button.on { border-color: rgba(255, 140, 26, .5); background: var(--tint); color: var(--signal); }
+  .ui-pages svg { width: 11px; height: 11px; }
+
+  .ui-steps { display: flex; align-items: center; gap: 4px; color: var(--mute); font: 10px var(--mono); }
+  .ui-steps span { width: 20px; height: 20px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; }
+  .ui-steps span.on { border-color: var(--signal); background: var(--signal); color: var(--on-signal); }
+  .ui-steps i { width: 18px; height: 1px; background: var(--line); }
+
+  .ui-range { width: 160px; accent-color: var(--signal); }
+
+  .ui-stars { display: flex; gap: 2px; }
+  .ui-star { padding: 0; border: 0; background: none; color: #4a4a4a; cursor: pointer; line-height: 1; transition: color 150ms ease-out, transform 150ms ease-out; }
+  .ui-star svg { width: 16px; height: 16px; }
+  .ui-star.is-on { color: var(--signal); }
+  .ui-star:hover { color: #FFC06A; transform: translateY(-1px); }
+
+  .ui-empty { display: grid; justify-items: center; gap: 3px; color: var(--mute); text-align: center; }
+  .ui-empty svg { width: 22px; height: 22px; color: #555; }
+  .ui-empty b { color: var(--ash); font-size: 11px; font-weight: 500; }
+  .ui-empty span { font-size: 10px; }
+
+  .ui-kbd { display: inline-block; padding: 3px 6px; border: 1px solid #4a4a4a; border-bottom-width: 2px; border-radius: 4px; background: #2a2a2a; color: var(--ash); font: 10px var(--mono); }
+
+  .ui-copy { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 5px; background: #242424; color: var(--ash); font: 10px var(--mono); letter-spacing: .05em; text-transform: uppercase; cursor: pointer; }
+  .ui-copy svg { width: 12px; height: 12px; }
+  .ui-copy:hover { border-color: rgba(255, 140, 26, .5); color: var(--signal); }
+
+  .ui-spinner { width: 18px; height: 18px; animation: ui-spin 800ms linear infinite; }
+  .ui-spinner circle { fill: none; stroke: var(--signal); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 18 40; }
+  @keyframes ui-spin { to { transform: rotate(360deg); } }
+
+  .ui-acc { width: 170px; }
+  .ui-acc button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 8px; border: 1px solid var(--line); border-radius: 5px; background: #242424; color: var(--white); font: 11px var(--sans); cursor: pointer; }
+  .ui-acc button svg { width: 13px; height: 13px; color: var(--mute); transition: transform 180ms ease-out, color 180ms ease-out; }
+  .ui-acc button[aria-expanded="true"] svg { transform: rotate(180deg); color: var(--signal); }
+  .ui-acc-body { padding: 6px 8px; color: var(--ash); font-size: 10px; line-height: 1.45; }
+  .ui-acc-body[hidden] { display: none; }
+
+  .ui-tabs { display: flex; gap: 12px; border-bottom: 1px solid var(--line); padding-bottom: 5px; }
+  .ui-tabs button { position: relative; padding: 0; border: 0; background: none; color: var(--mute); font: 11px var(--sans); cursor: pointer; }
+  .ui-tabs button:hover { color: var(--white); }
+  .ui-tabs button.is-on { color: var(--white); }
+  .ui-tabs button.is-on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -6px; height: 2px; background: var(--signal); }
+
+  .ui-split { display: flex; }
+  .ui-split button { border: 1px solid var(--signal); background: var(--signal); color: var(--on-signal); font: 500 11px var(--sans); cursor: pointer; }
+  .ui-split button:first-child { padding: 7px 10px; border-radius: 5px 0 0 5px; }
+  .ui-split button:last-child { display: grid; place-items: center; padding: 7px 6px; border-left-color: rgba(27, 23, 18, .25); border-radius: 0 5px 5px 0; background: var(--signal-hover); }
+  .ui-split svg { width: 12px; height: 12px; }
+  .ui-split button:hover { background: var(--signal-hover); }
+
+  .ui-drop { display: flex; align-items: center; gap: 6px; padding: 9px 11px; border: 1px dashed #4a4a4a; border-radius: 6px; color: var(--mute); font-size: 11px; cursor: pointer; transition: border-color 160ms ease-out, color 160ms ease-out, background-color 160ms ease-out; }
+  .ui-drop svg { width: 14px; height: 14px; }
+  .ui-drop:hover, .ui-drop:focus-within { border-color: var(--signal); background: var(--tint); color: var(--signal); }
+
+  .ui-code { position: relative; width: 170px; padding: 9px 30px 9px 9px; border: 1px solid var(--line); border-radius: 6px; background: #151515; color: var(--ash); font: 10px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ui-code b { color: var(--signal); font-weight: 400; }
+  .ui-code .ui-copy { position: absolute; top: 3px; right: 3px; width: 24px; height: 24px; justify-content: center; padding: 0; border: 0; background: none; }
+
+  .ui-reaction { display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 999px; background: #2b2b2b; color: var(--white); font: 11px var(--mono); cursor: pointer; transition: border-color 160ms ease-out, background-color 160ms ease-out, transform 140ms ease-out; }
+  .ui-reaction svg { width: 13px; height: 13px; color: var(--signal); }
+  .ui-reaction[aria-pressed="true"] { border-color: rgba(255, 140, 26, .55); background: var(--tint); }  .ui-reaction:active { transform: scale(.96); }
+
+  /* second bench: inputs, menus, chat rows ------------------------------ */
+  .ui-num { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 6px; background: #242424; overflow: hidden; }
+  .ui-num button { width: 26px; height: 28px; display: grid; place-items: center; padding: 0; border: 0; background: none; color: var(--ash); cursor: pointer; transition: background-color 140ms ease-out, color 140ms ease-out; }
+  .ui-num button:hover { background: #2f2f2f; color: var(--signal); }
+  .ui-num svg { width: 11px; height: 11px; }
+  .ui-num output { min-width: 26px; text-align: center; font: 11px var(--mono); color: var(--white); }
+
+  .ui-field { position: relative; display: flex; align-items: center; width: 168px; border: 1px solid var(--line); border-radius: 6px; background: #1f1f1f; transition: border-color 160ms ease-out, box-shadow 160ms ease-out; }
+  .ui-field:focus-within { border-color: rgba(255, 140, 26, .6); box-shadow: 0 0 0 2px rgba(255, 140, 26, .16); }
+  .ui-field input { width: 100%; padding: 7px 9px; border: 0; background: none; color: var(--white); font: 11px var(--sans); outline: none; }
+  .ui-field input::-webkit-input-placeholder { color: var(--mute); }
+  .ui-field input::placeholder { color: var(--mute); }
+  .ui-field.is-error { border-color: #b04a2c; box-shadow: 0 0 0 2px rgba(176, 74, 44, .18); }
+  .ui-field.has-reveal input { padding-right: 30px; }
+  .ui-reveal { position: absolute; right: 4px; width: 22px; height: 22px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--mute); cursor: pointer; }
+  .ui-reveal:hover { color: var(--signal); }
+  .ui-reveal svg { width: 13px; height: 13px; }
+  .ui-reveal .eye-off, .ui-reveal[aria-pressed="true"] .eye { display: none; }
+  .ui-reveal[aria-pressed="true"] .eye-off { display: block; color: var(--signal); }
+
+  .ui-field.otp { width: auto; gap: 4px; padding: 5px 6px; }
+  .ui-field.otp input { width: 22px; height: 25px; padding: 0; border: 1px solid var(--line); border-radius: 4px; text-align: center; font: 11px var(--mono); }
+  .ui-field.otp input:focus { border-color: var(--signal); }
+
+  .ui-combo { position: relative; width: 168px; }
+  .ui-combo .ui-field { width: 100%; }
+  .ui-combo-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 3; padding: 4px; border: 1px solid #3d3d3d; border-radius: 6px; background: #151515; box-shadow: 0 16px 30px -18px #000; }
+  .ui-combo-list[hidden] { display: none; }
+  .ui-combo-list button { width: 100%; display: flex; align-items: center; gap: 6px; padding: 5px 6px; border: 0; border-radius: 4px; background: none; color: var(--ash); font: 11px var(--sans); text-align: left; cursor: pointer; }
+  .ui-combo-list button:hover, .ui-combo-list button[aria-selected="true"] { background: #262626; color: var(--white); }
+  .ui-combo-list button[hidden] { display: none; }
+  .ui-combo-list svg { width: 11px; height: 11px; color: var(--signal); opacity: 0; }
+  .ui-combo-list button[aria-selected="true"] svg { opacity: 1; }
+
+  .ui-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; width: 168px; min-height: 30px; padding: 4px 5px; border: 1px solid var(--line); border-radius: 6px; background: #1f1f1f; transition: border-color 160ms ease-out; }
+  .ui-tags:focus-within { border-color: rgba(255, 140, 26, .6); }
+  .ui-tags input { flex: 1; min-width: 54px; padding: 5px 2px; border: 0; background: none; color: var(--white); font: 10px var(--sans); outline: none; }
+  .ui-tags input::placeholder { color: var(--mute); }
+  .ui-tag { display: inline-flex; align-items: center; gap: 2px; padding: 2px 3px 2px 6px; border-radius: 4px; background: var(--tint); color: var(--signal); font: 10px var(--mono); }
+  .ui-tag button { width: 13px; height: 13px; display: grid; place-items: center; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; opacity: .7; }
+  .ui-tag button:hover { opacity: 1; }
+  .ui-tag svg { width: 9px; height: 9px; }
+
+  .ui-menu { position: relative; }
+  .ui-menu-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: #242424; color: var(--white); font: 11px var(--sans); cursor: pointer; }
+  .ui-menu-btn svg { width: 12px; height: 12px; color: var(--mute); transition: transform 180ms ease-out, color 180ms ease-out; }
+  .ui-menu-btn[aria-expanded="true"] { border-color: rgba(255, 140, 26, .5); color: var(--signal); }
+  .ui-menu-btn[aria-expanded="true"] svg { transform: rotate(180deg); color: var(--signal); }
+  .ui-menu-list { position: absolute; top: calc(100% + 4px); left: 0; z-index: 3; width: 138px; padding: 4px; border: 1px solid #3d3d3d; border-radius: 8px; background: #1a1a1a; box-shadow: 0 18px 30px -20px #000; }
+  .ui-menu-list[hidden] { display: none; }
+  .ui-menu-list button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 6px; border: 0; border-radius: 4px; background: none; color: var(--ash); font: 11px var(--sans); text-align: left; cursor: pointer; }
+  .ui-menu-list button:hover, .ui-menu-list button:focus-visible { background: #2a2a2a; color: var(--white); outline: none; }
+  .ui-menu-list small { font: 9px var(--mono); color: var(--mute); }
+
+  .ui-inline { display: inline-flex; align-items: center; gap: 6px; }
+  .ui-inline button { padding: 3px 5px; border: 1px dashed transparent; border-radius: 4px; background: none; color: var(--white); font: 12px var(--sans); cursor: text; }
+  .ui-inline button:hover, .ui-inline button:focus-visible { border-color: #4a4a4a; outline: none; }
+  .ui-inline input { width: 112px; padding: 3px 5px; border: 1px solid var(--signal); border-radius: 4px; background: #1f1f1f; color: var(--white); font: 12px var(--sans); outline: none; }
+  .ui-inline input[hidden], .ui-inline button[hidden] { display: none; }
+
+  .ui-banner { display: flex; align-items: center; gap: 7px; width: 178px; padding: 7px 8px; border: 1px solid rgba(255, 140, 26, .4); border-radius: 6px; background: var(--tint); color: var(--ash); font-size: 10.5px; line-height: 1.35; }
+  .ui-banner > svg { width: 13px; height: 13px; flex: none; color: var(--signal); }
+  .ui-banner[hidden] { display: none; }
+  .ui-banner > button { margin-left: auto; width: 16px; height: 16px; display: grid; place-items: center; flex: none; padding: 0; border: 0; border-radius: 3px; background: none; color: var(--mute); cursor: pointer; }
+  .ui-banner > button:hover { color: var(--white); background: #3a3a3a; }
+  .ui-banner > button svg { width: 10px; height: 10px; }
+  .ui-undo { padding: 3px 7px; border: 1px dashed #4a4a4a; border-radius: 999px; background: none; color: var(--mute); font: 9.5px var(--mono); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+  .ui-undo:hover { color: var(--signal); border-color: var(--signal); }
+  .ui-undo[hidden] { display: none; }
+
+  .ui-load { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 104px; padding: 7px 10px; border: 1px solid var(--signal); border-radius: 6px; background: var(--signal); color: var(--on-signal); font: 500 11px var(--sans); cursor: pointer; transition: background-color 200ms ease-out, border-color 200ms ease-out, color 200ms ease-out; }
+  .ui-load svg { width: 12px; height: 12px; }
+  .ui-load .spin { display: none; width: 11px; height: 11px; border: 1.6px solid rgba(27, 23, 18, .3); border-top-color: var(--on-signal); border-radius: 50%; animation: ui-spin 700ms linear infinite; }
+  .ui-load .tick { display: none; }
+  .ui-load[data-state="loading"] .spin { display: block; }
+  .ui-load[data-state="done"] { background: transparent; border-color: rgba(163, 230, 53, .5); color: var(--lime); }
+  .ui-load[data-state="done"] .tick { display: block; }
+
+  .ui-error { width: 172px; display: grid; gap: 4px; }
+  .ui-error .ui-field { width: 100%; }
+  .ui-error-msg { display: flex; align-items: center; gap: 4px; font: 9.5px var(--mono); color: #e2775a; }
+  .ui-error-msg[hidden] { display: none; }
+  .ui-error-msg svg { width: 10px; height: 10px; flex: none; }
+  .ui-error-msg button { margin-left: auto; padding: 1px 5px; border: 1px solid currentColor; border-radius: 3px; background: none; color: inherit; font: 9px var(--mono); cursor: pointer; }
+  .ui-error-msg button:hover { color: var(--signal); }
+
+  .ui-poll { width: 178px; display: grid; gap: 5px; }
+  .ui-poll button { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 5px; background: #242424; color: var(--ash); font: 10.5px var(--sans); cursor: pointer; overflow: hidden; }
+  .ui-poll button i { position: absolute; inset: 0; transform: scaleX(var(--p, 0)); transform-origin: left; background: var(--tint); transition: transform 420ms cubic-bezier(.22, 1, .36, 1); }
+  .ui-poll button b, .ui-poll button span { position: relative; font-weight: 500; }
+  .ui-poll button span { font: 10px var(--mono); color: var(--mute); }
+  .ui-poll button[aria-pressed="true"] { border-color: rgba(255, 140, 26, .55); color: var(--white); }
+  .ui-poll button[aria-pressed="true"] span { color: var(--signal); }
+
+  .ui-msg { width: 182px; display: grid; gap: 4px; }
+  .ui-msg .bubble { padding: 6px 8px; border-radius: 9px 9px 9px 3px; background: #2c2c2c; color: var(--white); font-size: 10.5px; line-height: 1.4; }
+  .ui-msg .row { display: flex; gap: 3px; opacity: 0; transform: translateY(-2px); transition: opacity 150ms ease-out, transform 180ms ease-out; }
+  .ui-msg:hover .row, .ui-msg:focus-within .row { opacity: 1; transform: none; }
+  .ui-msg .row button { width: 20px; height: 20px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: #242424; color: var(--mute); cursor: pointer; }
+  .ui-msg .row button:hover { color: var(--signal); border-color: rgba(255, 140, 26, .5); }
+  .ui-msg .row svg { width: 11px; height: 11px; }
+
+  .ui-typing { display: inline-flex; align-items: center; gap: 3px; padding: 8px 9px; border-radius: 9px 9px 9px 3px; background: #2c2c2c; }
+  .ui-typing i { width: 4px; height: 4px; border-radius: 50%; background: var(--ash); animation: ui-typing 1.2s ease-in-out infinite; }
+  .ui-typing i:nth-child(2) { animation-delay: .16s; }
+  .ui-typing i:nth-child(3) { animation-delay: .32s; }
+  @keyframes ui-typing { 0%, 60%, 100% { transform: translateY(0); opacity: .45; } 30% { transform: translateY(-3px); opacity: 1; } }
+
+  .ui-link { width: 180px; display: grid; gap: 4px; padding: 7px 8px; border: 1px solid var(--line); border-left: 2px solid var(--signal); border-radius: 6px; background: #1f1f1f; text-align: left; cursor: pointer; transition: background-color 160ms ease-out, border-color 160ms ease-out; }
+  .ui-link:hover, .ui-link:focus-visible { background: #262626; outline: none; border-color: rgba(255, 140, 26, .45); }
+  .ui-link small { display: flex; align-items: center; gap: 4px; font: 9px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
+  .ui-link small svg { width: 10px; height: 10px; color: var(--signal); }
+  .ui-link b { font-size: 10.5px; font-weight: 500; color: var(--white); }
+  .ui-link span { font-size: 9.5px; color: var(--ash); }
+
+  .ui-attach { display: flex; align-items: center; gap: 7px; width: 180px; padding: 6px 7px; border: 1px solid var(--line); border-radius: 6px; background: #242424; }
+  .ui-attach[hidden] { display: none; }
+  .ui-attach > svg { width: 14px; height: 14px; flex: none; color: var(--signal); }
+  .ui-attach .meta { display: grid; gap: 1px; min-width: 0; }
+  .ui-attach b { font-size: 10px; font-weight: 500; color: var(--white); }
+  .ui-attach span { font: 9px var(--mono); color: var(--mute); }
+  .ui-attach button { margin-left: auto; width: 18px; height: 18px; display: grid; place-items: center; flex: none; padding: 0; border: 0; border-radius: 3px; background: none; color: var(--mute); cursor: pointer; }
+  .ui-attach button:hover { color: #e2775a; background: #2f2f2f; }
+  .ui-attach button svg { width: 11px; height: 11px; color: inherit; }
+
+  .ui-tr { width: 186px; display: grid; grid-template-columns: 1fr auto 36px; align-items: center; gap: 6px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 5px; background: #242424; font-size: 10.5px; }
+  .ui-tr span { color: var(--white); }
+  .ui-tr em { font: 9px var(--mono); font-style: normal; color: var(--mute); }
+  .ui-tr .acts { display: flex; justify-content: flex-end; opacity: 0; transition: opacity 150ms ease-out; }
+  .ui-tr:hover .acts, .ui-tr:focus-within .acts { opacity: 1; }
+  .ui-tr .acts button { width: 17px; height: 17px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 3px; background: none; color: var(--mute); cursor: pointer; }
+  .ui-tr .acts button:hover { color: var(--signal); background: #2d2d2d; }
+  .ui-tr .acts svg { width: 11px; height: 11px; }
+
+  .ui-sort { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border: 0; border-radius: 4px; background: none; color: var(--ash); font: 11px var(--sans); cursor: pointer; }
+  .ui-sort:hover, .ui-sort:focus-visible { color: var(--white); background: #262626; outline: none; }
+  .ui-sort svg { width: 11px; height: 11px; color: var(--mute); transition: color 160ms ease-out, transform 220ms cubic-bezier(.22, 1, .36, 1); }
+  .ui-sort[data-dir="asc"] svg { color: var(--signal); transform: rotate(180deg); }
+  .ui-sort[data-dir="desc"] svg { color: var(--signal); }
+
+  .ui-swatches { display: flex; gap: 5px; }
+  .ui-swatches button { width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: var(--sw); cursor: pointer; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .3); transition: transform 160ms cubic-bezier(.22, 1, .36, 1), box-shadow 160ms ease-out; }
+  .ui-swatches button:hover { transform: scale(1.12); }
+  .ui-swatches button[aria-pressed="true"] { transform: scale(1.06); box-shadow: 0 0 0 2px #1e1e1e, 0 0 0 3px var(--signal); }
+
+  .ui-filters { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; max-width: 178px; }
+  .ui-filters button { padding: 3px 7px; border: 1px solid var(--line); border-radius: 999px; background: #242424; color: var(--mute); font: 9.5px var(--mono); letter-spacing: .04em; cursor: pointer; transition: border-color 140ms ease-out, background-color 140ms ease-out, color 140ms ease-out; }
+  .ui-filters button:hover { color: var(--white); }
+  .ui-filters button[aria-pressed="true"] { border-color: rgba(255, 140, 26, .55); background: var(--tint); color: var(--signal); }
+
+  .ui-quota { width: 168px; display: grid; gap: 5px; }
+  .ui-quota .seats { display: flex; gap: 3px; }
+  .ui-quota .seats button { flex: 1; height: 16px; padding: 0; border: 1px solid #4a4a4a; border-radius: 3px; background: #262626; cursor: pointer; transition: background-color 140ms ease-out, border-color 140ms ease-out; }
+  .ui-quota .seats button:hover { border-color: var(--signal); }
+  .ui-quota .seats button.on { border-color: var(--signal); background: var(--signal); }
+  .ui-quota small { display: flex; justify-content: space-between; font: 9px var(--mono); letter-spacing: .07em; text-transform: uppercase; color: var(--mute); }
+  .ui-quota small b { color: var(--ash); font-weight: 400; }
+
+  /* ---------------- motion polish: nothing snaps ------------------- */
+  .ui-grid { --ease-soft: cubic-bezier(.22, 1, .36, 1); --ease-spring: cubic-bezier(.34, 1.42, .64, 1); --ease-line: cubic-bezier(.4, 0, .2, 1); }
+
+  :where(.ui-bit) button:focus-visible, :where(.ui-bit) label:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+  .ui-toggle, .ui-bell, .ui-copy, .ui-icon-btn, .ui-select, .ui-pages button, .ui-seg button, .ui-tabs button,
+  .ui-split button, .ui-star, .ui-drop, .ui-reaction, .ui-num button, .ui-reveal, .ui-menu-btn, .ui-sort, .ui-load,
+  .ui-filters button, .ui-swatches button, .ui-banner > button, .ui-attach button, .ui-tr .acts button,
+  .ui-msg .row button, .ui-error-msg button, .ui-undo, .ui-link, .ui-poll button {
+    transition: transform 240ms var(--ease-spring), color 180ms var(--ease-line), background-color 220ms var(--ease-line),
+      border-color 220ms var(--ease-line), box-shadow 240ms var(--ease-line);
+  }
+
+  .ui-toggle:active, .ui-bell:active, .ui-copy:active, .ui-icon-btn:active, .ui-select:active, .ui-pages button:active,
+  .ui-seg button:active, .ui-tabs button:active, .ui-split button:active, .ui-drop:active, .ui-num button:active,
+  .ui-reveal:active, .ui-menu-btn:active, .ui-sort:active, .ui-load:active, .ui-filters button:active,
+  .ui-swatches button:active, .ui-tr .acts button:active, .ui-msg .row button:active, .ui-error-msg button:active,
+  .ui-undo:active, .ui-star:active, .ui-link:active, .ui-poll button:active { transform: scale(.94); }
+  .ui-reaction:active { transform: scale(.96); }
+
+  .ui-toggle span { transition: transform 320ms var(--ease-spring), background-color 240ms var(--ease-line), box-shadow 260ms var(--ease-line); }
+  .ui-toggle.is-on span { box-shadow: 0 0 8px rgba(255, 140, 26, .45); }
+  .ui-toggle.is-on { background: rgba(255, 140, 26, .18); }
+
+  .ui-check .box { transition: border-color 220ms var(--ease-line), background-color 260ms var(--ease-soft), transform 320ms var(--ease-spring), box-shadow 260ms var(--ease-line); }
+  .ui-check:active .box { transform: scale(.88); }
+  .ui-check input:checked + .box { box-shadow: 0 0 0 3px rgba(255, 140, 26, .12); }
+  .ui-check input:checked + .box svg { transition: opacity 160ms var(--ease-line), stroke-dashoffset 340ms var(--ease-soft) 30ms; }
+
+  .ui-radio .dot { transition: border-color 220ms var(--ease-line), box-shadow 260ms var(--ease-line); }
+  .ui-radio .dot::after { transition: transform 320ms var(--ease-spring); }
+  .ui-radio input:checked + .dot { box-shadow: 0 0 0 3px rgba(255, 140, 26, .12); }
+
+  .ui-seg button { transition: color 180ms var(--ease-line), background-color 280ms var(--ease-soft), box-shadow 280ms var(--ease-soft), transform 240ms var(--ease-spring); }
+  .ui-seg button.is-on { box-shadow: inset 0 0 0 1px rgba(255, 140, 26, .3); }
+
+  .ui-tabs button { transition: color 200ms var(--ease-line), transform 240ms var(--ease-spring); }
+  .ui-tabs button::after { content: ""; position: absolute; left: 0; right: 0; bottom: -6px; height: 2px; background: var(--signal); transform: scaleX(0); transform-origin: 50% 50%; transition: transform 340ms var(--ease-soft); }
+  .ui-tabs button.is-on::after { transform: scaleX(1); }
+
+  /* Height snaps; only paint properties animate, so the accordion never
+     triggers layout on every frame. */
+  .ui-acc-body { max-height: 60px; overflow: hidden; transition: opacity 200ms var(--ease-line); }
+  .ui-acc-body.is-closed { max-height: 0; opacity: 0; }
+
+  .ui-star.is-on { transform: scale(1.05); }
+  .ui-star:hover { transform: translateY(-2px) scale(1.12); }
+
+  .ui-pages button { transition: color 180ms var(--ease-line), background-color 240ms var(--ease-soft), border-color 240ms var(--ease-soft), transform 240ms var(--ease-spring); }
+  .ui-pages button.on { transform: translateY(-1px); }
+  .ui-steps span { transition: background-color 260ms var(--ease-soft), border-color 240ms var(--ease-line), color 220ms var(--ease-line), transform 280ms var(--ease-spring); }
+  .ui-steps span.on { transform: scale(1.08); }
+
+  .ui-badge, .ui-dot { animation: bench-pop 340ms var(--ease-spring) both; }
+
+  .ui-reaction[aria-pressed="true"], .ui-filters button[aria-pressed="true"] { animation: bench-pop 320ms var(--ease-spring); }
+
+  .ui-num output { display: inline-block; transition: color 220ms var(--ease-line); }
+  .ui-num output.is-bumped { animation: bench-bump 300ms var(--ease-spring); }
+
+  .ui-reveal { position: relative; display: grid; place-items: center; }
+  .ui-reveal svg { grid-area: 1 / 1; display: block; transition: opacity 180ms var(--ease-line), transform 280ms var(--ease-spring); }
+  .ui-reveal .eye-off, .ui-reveal[aria-pressed="true"] .eye { display: block; }
+  .ui-reveal .eye-off { opacity: 0; transform: scale(.6) rotate(-20deg); }
+  .ui-reveal[aria-pressed="true"] .eye { opacity: 0; transform: scale(.6) rotate(20deg); }
+  .ui-reveal[aria-pressed="true"] .eye-off { opacity: 1; transform: none; color: var(--signal); }
+
+  .ui-field { transition: border-color 240ms var(--ease-line), box-shadow 280ms var(--ease-line), background-color 240ms var(--ease-line); }
+  .ui-field.otp input { transition: border-color 200ms var(--ease-line), background-color 220ms var(--ease-line), transform 280ms var(--ease-spring); }
+  .ui-field.otp input:focus { transform: translateY(-1px) scale(1.06); background: #242424; }
+
+  .ui-combo-list:not([hidden]), .ui-menu-list:not([hidden]) { animation: bench-layer 240ms var(--ease-soft); }
+  .ui-combo-list:not([hidden]) button, .ui-menu-list:not([hidden]) button { animation: bench-row 260ms var(--ease-soft) both; }
+  .ui-combo-list:not([hidden]) button:nth-child(2), .ui-menu-list:not([hidden]) button:nth-child(2) { animation-delay: 26ms; }
+  .ui-combo-list:not([hidden]) button:nth-child(3), .ui-menu-list:not([hidden]) button:nth-child(3) { animation-delay: 52ms; }
+  .ui-combo-list button, .ui-menu-list button { transition: background-color 190ms var(--ease-line), color 190ms var(--ease-line); }
+
+  .ui-tag { animation: bench-tag 300ms var(--ease-spring) both; transition: background-color 220ms var(--ease-line), color 220ms var(--ease-line); }
+  .ui-tag button { transition: opacity 180ms var(--ease-line), transform 240ms var(--ease-spring); }
+  .ui-tag button:hover { transform: rotate(90deg); }
+
+  .ui-inline input { animation: bench-field 260ms var(--ease-soft); }
+
+  .ui-banner { transition: border-color 240ms var(--ease-line), background-color 240ms var(--ease-line); }
+  .ui-banner:not([hidden]) { animation: bench-in 300ms var(--ease-soft); }
+  .ui-banner.is-leaving { animation: bench-out 240ms var(--ease-soft) forwards; }
+  .ui-undo:not([hidden]) { animation: bench-pop 280ms var(--ease-spring); }
+
+  .ui-load { transition: background-color 340ms var(--ease-soft), border-color 340ms var(--ease-soft), color 280ms var(--ease-line), transform 240ms var(--ease-spring); }
+  .ui-load .label { display: inline-block; }
+  .ui-load[data-state="loading"] .label, .ui-load[data-state="done"] .label { animation: bench-label 320ms var(--ease-soft); }
+  .ui-load[data-state="loading"] .spin { animation: ui-spin 700ms linear infinite, bench-fade 240ms var(--ease-line); }
+  .ui-load[data-state="done"] .tick { animation: bench-pop 380ms var(--ease-spring); }
+
+  .ui-error-msg { overflow: hidden; transition: opacity 200ms var(--ease-line), transform 220ms var(--ease-soft); }
+  .ui-error-msg.is-fixed { opacity: 0; transform: translateY(-2px); pointer-events: none; }
+  .ui-error .ui-field { transition: border-color 280ms var(--ease-line), box-shadow 320ms var(--ease-line); }
+
+  .ui-poll button { transition: border-color 240ms var(--ease-line), color 220ms var(--ease-line), background-color 240ms var(--ease-line), transform 240ms var(--ease-spring); }
+  .ui-poll button i { transition: transform 560ms var(--ease-soft); }
+  .ui-poll button span { transition: color 240ms var(--ease-line); }
+  .ui-poll button span.is-bumped { animation: bench-bump 320ms var(--ease-spring); }
+
+  .ui-msg .row { transition: opacity 200ms var(--ease-line), transform 280ms var(--ease-soft); }
+  .ui-typing i { animation-timing-function: cubic-bezier(.45, 0, .55, 1); }
+
+  .ui-attach.is-leaving { animation: bench-out 240ms var(--ease-soft) forwards; }
+
+  .ui-tr .acts { transform: translateY(2px); transition: opacity 190ms var(--ease-line), transform 240ms var(--ease-soft); }
+  .ui-tr:hover .acts, .ui-tr:focus-within .acts { transform: none; }
+
+  .ui-swatches button { transition: transform 280ms var(--ease-spring), box-shadow 240ms var(--ease-line), background-color 220ms var(--ease-line); }
+
+  .ui-quota .seats button { transition: background-color 280ms var(--ease-soft), border-color 240ms var(--ease-line), transform 280ms var(--ease-spring); }
+  .ui-quota .seats button:nth-child(2) { transition-delay: 20ms; }
+  .ui-quota .seats button:nth-child(3) { transition-delay: 40ms; }
+  .ui-quota .seats button:nth-child(4) { transition-delay: 60ms; }
+  .ui-quota .seats button:nth-child(5) { transition-delay: 80ms; }
+  .ui-quota .seats button:nth-child(6) { transition-delay: 100ms; }
+  .ui-quota .seats button:nth-child(7) { transition-delay: 120ms; }
+  .ui-quota .seats button:nth-child(8) { transition-delay: 140ms; }
+  .ui-quota .seats button.on { transform: translateY(-1px); }
+
+  @keyframes bench-pop { 0% { transform: scale(.6); opacity: .35; } 60% { transform: scale(1.12); opacity: 1; } 100% { transform: none; } }
+  @keyframes bench-bump { 0% { transform: translateY(0); } 40% { transform: translateY(-3px); color: var(--signal); } 100% { transform: none; } }
+  @keyframes bench-layer { from { opacity: 0; transform: translateY(-5px) scale(.97); } }
+  @keyframes bench-row { from { opacity: 0; transform: translateY(-3px); } }
+  @keyframes bench-tag { from { opacity: 0; transform: scale(.78); } }
+  @keyframes bench-field { from { opacity: 0; transform: translateY(-3px) scaleX(.96); } }
+  @keyframes bench-in { from { opacity: 0; transform: translateY(-7px); } }
+  @keyframes bench-out { to { opacity: 0; transform: translateY(-7px) scale(.98); } }
+  @keyframes bench-label { from { opacity: 0; transform: translateY(4px); } }
+  @keyframes bench-fade { from { opacity: 0; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ui-typing i { animation: none; opacity: .6; }
+    .ui-badge, .ui-dot, .ui-tag, .ui-banner, .ui-undo, .ui-load .label, .ui-load .tick, .ui-inline input,
+    .ui-combo-list:not([hidden]), .ui-combo-list:not([hidden]) button, .ui-menu-list:not([hidden]),
+    .ui-menu-list:not([hidden]) button, .ui-num output.is-bumped, .ui-poll button span.is-bumped,
+    .ui-reaction[aria-pressed="true"], .ui-filters button[aria-pressed="true"],
+    .ui-attach.is-leaving, .ui-banner.is-leaving, .ui-load[data-state="loading"] .spin,
+    .ui-load[data-state="done"] .tick { animation: none !important; }
+    .ui-acc-body, .ui-error-msg, .ui-quota .seats button, .ui-poll button i, .ui-tabs button::after { transition-duration: 1ms; }
+  }
+
+  @media (max-width: 1040px) { .ui-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 760px) { .ui-features, .ui-grid { grid-template-columns: minmax(0, 1fr); } .svg-scene { max-width: 250px; } }
+  @media (prefers-reduced-motion: reduce) {
+    .svg-scene .scene-halo, .svg-scene .scene-arc, .svg-scene .scene-ripple, .svg-scene .scene-orbit, .svg-scene .scene-ring--dash,
+    .svg-scene .mark-chase, .svg-scene .mark-chase > :is(path, circle),
+    .ui-progress span, .ui-skeleton i, .ui-status i { animation: none !important; }
+    .svg-scene .mark-draw > :is(path, circle) { animation: none !important; stroke-dashoffset: 0; }
+    .svg-scene .mark-chase { opacity: .95; }
+    .svg-scene .scene-mark, .icon-reveal::after, .icon-reveal .ir-icon, .icon-reveal .ir-label { transition-duration: 1ms; }
+  }
+
   .card-demo {
     width: 100%; background: #262626; border: 1px solid var(--line); border-radius: var(--r-lg);
-    overflow: hidden; will-change: transform;
+    overflow: hidden;
   }
   .card-art { height: 62px; background: radial-gradient(64% 80% at 50% 50%, rgba(163, 230, 53, 0.18), #1b1b1b 72%); display: grid; place-items: center; }
   .card-art svg { width: 34px; height: 34px; color: var(--lime); }
@@ -697,7 +1235,7 @@
     background: #111; color: var(--white); border: 1px solid #3a3a3a;
     border-radius: 5px; padding: 5px 8px; white-space: nowrap;
     font-family: var(--mono); font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase;
-    opacity: 0; will-change: transform, opacity;
+    opacity: 0;
   }
   .toast {
     position: fixed; z-index: 55; left: 0; right: 0; margin: 0 auto; width: fit-content; bottom: 26px;
@@ -705,7 +1243,7 @@
     background: #111; color: var(--white); border: 1px solid #3d3d3d;
     border-radius: var(--r-sm); padding: 10px 14px;
     font-size: 13px; box-shadow: 0 18px 40px -20px rgba(0, 0, 0, 0.6);
-    opacity: 0; pointer-events: none; will-change: transform, opacity;
+    opacity: 0; pointer-events: none;
   }
   .toast[data-on="true"] { opacity: 1; }
   .toast::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--signal); }
@@ -723,13 +1261,13 @@
   /* the rail stays vertical at every width — it is the identity */
   @media (max-width: 980px) {
     :root { --rail: 56px; --inset: 12px; }
-    .rail-link { height: 40px; }
+    .rail-link { height: 44px; }
     .panel-h .stamp { display: none; }
   }
   @media (max-width: 760px) {
     :root { --rail: 50px; --inset: 8px; }
     .rail-logo { width: 24px; height: 24px; margin-bottom: 10px; }
-    .rail-link { height: 38px; }
+    .rail-link { height: 44px; }
     .rail-link svg { width: 18px; height: 18px; }
     .panel-h { height: 54px; padding: 0 14px; gap: 10px; }
     .sec { padding: 34px 14px 38px; }
@@ -769,7 +1307,15 @@
   }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
-    * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+    /* Hold the still frame without killing feedback: travel and loops stop,
+       colour and opacity still confirm the state change. */
+    *, *::before, *::after {
+      animation-duration: 0ms !important;
+      animation-iteration-count: 1 !important;
+      transition-property: color, background-color, border-color, opacity, box-shadow !important;
+      transition-duration: 120ms !important;
+      scroll-behavior: auto !important;
+    }
     .toast-demo.is-live { opacity: 1; transform: translate(-50%, 0); animation: none; }
     .toast-demo.is-live .toast-demo-progress { transform: scaleX(1); animation: none; }
     .tilt-card:hover { --lift: 0; }
@@ -847,6 +1393,7 @@
             charcoal window on a steel-blue desk. This is the short version of how it looks,
             moves and talks — written by the people who ship it.
           </p>
+          <p class="archive-note">Issue 01 archive — this sheet records the pre-v2 orange-on-steel identity. The current system is DESIGN.md v2: ink, cream, lime; 3 px corners; <code>steps(4)</code> motion.</p>
           <div class="hero-acts">
             <a class="btn btn--go" href="#window"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" data-lucide="arrow-down-right" aria-hidden="true" class="lucide lucide-arrow-down-right"><path d="m7 7 10 10"></path><path d="M17 7v10H7"></path></svg> Read the rules</a>
             <a class="btn btn--ghost" href="#colour">Jump to colour</a>
@@ -1098,7 +1645,7 @@
         <div class="device-card">
           <span class="label">The cover label</span>
           <div class="cover-mini">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"><path d="M12 2.2 21 7.3v9.4L12 21.8 3 16.7V7.3z"/><path d="M12 11.9 21 7.3M12 11.9v9.9M12 11.9 3 7.3"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.2 21 7.3v9.4L12 21.8 3 16.7V7.3z"/><path d="M12 11.9 21 7.3M12 11.9v9.9M12 11.9 3 7.3"/></svg>
             <b>CUDIC</b>
             <em>no preview yet</em>
           </div>
@@ -1220,7 +1767,7 @@
             <div class="card-demo tilt-card" id="tilt-card">
               <span class="card-sheen" aria-hidden="true"></span>
               <div class="card-art">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"><path d="M12 2.2 21 7.3v9.4L12 21.8 3 16.7V7.3z"/><path d="M12 11.9 21 7.3M12 11.9v9.9M12 11.9 3 7.3"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.2 21 7.3v9.4L12 21.8 3 16.7V7.3z"/><path d="M12 11.9 21 7.3M12 11.9v9.9M12 11.9 3 7.3"/></svg>
               </div>
               <div class="card-foot"><b>IronStorm</b><span>NOV 15</span></div>
             </div>
@@ -1255,7 +1802,7 @@
           <div class="layer-stage">
             <button class="card-demo context-card" id="context-card" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="context-menu">
               <span class="card-art">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"><path d="M12 2.2 21 7.3v9.4L12 21.8 3 16.7V7.3z"/><path d="M12 11.9 21 7.3M12 11.9v9.9M12 11.9 3 7.3"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.2 21 7.3v9.4L12 21.8 3 16.7V7.3z"/><path d="M12 11.9 21 7.3M12 11.9v9.9M12 11.9 3 7.3"/></svg>
               </span>
               <span class="card-foot"><b>IronStorm</b><span>NOV 15</span></span>
             </button>
@@ -1379,7 +1926,7 @@
           <div class="part-stage">
             <div class="card-demo hoverable">
               <div class="card-art">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"><path d="M12 2.2 21 7.3v9.4L12 21.8 3 16.7V7.3z"/><path d="M12 11.9 21 7.3M12 11.9v9.9M12 11.9 3 7.3"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.2 21 7.3v9.4L12 21.8 3 16.7V7.3z"/><path d="M12 11.9 21 7.3M12 11.9v9.9M12 11.9 3 7.3"/></svg>
               </div>
               <div class="card-foot"><b>IronStorm</b><span>NOV 15</span></div>
             </div>
@@ -1401,6 +1948,116 @@
           </div>
           <div class="part-cap">Prompt pill · 1 px signal · r 999</div>
         </div>
+      </div>
+
+      <div class="ui-sub">
+        <span class="mono">Two motion studies</span>
+        <h3>Icons that become words</h3>
+        <p>Hover or focus either study. Neither one changes its footprint.</p>
+      </div>
+
+      <div class="ui-features reveal">
+        <article class="ui-feature">
+          <div class="ui-feature-stage">
+            <svg class="svg-scene" viewBox="0 0 220 140" tabindex="0" role="img" aria-label="The Lucide sparkles icon drawing itself in, a light chasing its outline, and a dashed ring orbiting around it">
+              <defs><radialGradient id="ui-halo" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#FF8C1A" stop-opacity=".26"></stop><stop offset="1" stop-color="#FF8C1A" stop-opacity="0"></stop></radialGradient></defs>
+              <circle class="scene-halo" cx="110" cy="70" r="54"></circle>
+              <circle class="scene-ring" cx="110" cy="70" r="46"></circle>
+              <circle class="scene-ring--dash" cx="110" cy="70" r="46"></circle>
+              <circle class="scene-arc" cx="110" cy="70" r="46"></circle>
+              <circle class="scene-ripple" cx="110" cy="70" r="30"></circle>
+              <circle class="scene-ripple is-two" cx="110" cy="70" r="30"></circle>
+              <circle class="scene-ripple is-three" cx="110" cy="70" r="30"></circle>
+              <g class="scene-orbit"><circle class="trail trail--far" cx="91.3" cy="28" r="1.4"></circle><circle class="trail" cx="100.4" cy="25" r="2"></circle><circle class="lead" cx="110" cy="24" r="2.6"></circle></g>
+              <g class="scene-mark">
+                <g class="mark-icon mark-ghost" transform="translate(82 42) scale(2.3333)" aria-hidden="true"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"></path><path d="M20 2v4"></path><path d="M22 4h-4"></path><circle cx="4" cy="20" r="2"></circle></g>
+                <g class="mark-icon mark-draw" transform="translate(82 42) scale(2.3333)" aria-hidden="true"><path pathLength="1" d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"></path><path pathLength="1" d="M20 2v4"></path><path pathLength="1" d="M22 4h-4"></path><circle pathLength="1" cx="4" cy="20" r="2"></circle></g>
+                <g class="mark-icon mark-chase" transform="translate(82 42) scale(2.3333)" aria-hidden="true"><path pathLength="1" d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"></path><path pathLength="1" d="M20 2v4"></path><path pathLength="1" d="M22 4h-4"></path><circle pathLength="1" cx="4" cy="20" r="2"></circle></g>
+              </g>
+            </svg>
+          </div>
+          <div class="ui-feature-copy">
+            <span class="mono">Lucide · SVG animation</span>
+            <h3>Trace, chase, orbit</h3>
+            <p>All four strokes of the real Lucide sparkles trace in sequence. A light then runs the outline while a dashed ring, its satellite and the ripples keep their own clock. Hover or focus to speed all of them without moving the frame.</p>
+            <code>trace .68s × 4 · chase 4.2s · orbit 9s</code>
+          </div>
+        </article>
+
+        <article class="ui-feature">
+          <div class="ui-feature-stage">
+            <div class="icon-reveal-row">
+              <button class="icon-reveal" type="button" aria-label="Home"><span class="ir-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"></path><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg></span><span class="ir-label">Home</span></button>
+              <button class="icon-reveal" type="button" aria-label="Save"><span class="ir-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z"></path></svg></span><span class="ir-label">Save</span></button>
+              <button class="icon-reveal" type="button" aria-label="Share"><span class="ir-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"></line><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"></line></svg></span><span class="ir-label">Share</span></button>
+            </div>
+          </div>
+          <div class="ui-feature-copy">
+            <span class="mono">Icon → label</span>
+            <h3>The word arrives over the mark</h3>
+            <p>The mark tilts, blurs and clears the slot; the word rises out of blur as a signal underline sweeps in. Hover and keyboard focus share one motion.</p>
+            <code>mark 460 ms · blur 240 ms · sweep 360 ms</code>
+          </div>
+        </article>
+      </div>
+
+      <div class="ui-sub">
+        <span class="mono">50 more parts</span>
+        <h3>Small states, one bench</h3>
+        <p>Every state below is a real control surface, not a screenshot — inputs, menus, chat rows and meters that keep their own state.</p>
+      </div>
+
+      <div class="ui-grid reveal">
+        <div class="ui-bit"><div class="ui-stage"><button class="ui-toggle is-on" type="button" data-ui-toggle aria-pressed="true" aria-label="Toggle notifications"><span></span></button></div><div class="ui-name"><b>Toggle</b><span>on / off</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><label class="ui-check"><input type="checkbox" checked><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg></span><span>Notify me</span></label></div><div class="ui-name"><b>Checkbox</b><span>drawn check</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><label class="ui-radio"><input type="radio" name="ui-radio" checked><span class="dot"></span><span>Friends only</span></label></div><div class="ui-name"><b>Radio</b><span>single choice</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-seg" data-ui-seg><button type="button" class="is-on" aria-pressed="true">Day</button><button type="button" aria-pressed="false">Week</button><button type="button" aria-pressed="false">All</button></div></div><div class="ui-name"><b>Segmented</b><span>one in view</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><label class="ui-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><input type="search" placeholder="Search parts" aria-label="Search parts"></label></div><div class="ui-name"><b>Search</b><span>focus ring</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-avatars" aria-label="Four players"><span>AK</span><span>JD</span><span>MO</span><span>4</span></div></div><div class="ui-name"><b>Avatar stack</b><span>overlap 7</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><span class="ui-status"><i></i>Online</span></div><div class="ui-name"><b>Status</b><span>live dot</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><span class="ui-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12V5a2 2 0 0 1 2-2h7l9 9-7 7z"></path><circle cx="7.5" cy="7.5" r="1"></circle></svg>New</span></div><div class="ui-name"><b>Chip</b><span>signal tint</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-progress" role="progressbar" aria-label="Upload progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="88"><span></span></div></div><div class="ui-name"><b>Progress</b><span>88% · moving</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-skeleton" aria-hidden="true"><i></i><i></i><i></i></div></div><div class="ui-name"><b>Skeleton</b><span>waiting copy</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>Link copied</div></div><div class="ui-name"><b>Toast</b><span>one line</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><button class="ui-bell" type="button" aria-label="Notifications, 3 unread"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg><span class="ui-badge">3</span></button></div><div class="ui-name"><b>Badge</b><span>count</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><span class="ui-tip-wrap"><button class="ui-icon-btn" type="button" aria-label="Copy link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button><span class="ui-tip">Copy link</span></span></div><div class="ui-name"><b>Tooltip</b><span>hover + focus</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-select" tabindex="0" role="button" aria-haspopup="listbox">Everyone<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></div></div><div class="ui-name"><b>Select</b><span>chevron turn</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-crumbs"><span>Library</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg><b>IronStorm</b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg><span>Settings</span></div></div><div class="ui-name"><b>Breadcrumb</b><span>current page</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-pages"><button type="button" aria-label="Previous page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg></button><button type="button" class="on" aria-current="page">1</button><button type="button">2</button><button type="button" aria-label="Next page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></button></div></div><div class="ui-name"><b>Pagination</b><span>24 hit area</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-steps" aria-label="Step 1 of 3"><span class="on">1</span><i></i><span>2</span><i></i><span>3</span></div></div><div class="ui-name"><b>Stepper</b><span>three moves</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><input class="ui-range" type="range" min="0" max="100" value="64" aria-label="Volume"></div><div class="ui-name"><b>Slider</b><span>64 / 100</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-stars" aria-label="Four out of five"><button class="ui-star is-on" type="button" data-ui-star aria-label="1 star"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"></path></svg></button><button class="ui-star is-on" type="button" data-ui-star aria-label="2 stars"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"></path></svg></button><button class="ui-star is-on" type="button" data-ui-star aria-label="3 stars"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"></path></svg></button><button class="ui-star is-on" type="button" data-ui-star aria-label="4 stars"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"></path></svg></button><button class="ui-star" type="button" data-ui-star aria-label="5 stars"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"></path></svg></button></div></div><div class="ui-name"><b>Rating</b><span>tap to set</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v16H4z"></path><path d="M4 13h4l2 3h4l2-3h4"></path></svg><b>Nothing here</b><span>Try another filter</span></div></div><div class="ui-name"><b>Empty state</b><span>next action</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><span class="ui-kbd">Ctrl</span><span class="ui-kbd">K</span></div><div class="ui-name"><b>Keys</b><span>shortcut</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><button class="ui-copy" type="button" data-copy="#FF8C1A" data-label="Signal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>Copy</button></div><div class="ui-name"><b>Copy</b><span>clipboard</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><button class="ui-bell" type="button" aria-label="Unread notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg><span class="ui-dot"></span></button></div><div class="ui-name"><b>Unread dot</b><span>no number</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><svg class="ui-spinner" viewBox="0 0 24 24" role="status" aria-label="Loading"><circle cx="12" cy="12" r="9"></circle></svg></div><div class="ui-name"><b>Spinner</b><span>800 ms</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-acc"><button type="button" data-ui-acc aria-expanded="true"><span>Build notes</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button><div class="ui-acc-body">Shipped in 12 minutes.</div></div></div><div class="ui-name"><b>Accordion</b><span>one row</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-tabs" data-ui-seg><button type="button" class="is-on" aria-pressed="true">Overview</button><button type="button" aria-pressed="false">Activity</button><button type="button" aria-pressed="false">Files</button></div></div><div class="ui-name"><b>Tabs</b><span>2 px underline</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-split"><button type="button">Publish</button><button type="button" aria-label="More publish options"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button></div></div><div class="ui-name"><b>Split button</b><span>one action + menu</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><label class="ui-drop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"></path><path d="m7 9 5-5 5 5"></path><path d="M5 20h14"></path></svg><span>Drop a file</span><input type="file" hidden></label></div><div class="ui-name"><b>Upload</b><span>dashed target</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-code"><b>const</b> ready = true;<button class="ui-copy" type="button" data-copy="const ready = true;" data-label="Snippet" aria-label="Copy snippet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button></div></div><div class="ui-name"><b>Code</b><span>copy in place</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><button class="ui-reaction" type="button" data-ui-react aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2c1 5-3 6-3 10a3 3 0 0 0 6 0c0-2-1-4-1-4 3 2 4 5 4 7a6 6 0 0 1-12 0c0-5 5-7 6-13z"></path></svg><span>12</span></button></div><div class="ui-name"><b>Reaction</b><span>+1 on tap</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-num" data-ui-num><button type="button" data-step="-1" aria-label="Fewer seats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"></path></svg></button><output aria-live="polite">3</output><button type="button" data-step="1" aria-label="More seats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg></button></div></div><div class="ui-name"><b>Number input</b><span>1 – 10</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-field has-reveal"><input type="password" value="ironstorm" aria-label="Server password" data-ui-pw><button class="ui-reveal" type="button" aria-label="Show password" aria-pressed="false" data-ui-pw-toggle><svg class="eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg><svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path><line x1="2" x2="22" y1="2" y2="22"></line></svg></button></div></div><div class="ui-name"><b>Password</b><span>reveal toggle</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-field otp" data-ui-otp role="group" aria-label="Four digit invite code"><input maxlength="1" inputmode="numeric" aria-label="Digit 1"><input maxlength="1" inputmode="numeric" aria-label="Digit 2"><input maxlength="1" inputmode="numeric" aria-label="Digit 3"><input maxlength="1" inputmode="numeric" aria-label="Digit 4"></div></div><div class="ui-name"><b>Code input</b><span>4 digits</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-combo" data-ui-combo><div class="ui-field"><input type="text" placeholder="Jump to server" aria-label="Search servers" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="ui-combo-list"></div><div class="ui-combo-list" id="ui-combo-list" role="listbox" aria-label="Servers" hidden><button type="button" role="option" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>IronStorm</button><button type="button" role="option" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>Night Shift</button><button type="button" role="option" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>Quiet Lobby</button></div></div></div><div class="ui-name"><b>Combobox</b><span>type to filter</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-tags" data-ui-tags><span class="ui-tag">pvp<button type="button" aria-label="Remove pvp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button></span><input type="text" placeholder="Add tag" aria-label="Add a tag"></div></div><div class="ui-name"><b>Tag input</b><span>Enter adds</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-menu" data-ui-menu><button class="ui-menu-btn" type="button" aria-expanded="false" aria-haspopup="menu">Channel<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button><div class="ui-menu-list" role="menu" hidden><button type="button" role="menuitem">Rename<small>F2</small></button><button type="button" role="menuitem">Duplicate</button><button type="button" role="menuitem">Delete<small>Del</small></button></div></div></div><div class="ui-name"><b>Menu</b><span>Esc closes</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-inline" data-ui-inline><button type="button">IronStorm</button><input type="text" value="IronStorm" aria-label="Server name" hidden></div></div><div class="ui-name"><b>Inline edit</b><span>Enter saves</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-banner" data-ui-banner><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" x2="12" y1="8" y2="12"></line><line x1="12" x2="12.01" y1="16" y2="16"></line></svg><span>Maintenance at 22:00 UTC</span><button type="button" aria-label="Dismiss notice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button></div><button class="ui-undo" type="button" data-ui-banner-undo hidden>Restore</button></div><div class="ui-name"><b>Banner</b><span>dismiss + undo</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><button class="ui-load" type="button" data-ui-load data-state="idle"><span class="spin" aria-hidden="true"></span><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg><span class="label">Save changes</span></button></div><div class="ui-name"><b>Async button</b><span>idle → saved</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-error" data-ui-error><div class="ui-field is-error"><input type="text" value="iron storm" aria-label="Server handle" aria-invalid="true" readonly></div><p class="ui-error-msg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" x2="12" y1="8" y2="12"></line><line x1="12" x2="12.01" y1="16" y2="16"></line></svg>No spaces<button type="button" data-ui-retry>Retry</button></p></div></div><div class="ui-name"><b>Field error</b><span>retry clears</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-poll" data-ui-poll aria-label="Where do we play tonight"><button type="button" style="--p:.62" aria-pressed="false"><i></i><b>EU west</b><span>62%</span></button><button type="button" style="--p:.38" aria-pressed="true"><i></i><b>US east</b><span>38%</span></button></div></div><div class="ui-name"><b>Poll option</b><span>vote moves it</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-msg"><div class="bubble">gg, same time tomorrow?</div><div class="row"><button type="button" aria-label="Reply to message"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 10 20 15 15 20"></polyline><path d="M4 4v7a4 4 0 0 0 4 4h12"></path></svg></button><button type="button" aria-label="React to message"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11v1a10 10 0 1 1-9-10"></path><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" x2="9.01" y1="9" y2="9"></line><line x1="15" x2="15.01" y1="9" y2="9"></line><path d="M16 5h6"></path><path d="M19 2v6"></path></svg></button></div></div></div><div class="ui-name"><b>Message row</b><span>actions on hover</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-typing" role="status" aria-label="Kai is typing"><i></i><i></i><i></i></div></div><div class="ui-name"><b>Typing</b><span>three beats</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><button class="ui-link" type="button"><small><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>cudic.app</small><b>IronStorm — open lobby</b><span>Nightly customs, EU west</span></button></div><div class="ui-name"><b>Link preview</b><span>domain + 2 lines</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-attach" data-ui-attach><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg><div class="meta"><b>replay.mp4</b><span>14.2 MB</span></div><button type="button" aria-label="Remove attachment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button></div></div><div class="ui-name"><b>Attachment</b><span>remove</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-tr"><span>Map rotation</span><em>12 rows</em><div class="acts"><button type="button" aria-label="Edit row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button><button type="button" aria-label="More row actions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button></div></div></div><div class="ui-name"><b>Table row</b><span>hover actions</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><button class="ui-sort" type="button" data-ui-sort data-dir="none" aria-label="Sort by name">Name<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 16-4 4-4-4"></path><path d="M17 20V4"></path><path d="m3 8 4-4 4 4"></path><path d="M7 4v16"></path></svg></button></div><div class="ui-name"><b>Sort header</b><span>asc / desc / off</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-swatches" data-ui-swatches role="group" aria-label="Accent colour"><button type="button" style="--sw:#FF8C1A" aria-pressed="true" aria-label="Signal orange"></button><button type="button" style="--sw:#A3E635" aria-pressed="false" aria-label="Cover lime"></button><button type="button" style="--sw:#7CC4FF" aria-pressed="false" aria-label="Sky"></button><button type="button" style="--sw:#E6E6E6" aria-pressed="false" aria-label="White"></button><button type="button" style="--sw:#6B6B6B" aria-pressed="false" aria-label="Grey"></button></div></div><div class="ui-name"><b>Swatches</b><span>one accent</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-filters" data-ui-filters><button type="button" aria-pressed="true">PVP</button><button type="button" aria-pressed="false">Roleplay</button><button type="button" aria-pressed="false">Casual</button><button type="button" aria-pressed="false">Modded</button></div></div><div class="ui-name"><b>Filter chips</b><span>multi-select</span></div></div>
+        <div class="ui-bit"><div class="ui-stage"><div class="ui-quota" data-ui-quota><div class="seats" role="group" aria-label="Seats used"><button type="button" class="on" aria-pressed="true" aria-label="Seat 1"></button><button type="button" class="on" aria-pressed="true" aria-label="Seat 2"></button><button type="button" class="on" aria-pressed="true" aria-label="Seat 3"></button><button type="button" class="on" aria-pressed="true" aria-label="Seat 4"></button><button type="button" class="on" aria-pressed="true" aria-label="Seat 5"></button><button type="button" aria-pressed="false" aria-label="Seat 6"></button><button type="button" aria-pressed="false" aria-label="Seat 7"></button><button type="button" aria-pressed="false" aria-label="Seat 8"></button></div><small>Seats<b data-ui-quota-count>5 / 8</b></small></div></div><div class="ui-name"><b>Seat meter</b><span>click to fill</span></div></div>
       </div>
     </section>
 
@@ -1434,7 +2091,7 @@
   </main>
 
   <footer class="colophon">
-    <p>Set in Geist and Geist Mono. Icons by Lucide. Motion by motion.dev. Issue 01, 16 November 2026.</p>
+    <p>Issue 01 archive, 16 November 2026. Set in Geist and Geist Mono. Icons by Lucide. Motion by motion.dev. Current system: DESIGN.md v2.</p>
     <p class="mono" style="color:var(--ash)">Made in public · shipped daily</p>
   </footer>
 </div>
@@ -1548,7 +2205,7 @@ function he(t,e){t.indexOf(e)===-1&&t.push(e)}function gt(t,e){let r=t.indexOf(e
     });
   }
 
-  /* ---- move the indicator when the rail flips to a bottom dock ---- */
+  /* ---- keep the rail indicator aligned when the layout reflows ---- */
   const remeasure = () => {
     const on = links.find((l) => l.classList.contains('is-on'));
     if (on && ind) ind.style.transform = `translateY(${on.offsetTop}px)`;
@@ -1566,7 +2223,7 @@ function he(t,e){t.indexOf(e)===-1&&t.push(e)}function gt(t,e){let r=t.indexOf(e
     toastTimer = setTimeout(() => {
       if (animate && !reduced) animate(toast, { opacity: 0, y: 8 }, { duration: 0.2 }).finished.then(() => { toast.dataset.on = 'false'; });
       else { toast.style.opacity = 0; toast.dataset.on = 'false'; }
-    }, 1700);
+    }, 4200);
   }
 
   async function copy(text, label) {
@@ -1581,6 +2238,306 @@ function he(t,e){t.indexOf(e)===-1&&t.push(e)}function gt(t,e){let r=t.indexOf(e
     const el = e.target.closest('[data-copy]');
     if (!el) return;
     copy(el.dataset.copy, el.dataset.label || el.dataset.copy);
+  });
+
+  /* ---- UI bench: the controls that have state --------------------- */
+  document.addEventListener('click', (e) => {
+    const toggle = e.target.closest('[data-ui-toggle]');
+    if (toggle) {
+      const on = toggle.getAttribute('aria-pressed') !== 'true';
+      toggle.setAttribute('aria-pressed', String(on));
+      toggle.classList.toggle('is-on', on);
+    }
+
+    const segment = e.target.closest('[data-ui-seg] button');
+    if (segment) {
+      [...segment.parentElement.children].forEach((button) => {
+        const on = button === segment;
+        button.classList.toggle('is-on', on);
+        button.setAttribute('aria-pressed', String(on));
+      });
+    }
+
+    const accordion = e.target.closest('[data-ui-acc]');
+    if (accordion) {
+      const body = accordion.nextElementSibling;
+      const open = accordion.getAttribute('aria-expanded') === 'true';
+      accordion.setAttribute('aria-expanded', String(!open));
+      if (body) body.classList.toggle('is-closed', open);
+    }
+
+    const reaction = e.target.closest('[data-ui-react]');
+    if (reaction) {
+      const on = reaction.getAttribute('aria-pressed') !== 'true';
+      const count = reaction.querySelector('span');
+      if (count) count.textContent = String((Number(count.textContent) || 0) + (on ? 1 : -1));
+      reaction.setAttribute('aria-pressed', String(on));
+    }
+
+    const star = e.target.closest('[data-ui-star]');
+    if (star) {
+      const stars = [...star.parentElement.children];
+      const index = stars.indexOf(star);
+      stars.forEach((item, i) => item.classList.toggle('is-on', i <= index));
+    }
+  });
+
+  /* ---- UI bench: the second shelf --------------------------------- */
+  function closeBenchLayers() {
+    document.querySelectorAll('[data-ui-combo] [role="listbox"], [data-ui-menu] [role="menu"]').forEach((list) => {
+      list.hidden = true;
+      list.parentElement.querySelector('[aria-expanded]')?.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  function closeInline(input, keep) {
+    const button = input.previousElementSibling;
+    if (!button || input.hidden) return;
+    const value = input.value.trim();
+    if (keep && value) button.textContent = value;
+    input.hidden = true;
+    button.hidden = false;
+    button.focus({ preventScroll: true });
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('[data-ui-combo], [data-ui-menu]')) closeBenchLayers();
+
+    const step = e.target.closest('[data-ui-num] button');
+    if (step) {
+      const out = step.parentElement.querySelector('output');
+      const next = Math.min(10, Math.max(1, (Number(out.textContent) || 1) + Number(step.dataset.step)));
+      out.textContent = String(next);
+      out.classList.remove('is-bumped');
+      void out.offsetWidth;
+      out.classList.add('is-bumped');
+    }
+
+    const reveal = e.target.closest('[data-ui-pw-toggle]');
+    if (reveal) {
+      const input = reveal.parentElement.querySelector('input');
+      const shown = input.type === 'text';
+      input.type = shown ? 'password' : 'text';
+      reveal.setAttribute('aria-pressed', String(!shown));
+      reveal.setAttribute('aria-label', shown ? 'Show password' : 'Hide password');
+    }
+
+    const option = e.target.closest('[data-ui-combo] [role="option"]');
+    if (option) {
+      const box = option.closest('[data-ui-combo]');
+      const input = box.querySelector('input');
+      input.value = option.textContent.trim();
+      input.setAttribute('aria-expanded', 'false');
+      box.querySelector('[role="listbox"]').hidden = true;
+      box.querySelectorAll('[role="option"]').forEach((item) => item.setAttribute('aria-selected', String(item === option)));
+    }
+
+    const removeTag = e.target.closest('.ui-tag button');
+    if (removeTag) removeTag.closest('.ui-tag').remove();
+
+    const menuBtn = e.target.closest('.ui-menu-btn');
+    if (menuBtn) {
+      const list = menuBtn.nextElementSibling;
+      const open = menuBtn.getAttribute('aria-expanded') === 'true';
+      closeBenchLayers();
+      menuBtn.setAttribute('aria-expanded', String(!open));
+      list.hidden = open;
+      if (!open) list.querySelector('[role="menuitem"]')?.focus({ preventScroll: true });
+    }
+
+    const menuItem = e.target.closest('[data-ui-menu] [role="menuitem"]');
+    if (menuItem) {
+      say(`${menuItem.firstChild.textContent.trim()} · demo only`);
+      closeBenchLayers();
+    }
+
+    const inlineBtn = e.target.closest('[data-ui-inline] button');
+    if (inlineBtn) {
+      const input = inlineBtn.nextElementSibling;
+      inlineBtn.hidden = true;
+      input.hidden = false;
+      input.value = inlineBtn.textContent.trim();
+      input.focus({ preventScroll: true });
+      input.select();
+    }
+
+    const dismiss = e.target.closest('[data-ui-banner] > button');
+    if (dismiss) {
+      const banner = dismiss.closest('[data-ui-banner]');
+      const undo = banner.parentElement.querySelector('[data-ui-banner-undo]');
+      const finish = () => {
+        banner.hidden = true;
+        banner.classList.remove('is-leaving');
+        undo.hidden = false;
+      };
+      banner.classList.add('is-leaving');
+      banner.addEventListener('animationend', finish, { once: true });
+      setTimeout(finish, 380);
+    }
+
+    const restore = e.target.closest('[data-ui-banner-undo]');
+    if (restore) {
+      restore.parentElement.querySelector('[data-ui-banner]').hidden = false;
+      restore.hidden = true;
+    }
+
+    const load = e.target.closest('[data-ui-load]');
+    if (load && load.dataset.state === 'idle') {
+      const label = load.querySelector('.label');
+      const original = label.textContent;
+      load.dataset.state = 'loading';
+      label.textContent = 'Saving';
+      setTimeout(() => {
+        load.dataset.state = 'done';
+        label.textContent = 'Saved';
+        setTimeout(() => {
+          load.dataset.state = 'idle';
+          label.textContent = original;
+        }, 1600);
+      }, 1100);
+    }
+
+    const retry = e.target.closest('[data-ui-retry]');
+    if (retry) {
+      const wrap = retry.closest('[data-ui-error]');
+      const field = wrap.querySelector('.ui-field');
+      const input = field.querySelector('input');
+      field.classList.remove('is-error');
+      input.value = 'ironstorm';
+      input.removeAttribute('aria-invalid');
+      wrap.querySelector('.ui-error-msg').classList.add('is-fixed');
+    }
+
+    const vote = e.target.closest('[data-ui-poll] button');
+    if (vote) {
+      const buttons = [...vote.parentElement.children];
+      const split = buttons.length === 2 ? [70, 30] : buttons.map(() => Math.round(100 / buttons.length));
+      buttons.forEach((button, i) => {
+        button.setAttribute('aria-pressed', String(button === vote));
+        button.style.setProperty('--p', String(split[i] / 100));
+        const pct = button.querySelector('span');
+        pct.textContent = `${split[i]}%`;
+        pct.classList.remove('is-bumped');
+        void pct.offsetWidth;
+        pct.classList.add('is-bumped');
+      });
+    }
+
+    const attachX = e.target.closest('[data-ui-attach] button');
+    if (attachX) {
+      const row = attachX.closest('[data-ui-attach]');
+      const finish = () => {
+        row.hidden = true;
+        row.classList.remove('is-leaving');
+      };
+      row.classList.add('is-leaving');
+      row.addEventListener('animationend', finish, { once: true });
+      setTimeout(finish, 320);
+    }
+
+    const sort = e.target.closest('[data-ui-sort]');
+    if (sort) {
+      const order = ['none', 'asc', 'desc'];
+      const next = order[(order.indexOf(sort.dataset.dir) + 1) % order.length];
+      sort.dataset.dir = next;
+      const words = { none: 'off', asc: 'ascending', desc: 'descending' };
+      sort.setAttribute('aria-label', `Sort by name, ${words[next]}`);
+    }
+
+    const swatch = e.target.closest('[data-ui-swatches] button');
+    if (swatch) {
+      [...swatch.parentElement.children].forEach((button) => button.setAttribute('aria-pressed', String(button === swatch)));
+    }
+
+    const filter = e.target.closest('[data-ui-filters] button');
+    if (filter) filter.setAttribute('aria-pressed', String(filter.getAttribute('aria-pressed') !== 'true'));
+
+    const seat = e.target.closest('[data-ui-quota] .seats button');
+    if (seat) {
+      const seats = [...seat.parentElement.children];
+      const index = seats.indexOf(seat);
+      seats.forEach((button, i) => {
+        button.classList.toggle('on', i <= index);
+        button.setAttribute('aria-pressed', String(i <= index));
+      });
+      const count = seat.closest('[data-ui-quota]').querySelector('[data-ui-quota-count]');
+      if (count) count.textContent = `${index + 1} / ${seats.length}`;
+    }
+  });
+
+  document.addEventListener('input', (e) => {
+    const otp = e.target.closest('[data-ui-otp] input');
+    if (otp) {
+      otp.value = otp.value.replace(/\D/g, '').slice(0, 1);
+      if (otp.value) otp.nextElementSibling?.focus();
+    }
+
+    const comboInput = e.target.closest('[data-ui-combo] input');
+    if (comboInput) {
+      const box = comboInput.closest('[data-ui-combo]');
+      const list = box.querySelector('[role="listbox"]');
+      const query = comboInput.value.trim().toLowerCase();
+      let shown = 0;
+      list.querySelectorAll('[role="option"]').forEach((option) => {
+        const hit = option.textContent.toLowerCase().includes(query);
+        option.hidden = !hit;
+        option.setAttribute('aria-selected', 'false');
+        if (hit) shown += 1;
+      });
+      list.hidden = shown === 0;
+      comboInput.setAttribute('aria-expanded', String(shown > 0));
+    }
+  });
+
+  document.addEventListener('focusin', (e) => {
+    const comboInput = e.target.closest('[data-ui-combo] input');
+    if (!comboInput) return;
+    comboInput.closest('[data-ui-combo]').querySelector('[role="listbox"]').hidden = false;
+    comboInput.setAttribute('aria-expanded', 'true');
+  });
+
+  document.addEventListener('keydown', (e) => {
+    const hit = (selector) => (e.target instanceof Element ? e.target.closest(selector) : null);
+    const tagInput = hit('[data-ui-tags] input');
+    if (tagInput && e.key === 'Enter') {
+      e.preventDefault();
+      const value = tagInput.value.trim();
+      if (!value) return;
+      const chip = document.createElement('span');
+      chip.className = 'ui-tag';
+      chip.textContent = value;
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.setAttribute('aria-label', `Remove ${value}`);
+      remove.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>';
+      chip.append(remove);
+      tagInput.parentElement.insertBefore(chip, tagInput);
+      tagInput.value = '';
+    }
+
+    const otp = hit('[data-ui-otp] input');
+    if (otp) {
+      if (e.key === 'Backspace' && !otp.value) otp.previousElementSibling?.focus();
+      if (e.key === 'ArrowLeft') otp.previousElementSibling?.focus();
+      if (e.key === 'ArrowRight') otp.nextElementSibling?.focus();
+    }
+
+    const inlineInput = hit('[data-ui-inline] input');
+    if (inlineInput && e.key === 'Enter') {
+      e.preventDefault();
+      closeInline(inlineInput, true);
+    }
+    if (inlineInput && e.key === 'Escape') {
+      e.preventDefault();
+      closeInline(inlineInput, false);
+    }
+
+    if (e.key === 'Escape') closeBenchLayers();
+  });
+
+  document.addEventListener('focusout', (e) => {
+    const inlineInput = e.target.closest('[data-ui-inline] input');
+    if (inlineInput) closeInline(inlineInput, true);
   });
 
   /* ---- spring demo ----------------------------------------------- */

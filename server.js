@@ -227,8 +227,10 @@ const {
 async function awardUser(userId, code) {
   const a = AWARDS[code];
   if (!a) return false;
-  const { error } = await supabase.from('user_badges').insert({ user_id: userId, code });
-  if (error) return false;
+  const { data: inserted, error } = await supabase.from('user_badges')
+    .upsert({ user_id: userId, code }, { onConflict: 'user_id,code', ignoreDuplicates: true })
+    .select('user_id');
+  if (error || !inserted || !inserted.length) return false;
   // Flairs are free and common; earning them isn't feed-worthy.
   if (a.kind !== 'flair') {
     const line = 'Earned ' + (a.kind === 'title' ? 'the title ' : 'the badge ') + a.label;
@@ -5569,8 +5571,10 @@ async function raceSettleWeek(week) {
   try {
     const r = await raceTop(week, 3);
     const top = r ? r.top : [];
-    const ins = await supabase.from('race_weeks').insert({ week, top });
-    if (ins.error) return; // already settled, or no table (migration pending)
+    const ins = await supabase.from('race_weeks')
+      .upsert({ week, top }, { onConflict: 'week', ignoreDuplicates: true })
+      .select('week');
+    if (ins.error || !ins.data || !ins.data.length) return; // already settled, or no table (migration pending)
     for (const t of top) {
       const coins = RACE_PRIZES[t.place];
       if (coins) {
@@ -5994,7 +5998,7 @@ kitRoutes = require('./lib/routes/kit')({
   supabase, cors, requireUser, needVerified, readBody, isUuid, serverRole, rateLimit,
 });
 packRoutes = require('./lib/routes/pack')({
-  supabase, cors, requireUser, needVerified, readBody, isUuid, serverRole, rateLimit,
+  supabase, cors, requireUser, needVerified, readBody, isUuid, serverRole, rateLimit, broadcast,
 });
 batchRoutes = require('./lib/routes/batch')({
   supabase, cors, requireUser, needVerified, readBody, isUuid, serverRole, rateLimit, broadcast,

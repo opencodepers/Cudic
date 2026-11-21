@@ -88,7 +88,7 @@
             var sec = document.getElementById(id);
             if (!sec || sec.tagName !== 'SECTION') return false;
             secs.forEach(function (s) { s.classList.toggle('on', s === sec); });
-            Array.prototype.forEach.call(nav.querySelectorAll('a'), function (a) { a.classList.toggle('on', a.dataset.sec === id); });
+            Array.prototype.forEach.call(nav.querySelectorAll('a'), function (a) { var on = a.dataset.sec === id; a.classList.toggle('on', on); if (on) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); });
             if (crumb) crumb.textContent = titles[id];
             if (sub) {
                 sub.innerHTML = '';
@@ -197,13 +197,13 @@
     var closeBtn = document.createElement('button');
     closeBtn.className = 'docclose';
     closeBtn.setAttribute('aria-label', 'Close navigation');
-    closeBtn.textContent = '\u2715';
+    closeBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" style="display:block"><path d="m6 6 12 12M18 6 6 18"/></svg>';
     side.insertBefore(closeBtn, side.firstChild);
     // fixed burger shown only when drawer is closed
     var burger = document.createElement('button');
     burger.className = 'docburger';
     burger.setAttribute('aria-label', 'Open navigation');
-    burger.textContent = '\u2630';
+    burger.innerHTML = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" style="display:block"><path d="M4 7h16M4 12h16M4 17h16"/></svg>';
     var backdrop = document.createElement('div');
     backdrop.className = 'docbackdrop';
     document.body.appendChild(burger);

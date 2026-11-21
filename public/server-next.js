@@ -175,13 +175,21 @@
     return html + '</div>';
   }
 
+  function promptPostRow(prompt) {
+    if (!D.owner || !prompt) return '';
+    var cur = page() && page().current;
+    return '<div class="sn-row" style="margin-top:6px">'
+      + '<button type="button" data-sn="prompt-post" data-id="' + esc(prompt.id) + '"' + (cur ? '' : ' disabled') + '>Post to ' + (cur ? '#' + esc(cur.display) : 'a channel') + '</button>'
+      + '<button type="button" data-sn="prompt-pin" data-id="' + esc(prompt.id) + '"' + (cur ? '' : ' disabled') + '>Post &amp; pin</button></div>';
+  }
+
   function renderPrompts() {
     var p = D.prompts || {};
     var html = '<div class="sn-card"><h3>Prompt of the day</h3>'
-      + (p.daily ? '<p class="sn-prompt">' + esc(p.daily.body) + '</p><p class="sn-meta">' + esc(p.daily.active_on) + '</p>' : '<p class="sn-empty">No prompt today.</p>');
+      + (p.daily ? '<p class="sn-prompt">' + esc(p.daily.body) + '</p><p class="sn-meta">' + esc(p.daily.active_on) + '</p>' + promptPostRow(p.daily) : '<p class="sn-empty">No prompt today.</p>');
     if (D.owner) html += '<div class="sn-row"><input id="snDaily" maxlength="300" placeholder="What should the server talk about today?"><button type="button" data-sn="prompt-daily">Set</button></div>';
     html += '</div><div class="sn-card"><h3>Weekly topic</h3>'
-      + (p.weekly ? '<p class="sn-prompt">' + esc(p.weekly.body) + '</p><p class="sn-meta">Week of ' + esc(p.weekly.active_on) + '</p>' : '<p class="sn-empty">No topic this week.</p>');
+      + (p.weekly ? '<p class="sn-prompt">' + esc(p.weekly.body) + '</p><p class="sn-meta">Week of ' + esc(p.weekly.active_on) + '</p>' + promptPostRow(p.weekly) : '<p class="sn-empty">No topic this week.</p>');
     if (D.owner) html += '<div class="sn-row"><input id="snWeekly" maxlength="300" placeholder="A topic for the whole week"><button type="button" data-sn="prompt-weekly">Set</button></div>';
     return html + '</div>';
   }
@@ -342,6 +350,12 @@
         await req(p + '/spotlight', { method: 'DELETE' });
       } else if (act === 'prompt-daily' || act === 'prompt-weekly') {
         await req(p + '/prompts', { method: 'POST', body: JSON.stringify({ kind: act === 'prompt-weekly' ? 'weekly' : 'daily', body: val(act === 'prompt-weekly' ? 'snWeekly' : 'snDaily') }) });
+      } else if (act === 'prompt-post' || act === 'prompt-pin') {
+        var curCh = page() && page().current;
+        if (!curCh) throw new Error('Open a channel first.');
+        await req(p + '/prompts/' + encodeURIComponent(el.getAttribute('data-id')) + '/post', {
+          method: 'POST', body: JSON.stringify({ channelId: curCh.id, pin: act === 'prompt-pin' }),
+        });
       } else if (act === 'sugg-post') {
         await req(p + '/suggestions', { method: 'POST', body: JSON.stringify({ title: val('snSugTitle'), body: val('snSugBody') }) });
       } else if (act === 'vote') {
@@ -372,7 +386,7 @@
         close();
       }
       if (act !== 'close' && act !== 'inactive' && act !== 'labels-save') {
-        if (await load()) status('Saved.');
+        if (await load()) status(act === 'prompt-post' ? 'Prompt posted.' : act === 'prompt-pin' ? 'Prompt posted and pinned.' : 'Saved.');
       } else if (act === 'inactive') {
         status('');
       } else if (act === 'labels-save') {

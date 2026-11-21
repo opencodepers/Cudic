@@ -313,6 +313,11 @@ Accessibility:
 - `/editor` and `/studio` keep their IDE-dark chrome and existing accent set — this
   system governs the **public pages and the `/brand` kit** (marketing, galleries,
   store, profile, chat surfaces).
+- `public/brand-app.html` is the **issue 01 archive** of the pre-v2 orange-on-steel
+  identity (steel-blue desk, charcoal window, `#FF8C1A` signal, 6–16 px radii,
+  spring motion). It is kept for reference and is not canon; it does not define
+  tokens, radii, motion or copy for new work. New surfaces take the ink/cream/
+  lime system and ≤3 px corners above.
 - Adding an icon: draw it on the 8×8 grid in `manifest.json` (letters from §3),
   regenerate the SVG/PNG layers, bump the README counter. Never hand-patch a
   generated file.

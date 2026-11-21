@@ -73,7 +73,7 @@
 </head>
 <body data-page="games">
 <div class="game-layout page-panel"><div class="game-content" id="content">
-  <a class="back" href="/games">&larr; Gallery</a>
+  <a class="back" href="/games"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>Gallery</a>
 
   <div class="card" id="creatorCard">
     <div id="creatorBanner" aria-hidden="true"></div>
@@ -138,7 +138,7 @@
     var fw = document.getElementById('followWrap'), fb = document.getElementById('followBtn');
     if (isSelf) { fw.hidden = true; return; }
     fw.hidden = false;
-    fb.textContent = viewerFollows ? 'Following ✓' : 'Follow';
+    fb.innerHTML = viewerFollows ? 'Following <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-left:4px"><path d="M20 6 9 17l-5-5"/></svg>' : 'Follow';
     document.getElementById('followerCount').textContent = followersN + ' follower' + (followersN === 1 ? '' : 's');
   }
   document.getElementById('followBtn').addEventListener('click', function(){

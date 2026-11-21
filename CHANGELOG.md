@@ -8,6 +8,31 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Post-audit fixes: ads wait for consent, brand sheet labelled, gallery and docs accessibility** (`public/brand-app.html`, `public/ads.js`, `public/games.html`, `public/docs.html`, `public/docpage.js`, `DESIGN.md`)
+
+- Ad zones on `/games` and `/docs` now load only after **advertising** consent. The banner/native tags moved from inline `<script>`s in the markup to `data-ad-key` / `data-ad-script` frames that `/ads.js` fills; before consent the frame is hidden, after consent the same cookie and `cudic-consent` event drive injection, and an unfilled slot still collapses.
+- GSAP is served from `/vendor/gsap.min.js` instead of jsDelivr, so the gallery no longer depends on third-party JS for its transitions.
+- Gallery tabs expose `role="tab"` + `aria-selected` and the grid announces its count (or its empty state) through a polite live region.
+- Docs TOC marks the current section with `aria-current`; the typed `→`, `☰` and `✕` glyphs became inline Lucide icons.
+- `brand-app.html` now says plainly that it is the **issue 01 archive** of the pre-v2 orange-on-steel identity, and `DESIGN.md` records the same. In the sheet: rail targets 44 px, `will-change` removed from resting elements, reduced-motion keeps colour/opacity feedback instead of a global 0.01 ms kill, accordion/error no longer animate layout properties, decorative cube SVGs are `aria-hidden`, the toast stays 4.2 s, and the dead “bottom dock” comment is gone.
+
+**Server page: the server name gets its own top bar** (`public/server.html`)
+
+- The channel sidebar now opens with a server header: chevron, server name, and quick members/settings icons. The chevron opens a menu holding the server icon, member count and kit tags, plus **Copy invite link** (when the server has an invite code), **Members** and **Server settings**.
+- The header sits on a banner: the owner's **Header banner** image when set, otherwise a violet gradient built from the server accent. White title, chevron and tools keep contrast over both.
+- `/server-customize` now has separate **Chat background** and **Header banner** fields (appearance `background` vs `banner`), each with its own live preview strip, so the chat wallpaper and the rail header no longer compete for one image. `cleanTheme` accepts `banner` alongside `accent` and `background`.
+- The bar stays fixed while the channel list scrolls, and the menu closes on Escape, an outside click, or any action. Mobile keeps the same bar inside the slide-out sidebar.
+
+**Next: ten new server specimens, and the slate now says what is added** (`public/next-server.js`, `public/next-core.js`, `public/next-slate.js`, `public/next.js`, `public/next.css`, `public/next.html`)
+
+- Ten new working models take the workspace to 40: server preview (#184), customisable welcome page (#110), join questions (#191), channel ordering (#113), channel tags (#123), member spotlights (#138), looking-for-group board (#156), connection info (#162), game nights (#170) and the moderation dashboard (#193). Each has seed state, a live specimen and an action map that writes through `NX.commit`.
+- The slate now carries a status flag on each row: **Added** on the ten that have a model, **Partial** on the five partly shipped, **Modelled** on seven whose shape an existing chat specimen already covers. Flags are searchable, and the index groups by name so new specimens join their existing sections instead of starting a second header.
+
+**App chrome: inline Lucide icons replace typed glyph controls** (`public/*.html`, `public/*.js`, `server.js`, `lib/routes/*.js`, `supabase/migrations/20261120120000_project_vote_fix.sql`)
+
+- Chat, editor, auth, profile, race, project, server and settings controls now draw add, close, back/forward, check, vote and move icons as inline Lucide SVGs instead of OS-dependent font glyphs. `/collections` mounts the shared rail again.
+- Duplicate badge, race-week, race-play and changelog writes are idempotent. A first-day session heartbeat now filters a null streak date with `is`, so Postgres no longer receives `""` as a date. The project-vote SQL now qualifies its counters and has a forward migration replacing the ambiguous function; apply it to Supabase to clear the `column reference "upvotes" is ambiguous` errors.
+
 **Projects board: a weekly public leaderboard for things made anywhere** (`public/projects.html`, `public/projects.css`, `public/projects.js`, `lib/routes/projects.js`, `supabase/migrations/20261119130000_projects.sql`)
 
 - A new `/projects` board lists websites, games, tools and other projects from anywhere, not only Cudic. Submit from the topbar or hero, filter by category, search names/tags/domains, and sort by this week or all time. No paid placement or paid ranking.
@@ -59,16 +84,18 @@ fixed. Commits are referenced by short hash.
 **App brand kit** (`public/brand-app.html`)
 
 - A new `/brand-app.html` documents the app surface alongside the landing kit at `/brand.html`: the steel-blue desk, floating charcoal window, 60 px icon rail, one orange signal, Geist and Geist Mono type, app components, motion and voice. The public landing and docs keep their existing system.
-- Both brand kits now use inline SVG for arrows and close controls and plain key labels in menu examples; no typed glyphs or emoji are used as interface chrome.
+- Both brand kits now use inline SVG for arrows and close controls and plain key labels in menu examples; no typed glyphs or emoji are used as interface chrome. `/brand-app.html` also gained a UI bench: a motion study built on the real Lucide `sparkles` icon, whose four strokes trace in sequence before a light chases the outline and a dashed ring, its satellite and the ripples keep their own clock; an icon-to-label hover study; and 50 live component states. The first 30 cover toggles, tabs, accordion, rating, reaction and copy; the second shelf adds a number input, password reveal, 4-digit code input, combobox, tag input, dropdown menu, inline edit, dismissible banner with undo, async button, field error with retry, poll option, message row, typing dots, link preview, removable attachment, table row, sort header, colour swatches, filter chips and a seat meter — each with real state. All fifty now animate their transitions rather than snap: spring-scaled presses, staged layer and row entrances, a height-eased accordion, cross-fading password icons, bumped counters, a collapsing error line, exit animations for the banner and attachment, and staged seat fills. `prefers-reduced-motion` drops every one of them to a 1 ms cut.
 
 **Server tools: channel types, polls, Q&A, bookmarks, join questions, feeds and backups** (`lib/routes/batch.js`, `public/server-batch.js`, `public/events.html`, `public/moderate-servers.js`, `public/server-directory.js`, `supabase/migrations/20261115200000_server_batch.sql`)
 
 - **Announcement channels** let the owner and mods post while everyone else reads; the composer is hidden for members and the send path refuses the message even if a client re-enables it. **Q&A channels** add an Answer action on each message: the asker or a mod marks it resolved, the message gets an answered badge, and the answered shelf keeps resolutions above history.
-- **Polls** post into any channel with two to six options, one vote per member, changeable until it closes. Anonymous polls count the vote without revealing the voter, and neither view ever returns another member's identity.
+- **Polls** post into any server channel or DM with two to ten options, one vote per member, changeable until it closes. Anonymous polls count the vote without revealing the voter, and neither view ever returns another member's identity. The create dialog has add-option, Cancel and Close controls and also closes on the backdrop or Escape.
 - **Channel bookmarks** are private, live in their own sidebar group and are re-checked against the server on every read. The server's **game card** now renders under its name with a copy button.
 - **Join questions**: up to three per server, required on the invite page and readable only by owners and mods in the new **server moderation** section of `/moderate` — members, warnings, bans, slow channels, audited actions and join answers per server.
-- **Game feeds** post a published game's update into one chosen channel. **Weekly backups** keep the last four JSON snapshots of the server identity, channels, roles, events, presets, nights, LFG, suggestions and prompts, downloadable from Server settings.
-- **/events** lists upcoming public game nights and events across public servers; directory cards gain **featured artwork** (falling back to the banner) and the next public event.
+- **Game feeds** are managed from Server settings: paste a game id, pick a channel, Follow, and Remove rows in the list. A publish posts one link into that channel. **Weekly backups** keep the last four JSON snapshots of the server identity, channels, roles, events, presets, nights, LFG, suggestions and prompts, downloadable from Server settings.
+- **/events** lists upcoming public game nights and events across public servers; directory cards gain **featured artwork** (falling back to the banner) and the next public event. The directory topbar links **Events**, public cards link **Preview**, private cards link their **Invite page**, and invite copying now gives the shareable `/join/<code>` address.
+- **Prompts** can be posted from the Community dock or full page into a chosen channel, with a one-click **Post & pin** for the weekly topic. Nickname changes reject staff-like names and write an audit row.
+- **DM polls** reuse the same poll/vote rows from the chat page; the additive `20261121120000_dm_polls.sql` only relaxes `server_polls.server_id` so a DM poll can exist without a server. Until it is applied, DM poll creation answers 503 instead of writing a half-row.
 - Every write is additive, owner-checked where it changes the server, and degrades to a clear “needs the migration” answer until the SQL has run.
 
 **Community pack: member cards, prompts, suggestions, LFG, nights, warnings and labels** (`lib/routes/pack.js`, `public/server-community.html`, `public/server-community.js`, `public/server-preview.html`, `public/server-favourites.js`, `supabase/migrations/20261115190000_community_pack.sql`)

@@ -27,6 +27,9 @@
     return d;
   }
   function sys(text) { var p = page(); if (p && p.addSys) p.addSys(text); }
+  function bookmarkSvg(on) {
+    return '<svg viewBox="0 0 24 24" width="15" height="15" fill="' + (on ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1Z"/></svg>';
+  }
 
   function addStyle() {
     var st = document.createElement('style');
@@ -67,7 +70,9 @@
     var bar = $('topbar');
     if (!bar || $('batchPollBtn')) return;
     var bm = document.createElement('button');
-    bm.type = 'button'; bm.className = 'tools'; bm.id = 'batchBookmarkBtn'; bm.textContent = '☆'; bm.title = 'Bookmark this channel';
+    bm.type = 'button'; bm.className = 'tools'; bm.id = 'batchBookmarkBtn';
+    bm.innerHTML = bookmarkSvg(false); bm.title = 'Bookmark this channel';
+    bm.setAttribute('aria-label', 'Bookmark this channel'); bm.setAttribute('aria-pressed', 'false');
     bm.onclick = toggleBookmark;
     bar.insertBefore(bm, $('srvHqBtn'));
     var p = page();
@@ -126,7 +131,8 @@
     }
     var p = page();
     box.innerHTML = '<div class="bm-head">Bookmarks</div>' + rows.map(function (b) {
-      return '<button type="button" data-bm="' + esc(b.id) + '"><span style="color:var(--text-tertiary)">' + (b.type === 'announcement' ? '📣' : b.type === 'qa' ? '?' : '#') + '</span>' + esc(b.display) + '</button>';
+      var kind = b.type === 'announcement' ? 'ANN' : b.type === 'qa' ? 'Q&amp;A' : 'CH';
+      return '<button type="button" data-bm="' + esc(b.id) + '"><span style="color:var(--text-tertiary);font:600 .58rem/1 var(--font-mono,monospace);letter-spacing:.05em">' + kind + '</span>' + esc(b.display) + '</button>';
     }).join('');
     [].forEach.call(box.querySelectorAll('[data-bm]'), function (btn) {
       btn.onclick = function () {
@@ -139,9 +145,11 @@
     var b = $('batchBookmarkBtn'); var p = page(); var cur = p && p.current;
     if (!b || !cur) return;
     var on = BOOKMARKS.some(function (x) { return x.id === cur.id; });
-    b.textContent = on ? '★' : '☆';
+    b.innerHTML = bookmarkSvg(on);
     b.classList.toggle('on', on);
     b.title = on ? 'Remove bookmark' : 'Bookmark this channel';
+    b.setAttribute('aria-label', b.title);
+    b.setAttribute('aria-pressed', String(on));
   }
   async function toggleBookmark() {
     var p = page(); var cur = p && p.current;
@@ -182,7 +190,7 @@
         + '<div class="bp-meta"><span>' + poll.total + ' vote' + (poll.total === 1 ? '' : 's') + '</span>'
         + (poll.closes_at ? '<span>' + (closed ? 'Closed' : 'Closes ' + esc(new Date(poll.closes_at).toLocaleString())) + '</span>' : '')
         + (poll.mine !== null ? '<span>You voted</span>' : '')
-        + (!closed ? '<button type="button" data-close="1">Close poll</button>' : '') + '</div></div>';
+        + (!closed && page() && (page().role === 'owner' || page().role === 'mod') ? '<button type="button" data-close="1">Close poll</button>' : '') + '</div></div>';
     }).join('');
     [].forEach.call(el.querySelectorAll('.bp-poll'), function (box) {
       var pid = box.getAttribute('data-poll');
@@ -202,33 +210,61 @@
     });
     syncBookmarkStar();
   }
+  function closePollDialog() {
+    var d = $('pollDialog');
+    if (!d) return;
+    d.remove();
+    document.removeEventListener('keydown', pollDialogKey);
+  }
+  function pollDialogKey(e) { if (e.key === 'Escape') closePollDialog(); }
   function openPollDialog() {
     var p = page(); var cur = p && p.current;
     if (!cur) return;
-    var old = $('pollDialog'); if (old) old.remove();
+    closePollDialog();
     var d = document.createElement('div');
     d.id = 'pollDialog';
     d.style.cssText = 'position:fixed;inset:0;z-index:9500;display:grid;place-items:center;background:rgba(0,0,0,.55);padding:20px';
-    d.innerHTML = '<form style="width:min(420px,100%);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px">'
-      + '<h2 style="font:600 1rem/1.3 var(--font-head);margin:0 0 10px">Poll in #' + esc(cur.display) + '</h2>'
-      + '<input id="pollQ" maxlength="160" placeholder="Question" style="width:100%;margin-bottom:7px;padding:8px;background:var(--panel-raised);border:1px solid var(--line);border-radius:6px;color:var(--text-primary)">'
-      + '<input class="pollO" maxlength="60" placeholder="Option 1" style="width:100%;margin-bottom:5px;padding:7px;background:var(--panel-raised);border:1px solid var(--line);border-radius:6px;color:var(--text-primary)">'
-      + '<input class="pollO" maxlength="60" placeholder="Option 2" style="width:100%;margin-bottom:5px;padding:7px;background:var(--panel-raised);border:1px solid var(--line);border-radius:6px;color:var(--text-primary)">'
-      + '<input class="pollO" maxlength="60" placeholder="Option 3 (optional)" style="width:100%;margin-bottom:8px;padding:7px;background:var(--panel-raised);border:1px solid var(--line);border-radius:6px;color:var(--text-primary)">'
+    d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true');
+    d.setAttribute('aria-labelledby', 'pollDialogTitle');
+    var inputStyle = 'width:100%;box-sizing:border-box;margin-bottom:6px;padding:8px;background:var(--panel-raised);border:1px solid var(--line);border-radius:6px;color:var(--text-primary);font:inherit;font-size:.84rem';
+    d.innerHTML = '<form style="width:min(440px,100%);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;max-height:90vh;overflow:auto">'
+      + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px"><h2 id="pollDialogTitle" style="font:600 1rem/1.3 var(--font-head);margin:0">Poll in #' + esc(cur.display) + '</h2><button type="button" id="pollX" aria-label="Close poll dialog" style="background:none;border:0;color:var(--text-secondary);cursor:pointer;font:inherit;font-size:1.1rem;line-height:1">Close</button></div>'
+      + '<input id="pollQ" maxlength="160" placeholder="Question" aria-label="Poll question" style="' + inputStyle + '">'
+      + '<div id="pollOpts"><input class="pollO" maxlength="60" placeholder="Option 1" aria-label="Option 1" style="' + inputStyle + '"><input class="pollO" maxlength="60" placeholder="Option 2" aria-label="Option 2" style="' + inputStyle + '"></div>'
+      + '<button type="button" id="pollAddOpt" style="margin:2px 0 10px;padding:5px 9px;border:1px solid var(--line);border-radius:6px;background:var(--panel-raised);color:var(--text-secondary);font:inherit;font-size:.75rem;cursor:pointer">Add option</button>'
       + '<label style="display:flex;gap:6px;align-items:center;font-size:.8rem;color:var(--text-secondary);margin-bottom:12px"><input type="checkbox" id="pollAnon"> Anonymous votes</label>'
-      + '<div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" id="pollCancel" style="padding:7px 12px">Cancel</button><button type="submit" class="btn-send">Create poll</button></div>'
-      + '<p id="pollErr" style="color:var(--danger);font-size:.78rem;margin:8px 0 0"></p></form>';
+      + '<div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" id="pollCancel" style="padding:7px 12px;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--text-primary);font:inherit;font-size:.8rem;cursor:pointer">Cancel</button><button type="submit" class="btn-send">Create poll</button></div>'
+      + '<p id="pollErr" role="alert" style="color:var(--danger);font-size:.78rem;margin:8px 0 0"></p></form>';
     document.body.appendChild(d);
-    $('pollCancel').onclick = function () { d.remove(); };
+    function optionCount() { return d.querySelectorAll('.pollO').length; }
+    function syncAdd() {
+      var add = $('pollAddOpt');
+      add.disabled = optionCount() >= 10;
+      add.textContent = optionCount() >= 10 ? '10 options max' : 'Add option';
+    }
+    $('pollAddOpt').onclick = function () {
+      if (optionCount() >= 10) return;
+      var input = document.createElement('input');
+      var n = optionCount() + 1;
+      input.className = 'pollO'; input.maxLength = 60;
+      input.placeholder = 'Option ' + n; input.setAttribute('aria-label', 'Option ' + n);
+      input.style.cssText = inputStyle;
+      $('pollOpts').appendChild(input); input.focus(); syncAdd();
+    };
+    $('pollX').onclick = closePollDialog;
+    $('pollCancel').onclick = closePollDialog;
+    d.onclick = function (e) { if (e.target === d) closePollDialog(); };
+    document.addEventListener('keydown', pollDialogKey);
     d.querySelector('form').onsubmit = async function (ev) {
       ev.preventDefault();
       var opts = [].slice.call(d.querySelectorAll('.pollO')).map(function (i) { return i.value.trim(); }).filter(Boolean);
+      if (opts.length < 2) { $('pollErr').textContent = 'Add at least two options.'; return; }
       try {
         await req('/api/servers/' + SID + '/polls', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ lobbyId: cur.id, question: $('pollQ').value, options: opts, anonymous: $('pollAnon').checked }),
         });
-        d.remove(); loadPolls(); sys('Poll posted.');
+        closePollDialog(); loadPolls(); sys('Poll posted.');
       } catch (e) { $('pollErr').textContent = e.message; }
     };
     $('pollQ').focus();
@@ -251,7 +287,7 @@
       if (!rows.length) { el.hidden = true; el.innerHTML = ''; return; }
       el.hidden = false;
       el.innerHTML = '<div class="bp-title">Answered</div>' + rows.map(function (r) {
-        return '<div class="qa-row"><b>✓ ' + esc(r.display_name || '?') + '</b><span>' + esc(String(r.text || '').replace(/\s+/g, ' ').slice(0, 140)) + '</span></div>';
+        return '<div class="qa-row"><b><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M20 6 9 17l-5-5"/></svg> ' + esc(r.display_name || '?') + '</b><span>' + esc(String(r.text || '').replace(/\s+/g, ' ').slice(0, 140)) + '</span></div>';
       }).join('');
     } catch (e) { el.hidden = true; }
   }
@@ -280,8 +316,8 @@
       }
     }
     var title = $('chanTitle');
-    if (title && ch.type === 'announcement') title.textContent = '📣 ' + ch.display;
-    if (title && ch.type === 'qa') title.textContent = '? ' + ch.display;
+    if (title && ch.type === 'announcement') title.textContent = 'Announcements: ' + ch.display;
+    if (title && ch.type === 'qa') title.textContent = 'Questions: ' + ch.display;
   };
 
   async function boot() {

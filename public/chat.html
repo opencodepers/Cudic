@@ -50,7 +50,9 @@
       width: 32px; height: 32px; border-radius: var(--radius-sm);
       border: 1px solid var(--line); background: var(--panel-raised);
       color: var(--text-primary); font-size: 1.1rem; line-height: 1; cursor: pointer;
+      display: grid; place-items: center;
     }
+    .conv-new svg { width: 16px; height: 16px; }
     .conv-new:hover { border-color: var(--signal); color: var(--signal); }
     .conv-search { padding: 10px 12px 4px; flex-shrink: 0; }
     .conv-search input {
@@ -119,7 +121,9 @@
       width: 32px; height: 32px; border-radius: var(--radius-sm);
       border: 1px solid var(--line); background: transparent;
       color: var(--text-secondary); font-size: 1rem; line-height: 1; cursor: pointer;
+      display: grid; place-items: center;
     }
+    .search-head button svg { width: 16px; height: 16px; }
     .search-head button:hover { border-color: var(--signal); color: var(--signal); }
     #searchView input[type="text"] {
       width: 100%; box-sizing: border-box; background: var(--panel-raised);
@@ -254,7 +258,8 @@
     }
     .rep-field select:focus, .rep-field input:focus { border-color: var(--signal); }
     #reportOverlay .status-msg { min-height: 0; margin-bottom: 4px; }
-.btn-emoji { background: none; border: 0; font-size: 1.25rem; cursor: pointer; padding: 0 6px; line-height: 1; }
+.btn-emoji { display: inline-flex; align-items: center; justify-content: center; background: none; border: 0; color: var(--text-secondary); cursor: pointer; padding: 0 6px; line-height: 1; }
+.btn-emoji svg { width: 20px; height: 20px; }
     .emoji-picker { position: absolute; bottom: 60px; left: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; max-width: 280px; z-index: 20; box-shadow: 0 8px 24px rgba(0,0,0,.3); }
     .emoji-picker button { background: none; border: 0; font-size: 1.25rem; cursor: pointer; padding: 4px; border-radius: 4px; }
     .emoji-picker button:hover { background: var(--bg); }
@@ -462,7 +467,7 @@
     <aside class="chat-sidebar" id="chatSidebar">
       <div class="conv-head">
         <span>Messages</span>
-        <button class="conv-new" id="newMsgBtn" title="New message" aria-label="New message">+</button>
+        <button class="conv-new" id="newMsgBtn" title="New message" aria-label="New message"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
       </div>
       <div class="conv-search"><input type="text" id="convSearch" placeholder="Find a conversation" aria-label="Find a conversation" maxlength="40" autocomplete="off"></div>
       <div class="conv-list" id="convList">
@@ -474,7 +479,7 @@
     </aside>
     <main class="chat-main" id="chatMain">
       <div id="searchView" hidden>
-        <div class="search-head"><span>New message</span><button id="searchClose" aria-label="Close search">×</button></div>
+        <div class="search-head"><span>New message</span><button id="searchClose" aria-label="Close search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
         <input type="text" id="peopleSearch" placeholder="Search name or #id" aria-label="Search people" maxlength="40" autocomplete="off">
         <div id="panelStatus" style="font-size:0.8rem;color:var(--danger)"></div>
         <div id="peopleResults"></div>
@@ -490,6 +495,7 @@
         <span class="online" id="onlineCount"></span>
         <a class="btn btn-secondary" href="/next" title="Working models of the next 30 moves" style="padding:6px 12px;font-size:0.78rem">Next</a>
         <button class="btn btn-secondary" id="modOpener" hidden title="Members and moderation" style="margin-left:auto;padding:6px 12px;font-size:0.78rem">Mod</button>
+        <button class="btn btn-secondary" id="pollBtn" hidden title="Create a poll in this DM" style="padding:6px 12px;font-size:0.78rem">Poll</button>
         <button class="btn btn-secondary" id="msgSearchBtn" title="Search this conversation" style="padding:6px 12px;font-size:0.78rem">Search</button>
         <button class="btn btn-secondary" id="extrasBtn" title="Status, private notes, reminders and pins" style="padding:6px 12px;font-size:0.78rem">Extras</button>
       </div>
@@ -512,6 +518,7 @@
         <div id="msgSearchResults" style="margin-top:10px;max-height:180px;overflow-y:auto"></div>
       </div>
       <div id="pinnedShelf" hidden></div>
+      <div id="pollShelf" hidden></div>
       <div id="modPanel" hidden></div>
       <div id="extrasPanel" hidden></div>
       <div id="messages" class="messages" hidden></div>
@@ -521,14 +528,14 @@
           <h2 id="emptyTitle">No conversations yet</h2>
           <p id="emptyText">Message a friend or join a server to start a conversation.</p>
           <button class="btn btn-primary" id="emptyFind">Find friends</button>
-          <p style="margin-top:12px"><a href="/servers" style="color:var(--signal);font-size:0.85rem">Browse servers →</a></p>
+          <p style="margin-top:12px"><a href="/servers" style="color:var(--signal);font-size:0.85rem">Browse servers <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-left:4px"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></p>
         </div>
       </div>
       <div id="typingIndicator" class="typing-indicator" style="display:none"></div>
       <p id="slowNote" hidden></p>
       <button type="button" id="loadOlderBtn" class="load-older" hidden>Load older messages</button>
       <form id="chatForm" class="chat-input-area" hidden>
-        <button type="button" id="emojiBtn" class="btn-emoji" title="Insert emoji" aria-label="Insert emoji">😀</button>
+        <button type="button" id="emojiBtn" class="btn-emoji" title="Insert emoji" aria-label="Insert emoji"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg></button>
         <input type="text" id="msgInput" placeholder="Type a message…" aria-label="Type a message" maxlength="2000" autocomplete="off">
         <button type="submit" class="btn-send">Send</button>
       </form>
@@ -574,6 +581,7 @@
   <script src="/cudic-cosmetics.js?v=1"></script>
   <script src="/chat-motion.js?v=1" defer></script>
   <script src="/client.js?v=18"></script>
+<script src="/chat-polls.js?v=1"></script>
 <script src="/chat-extras.js?v=1"></script>
 <script src="/chat-community.js?v=1"></script>
 <script src="/chat-planner.js?v=1"></script>

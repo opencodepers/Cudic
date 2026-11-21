@@ -169,7 +169,9 @@
       btn.className = 'cp-item';
       btn.setAttribute('role', 'option');
       btn.setAttribute('aria-selected', i === active ? 'true' : 'false');
-      btn.appendChild(node('span', 'cp-ico', r.icon || '·'));
+      var ico = node('span', 'cp-ico');
+      if (r.iconSvg) ico.innerHTML = r.iconSvg; else ico.textContent = r.icon || '·';
+      btn.appendChild(ico);
       var main = node('span', 'cp-main');
       main.appendChild(node('span', 'cp-label', r.label));
       if (r.sub) main.appendChild(node('span', 'cp-sub', r.sub));
@@ -232,7 +234,7 @@
     ((d && d.threads) || []).forEach(function (t) {
       out.push({ group: 'Forums', label: t.title || 'Thread', sub: t.category || 'Forum thread', href: '/forums/' + encodeURIComponent(t.id), icon: 'F' });
     });
-    out.push({ group: 'Search', label: 'Search games for “' + q + '”', sub: 'Open the gallery with this query', href: '/games?q=' + encodeURIComponent(q), icon: '→' });
+    out.push({ group: 'Search', label: 'Search games for “' + q + '”', sub: 'Open the gallery with this query', href: '/games?q=' + encodeURIComponent(q), iconSvg: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>' });
     return out;
   }
 

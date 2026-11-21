@@ -515,4 +515,359 @@
       'emoji-send': function () { NX.toast('Emoji inserted into the composer.'); }
     }
   });
+
+  /* ── Batch 2: the join funnel, organisation, play and the owner desk ─────── */
+
+  NX.add({
+    id: 'preview', plan: 184, side: 'server', group: 'Place', title: 'Server preview before joining',
+    blurb: 'See the room before the door: banner, public channels, rules and member count, with Join at the end instead of a bare modal.',
+    why: 'A join modal tells you a name and a member count. A preview page tells you whether you belong, and it is the cheapest raid filter we have: the public surface never names a private channel.',
+    proof: ['Only public channels appear in the preview.', 'Joining from the preview writes the same membership row as the join modal.'],
+    gate: 'Public-channel filter on the read path. No member names, no private structure, no join count beyond the total.',
+    render: function () {
+      var s = NX.state.preview;
+      var channels = ['#general', '#build-log', '#art'];
+      return '<div class="nx-pv" style="--pv:' + e(s.banner) + '">'
+        + '<div class="nx-pv-art"><span class="nx-badge">Public preview</span><b>Mosslight</b>'
+        + '<span class="nx-pv-meta">1,284 members · 7 online · tiny games, slow evenings</span></div>'
+        + '<div class="nx-pv-body"><div class="nx-pv-row"><span class="nx-label" style="margin:0">Channels you can read</span>'
+        + '<span class="nx-badge' + (s.triedPrivate ? ' warn' : '') + '">' + (s.triedPrivate ? '3 private withheld' : '3 public') + '</span></div>'
+        + '<div class="nx-inline">' + channels.map(function (c) { return '<span class="nx-forum-tag">' + e(c) + '</span>'; }).join('') + '</div>'
+        + '<div class="nx-divider"></div>'
+        + '<p class="nx-pv-rule"><b>Rules.</b> Be kind on purpose. No spoilers for a week. One promotion a day.</p>'
+        + '<div class="nx-inline" style="margin-top:10px">'
+        + (s.joined
+          ? '<span class="nx-badge ok">Joined</span>' + NX.action('Leave preview', 'preview-leave', '', 'quiet')
+          : NX.action('Join Mosslight', 'preview-join', '', 'primary') + NX.action('Try to show private channels', 'preview-private', '', 'quiet'))
+        + '</div></div></div>'
+        + '<p class="nx-preview-note">' + (s.joined ? 'You are a member: the same row any join path writes.' : 'The preview reads the public slice only. Private channels never reach this page.') + '</p>';
+    },
+    actions: {
+      'preview-join': function () { NX.state.preview.joined = true; NX.commit('Joined Mosslight from the preview.'); },
+      'preview-leave': function () { NX.state.preview.joined = false; NX.commit('Left the preview.'); },
+      'preview-private': function () { NX.state.preview.triedPrivate = true; NX.commit('The preview refuses to name private channels.'); }
+    }
+  });
+
+  NX.add({
+    id: 'welcome', plan: 110, side: 'server', group: 'Place', title: 'Customisable welcome page',
+    blurb: 'A public /s/<id>/welcome with the banner, the rules and the next event — the join page a link can point at.',
+    why: 'An invite usually lands on a modal with a name. A welcome page gives a server a front door it can style and share, and gives Join somewhere sensible to live.',
+    proof: ['The page renders for a signed-out visitor with no member data.', 'The banner is the only server style; type stays the app type.'],
+    gate: 'A public read route, banner reuse from #101, and the directory content rules for a page under-13s can reach.',
+    render: function () {
+      var s = NX.state.welcome;
+      return '<div class="nx-pv" style="--pv:' + e(s.banner) + '">'
+        + '<div class="nx-pv-art"><span class="nx-badge">/s/mosslight/welcome</span><b>Mosslight</b>'
+        + '<span class="nx-pv-meta">Friday game night · 20:00 GMT</span></div>'
+        + '<div class="nx-pv-body">'
+        + (s.rules ? '<p class="nx-pv-rule"><b>House rules.</b> No spoilers, no raids, no selling. Test builds welcome.</p>' : '<p class="nx-muted">Rules are hidden from the public page.</p>')
+        + '<div class="nx-setting" style="margin-top:8px"><div><b>Show the rules</b><small>Owner choice. Never member names.</small></div>'
+        + NX.toggle('welcome.rules', s.rules, 'Show the rules on the welcome page') + '</div>'
+        + '<div class="nx-inline" style="margin-top:9px">' + NX.action('Copy invite link', 'welcome-copy', '', 'primary')
+        + NX.action('Preview as a visitor', 'welcome-visitor', '', 'quiet') + '</div></div></div>'
+        + '<div class="nx-swatches">' + ['#143327', '#20334d', '#2a1b3d', '#3a2a12'].map(function (color) {
+          return '<button type="button" class="nx-swatch' + (s.banner === color ? ' on' : '') + '" data-act="welcome-swatch" data-color="' + color + '" style="--sw:' + color + '" aria-pressed="' + (s.banner === color) + '" aria-label="Banner ' + color + '"><span>' + color + '</span></button>';
+        }).join('') + '</div>'
+        + '<p class="nx-preview-note">The banner is the only server style on this page; headings and rules use the app face.</p>';
+    },
+    actions: {
+      'welcome-swatch': function (el) { NX.state.welcome.banner = el.getAttribute('data-color'); NX.commit('Welcome banner updated.'); },
+      'welcome-copy': function () {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText('https://cudic.app/s/mosslight/welcome').then(function () { NX.toast('Welcome link copied.'); }).catch(function () { NX.toast('Copy is blocked in this browser.'); });
+        } else NX.toast('Copy is not available here.');
+      },
+      'welcome-visitor': function () { NX.commit('Visitor view: no member names, no private channels.'); }
+    }
+  });
+
+  NX.add({
+    id: 'joinq', plan: 191, side: 'server', group: 'Place', title: 'Custom join questions',
+    blurb: 'One to three questions before joining. Answers are visible to mods only and deleted with the membership.',
+    why: 'A question is a filter that respects the person answering it: it stops the raid and starts the introduction at once. It only works if the answer is treated as personal data, not as a profile field.',
+    proof: ['A member can still join without answering.', 'Answers never appear on the public preview or the member card.'],
+    gate: 'Owner-only read, exported with the account, deleted with the membership. Never indexed, never in a webhook.',
+    render: function () {
+      var s = NX.state.joinq;
+      if (s.sent) {
+        return '<div class="nx-result"><span class="nx-result-mark">' + NX.icon('check') + '</span><div><b>Answers sent to the mods</b><small>Deleted automatically if you leave the server.</small></div></div>'
+          + (s.modView ? '<div class="nx-modcard"><span class="nx-badge">Mod view</span><p class="nx-msg-text" style="margin-top:6px">' + (e(s.why) || 'No answer to question one.') + '</p>'
+            + '<p class="nx-muted">Plays ' + e(s.games || 'unknown') + ' · joined just now</p></div>' : '')
+          + '<div class="nx-inline" style="margin-top:9px">' + NX.action(s.modView ? 'Hide mod view' : 'Preview mod view', 'joinq-mod', '', 'quiet')
+          + NX.action('Start over', 'joinq-reset', '', 'quiet') + '</div>';
+      }
+      return '<div class="nx-field"><label class="nx-label" for="nxJoinWhy">Why do you want to join?</label>'
+        + '<textarea class="nx-textarea" id="nxJoinWhy" data-live="joinq.why" maxlength="240" placeholder="One honest sentence.">' + e(s.why) + '</textarea></div>'
+        + '<div class="nx-field"><label class="nx-label" for="nxJoinGames">What do you play?</label>'
+        + '<input class="nx-input" id="nxJoinGames" data-live="joinq.games" maxlength="80" value="' + e(s.games) + '"></div>'
+        + '<div class="nx-inline">' + NX.action('Send answers', 'joinq-send', '', 'primary') + NX.action('Skip and join', 'joinq-skip', '', 'quiet') + '</div>'
+        + '<p class="nx-preview-note">Mods see the answers. Nobody else does, and leaving the server deletes them.</p>';
+    },
+    actions: {
+      'joinq-send': function () {
+        if (!String(NX.state.joinq.why || '').trim()) { NX.toast('Answer the first question or skip.'); return; }
+        NX.state.joinq.sent = true; NX.commit('Answers sent to the mods.');
+      },
+      'joinq-skip': function () { NX.state.joinq.why = ''; NX.state.joinq.sent = true; NX.commit('Joined without answering.'); },
+      'joinq-mod': function () { NX.state.joinq.modView = !NX.state.joinq.modView; NX.commit(); },
+      'joinq-reset': function () { NX.state.joinq = { why: '', games: 'Mosslight', sent: false, modView: false }; NX.commit('Join questions reset.'); }
+    }
+  });
+
+  NX.add({
+    id: 'channels-order', plan: 113, side: 'server', group: 'Place', title: 'Custom channel ordering',
+    blurb: 'Put channels and folders in the order the server actually reads. Each move saves on its own row.',
+    why: 'A sidebar is a map, and every server walks through it differently. Ordering is the cheapest customisation that changes how a room feels day to day.',
+    proof: ['A move persists after a reload.', 'Two mods moving different rows both keep their change.'],
+    gate: '21 (shipped) for folders. A move writes one row, never the whole list.',
+    render: function () {
+      var s = NX.state.order;
+      return '<div class="nx-chan-list">' + s.list.map(function (name, i) {
+        return '<div class="nx-chan-row"><span class="nx-chan-grip">' + NX.icon('grip') + '</span><span class="nx-chan-name">' + e(name) + '</span>'
+          + '<span class="nx-chan-btns">'
+          + '<button type="button" class="nx-chan-btn" data-act="chan-up" data-i="' + i + '" aria-label="Move ' + e(name) + ' up"' + (i === 0 ? ' disabled' : '') + '>' + NX.icon('arrow-left') + '</button>'
+          + '<button type="button" class="nx-chan-btn down" data-act="chan-down" data-i="' + i + '" aria-label="Move ' + e(name) + ' down"' + (i === s.list.length - 1 ? ' disabled' : '') + '>' + NX.icon('arrow-left') + '</button>'
+          + '</span></div>';
+      }).join('') + '</div>'
+        + '<div class="nx-inline" style="margin-top:8px">' + NX.action('Reset order', 'chan-reset', '', 'quiet')
+        + '<span class="nx-muted">' + (s.last ? e(s.last) + ' saved on its own row.' : 'Drag, or use the arrows.') + '</span></div>'
+        + '<p class="nx-preview-note">Order is per server. One drag writes one row, so two mods cannot overwrite each other’s whole list.</p>';
+    },
+    actions: {
+      'chan-up': function (el) { shift(el, -1); },
+      'chan-down': function (el) { shift(el, 1); },
+      'chan-reset': function () { NX.state.order = NX.clone(NX.defaults.order); NX.commit('Channel order reset.'); }
+    }
+  });
+  function shift(el, dir) {
+    var s = NX.state.order;
+    var i = Number(el.getAttribute('data-i'));
+    var j = i + dir;
+    if (j < 0 || j >= s.list.length) return;
+    var moved = s.list.splice(i, 1)[0];
+    s.list.splice(j, 0, moved);
+    s.last = moved;
+    NX.commit(moved + ' moved.');
+  }
+
+  NX.add({
+    id: 'channel-tags', plan: 123, side: 'server', group: 'Place', title: 'Channel tags',
+    blurb: 'Short tags on a channel, filterable in the list. Three tags, twelve characters each, sanitised like a name.',
+    why: 'A channel name can only say so much. Tags make the list sortable without adding folders, and a capped vocabulary keeps search honest.',
+    proof: ['A fourth tag is refused, not silently dropped.', 'The tag filter and the channel row agree on the same string.'],
+    gate: 'A curated list owned by the server. Three tags, 12 characters, the same sanitiser as channel names.',
+    render: function () {
+      var s = NX.state.chantags;
+      var pool = ['build', 'help', 'art', 'lfg', 'voice', 'staff'];
+      return '<div class="nx-status-preview"><span class="nx-ava alt">#</span><div class="nx-status-copy"><b>#build-log</b>'
+        + '<span>' + (s.on.length ? s.on.map(function (t) { return '#' + t; }).join(' · ') : 'No tags yet') + '</span></div>'
+        + '<span class="nx-badge" style="margin-left:auto">' + s.on.length + ' / 3</span></div>'
+        + '<div class="nx-inline" style="margin-top:10px">' + pool.map(function (t) {
+          var on = s.on.indexOf(t) !== -1;
+          return '<button type="button" class="nx-chip' + (on ? ' on' : '') + '" data-act="chantag-toggle" data-tag="' + t + '" aria-pressed="' + on + '">' + e(t) + '</button>';
+        }).join('') + '</div>'
+        + '<div class="nx-row-fields" style="margin-top:9px"><div><label class="nx-label" for="nxTagNew">Custom tag</label>'
+        + '<input class="nx-input" id="nxTagNew" maxlength="12" placeholder="12 characters max"></div>' + NX.action('Add', 'chantag-add', '', 'primary') + '</div>'
+        + '<p class="nx-preview-note">Tags filter the channel list. Three is a ceiling, not a suggestion.</p>';
+    },
+    actions: {
+      'chantag-toggle': function (el) {
+        var s = NX.state.chantags;
+        var t = el.getAttribute('data-tag');
+        var at = s.on.indexOf(t);
+        if (at !== -1) s.on.splice(at, 1);
+        else if (s.on.length >= 3) { NX.toast('Three tags is the ceiling.'); return; }
+        else s.on.push(t);
+        NX.commit();
+      },
+      'chantag-add': function () {
+        var s = NX.state.chantags;
+        var input = document.getElementById('nxTagNew');
+        var raw = (input && input.value || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+        if (!raw) { NX.toast('Use letters, numbers or a dash.'); return; }
+        if (raw.length > 12) { NX.toast('Twelve characters maximum.'); return; }
+        if (s.on.indexOf(raw) !== -1) { NX.toast('That tag is already on.'); return; }
+        if (s.on.length >= 3) { NX.toast('Three tags is the ceiling.'); return; }
+        s.on.push(raw);
+        NX.commit('Tag added.');
+      }
+    }
+  });
+
+  NX.add({
+    id: 'spotlights', plan: 138, side: 'server', group: 'People', title: 'Community member spotlights',
+    blurb: 'A mod picks a member or a creation and the server posts a card. The member agrees before their name goes up.',
+    why: 'A spotlight is the warmest thing a mod can do with machinery we already have: it reuses the system-post path and turns one person’s work into the room’s memory. Consent is the whole difference between recognition and exposure.',
+    proof: ['A member who has not opted in never appears in the picker.', 'The posted card carries one creation and no contact detail.'],
+    gate: 'System posts (69, shipped) plus per-member opt-in. A minor’s card needs a second confirmation.',
+    render: function () {
+      var s = NX.state.spotlight;
+      var picked = NX.members.filter(function (m) { return String(m.id) === String(s.picked); })[0];
+      return '<div class="nx-inline">' + NX.members.slice(0, 3).map(function (m) {
+        var on = String(m.id) === String(s.picked);
+        return '<button type="button" class="nx-spot" data-act="spot-pick" data-id="' + m.id + '" aria-pressed="' + on + '">'
+          + '<span class="nx-ava alt">' + e(m.initials) + '</span><b>' + e(m.name) + '</b><small>' + e(m.role) + '</small></button>';
+      }).join('') + '</div>'
+        + '<div class="nx-setting" style="margin-top:10px"><div><b>' + (picked ? e(picked.name) + ' opted in' : 'Pick a member first') + '</b><small>A spotlight needs their yes, not just a mod’s.</small></div>'
+        + NX.toggle('spotlight.optedIn', s.optedIn, 'Member opted in') + '</div>'
+        + '<div class="nx-inline">' + NX.action('Post the spotlight', 'spot-post', '', 'primary') + '</div>'
+        + (s.posted && picked ? '<div class="nx-result" style="margin-top:10px"><span class="nx-result-mark">' + NX.icon('check') + '</span><div><b>' + e(picked.name) + ' is this week’s spotlight</b><small>One creation, one line, no contact detail.</small></div></div>' : '')
+        + '<p class="nx-preview-note">Consent first. A member who has not opted in cannot be picked, and a minor needs a second confirmation.</p>';
+    },
+    actions: {
+      'spot-pick': function (el) { NX.state.spotlight.picked = el.getAttribute('data-id'); NX.state.spotlight.posted = false; NX.commit(); },
+      'spot-post': function () {
+        var s = NX.state.spotlight;
+        if (!s.picked) { NX.toast('Pick a member first.'); return; }
+        if (!s.optedIn) { NX.toast('That member has not opted in.'); return; }
+        s.posted = true;
+        NX.commit('Spotlight posted.');
+      }
+    }
+  });
+
+  NX.add({
+    id: 'mod-dashboard', plan: 193, side: 'server', group: 'People', title: 'Moderation dashboard',
+    blurb: 'Reports, the last actions, slow mode and mutes on one page — reports only, never messages.',
+    why: 'Moderation fails quietly when the queue is spread across three screens. One desk with a count and one action per row is the difference between a mod working and a mod guessing.',
+    proof: ['A resolved report leaves the queue and lands in the log.', 'The desk never reads a DM; it reads reports and actions only.'],
+    gate: '51 (shipped) for the audit log and mod actions. Read scope is reports, not messages.',
+    render: function () {
+      var s = NX.state.dash;
+      return '<div class="nx-dash-stats"><div><b>' + s.open.length + '</b><span>open</span></div>'
+        + '<div><b>' + s.resolved.length + '</b><span>resolved today</span></div>'
+        + '<div><b>' + (s.slow ? 'On' : 'Off') + '</b><span>slow mode</span></div></div>'
+        + (s.open.length ? s.open.map(function (r) {
+          return '<div class="nx-dash-row"><span class="nx-dash-kind">' + e(r.kind) + '</span>'
+            + '<div class="nx-dash-copy"><b>' + e(r.target) + '</b><span>' + e(r.by) + ' · ' + e(r.age) + '</span></div>'
+            + '<button type="button" class="nx-action" data-act="dash-resolve" data-id="' + e(r.id) + '">Resolve</button>'
+            + '<button type="button" class="nx-action quiet" data-act="dash-ignore" data-id="' + e(r.id) + '">Ignore</button></div>';
+        }).join('') : '<div class="nx-result"><span class="nx-result-mark">' + NX.icon('check') + '</span><div><b>Queue clear</b><small>New reports arrive here.</small></div></div>')
+        + '<div class="nx-setting" style="margin-top:10px"><div><b>Slow mode</b><small>One message every 10 seconds in every channel.</small></div>'
+        + NX.toggle('dash.slow', s.slow, 'Slow mode') + '</div>'
+        + (s.resolved.length ? '<div class="nx-divider"></div><p class="nx-label" style="margin-bottom:2px">Last actions</p>'
+          + s.resolved.slice(0, 3).map(function (r) {
+            return '<div class="nx-dash-row done"><span class="nx-dash-kind">' + e(r.kind) + '</span>'
+              + '<div class="nx-dash-copy"><b>' + e(r.target) + '</b><span>' + e(r.outcome) + ' · logged</span></div></div>';
+          }).join('') : '')
+        + '<p class="nx-preview-note">Reports and actions only. The desk cannot read a DM, and every resolve is in the audit log.</p>';
+    },
+    actions: {
+      'dash-resolve': function (el) { closeReport(el, 'Resolved'); },
+      'dash-ignore': function (el) { closeReport(el, 'Ignored'); }
+    }
+  });
+  function closeReport(el, outcome) {
+    var s = NX.state.dash;
+    var id = el.getAttribute('data-id');
+    var row = s.open.filter(function (r) { return r.id === id; })[0];
+    if (!row) return;
+    s.open = s.open.filter(function (r) { return r.id !== id; });
+    row.outcome = outcome;
+    s.resolved.unshift(row);
+    NX.commit(outcome === 'Resolved' ? 'Report resolved and logged.' : 'Report ignored and logged.');
+  }
+
+  NX.add({
+    id: 'lfg', plan: 156, side: 'server', group: 'Play', title: 'Looking-for-group board',
+    blurb: 'Posts that say “two more for a run”: game, time zone, slots and a join button. Members only, and no DMs until both people opt in.',
+    why: 'The hardest part of a small server is starting. A board turns “anyone around?” into a post with a time and a count, without opening a private channel for every attempt.',
+    proof: ['A post fills up and closes itself at the slot count.', 'Chat stays in the server until both people allow DMs.'],
+    gate: 'Members only. No DM surface until both sides opt in, and a minor’s post never advertises an external contact.',
+    render: function () {
+      var s = NX.state.lfg;
+      return s.posts.map(function (p) {
+        var here = s.joined.indexOf(p.id) !== -1;
+        var have = p.have + (here ? 1 : 0);
+        var full = have >= p.need;
+        return '<div class="nx-lfg"><div><b>' + e(p.game) + '</b><span class="nx-lfg-meta">' + e(p.when) + ' · ' + e(p.by) + ' · ' + have + '/' + p.need + '</span></div>'
+          + (full && !here
+            ? '<span class="nx-badge warn">Full</span>'
+            : '<button type="button" class="nx-action' + (here ? ' quiet' : '') + '" data-act="lfg-join" data-id="' + e(p.id) + '">' + (here ? 'Leave' : 'Join') + '</button>')
+          + '</div>';
+      }).join('')
+        + '<div class="nx-divider"></div>'
+        + '<div class="nx-row-fields" style="grid-template-columns:1fr 88px"><div><label class="nx-label" for="nxLfgGame">Game</label>'
+        + '<select class="nx-select" id="nxLfgGame" data-change="lfg.game">' + ['Neon Drift', 'Mosslight SMP', 'Rook & Roll'].map(function (g) { return '<option' + (s.game === g ? ' selected' : '') + '>' + g + '</option>'; }).join('') + '</select></div>'
+        + '<div><label class="nx-label" for="nxLfgSlots">Slots</label><select class="nx-select" id="nxLfgSlots" data-change="lfg.slots">' + ['2', '3', '4'].map(function (n) { return '<option' + (s.slots === n ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div></div>'
+        + '<div class="nx-inline" style="margin-top:7px">' + NX.action('Post an LFG', 'lfg-post', '', 'primary')
+        + '<span class="nx-muted">Members only · no DMs until both opt in</span></div>';
+    },
+    actions: {
+      'lfg-join': function (el) {
+        var s = NX.state.lfg;
+        var id = el.getAttribute('data-id');
+        var at = s.joined.indexOf(id);
+        if (at === -1) s.joined.push(id); else s.joined.splice(at, 1);
+        NX.commit(at === -1 ? 'You are in the group.' : 'Left the group.');
+      },
+      'lfg-post': function () {
+        var s = NX.state.lfg;
+        if (s.posts.length >= 5) { NX.toast('This board holds five posts.'); return; }
+        s.posts.unshift({ id: 'l' + NX.uid(), game: s.game, when: 'Today · 20:00 GMT', have: 1, need: Number(s.slots) || 2, by: 'You' });
+        NX.commit('LFG posted.');
+      }
+    }
+  });
+
+  NX.add({
+    id: 'server-info', plan: 162, side: 'server', group: 'Play', title: 'Game server connection info',
+    blurb: 'An address, a port and a copy button on the server page — set by the owner, never inferred.',
+    why: 'The address is the shortest path from a Cudic server to the game. It is also a home IP if the owner runs it from a bedroom, so the field warns before it saves and the public card is a second, explicit toggle.',
+    proof: ['Only an owner can set or clear the address.', 'Publishing to the public card is a separate choice, off by default.'],
+    gate: 'Owner-only write, a warning before saving, and a private default: the address stays in-server until listed.',
+    render: function () {
+      var s = NX.state.conn;
+      return '<div class="nx-mc"><div class="nx-mc-head"><div><div class="nx-mc-name">Connection</div>'
+        + '<div class="nx-mc-status' + (s.listed ? '' : ' on') + '"><i></i>' + (s.listed ? 'Listed on the public card' : 'Server members only') + '</div></div>'
+        + (s.owner ? NX.action('Clear', 'conn-clear', '', 'quiet') : '<span class="nx-badge">Owner only</span>') + '</div>'
+        + '<div class="nx-mc-body"><div><div class="nx-mc-address">' + (s.address ? e(s.address) : 'No address set') + (s.address ? ':' + e(s.port) : '') + '</div>'
+        + '<div class="nx-mc-meta">Java · owner-set · no live ping</div></div>'
+        + (s.address ? NX.action('Copy', 'conn-copy', '', 'quiet') : '') + '</div></div>'
+        + '<div class="nx-row-fields" style="margin-top:9px"><div><label class="nx-label" for="nxConnAddr">Address</label>'
+        + '<input class="nx-input" id="nxConnAddr" data-live="conn.address" value="' + e(s.address) + '" placeholder="play.example.gg"></div>'
+        + '<div><label class="nx-label" for="nxConnPort">Port</label><input class="nx-input" id="nxConnPort" data-live="conn.port" value="' + e(s.port) + '" inputmode="numeric" style="width:82px"></div></div>'
+        + '<div class="nx-setting" style="margin-top:9px"><div><b>List on the public card</b><small>Off by default. A home IP should be a choice.</small></div>'
+        + NX.toggle('conn.listed', s.listed, 'List the address publicly') + '</div>'
+        + (s.listed ? '<p class="nx-preview-note">This address is public now. Clear it or turn the listing off to withdraw it.</p>' : '<p class="nx-preview-note">Only the owner can edit this, and the address is never pinged from the browser.</p>');
+    },
+    actions: {
+      'conn-copy': function () {
+        var s = NX.state.conn;
+        if (!s.address) { NX.toast('Set an address first.'); return; }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(s.address + ':' + s.port).then(function () { NX.toast('Address copied.'); }).catch(function () { NX.toast('Copy is blocked in this browser.'); });
+        } else NX.toast('Copy is not available here.');
+      },
+      'conn-clear': function () { NX.state.conn.address = ''; NX.commit('Address cleared.'); }
+    }
+  });
+
+  NX.add({
+    id: 'game-nights', plan: 170, side: 'server', group: 'Play', title: 'Community game nights',
+    blurb: 'A recurring event with a game attached: RSVP, cancel one week, and the series carries on.',
+    why: 'A weekly night is the cheapest habit a server can build. Recurrence is also where events usually break: a cancelled week must not reappear when the next one is generated.',
+    proof: ['Cancelling one week leaves the series and the other weeks intact.', 'RSVP counts reset per occurrence, not per series.'],
+    gate: '62 (shipped) for events. Recurrence is a new key: series, occurrence, cancellation. No poll, no waitlist.',
+    render: function () {
+      var s = NX.state.nights;
+      var people = 12 + (s.rsvp ? 1 : 0);
+      return '<div class="nx-night' + (s.cancelled ? ' off' : '') + '">'
+        + '<div class="nx-night-head"><div><b>Friday night · Neon Drift</b><span class="nx-lfg-meta">Every Friday · 20:00 GMT · week 46</span></div>'
+        + '<span class="nx-badge ' + (s.cancelled ? 'warn' : 'ok') + '">' + (s.cancelled ? 'Cancelled' : 'Scheduled') + '</span></div>'
+        + (s.cancelled
+          ? '<p class="nx-preview-note">This occurrence is cancelled. The series continues on 21 Nov, and this week stays cancelled.</p>'
+            + '<div class="nx-inline">' + NX.action('Reopen this week', 'night-reopen', '', 'quiet') + '</div>'
+          : '<div class="nx-inline" style="margin-top:9px">' + NX.action(s.rsvp ? 'You are going' : 'RSVP', 'night-rsvp', '', s.rsvp ? 'quiet' : 'primary')
+            + NX.action('Cancel this week', 'night-cancel', '', 'quiet') + '<span class="nx-muted">' + people + ' going</span></div>')
+        + '</div>'
+        + '<p class="nx-preview-note">One occurrence, one row. A cancelled week does not come back when next week is generated.</p>';
+    },
+    actions: {
+      'night-rsvp': function () { NX.state.nights.rsvp = !NX.state.nights.rsvp; NX.commit(NX.state.nights.rsvp ? 'RSVP saved for this week.' : 'RSVP removed.'); },
+      'night-cancel': function () { NX.state.nights.cancelled = true; NX.commit('This week cancelled. The series continues.'); },
+      'night-reopen': function () { NX.state.nights.cancelled = false; NX.commit('Week reopened.'); }
+    }
+  });
 })();

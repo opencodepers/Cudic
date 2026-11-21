@@ -44,7 +44,11 @@
     if (owner && cur) {
       html += '<div style="font-size:0.74rem;color:var(--text-tertiary);margin-bottom:2px">Description for #' + esc(cur.display) + '</div>'
         + '<textarea id="stDesc" maxlength="500" rows="2" style="width:100%;box-sizing:border-box;background:var(--panel-raised);border:1px solid var(--line);border-radius:4px;color:var(--text-primary);font:inherit;font-size:0.8rem;padding:6px 8px">' + esc(cur.description || '') + '</textarea>'
-        + '<button type="button" data-st="desc" style="margin:4px 0 10px;padding:4px 9px;font-size:0.75rem;border:1px solid var(--line);border-radius:4px;background:var(--panel-raised);color:var(--text-primary);cursor:pointer">Save description</button>';
+        + '<button type="button" data-st="desc" style="margin:4px 0 10px;padding:4px 9px;font-size:0.75rem;border:1px solid var(--line);border-radius:4px;background:var(--panel-raised);color:var(--text-primary);cursor:pointer">Save description</button>'
+        + '<div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin:0 0 10px"><label style="font-size:0.74rem;color:var(--text-tertiary)" for="stType">Channel type</label>'
+        + '<select id="stType" style="padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--panel-raised);color:var(--text-primary);font:inherit;font-size:0.76rem">'
+        + ['chat', 'announcement', 'qa'].map(function (t) { return '<option value="' + t + '"' + ((cur.type || 'chat') === t ? ' selected' : '') + '>' + (t === 'chat' ? 'Chat' : t === 'announcement' ? 'Announcement — mods post' : 'Q&A — answers can be marked') + '</option>'; }).join('')
+        + '</select><button type="button" data-st="ctype" style="padding:4px 9px;font-size:0.75rem;border:1px solid var(--line);border-radius:4px;background:var(--panel-raised);color:var(--text-primary);cursor:pointer">Save type</button></div>';
     }
     // Events are member-visible: anyone in the server can RSVP or take the
     // .ics; only owner/mod sees the create fields.
@@ -57,6 +61,15 @@
         + '<button type="button" data-st="eventcreate" style="padding:3px 8px;font-size:0.74rem">Add</button></div>';
     }
     html += '<div id="stEvents" style="font-size:0.74rem;color:var(--text-secondary);max-height:150px;overflow:auto"></div></div>';
+    if (owner || role === 'mod') {
+      html += '<div style="border-top:1px solid var(--line);padding-top:8px;margin-bottom:8px">'
+        + '<div style="font-size:0.74rem;color:var(--text-tertiary);margin-bottom:3px">Game update feeds</div>'
+        + '<div style="font-size:0.7rem;color:var(--text-tertiary);margin-bottom:5px">When a followed game publishes, Cudic posts a link in the chosen channel.</div>'
+        + '<div id="stFeeds" style="font-size:0.74rem;color:var(--text-secondary);max-height:120px;overflow:auto;margin-bottom:5px"></div>'
+        + '<div style="display:flex;gap:4px;flex-wrap:wrap"><input id="stFeedGame" maxlength="36" placeholder="Game ID (from its page URL)" aria-label="Game ID" style="flex:1;min-width:140px;padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--panel-raised);color:var(--text-primary);font:inherit;font-size:0.76rem">'
+        + '<select id="stFeedChannel" aria-label="Feed channel" style="max-width:150px;padding:3px 5px;border:1px solid var(--line);border-radius:4px;background:var(--panel-raised);color:var(--text-primary);font-size:0.76rem"></select>'
+        + '<button type="button" data-st="feedadd" style="padding:3px 8px;font-size:0.74rem">Follow</button></div></div>';
+    }
     if (owner) {
       html += '<div style="border-top:1px solid var(--line);padding-top:8px;margin-bottom:8px">'
         + '<div style="font-size:0.74rem;color:var(--text-tertiary);margin-bottom:3px">Channel templates</div>'
@@ -85,6 +98,8 @@
         var act = b.getAttribute('data-st');
         if (act === 'close') { panel.hidden = true; return; }
         if (act === 'desc') saveDesc();
+        if (act === 'ctype') saveChannelType();
+        if (act === 'feedadd') addFeed();
         if (act === 'tplsave') saveTemplate();
         if (act === 'tplapply') applyTemplate();
         if (act === 'tpldel') deleteTemplate();
@@ -103,6 +118,73 @@
     loadTemplates();
     loadAudit();
     loadEvents();
+    loadFeeds();
+  }
+
+  function fillFeedChannels() {
+    var sel = document.getElementById('stFeedChannel');
+    if (!sel) return;
+    var chans = (page && page.channels) || [];
+    sel.innerHTML = chans.map(function (c) {
+      return '<option value="' + esc(c.id) + '"' + (page.current && c.id === page.current.id ? ' selected' : '') + '>#' + esc(c.display) + '</option>';
+    }).join('');
+  }
+
+  async function loadFeeds() {
+    var box = document.getElementById('stFeeds');
+    if (!box) return;
+    fillFeedChannels();
+    try {
+      var d = await req('/api/servers/' + page.sid + '/game-feeds');
+      var rows = d.feeds || [];
+      box.innerHTML = rows.length ? rows.map(function (f) {
+        return '<div style="display:flex;gap:5px;align-items:center;padding:3px 0;border-bottom:1px solid var(--line)"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b style="color:var(--text-primary)">' + esc(f.title) + '</b> to #' + esc(f.channel) + '</span>'
+          + '<button type="button" data-feed-del="' + esc(f.id) + '" style="padding:1px 6px;font-size:0.7rem;border:1px solid var(--line);border-radius:4px;background:transparent;color:var(--text-secondary);cursor:pointer">Remove</button></div>';
+      }).join('') : '<div style="color:var(--text-tertiary)">No game feeds yet.</div>';
+      box.querySelectorAll('[data-feed-del]').forEach(function (b) {
+        b.onclick = function () { removeFeed(b.getAttribute('data-feed-del')); };
+      });
+    } catch (e) { box.innerHTML = '<div style="color:var(--danger)">' + esc(e.message) + '</div>'; }
+  }
+
+  async function addFeed() {
+    var game = (document.getElementById('stFeedGame') || {}).value || '';
+    var channel = (document.getElementById('stFeedChannel') || {}).value || '';
+    if (!game.trim()) { status('Paste the game ID first.', true); return; }
+    if (!channel) { status('Pick a channel.', true); return; }
+    try {
+      await req('/api/servers/' + page.sid + '/game-feeds', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId: game.trim(), channelId: channel }),
+      });
+      status('Game feed added.');
+      document.getElementById('stFeedGame').value = '';
+      await loadFeeds();
+    } catch (e) { status(e.message, true); }
+  }
+
+  async function removeFeed(id) {
+    try {
+      await req('/api/servers/' + page.sid + '/game-feeds?id=' + encodeURIComponent(id), { method: 'DELETE' });
+      status('Game feed removed.');
+      await loadFeeds();
+    } catch (e) { status(e.message, true); }
+  }
+
+  async function saveChannelType() {
+    var sel = document.getElementById('stType');
+    var cur = page.current;
+    if (!sel || !cur) return;
+    try {
+      await req('/api/channels/' + cur.id, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: sel.value }),
+      });
+      cur.type = sel.value;
+      if (page.reloadChannels) await page.reloadChannels();
+      if (window.cudicBatchChannel && page.current) window.cudicBatchChannel(page.current);
+      status('Channel type saved.');
+    } catch (e) { status(e.message, true); }
   }
 
   async function loadEvents() {
@@ -116,7 +198,7 @@
           + '<b style="color:var(--text-primary)">' + esc(ev.title) + '</b> · ' + esc(new Date(ev.starts_at).toLocaleString())
           + ' · ' + (ev.going || 0) + ' going'
           + '<div style="display:flex;gap:3px;margin-top:2px">'
-          + '<button type="button" data-ev-rsvp="' + esc(ev.id) + '" data-ev-state="' + (ev.mine === 'going' ? 'not_going' : 'going') + '" style="padding:1px 6px;font-size:0.7rem">' + (ev.mine === 'going' ? 'Going ✓' : 'Going') + '</button>'
+          + '<button type="button" data-ev-rsvp="' + esc(ev.id) + '" data-ev-state="' + (ev.mine === 'going' ? 'not_going' : 'going') + '" style="padding:1px 6px;font-size:0.7rem">' + (ev.mine === 'going' ? 'Going <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-left:3px"><path d="M20 6 9 17l-5-5"/></svg>' : 'Going') + '</button>'
           + '<button type="button" data-ev-ics="' + esc(ev.id) + '" style="padding:1px 6px;font-size:0.7rem">Calendar</button></div></div>';
       }).join('') : '<div style="color:var(--text-tertiary)">No upcoming events.</div>';
       box.querySelectorAll('[data-ev-rsvp]').forEach(function (b) {

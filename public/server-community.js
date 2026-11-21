@@ -87,18 +87,27 @@
     });
   }
 
+  function channelOptions(selected) {
+    return (D.channels || []).map(function (c) {
+      return '<option value="' + esc(c.id) + '"' + (selected === c.id ? ' selected' : '') + '>#' + esc(c.name) + '</option>';
+    }).join('');
+  }
+
   function renderOverview() {
     var p = D.prompts || {};
     var html = '';
+    var chans = channelOptions((D.channels || [])[0] && D.channels[0].id);
     html += '<div class="cm-card"><h2>Prompt of the day</h2>'
       + (p.daily ? '<div class="cm-prompt">' + esc(p.daily.body) + '</div><div class="cm-muted">Set for ' + esc(p.daily.active_on) + '</div>'
         : '<div class="cm-empty">No prompt yet today.</div>')
       + (D.owner ? '<div class="cm-row" style="margin-top:10px"><input id="dailyPrompt" maxlength="300" placeholder="What should the server talk about today?"><button type="button" class="primary" id="saveDaily">Set prompt</button></div><div class="cm-msg" id="dailyMsg"></div>' : '')
+      + (D.owner && p.daily && chans ? '<div class="cm-row" style="margin-top:6px"><select id="dailyChannel" aria-label="Channel for the daily prompt">' + chans + '</select><button type="button" id="postDaily">Post</button><button type="button" id="pinDaily">Post &amp; pin</button></div>' : '')
       + '</div>';
     html += '<div class="cm-card"><h2>Weekly topic</h2>'
       + (p.weekly ? '<div class="cm-prompt">' + esc(p.weekly.body) + '</div><div class="cm-muted">Week of ' + esc(p.weekly.active_on) + '</div>'
         : '<div class="cm-empty">No topic for this week.</div>')
       + (D.owner ? '<div class="cm-row" style="margin-top:10px"><input id="weeklyPrompt" maxlength="300" placeholder="A topic for the whole week"><button type="button" class="primary" id="saveWeekly">Set topic</button></div><div class="cm-msg" id="weeklyMsg"></div>' : '')
+      + (D.owner && p.weekly && chans ? '<div class="cm-row" style="margin-top:6px"><select id="weeklyChannel" aria-label="Channel for the weekly topic">' + chans + '</select><button type="button" id="postWeekly">Post</button><button type="button" id="pinWeekly">Post &amp; pin</button></div>' : '')
       + '</div>';
     var spot = D.spotlight;
     html += '<div class="cm-card"><h2>Spotlight</h2>'
@@ -122,6 +131,10 @@
     if (D.owner) {
       $('saveDaily').onclick = function () { savePrompt('daily', $('dailyPrompt').value, 'dailyMsg'); };
       $('saveWeekly').onclick = function () { savePrompt('weekly', $('weeklyPrompt').value, 'weeklyMsg'); };
+      if ($('postDaily')) $('postDaily').onclick = function () { postPrompt(p.daily.id, $('dailyChannel').value, false, 'dailyMsg'); };
+      if ($('pinDaily')) $('pinDaily').onclick = function () { postPrompt(p.daily.id, $('dailyChannel').value, true, 'dailyMsg'); };
+      if ($('postWeekly')) $('postWeekly').onclick = function () { postPrompt(p.weekly.id, $('weeklyChannel').value, false, 'weeklyMsg'); };
+      if ($('pinWeekly')) $('pinWeekly').onclick = function () { postPrompt(p.weekly.id, $('weeklyChannel').value, true, 'weeklyMsg'); };
       $('saveSpot').onclick = async function () {
         try {
           await req('/api/servers/' + SID + '/spotlight', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: $('spotUser').value, blurb: $('spotBlurb').value }) });
@@ -141,13 +154,24 @@
     } catch (e) { msg(id, e.message, true); }
   }
 
+  async function postPrompt(id, channelId, pin, boxId) {
+    if (!channelId) { msg(boxId, 'Pick a channel first.', true); return; }
+    try {
+      await req('/api/servers/' + SID + '/prompts/' + id + '/post', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channelId: channelId, pin: pin === true }),
+      });
+      msg(boxId, pin ? 'Posted and pinned.' : 'Posted.');
+    } catch (e) { msg(boxId, e.message, true); }
+  }
+
   function renderSuggestions() {
     var rows = D.suggestions.slice().sort(function (a, b) { return (b.votes - a.votes) || String(b.created_at).localeCompare(String(a.created_at)); });
     var html = '<div class="cm-card"><h2>New suggestion</h2><div class="cm-row"><input id="sugTitle" maxlength="80" placeholder="A short title"><button type="button" class="primary" id="sugPost">Post</button></div>'
       + '<textarea id="sugBody" rows="2" maxlength="600" placeholder="Why it would help (optional)" style="width:100%;margin-top:8px"></textarea><div class="cm-msg" id="sugMsg"></div></div>';
     html += '<div class="cm-card"><h2>' + rows.length + ' suggestion' + (rows.length === 1 ? '' : 's') + '</h2><div class="cm-list">'
       + (rows.length ? rows.map(function (s) {
-        return '<div class="cm-item"><div class="cm-row" style="align-items:flex-start"><button type="button" class="small' + (s.mine ? ' primary' : '') + '" data-vote="' + esc(s.id) + '">▲ ' + s.votes + '</button>'
+        return '<div class="cm-item"><div class="cm-row" style="align-items:flex-start"><button type="button" class="small' + (s.mine ? ' primary' : '') + '" data-vote="' + esc(s.id) + '"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-1px"><path d="m6 15 6-6 6 6"/></svg> ' + s.votes + '</button>'
           + '<div style="flex:1"><b>' + esc(s.title) + '</b><div class="cm-muted">' + esc(s.body || '') + '</div>'
           + '<div class="cm-muted" style="font-size:.72rem;margin-top:4px">' + esc(s.name) + ' · ' + ago(s.created_at) + ' · ' + esc(s.status) + '</div></div>'
           + (D.mod ? '<select data-status="' + esc(s.id) + '">' + ['open', 'planned', 'done', 'declined'].map(function (v) { return '<option value="' + v + '"' + (s.status === v ? ' selected' : '') + '>' + v + '</option>'; }).join('') + '</select>' : '')
@@ -205,7 +229,7 @@
     html += '<div class="cm-card"><h2>Upcoming</h2><div class="cm-list">'
       + (D.nights.length ? D.nights.map(function (n) {
         return '<div class="cm-item"><div class="cm-night"><div><b>' + esc(n.title) + '</b><div class="cm-muted">' + (n.game ? esc(n.game) + ' · ' : '') + (n.is_public ? 'Public event' : 'Members only') + (n.note ? ' · ' + esc(n.note) : '') + '</div></div>'
-          + '<span class="cm-row"><time>' + esc(new Date(n.starts_at).toLocaleString()) + '</time>' + (D.mod ? '<button type="button" class="small danger" data-nightdel="' + esc(n.id) + '">×</button>' : '') + '</span></div></div>';
+          + '<span class="cm-row"><time>' + esc(new Date(n.starts_at).toLocaleString()) + '</time>' + (D.mod ? '<button type="button" class="small danger" data-nightdel="' + esc(n.id) + '" aria-label="Delete event"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>' : '') + '</span></div></div>';
       }).join('') : '<div class="cm-empty">No nights scheduled.</div>') + '</div></div>';
     $('cmNights').innerHTML = html;
     if (D.mod) {

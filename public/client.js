@@ -479,6 +479,7 @@ async function openConv(conv) {
   flashCount = 0; flashTitle();
   fetchPeer();
   if (window.cudicExtras) window.cudicExtras.onConv(conv);
+  if (window.cudicChatPolls) window.cudicChatPolls.onConv(conv);
   if (window.cudicChatCommunity) window.cudicChatCommunity.onConv(conv);
 }
 
@@ -917,7 +918,7 @@ function armActions(div, mid, uid) {
   const react = document.createElement('button');
   react.type = 'button';
   react.className = 'msg-react';
-  react.textContent = '＋';
+  react.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
   react.title = 'Add reaction';
   react.dataset.mid = mid;
   react.setAttribute('aria-label', 'React to this message');

@@ -48,8 +48,8 @@
       + '<input data-f="welcome" value="' + esc(c.welcome) + '" placeholder="Line shown when the channel opens" maxlength="300" style="font-size:.8rem"' + dis + '>'
       + '<input data-f="labels" value="' + esc((c.labels || []).join(', ')) + '" placeholder="spoiler, nsfw" maxlength="60" style="font-size:.8rem"' + dis + '>'
       + '<span style="display:flex;gap:4px">'
-      + '<button type="button" data-move="-1" title="Move up"' + (i === 0 || !K.owner ? ' disabled' : '') + '>↑</button>'
-      + '<button type="button" data-move="1" title="Move down"' + (i === CH.length - 1 || !K.owner ? ' disabled' : '') + '>↓</button>'
+      + '<button type="button" data-move="-1" title="Move up" aria-label="Move up"' + (i === 0 || !K.owner ? ' disabled' : '') + '><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>'
+      + '<button type="button" data-move="1" title="Move down" aria-label="Move down"' + (i === CH.length - 1 || !K.owner ? ' disabled' : '') + '><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button>'
       + '</span></div>';
   }
 

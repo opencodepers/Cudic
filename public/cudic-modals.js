@@ -35,7 +35,8 @@
     '#cg-card *{box-sizing:border-box}',
     '#cg-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 20px;border-bottom:1px solid var(--line,#262a33)}',
     '#cg-kick{font:500 11px "Geist Mono",ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--mute,#9a9a94)}',
-    '#cg-x{flex:none;width:34px;height:34px;border:1px solid var(--line,#262a33);background:transparent;color:var(--ink,#f7f5ec);font:500 18px/1 system-ui,sans-serif;cursor:pointer;padding:0;transition:color .12s steps(2),border-color .12s steps(2),transform .12s steps(2)}',
+    '#cg-x{flex:none;width:34px;height:34px;display:inline-grid;place-items:center;border:1px solid var(--line,#262a33);background:transparent;color:var(--ink,#f7f5ec);cursor:pointer;padding:0;transition:color .12s steps(2),border-color .12s steps(2),transform .12s steps(2)}',
+    '#cg-x svg{width:16px;height:16px}',
     '#cg-x:hover{border-color:var(--lime,#b8f23a);color:var(--lime,#b8f23a);transform:translateY(-2px)}',
     '#cg-x:focus-visible{outline:2px solid var(--lime,#b8f23a);outline-offset:2px}',
     '#cg-swoosh{position:relative;height:4px;background:var(--line,#262a33);overflow:hidden}',
@@ -60,8 +61,8 @@
     '.cg-btn:hover{background:var(--ink,#f7f5ec);color:var(--bg,#0d0e10);border-color:var(--ink,#f7f5ec)}',
     '.cg-btn:focus-visible{outline:2px solid var(--lime,#b8f23a);outline-offset:3px}',
     '.cg-btn.cg-arrow{display:inline-flex;align-items:center;gap:14px}',
-    '.cg-btn.cg-arrow:after{content:"→";transition:transform .12s steps(2)}',
-    '.cg-btn.cg-arrow:hover:after{transform:translateX(4px)}',
+    '.cg-btn.cg-arrow svg{width:14px;height:14px;transition:transform .12s steps(2)}',
+    '.cg-btn.cg-arrow:hover svg{transform:translateX(4px)}',
     '.cg-ghost{background:transparent;color:var(--ink,#f7f5ec)}',
     '.cg-ghost:hover{background:var(--ink,#f7f5ec);color:var(--bg,#0d0e10)}',
     '.cg-ghost:hover.cg-stay{color:#fff;background:var(--panel,#14161b);border-color:var(--line,#262a33)}',
@@ -87,7 +88,7 @@
     ov.id = 'cg-ov';
     ov.innerHTML =
       '<div id="cg-card" role="dialog" aria-modal="true">' +
-      '<div id="cg-head"><span id="cg-kick"></span><button id="cg-x" type="button" aria-label="Close">✕</button></div>' +
+      '<div id="cg-head"><span id="cg-kick"></span><button id="cg-x" type="button" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>' +
       '<div id="cg-swoosh"><i></i></div>' +
       '<div id="cg-media"></div>' +
       '<div id="cg-body"></div>' +
@@ -154,7 +155,7 @@
     var remembered = '';
     try { remembered = sessionStorage.getItem(OK_HOSTS) || ''; } catch (e) {}
     if (remembered.split('\n').indexOf(host) !== -1) { location.href = url.href; return; }
-    var externalBtn = '<a class="cg-btn cg-arrow" data-cg-follow href="' + url.href.replace(/"/g, '%22') + '" rel="nofollow noopener">Visit <b style="font-weight:600">' + host.replace(/</g, '&lt;') + '</b></a>';
+    var externalBtn = '<a class="cg-btn cg-arrow" data-cg-follow href="' + url.href.replace(/"/g, '%22') + '" rel="nofollow noopener">Visit <b style="font-weight:600">' + host.replace(/</g, '&lt;') + '</b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>';
     openOverlay('Heads-up',
       '<h2 id="cg-title">You\'re leaving Cudic</h2>' +
       '<p id="cg-text">This link goes to <b>' + host.replace(/</g, '&lt;') + '</b> — a place outside this site. Ads, uploads and people there are not checked by the Cudic moderation team, so treat it like talking to strangers: look before you click, never share private info, and follow it <b>at your own risk</b>.</p>' +

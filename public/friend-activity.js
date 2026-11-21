@@ -42,7 +42,7 @@
         return '<div class="row">' + avatar
           + '<div class="grow"><b>' + esc(a.display_name) + '</b><span>' + esc(a.text) + ' · '
           + esc(new Date(a.created_at).toLocaleDateString()) + '</span></div>'
-          + '<div class="acts"><a class="btn" href="/creator?id=' + encodeURIComponent(a.user_id) + '">View →</a></div></div>';
+          + '<div class="acts"><a class="btn" href="/creator?id=' + encodeURIComponent(a.user_id) + '">View <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-1px;margin-left:3px"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div></div>';
       }).join('');
     } catch (e) {
       box.innerHTML = '<div class="empty">Could not load friend activity.</div>';

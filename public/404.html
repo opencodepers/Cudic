@@ -38,9 +38,9 @@ h1{margin:0;font-weight:500;font-size:clamp(28px,4vw,44px);line-height:1.08;lett
 p{margin:0;color:var(--mute);max-width:44ch}
 .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
 .btn{display:inline-flex;align-items:center;gap:12px;padding:14px 20px;border:1px solid var(--ink);color:var(--ink);text-decoration:none;font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;transition:background .12s steps(2),color .12s steps(2)}
-.btn:after{content:"→";transition:transform .12s steps(2)}
+.btn svg{width:14px;height:14px;transition:transform .12s steps(2)}
 .btn:hover{background:var(--ink);color:var(--bg)}
-.btn:hover:after{transform:translateX(4px)}
+.btn:hover svg{transform:translateX(4px)}
 .btn.primary{background:var(--lime);border-color:var(--lime);color:#0d0e10}
 .btn.primary:hover{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 aside{position:relative;background:var(--panel);display:flex;align-items:center;justify-content:center;min-height:320px;overflow:hidden}
@@ -74,9 +74,9 @@ footer .sp{flex:1}
     <h1>That page isn’t here.</h1>
     <p>The link may be old, or the game may have been unpublished. The gallery is still open.</p>
     <div class="actions">
-      <a class="btn primary" id="playRandom" href="/games">Play a random game</a>
-      <a class="btn" href="/games">Browse games</a>
-      <a class="btn" href="/">Home</a>
+      <a class="btn primary" id="playRandom" href="/games">Play a random game <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      <a class="btn" href="/games">Browse games <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      <a class="btn" href="/">Home <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
     </div>
   </section>
   <aside aria-hidden="true"></aside>

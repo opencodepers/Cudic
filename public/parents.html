@@ -63,8 +63,8 @@ ul{margin:8px 0 0;padding-left:18px;color:var(--mute)}li{margin:6px 0}
 .hs{position:absolute;width:52px;height:52px;animation:hop 1s steps(2) infinite;color:#0d0e10}
 .cur{display:inline-block;width:.5em;height:1em;background:var(--lime);margin-left:.12em;vertical-align:-.08em;animation:blink 1s steps(2) infinite}
 .btn,.pill{border-radius:0;box-shadow:none!important;transform:none!important;font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;padding:14px 18px;display:inline-flex;align-items:center;gap:14px;margin:0 8px 8px 0;border:1px solid var(--ink);transition:background .12s steps(2),color .12s steps(2);text-decoration:none}
-.btn:after,.pill:after{content:"→";transition:transform .12s steps(2)}
-.btn:hover:after,.pill:hover:after{transform:translateX(4px)}
+.btn svg{width:14px;height:14px;transition:transform .12s steps(2)}
+.btn:hover svg{transform:translateX(4px)}
 .b1{background:var(--lime);color:#0d0e10;border-color:var(--lime)}.b1:hover{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .b3{background:transparent;color:var(--ink);border-color:var(--ink)}.b3:hover{background:var(--ink);color:var(--bg)}
 .pill{background:transparent}.pill:hover{background:var(--ink);color:var(--bg)}
@@ -97,7 +97,8 @@ th{color:var(--mute);font-weight:500}
 .faqgrid details:first-child,.faqgrid details:nth-child(3){border-left:0}
 .faqgrid summary{cursor:pointer;font-weight:500;list-style:none;display:flex;gap:12px;align-items:center}
 .faqgrid summary::-webkit-details-marker{display:none}
-.faqgrid summary .plus{color:var(--lime);transition:transform .12s steps(2)}
+.faqgrid summary .plus{display:inline-flex;align-items:center;color:var(--lime);transition:transform .12s steps(2)}
+.faqgrid summary .plus svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
 .faqgrid details[open] summary .plus{transform:rotate(45deg)}
 .faqgrid details p{margin:12px 0 0;color:var(--mute);font-size:15px}
 .cta-end{padding:56px 28px;text-align:center}
@@ -124,8 +125,8 @@ html.js .hero .stage{animation:rise .8s steps(8) both}
    <h1>Coding class,<br>one tab<span class="cur"></span></h1>
    <p class="lede">Cudic is a free browser studio where students make small games with real HTML, CSS and JavaScript — then publish them with one click. Nothing to install, nothing to configure, and every machine with a browser can run it.</p>
    <div style="display:flex;flex-wrap:wrap;margin-top:6px">
-    <a class="btn b1" href="/studio">Open Studio</a>
-    <a class="btn b3" href="/faq">Read the FAQ</a>
+    <a class="btn b1" href="/studio">Open Studio <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+    <a class="btn b3" href="/faq">Read the FAQ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
    </div>
    <div class="meta" style="margin-top:14px"><span class="mono">FREE · NO INSTALLS</span><span class="mono">SCRATCH IMPORT</span><span class="mono">BROWSER ONLY</span></div>
   </div>
@@ -185,8 +186,8 @@ html.js .hero .stage{animation:rise .8s steps(8) both}
      <div><span class="mono">00:24</span><p>The result: a published game at cudic.vercel.app — free, no installs.</p></div>
     </div>
     <div style="display:flex;flex-wrap:wrap;margin-top:6px">
-     <a class="btn b1" href="/studio">Try the Studio</a>
-     <a class="btn b3" href="/games">Play a game first</a>
+     <a class="btn b1" href="/studio">Try the Studio <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+     <a class="btn b3" href="/games">Play a game first <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
     </div>
    </div>
   </div>
@@ -220,12 +221,12 @@ html.js .hero .stage{animation:rise .8s steps(8) both}
  <section class="sec" id="faq">
   <div class="sh"><h2>Quick answers</h2><span class="mono">the full list lives in the FAQ</span></div>
   <div class="faqgrid">
-   <details open><summary><span class="plus">+</span>What does it cost?</summary><p>Nothing. Cudic is free to use — ads on the site keep it free, and there are no paid tiers or publishing limits.</p></details>
-   <details><summary><span class="plus">+</span>Do we need to install anything?</summary><p>No. The studio, the live preview and the player all run in the browser. If the lab can open a web page, it can run Cudic.</p></details>
-   <details><summary><span class="plus">+</span>Can we import our existing Scratch projects?</summary><p>Yes. Upload an .sb3 or paste a Scratch link; Cudic converts it into an editable HTML5 project with sprites, sounds and scripts intact.</p></details>
-   <details><summary><span class="plus">+</span>Is my child talking to strangers?</summary><p>The site has chat and comments, both moderatable through report buttons that go to a real moderation team. Games and drafts are unpublished by default, and accounts are usernames — no personal info is required to sign up.</p></details>
-   <details><summary><span class="plus">+</span>What languages can students build with?</summary><p>HTML, CSS and JavaScript — including multi-file ES modules and npm packages that run in the browser — plus Python through a browser runtime. There is no server-side execution.</p></details>
-   <details><summary><span class="plus">+</span>Can students play each other's games?</summary><p>Yes. Published games are playable in the gallery with one tab, embeddable anywhere with copy-paste snippets, and support cross-device saves plus multiplayer rooms of up to 32 players.</p></details>
+   <details open><summary><span class="plus" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>What does it cost?</summary><p>Nothing. Cudic is free to use — ads on the site keep it free, and there are no paid tiers or publishing limits.</p></details>
+   <details><summary><span class="plus" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>Do we need to install anything?</summary><p>No. The studio, the live preview and the player all run in the browser. If the lab can open a web page, it can run Cudic.</p></details>
+   <details><summary><span class="plus" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>Can we import our existing Scratch projects?</summary><p>Yes. Upload an .sb3 or paste a Scratch link; Cudic converts it into an editable HTML5 project with sprites, sounds and scripts intact.</p></details>
+   <details><summary><span class="plus" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>Is my child talking to strangers?</summary><p>The site has chat and comments, both moderatable through report buttons that go to a real moderation team. Games and drafts are unpublished by default, and accounts are usernames — no personal info is required to sign up.</p></details>
+   <details><summary><span class="plus" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>What languages can students build with?</summary><p>HTML, CSS and JavaScript — including multi-file ES modules and npm packages that run in the browser — plus Python through a browser runtime. There is no server-side execution.</p></details>
+   <details><summary><span class="plus" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>Can students play each other's games?</summary><p>Yes. Published games are playable in the gallery with one tab, embeddable anywhere with copy-paste snippets, and support cross-device saves plus multiplayer rooms of up to 32 players.</p></details>
   </div>
  </section>
 
@@ -234,9 +235,9 @@ html.js .hero .stage{animation:rise .8s steps(8) both}
   <h2>Try one lesson<span class="cur" style="height:.5em;width:.25em;margin-left:.14em"></span></h2>
   <p style="color:var(--mute);font-size:16px;margin:0 0 22px">No sign-up is needed to poke around: play a game from the gallery, then open the Studio draft that made it.</p>
   <div style="display:flex;flex-wrap:wrap;justify-content:center">
-   <a class="btn b1" href="/studio">Open Studio</a>
-   <a class="btn b3" href="/games">Play something</a>
-   <a class="btn b3" href="/cookbook/">Classroom-ready guides</a>
+   <a class="btn b1" href="/studio">Open Studio <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+   <a class="btn b3" href="/games">Play something <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+   <a class="btn b3" href="/cookbook/">Classroom-ready guides <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
   </div>
  </section>
 

@@ -50,7 +50,7 @@
     panel.innerHTML =
       '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)">' +
         '<b style="flex:1;font-size:0.9rem">Chat extras</b>' +
-        '<button type="button" id="xClose" class="btn btn-secondary" style="padding:4px 10px" aria-label="Close extras">×</button>' +
+        '<button type="button" id="xClose" class="btn btn-secondary" style="padding:4px 10px" aria-label="Close extras"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>' +
       '</div>' +
       '<div style="padding:12px 14px;overflow-y:auto;max-height:min(60vh,520px);display:grid;gap:14px;font-size:0.82rem">' +
         '<section><h3 style="margin:0 0 6px;font-size:0.78rem;text-transform:uppercase;letter-spacing:.08em">Your status</h3>' +
@@ -182,7 +182,7 @@
         return '<div style="display:flex;gap:6px;align-items:flex-start;padding:4px 0;border-bottom:1px solid var(--line)">' +
           '<div style="flex:1;min-width:0"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(r.text || 'Reminder') + '</div>' +
           '<div style="font-size:0.72rem;color:var(--text-tertiary)">' + esc(new Date(r.remind_at).toLocaleString()) + (r.sent_at ? ' · sent' : '') + '</div></div>' +
-          '<button type="button" class="x-del-rem" data-id="' + esc(r.id) + '" aria-label="Delete reminder" style="border:0;background:transparent;color:var(--text-tertiary);cursor:pointer">×</button></div>';
+          '<button type="button" class="x-del-rem" data-id="' + esc(r.id) + '" aria-label="Delete reminder" style="border:0;background:transparent;color:var(--text-tertiary);cursor:pointer"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>';
       }).join('');
       box.querySelectorAll('.x-del-rem').forEach(function (b) {
         b.onclick = function () {
@@ -206,7 +206,7 @@
         return '<div style="display:flex;gap:6px;align-items:flex-start;padding:4px 0;border-bottom:1px solid var(--line)">' +
           '<div style="flex:1;min-width:0"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.text || '') + '</div>' +
           '<div style="font-size:0.72rem;color:var(--text-tertiary)">' + esc(p.display_name || '') + ' · ' + esc(new Date(p.created_at).toLocaleString()) + '</div></div>' +
-          '<button type="button" class="x-del-pin" data-id="' + esc(p.message_id) + '" aria-label="Unpin" style="border:0;background:transparent;color:var(--text-tertiary);cursor:pointer">×</button></div>';
+          '<button type="button" class="x-del-pin" data-id="' + esc(p.message_id) + '" aria-label="Unpin" style="border:0;background:transparent;color:var(--text-tertiary);cursor:pointer"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>';
       }).join('');
       box.querySelectorAll('.x-del-pin').forEach(function (b) {
         b.onclick = function () {

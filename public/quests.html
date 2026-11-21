@@ -701,7 +701,7 @@
       var msg = el('p', 'msg');
       msg.setAttribute('role', 'status');
 
-      var btn = el('button', 'cta', q.done ? 'Claimed ✓' : 'Claim reward');
+      var btn = el('button', 'cta', q.done ? 'Claimed' : 'Claim reward');
       if (q.done) btn.disabled = true;
       btn.addEventListener('click', function(){
         btn.disabled = true;
@@ -714,7 +714,7 @@
             return;
           }
           paintBalance(r.d.balance);
-          btn.textContent = 'Claimed ✓';
+          btn.textContent = 'Claimed';
           btn.classList.add('done');
           setMsg(msg, '+' + q.coins + ' coins.', true);
         }).catch(function(){

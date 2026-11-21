@@ -101,7 +101,7 @@
       box.innerHTML = rows.length ? rows.map(function (s) {
         return '<div style="display:flex;gap:5px;align-items:center;padding:2px 0"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
           + esc(s.text).substring(0, 50) + ' · ' + esc(new Date(s.send_at).toLocaleString()) + '</span>'
-          + '<button type="button" data-cp-cancel="' + esc(s.id) + '" style="background:none;border:0;color:var(--text-tertiary);cursor:pointer">×</button></div>';
+          + '<button type="button" data-cp-cancel="' + esc(s.id) + '" aria-label="Cancel scheduled message" style="background:none;border:0;color:var(--text-tertiary);cursor:pointer"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>';
       }).join('') : '<div style="color:var(--text-tertiary)">Nothing scheduled.</div>';
       box.querySelectorAll('[data-cp-cancel]').forEach(function (b) {
         b.onclick = async function () {
@@ -127,7 +127,7 @@
       return '<span style="display:inline-flex;align-items:center;gap:1px">'
         + '<button type="button" data-cp-col="' + esc(c.id) + '" style="padding:3px 7px;font-size:0.73rem;border:1px solid var(--line);border-radius:4px;background:var(--panel-raised);color:var(--text-primary);cursor:pointer">'
         + esc(c.name) + ' ' + (c.count || 0) + '</button>'
-        + '<button type="button" data-cp-coldel="' + esc(c.id) + '" style="background:none;border:0;color:var(--text-tertiary);cursor:pointer;font-size:0.7rem">×</button></span>';
+        + '<button type="button" data-cp-coldel="' + esc(c.id) + '" aria-label="Delete collection" style="background:none;border:0;color:var(--text-tertiary);cursor:pointer"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></span>';
     }).join('') : '<span style="font-size:0.74rem;color:var(--text-tertiary)">No collections yet.</span>';
     box.querySelectorAll('[data-cp-col]').forEach(function (b) {
       b.onclick = function () { openCol = b.getAttribute('data-cp-col'); loadColItems(); };
@@ -161,7 +161,7 @@
       items = d.items || [];
       box.innerHTML = items.length ? items.map(function (i) {
         return '<div style="display:flex;gap:4px;padding:2px 0"><span style="flex:1"><b>' + esc(i.display_name) + '</b>: ' + esc(i.text).substring(0, 70) + '</span>'
-          + '<button type="button" data-cp-itemdel="' + esc(i.message_id) + '" style="background:none;border:0;color:var(--text-tertiary);cursor:pointer">×</button></div>';
+          + '<button type="button" data-cp-itemdel="' + esc(i.message_id) + '" aria-label="Remove saved message" style="background:none;border:0;color:var(--text-tertiary);cursor:pointer"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>';
       }).join('') : '<div style="color:var(--text-tertiary)">Empty — use Collect on a message.</div>';
       box.querySelectorAll('[data-cp-itemdel]').forEach(function (b) {
         b.onclick = async function () {

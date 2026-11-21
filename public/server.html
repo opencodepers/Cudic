@@ -30,20 +30,66 @@
     .server-sidebar.open { display: flex; }
     @media (min-width: 900px) { .server-sidebar { display: flex; position: static; } }
     .srv-head {
-      padding: 14px 16px; border-bottom: 1px solid var(--line); flex-shrink: 0;
-      display: flex; align-items: center; gap: 10px; overflow: hidden;
+      position: relative; isolation: isolate; padding: 8px 8px 8px 10px;
+      border-bottom: 1px solid var(--line);
+      flex-shrink: 0; display: flex; align-items: center; gap: 2px;
     }
+    .srv-banner {
+      position: absolute; inset: 0; z-index: -1; pointer-events: none;
+      background-size: cover; background-position: center;
+      background-image: linear-gradient(105deg, #5b3fd6 0%, rgba(24, 20, 40, 0.92) 55%, rgba(13, 14, 16, 0.96) 100%);
+    }
+    .srv-banner::after {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(180deg, rgba(9, 10, 14, 0.06), rgba(9, 10, 14, 0.38));
+    }
+    .srv-head-btn {
+      flex: 1; min-width: 0; display: flex; align-items: center; gap: 5px;
+      border: 0; background: none; color: #fff; cursor: pointer;
+      font: 600 0.95rem/1.2 var(--font-head); padding: 6px; text-align: left;
+      border-radius: var(--radius-sm); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+    }
+    .srv-head-btn:hover { background: rgba(255, 255, 255, 0.12); }
+    .srv-head-btn:focus-visible { outline: 2px solid var(--signal); outline-offset: 1px; }
+    .srv-chev { width: 13px; height: 13px; flex: none; color: rgba(255, 255, 255, 0.8); transition: transform 0.15s; }
+    .srv-head-btn[aria-expanded="true"] .srv-chev { transform: rotate(180deg); }
+    .srv-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .srv-head-tools { display: flex; gap: 2px; flex: none; }
+    .srv-tool {
+      width: 26px; height: 26px; display: grid; place-items: center;
+      border: 0; background: none; color: rgba(255, 255, 255, 0.8); cursor: pointer;
+      border-radius: var(--radius-sm);
+    }
+    .srv-tool:hover { background: rgba(255, 255, 255, 0.16); color: #fff; }
+    .srv-tool:focus-visible { outline: 2px solid var(--signal); outline-offset: 1px; }
+    .srv-tool svg { width: 16px; height: 16px; }
+    .srv-menu {
+      position: absolute; top: calc(100% + 4px); left: 8px; right: 8px; z-index: 40;
+      background: var(--panel-raised); border: 1px solid var(--line);
+      border-radius: 8px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34); padding: 6px;
+    }
+    .srv-menu[hidden] { display: none; }
+    .srv-menu-head {
+      display: flex; align-items: center; gap: 9px; padding: 6px 6px 8px;
+      border-bottom: 1px solid var(--line); margin-bottom: 5px;
+    }
+    .srv-menu-name { font: 600 0.85rem/1.3 var(--font-head); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .srv-menu-item {
+      display: flex; align-items: center; gap: 8px; width: 100%;
+      border: 0; background: none; color: var(--text-secondary); cursor: pointer;
+      font: 400 0.82rem/1.3 var(--font-body); padding: 7px 8px; text-align: left;
+      border-radius: var(--radius-sm); text-decoration: none;
+    }
+    .srv-menu-item:hover { background: var(--signal-tint); color: var(--text-primary); }
+    .srv-menu-item svg { width: 15px; height: 15px; flex: none; opacity: 0.85; }
+    .srv-menu-item[hidden] { display: none; }
     .srv-icon {
-      width: 40px; height: 40px; border-radius: 8px; flex-shrink: 0; overflow: hidden;
+      width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0; overflow: hidden;
       background: var(--signal-tint); color: var(--signal);
       display: flex; align-items: center; justify-content: center;
-      font-family: var(--font-head); font-weight: 700; font-size: 0.9rem;
+      font-family: var(--font-head); font-weight: 700; font-size: 0.82rem;
     }
     .srv-icon img { width: 100%; height: 100%; object-fit: cover; }
-    .srv-name {
-      font-family: var(--font-head); font-weight: 600; font-size: 0.95rem;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    }
     .srv-meta { font-size: 0.7rem; color: var(--text-tertiary); margin-top: 2px; }
     .back-row {
       padding: 10px 14px 4px; flex-shrink: 0;
@@ -105,7 +151,9 @@
       width: 32px; height: 32px; border-radius: var(--radius-sm);
       border: 1px solid var(--line); background: transparent;
       color: var(--text-secondary); cursor: pointer; font-size: 1rem; line-height: 1;
+      display: inline-grid; place-items: center;
     }
+    .topbar .mobile-menu button svg { width: 16px; height: 16px; }
     .topbar .topic {
       font-family: var(--font-body); font-weight: 400; font-size: 0.8rem;
       color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis;
@@ -158,6 +206,7 @@
     }
     .msg-react:hover { border-color: var(--line); color: var(--text-primary); }
     .msg-react.on { border-color: var(--signal); color: var(--signal); background: var(--signal-tint); }
+    .msg-react svg { width: 13px; height: 13px; }
     .react-picker { position: fixed; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px; display: flex; gap: 2px; z-index: 60; box-shadow: 0 8px 24px rgba(0,0,0,.3); }
     .react-picker button { background: none; border: 0; font-size: 1rem; cursor: pointer; padding: 2px 4px; border-radius: 4px; }
     .react-picker button:hover { background: var(--bg); }
@@ -195,6 +244,10 @@
       position: fixed; inset: 0; z-index: 9000; background: rgba(0, 0, 0, 0.6);
       display: flex; align-items: center; justify-content: center; padding: 20px;
     }
+    /* An inline display:grid on #welcomeOverlay used to beat the hidden
+       attribute, leaving the welcome card on screen after Continue. Hidden
+       must win over both the class and the inline style. */
+    #welcomeOverlay[hidden], #rulesOverlay[hidden], .rules-overlay[hidden] { display: none !important; }
     .rules-card {
       background: var(--panel); border: 1px solid var(--line);
       border-radius: var(--radius-lg); padding: 24px; width: 400px; max-width: 90vw;
@@ -213,13 +266,38 @@
   <div class="server-layout page-panel">
     <aside class="server-sidebar open" id="serverSidebar">
       <div class="srv-head">
-        <div class="srv-icon" id="srvIcon">?</div>
-        <div style="min-width:0">
-          <div class="srv-name" id="srvName">Loading…</div>
-          <div class="srv-meta" id="srvMeta"></div>
+        <div class="srv-banner" id="srvBanner" aria-hidden="true"></div>
+        <button class="srv-head-btn" id="srvMenuBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="srvMenu" title="Server menu">
+          <svg class="srv-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          <span class="srv-name" id="srvName">Loading…</span>
+        </button>
+        <span class="srv-head-tools">
+          <button class="srv-tool" id="srvMembersBtn" type="button" title="Members" aria-label="Members"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></button>
+          <button class="srv-tool" id="srvSettingsBtn" type="button" title="Server settings" aria-label="Server settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h8M16 18h4"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="14" cy="18" r="2"/></svg></button>
+        </span>
+        <div class="srv-menu" id="srvMenu" role="menu" aria-label="Server menu" hidden>
+          <div class="srv-menu-head">
+            <div class="srv-icon" id="srvIcon">?</div>
+            <div style="min-width:0">
+              <div class="srv-menu-name" id="srvMenuName">Server</div>
+              <div class="srv-meta" id="srvMeta"></div>
+            </div>
+          </div>
+          <button class="srv-menu-item" id="srvCopyInvite" type="button" role="menuitem" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></svg>
+            <span>Copy invite link</span>
+          </button>
+          <button class="srv-menu-item" id="srvMenuMembers" type="button" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>Members</span>
+          </button>
+          <a class="srv-menu-item" id="srvMenuSettings" href="#" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h8M16 18h4"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="14" cy="18" r="2"/></svg>
+            <span>Server settings</span>
+          </a>
         </div>
       </div>
-      <div class="back-row"><a href="/servers">← All servers</a></div>
+      <div class="back-row"><a href="/servers"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>All servers</a></div>
       <div id="catchUp" class="catch-up" hidden></div>
       <div class="chan-label">Channels</div>
       <div class="chan-list" id="chanList">
@@ -227,14 +305,15 @@
         <div class="chan-row" aria-hidden="true"><span class="sk" style="height:12px;width:45%;border-radius:4px;display:block"></span></div>
         <div class="chan-row" aria-hidden="true"><span class="sk" style="height:12px;width:55%;border-radius:4px;display:block"></span></div>
       </div>
-      <div class="sidebar-foot"><a href="/chat">Your DMs &amp; rooms →</a></div>
+      <div class="sidebar-foot"><a href="/chat">Your DMs &amp; rooms <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-left:4px"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
     </aside>
     <main class="server-main" id="serverMain">
       <div class="topbar" id="topbar" hidden>
-        <span class="mobile-menu"><button id="menuBtn" aria-label="Toggle channels">☰</button></span>
+        <span class="mobile-menu"><button id="menuBtn" aria-label="Toggle channels"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button></span>
         <span id="chanTitle"></span>
         <span class="topic" id="chanTopic"></span>
         <span class="online" id="onlineCount"></span>
+        <a class="tools" id="srvEventsBtn" href="/events" title="Public events from every server">Events</a>
         <button class="tools" id="srvHqBtn" hidden title="Insights, introductions, temporary channels and bulk edits">HQ</button>
         <button class="tools" id="srvToolsBtn" hidden title="Descriptions, templates, audit and backup">Tools</button>
         <a class="tools" id="srvCustomBtn" href="#" title="Appearance, folders, badges, welcome and commands">Customise</a>
@@ -245,7 +324,7 @@
         <div class="empty-state">
           <h2 style="font-family:var(--font-head);font-size:1.1rem;color:var(--text-primary)">Loading server…</h2>
           <p id="emptyText" style="font-size:0.85rem">Stand by — fetching channels.</p>
-          <a href="/servers" style="font-size:0.85rem;color:var(--signal)">Browse servers →</a>
+          <a href="/servers" style="font-size:0.85rem;color:var(--signal)">Browse servers <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-left:4px"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
         </div>
       </div>
       <div id="pinnedShelf" hidden></div>
@@ -259,7 +338,7 @@
       <div id="welcomeOverlay" hidden style="position:fixed;inset:0;z-index:1200;display:grid;place-items:center;padding:20px;background:rgba(8,10,14,.72)">
         <div class="rules-card" style="max-width:460px;width:100%"><h2>Welcome</h2><div id="welcomeSteps" style="font-size:.88rem;line-height:1.55;color:var(--text-secondary)"></div><button class="btn-send" id="welcomeClose" style="margin-top:14px">Continue</button></div>
       </div>
-      <div id="rulesOverlay" hidden>
+      <div id="rulesOverlay" class="rules-overlay" hidden>
         <div class="rules-card">
           <h2>Server rules</h2>
           <p id="rulesText"></p>
@@ -390,7 +469,25 @@
       if (!srv) { setStatus('Server not found', 'It may be private — join it from the server browse page first.'); return; }
       $('srvIcon').innerHTML = srv.icon_url ? '<img src="' + esc(srv.icon_url) + '" alt="">' : esc(srv.name.substring(0, 1).toUpperCase());
       $('srvName').textContent = srv.name;
+      $('srvMenuName').textContent = srv.name;
       $('srvMeta').textContent = (srv.member_count || 0) + ' member' + ((srv.member_count || 0) === 1 ? '' : 's');
+      if (srv.invite_code) {
+        var inv = $('srvCopyInvite');
+        inv.hidden = false;
+        inv.onclick = function () {
+          var url = location.origin + '/join/' + srv.invite_code;
+          var label = inv.querySelector('span');
+          var done = function () { label.textContent = 'Copied'; setTimeout(function () { label.textContent = 'Copy invite link'; }, 1400); };
+          if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(url).then(done).catch(function () {});
+          else {
+            var ta = document.createElement('textarea');
+            ta.value = url; ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+            document.body.appendChild(ta); ta.select();
+            try { document.execCommand('copy'); done(); } catch (e) {}
+            ta.remove();
+          }
+        };
+      }
     } catch (e) { setStatus('Could not load server', 'Check your connection, then try again.'); return; }
     try {
       var cd = await fetch(apiHost + '/api/servers/' + SID + '/channels', { headers: authHeaders() }).then(r => r.json());
@@ -431,6 +528,7 @@
       if (font) { layout.style.setProperty('--font-body', font); layout.style.setProperty('--font-head', font); }
       else { layout.style.removeProperty('--font-body'); layout.style.removeProperty('--font-head'); }
     }
+    paintHeaderBanner();
     var main = $('serverMain');
     if (main) {
       if (serverTheme.background) {
@@ -438,6 +536,18 @@
         main.style.backgroundSize = 'cover';
         main.style.backgroundPosition = 'center';
       } else { main.style.backgroundImage = ''; }
+    }
+  }
+  // Banner behind the server header: the owner's header image (appearance
+  // theme.banner) when set, otherwise a gradient in the server accent.
+  function paintHeaderBanner() {
+    var b = $('srvBanner');
+    if (!b) return;
+    if (serverTheme.banner) {
+      b.style.backgroundImage = 'linear-gradient(180deg, rgba(9,10,14,.12), rgba(9,10,14,.62)), url("' + serverTheme.banner.replace(/"/g, '') + '")';
+    } else {
+      var accent = serverTheme.accent || '#5b3fd6';
+      b.style.backgroundImage = 'linear-gradient(105deg, ' + accent + ' 0%, rgba(24,20,40,.92) 55%, rgba(13,14,16,.96) 100%)';
     }
   }
   async function loadKitMeta() {
@@ -500,7 +610,7 @@
       + ((c.tags && c.tags.length) ? '<span class="chan-tag" title="' + esc(c.tags.join(', ')) + '" style="font-size:9px;letter-spacing:.04em;color:var(--text-tertiary);border:1px solid var(--line);border-radius:3px;padding:1px 3px;margin-left:4px;white-space:nowrap">' + esc(c.tags[0]) + (c.tags.length > 1 ? ' +' + (c.tags.length - 1) : '') + '</span>' : '')
       + ((c.labels && c.labels.length) ? '<span class="chan-tag" title="Content label" style="font-size:9px;letter-spacing:.04em;color:var(--text-tertiary);border:1px solid var(--line);border-radius:3px;padding:1px 3px;margin-left:4px;white-space:nowrap">' + esc(c.labels[0]) + '</span>' : '') + temp
       + (convUnread[c.id] ? '<span class="chan-unread" title="' + convUnread[c.id] + ' unread" style="margin-left:auto;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--signal,#3a6b00);color:#fff;font:600 10px/18px ui-monospace,monospace;text-align:center">' + (convUnread[c.id] > 99 ? '99+' : convUnread[c.id]) + '</span>' : '')
-      + (c.is_private ? '<span class="chan-lock" title="Private channel">🔒</span>' : '') + '</button>';
+      + (c.is_private ? '<span class="chan-lock" title="Private channel"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span>' : '') + '</button>';
   }
   function renderCatchUp() {
     var el = $('catchUp');
@@ -631,7 +741,7 @@
   function renderPinned(rows) {
     var shelf = $('pinnedShelf');
     if (!rows.length) { shelf.hidden = true; shelf.innerHTML = ''; return; }
-    var html = '<div class="ps-head">📌 Pinned</div>';
+    var html = '<div class="ps-head">Pinned</div>';
     rows.forEach(function (m) {
       html += '<div class="ps-row" data-mid="' + esc(m.id) + '"><b>' + esc(m.display_name || '?') + '</b> '
         + esc(String(m.text || '').replace(/\s+/g, ' ').substring(0, 120)) + '</div>';
@@ -655,7 +765,7 @@
     div.innerHTML = '<div class="msg-ava">' + av + '</div>'
       + '<div class="msg-main"><span class="author" style="color:' + nameColor(author) + '">' + esc(author) + '</span>'
       + '<span class="time">' + fmtTime(iso) + '</span>'
-      + (answeredAt ? '<span class="msg-answered">✓ answered</span>' : '')
+      + (answeredAt ? '<span class="msg-answered">Answered</span>' : '')
       + '<div class="msg-text">' + renderMsgText(text) + '</div>'
       + '<div class="msg-actions"></div></div>';
     mEl.appendChild(div);
@@ -675,8 +785,9 @@
     var row = div.querySelector('.msg-actions');
     if (!row || row.querySelector('.msg-react')) return;
     var react = document.createElement('button');
-    react.type = 'button'; react.className = 'msg-react'; react.textContent = '＋';
-    react.title = 'Add reaction'; react.dataset.mid = mid;
+    react.type = 'button'; react.className = 'msg-react';
+    react.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+    react.title = 'Add reaction'; react.dataset.mid = mid; react.setAttribute('aria-label', 'React to this message');
     row.appendChild(react);
     if (myRole === 'owner' || myRole === 'mod') {
       addPin(div, mid);
@@ -899,12 +1010,42 @@
     $('rulesOverlay').hidden = true;
     addSys('You need to accept the rules to send messages here.');
   };
+  $('rulesOverlay').onclick = function (e) { if (e.target === this) this.hidden = true; };
   $('rulesOverlay').hidden = true;
-  $('welcomeClose').onclick = function () {
+  function closeWelcome() {
     try { localStorage.setItem('cudic_welcome_' + SID, '1'); } catch (e) {}
     $('welcomeOverlay').hidden = true;
-  };
+  }
+  $('welcomeClose').onclick = closeWelcome;
+  $('welcomeOverlay').onclick = function (e) { if (e.target === this) closeWelcome(); };
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (!$('welcomeOverlay').hidden) { closeWelcome(); return; }
+    if (!$('rulesOverlay').hidden) $('rulesOverlay').hidden = true;
+  });
   $('srvCustomBtn').href = '/server-customize?sid=' + encodeURIComponent(SID);
+
+  // ── Server header: name + chevron opens the server menu ─────
+  var srvMenuEl = $('srvMenu'), srvMenuBtn = $('srvMenuBtn');
+  function setSrvMenu(open) {
+    srvMenuEl.hidden = !open;
+    srvMenuBtn.setAttribute('aria-expanded', String(open));
+  }
+  function openMembers() {
+    var launch = $('srvCommunityBtn');
+    if (launch && !launch.hidden) launch.click();
+  }
+  srvMenuBtn.onclick = function (e) { e.stopPropagation(); setSrvMenu(srvMenuEl.hidden); };
+  document.addEventListener('click', function (e) {
+    if (!srvMenuEl.hidden && !e.target.closest('#srvMenu, #srvMenuBtn')) setSrvMenu(false);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !srvMenuEl.hidden) setSrvMenu(false);
+  });
+  $('srvMenuMembers').onclick = function () { setSrvMenu(false); openMembers(); };
+  $('srvMenuSettings').href = '/server-customize?sid=' + encodeURIComponent(SID);
+  $('srvMembersBtn').onclick = openMembers;
+  $('srvSettingsBtn').onclick = function () { location.href = '/server-customize?sid=' + encodeURIComponent(SID); };
 
   // ── Sending ─────────────────────────────────────────────────
   $('chatForm').addEventListener('submit', function (e) {
@@ -947,6 +1088,7 @@
     }
   });
   $('menuBtn').onclick = function () { $('serverSidebar').classList.toggle('open'); };
+  if ($('srvEventsBtn')) $('srvEventsBtn').href = '/events';
   window.addEventListener('pagehide', function () { try { ws.close(); } catch (e) {} });
 
   // Small read-only surface for the additive tools panel. Getters keep it in

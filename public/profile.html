@@ -301,7 +301,7 @@
       <div class="profile-card" id="sec-pack">
         <h2>Theme pack</h2>
         <p class="sub">Your installed theme pack — applies to Studio, themes, and profile preview.</p>
-        <div class="pref-row" id="packRow"><div><b id="packName">—</b><span class="sub" id="packSlug" style="font-family:'Geist Mono',monospace;font-size:0.78rem"></span></div><div style="display:flex;gap:8px;align-items:center"><button type="button" class="btn btn-danger" id="packClear" style="padding:6px 12px;font-size:0.78rem;display:none">Remove</button><a href="/themes" class="btn btn-secondary" style="padding:6px 12px;font-size:0.78rem">Edit →</a></div></div>
+        <div class="pref-row" id="packRow"><div><b id="packName">—</b><span class="sub" id="packSlug" style="font-family:'Geist Mono',monospace;font-size:0.78rem"></span></div><div style="display:flex;gap:8px;align-items:center"><button type="button" class="btn btn-danger" id="packClear" style="padding:6px 12px;font-size:0.78rem;display:none">Remove</button><a href="/themes" class="btn btn-secondary" style="padding:6px 12px;font-size:0.78rem">Edit <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-left:4px"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div></div>
       </div>
       <div class="profile-card" id="sec-creatorpage">
         <h2>Profile page</h2>
@@ -346,7 +346,7 @@
         </div>
         <div style="margin-top:14px;display:flex;gap:14px;align-items:center">
           <button class="btn btn-primary" id="cpSave" style="padding:8px 18px">Save</button>
-          <a href="/creator?id=" id="cpView" target="_blank" style="font-size:0.85rem;display:none">View my profile →</a>
+          <a href="/creator?id=" id="cpView" target="_blank" style="font-size:0.85rem;display:none">View my profile <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-left:4px"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
           <span class="status-msg" id="cpMsg" style="padding:0"></span>
         </div>
       </div>
@@ -354,12 +354,12 @@
         <h2>Liked games</h2>
         <p class="sub">Your saved favorites.</p>
         <div class="meta"><b id="likedCount">—</b> liked</div>
-        <a href="#sec-liked" class="btn btn-secondary" style="margin-top:10px;padding:6px 12px;font-size:0.78rem">View saved →</a>
+        <a href="#sec-liked" class="btn btn-secondary" style="margin-top:10px;padding:6px 12px;font-size:0.78rem">View saved <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-left:4px"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
       </div>
       <div class="profile-card" id="sec-theme-preview" style="display:none">
         <h2>Theme preview</h2>
         <p class="sub">How your theme looks on the landing.</p>
-        <a href="/" class="btn btn-secondary" style="padding:6px 12px;font-size:0.78rem">Open landing →</a>
+        <a href="/" class="btn btn-secondary" style="padding:6px 12px;font-size:0.78rem">Open landing <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-left:4px"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
       </div>
       </div>
       <aside class="profside"><div class="preview-card" id="previewCard" aria-label="Public profile preview">
@@ -376,7 +376,7 @@
         <div id="publicAwards" class="aw-preview" style="display:none"></div>
         <div id="publicBio"></div>
         <div id="publicInterests" style="display:none;margin-top:8px"></div>
-        <div style="margin-top:12px"><a id="creatorLink" href="#" style="font-size:0.8rem;display:none">View public profile →</a></div>
+        <div style="margin-top:12px"><a id="creatorLink" href="#" style="font-size:0.8rem;display:none">View public profile <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-left:4px"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
         <div class="pv-picrow" style="margin-top:10px">
           <label for="avatarFile" class="btn btn-secondary" style="padding:5px 10px;font-size:0.75rem;cursor:pointer">Change picture</label>
           <button type="button" class="btn btn-danger" id="avatarRemove" style="padding:5px 10px;font-size:0.75rem;display:none">Remove</button>
@@ -1178,7 +1178,7 @@
           row.appendChild(left);
           if (q.done) {
             var done = document.createElement('div');
-            done.className = 'desc'; done.textContent = 'Claimed ✓';
+            done.className = 'desc'; done.textContent = 'Claimed';
             row.appendChild(done);
           } else {
             var btn = document.createElement('button');
@@ -1194,7 +1194,7 @@
                   paintBalance(res.x.balance);
                   btn.remove();
                   var done = document.createElement('div');
-                  done.className = 'desc'; done.textContent = 'Claimed ✓';
+                  done.className = 'desc'; done.textContent = 'Claimed';
                   row.appendChild(done);
                   msg(m, '+' + q.coins + ' coins.', true);
                 }).catch(function(){ btn.disabled = false; msg(m, 'Claim failed.', false); });
@@ -1213,7 +1213,7 @@
         .then(function(res){
           if (!res.ok) { btn.disabled = false; msg(m, (res.x && res.x.error) || 'Claim failed.', false); return; }
           paintBalance(res.x.balance);
-          btn.textContent = res.x.already ? 'Claimed today' : 'Claimed ✓';
+          btn.textContent = res.x.already ? 'Claimed today' : 'Claimed';
           msg(m, res.x.already ? 'Already claimed — come back tomorrow.' : '+10 coins.', true);
         }).catch(function(){ btn.disabled = false; msg(m, 'Claim failed.', false); });
     });

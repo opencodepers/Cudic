@@ -40,7 +40,7 @@
             <aside class="docside">
                 <a class="brandrow" href="/"><img class="mark" src="/cudic-assets/brand/logo/cudic-mark-cream.svg" width="20" height="24" alt="Cudic home">Cudic</a>
                 <nav id="docNav" aria-label="Docs sections"></nav>
-                <button id="backBtn" aria-label="Go back">← Back</button>
+                <button id="backBtn" aria-label="Go back"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>Back</button>
             </aside>
 
             <main class="docmain">
@@ -260,7 +260,7 @@ confetti({ particleCount: 120 })</pre>
                     <h3>What happens to the files</h3>
                     <ul>
                         <li>Text files arrive editable; images, models and audio arrive as real binary files — the same as <strong>Import folder</strong>.</li>
-                        <li><strong>More than one game in the repo?</strong> Cudic reads the file list first and asks which folder to open — every folder with its own <code>index.html</code>, root included. One folder means no question, and a <code>/tree/…/subfolder</code> link already answers it. Without this, a monorepo silently opened whichever demo sat closest to the top. The confirmation names the one it opened (e.g. <code>owner/repo@main &rarr; games/snake</code>).</li>
+                        <li><strong>More than one game in the repo?</strong> Cudic reads the file list first and asks which folder to open — every folder with its own <code>index.html</code>, root included. One folder means no question, and a <code>/tree/…/subfolder</code> link already answers it. Without this, a monorepo silently opened whichever demo sat closest to the top. The confirmation names the one it opened (e.g. <code>owner/repo@main <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M5 12h14M13 6l6 6-6 6"/></svg> games/snake</code>).</li>
                         <li>Pick one or type a path — each row shows how many files the folder holds. A path that is not in the list gets the nearest real folder suggested instead of an import that quietly found nothing.</li>
                         <li><strong>It's a snapshot.</strong> Nothing is pushed back to GitHub. <strong>Save project</strong> stores your own Cudic copy, and your edits live here.</li>
                         <li>A repo isn't a project, so the folder holding the shallowest <code>index.html</code> is preferred, then code, then media.</li>
@@ -768,30 +768,21 @@ confetti({ particleCount: 120 })</pre>
 
                     </article>
                 </div>
-                <div class="ad-frame ad-leaderboard"><span class="ad-cap" aria-hidden="true">Advertisement</span><script>
-  atOptions = {
-    'key' : 'aa54ebd8c3acf5d1bbeb740803efce87',
-    'format' : 'iframe',
-    'height' : 90,
-    'width' : 728,
-    'params' : {}
-  };
-</script>
-<script src="https://bellnewyork.org/22/aa54ebd8c3acf5d1bbeb740803efce87"></script></div>
+                <div class="ad-frame ad-leaderboard" data-ad-key="aa54ebd8c3acf5d1bbeb740803efce87" data-ad-format="iframe" data-ad-width="728" data-ad-height="90"><span class="ad-cap" aria-hidden="true">Advertisement</span></div>
                 <footer class="mono">Cudic docs · <a href="/">cudic.vercel.app</a> · <a href="/cookbook/">cookbook</a> · <a href="/brand.html">brand kit</a></footer>
             <section id="server-batch" data-group="Play">
                     <h2>Server tools</h2>
                     <p>A second owner-and-member toolkit, spread across the server page, its settings pane and <strong>/events</strong>. Channel types and bookmarks change how a channel behaves; polls, answered questions and the mod overview change what a room can do; backups keep an owner's setup recoverable.</p>
                     <h3>Channel types</h3>
-                    <p><strong>Announcement</strong> channels let the owner and mods post while everyone else reads; the composer disappears for members. <strong>Q&amp;A</strong> channels put an <strong>Answer</strong> action on every message — the asker or a mod marks one resolved, it carries an answered badge, and the channel's answered shelf keeps the resolutions at the top. <strong>Chat</strong> is the normal room. The type is set per channel in Server settings.</p>
+                    <p><strong>Announcement</strong> channels let the owner and mods post while everyone else reads; the composer disappears for members and the send route refuses a client that re-enables it. <strong>Q&amp;A</strong> channels put an <strong>Answer</strong> action on every message — the asker or a mod marks one resolved, it carries an answered badge, and the channel's answered shelf keeps the resolutions at the top. <strong>Chat</strong> is the normal room. The type is set per channel in Server settings with a separate save action, so changing it is deliberate.</p>
                     <h3>Polls</h3>
-                    <p>Owners and mods post a <strong>poll</strong> into any channel: a question and two to six options. Every member gets one vote, changing it replaces the old one, and an <strong>anonymous</strong> poll hides who voted while still counting each member once. A poll closes on its date or when a mod closes it, and the bars show counts and percentages. No response ever names another voter.</p>
+                    <p>Owners and mods post a <strong>poll</strong> into any server channel; any member can post one in a <strong>DM</strong>. A poll has a question and two to ten options. Every member gets one vote, changing it replaces the old one, and an <strong>anonymous</strong> poll hides who voted while still counting each member once. A poll closes on its date or when a mod (or, in a DM, either participant) closes it, and the bars show counts and percentages. The poll dialog closes from its button, the backdrop or Escape. No response ever names another voter.</p>
                     <h3>Bookmarks and the game card</h3>
                     <p>The <strong>star</strong> in the channel bar saves a channel to a private <strong>Bookmarks</strong> group at the top of the sidebar — separate from favourites, and only ever visible to you. A server's <strong>game card</strong> (address and note) appears under its name with a copy button.</p>
                     <h3>Join questions</h3>
                     <p>An owner can ask up to three short questions before someone joins. The invite page shows them above the Join button, every answer is required, and owners and mods read the answers in the moderation overview. Answers are deleted with the membership.</p>
                     <h3>Game feeds</h3>
-                    <p>A server can follow a game. When that game publishes an update, one post lands in the chosen channel with a play link. Feeds are owner/mod-managed and capped, so a publish fans out once rather than per member.</p>
+                    <p>A server can follow a game from Server settings: paste the game id, pick a channel and press <strong>Follow</strong>. The pane lists every feed with a Remove action. When that game publishes an update, one post lands in the chosen channel with a play link. Feeds are owner/mod-managed and capped, so a publish fans out once rather than per member.</p>
                     <h3>Moderation dashboard</h3>
                     <p><strong>/moderate</strong> now has a <strong>Server moderation</strong> section: one card per server you own or moderate, with member and mod counts, warnings (seen and unseen), bans, slow channels, recent audited actions and the latest join answers. It reads reports and server rows only — never a DM.</p>
                     <h3>Backups</h3>
@@ -811,7 +802,7 @@ confetti({ particleCount: 120 })</pre>
                     <h3>Member cards</h3>
                     <p>Each member can set a <strong>nickname</strong>, a short <strong>status</strong> and an <strong>intro card</strong> with up to four tags, scoped to that server. Nicknames replace the account name on the server's messages. Owners can grant a <strong>title</strong>, which sits beside the name, and the roster shows how long each person has been a member — including a quiet “anniversary today” on the date they joined. One <strong>spotlight</strong> per server puts a member and a short blurb at the top of the page.</p>
                     <h3>Prompts and suggestions</h3>
-                    <p>Owners set a <strong>daily prompt</strong> and a <strong>weekly topic</strong>; both render in the overview with the date they cover. Any member can post a <strong>suggestion</strong> and <strong>vote</strong> once on anyone's; owners and mods move each one between open, planned, done and declined.</p>
+                    <p>Owners set a <strong>daily prompt</strong> and a <strong>weekly topic</strong>; both render in the overview with the date they cover. From the dock or the full Community page the owner can also <strong>post a prompt into a chosen channel</strong>, with a one-click <strong>Post &amp; pin</strong> for the weekly topic. Any member can post a <strong>suggestion</strong> and <strong>vote</strong> once on anyone's; owners and mods move each one between open, planned, done and declined.</p>
                     <h3>LFG and nights</h3>
                     <p><strong>LFG</strong> posts carry a game, a note, a slot count and an optional start time, and can be removed by their author or a mod. <strong>Game nights</strong> are scheduled by owners and mods; a night marked public is also a <strong>public event</strong>, shown on the invite page and on the server's public preview at <strong>/preview/&lt;id&gt;</strong>.</p>
                     <h3>Warnings, labels and inactivity</h3>
@@ -827,7 +818,7 @@ confetti({ particleCount: 120 })</pre>
                     <h3>Theme presets</h3>
                     <p>A preset stores an accent, a background image and a font under a name, up to eight per server. <strong>Apply</strong> replaces the server theme; members keep their own cosmetic pack, and the preset never touches their account.</p>
                     <h3>Invite page</h3>
-                    <p>Every server has a code, and <strong>/join/&lt;code&gt;</strong> is a public page with the name, description, tags, member count and rules, plus one Join button. Signing in first is the only requirement to join; the rules gate still applies afterwards. The invite page reads only those fields — member lists and channels are never public.</p>
+                    <p>Every server has a code, and <strong>/join/&lt;code&gt;</strong> is a public page with the name, description, tags, member count and rules, plus one Join button. Signing in first is the only requirement to join; the rules gate still applies afterwards. Directory cards copy that address, and a private card opens it as <strong>Invite page</strong>. The invite page reads only those fields — member lists and channels are never public.</p>
                 </section>
                 <section id="inbox" data-group="Play">
                     <h2>Inbox, search and home</h2>
@@ -848,7 +839,7 @@ confetti({ particleCount: 120 })</pre>
     <script src="/docpage.js?v=6"></script>
     <link rel="stylesheet" href="/ads.css?v=1">
     <script src="/theme-toggle.js?v=2"></script>
-    <script src="/ads.js?v=1" defer></script>
+    <script src="/ads.js?v=2" defer></script>
 
 <script src="/cudic-modals.js?v=3"></script><script src="/cudic-palette.js?v=1" defer></script>
 </body>

@@ -100,13 +100,15 @@ body{font-family:'Satoshi',sans-serif;background:var(--ed-bg);color:var(--ed-tex
 .act-sp{flex:1}
 .files{width:100%;height:100%;background:var(--ed-panel);display:flex;flex-direction:column;overflow:hidden}
 .files-head{padding:8px 14px;font-size:.66rem;font-weight:600;color:var(--ed-text-dim);text-transform:uppercase;letter-spacing:.06em;display:flex;justify-content:space-between;align-items:center}
-.files-head button{background:none;border:none;color:var(--ed-text-dim);font-size:.9rem;cursor:pointer;padding:0 4px;min-width:24px;min-height:24px}
+.files-head button{display:inline-grid;place-items:center;background:none;border:none;color:var(--ed-text-dim);font-size:.9rem;cursor:pointer;padding:0 4px;min-width:24px;min-height:24px}
+.files-head button svg{width:14px;height:14px;stroke:currentColor;stroke-width:1.6;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .files-head button:hover{color:var(--ed-bright)}
 #fileList{flex:1;overflow-y:auto;padding:0 6px 8px}
 .f-item{display:flex;align-items:center;gap:7px;padding:4px 8px;border-radius:var(--ed-radius);cursor:pointer;font-size:.78rem;color:#aaa}
 .f-item:hover{background:color-mix(in srgb, var(--ed-text) 7%, transparent);color:var(--ed-bright)}
 .f-item.active{background:color-mix(in srgb, var(--ed-text) 10%, transparent);color:var(--ed-bright)}
-.f-item .del{margin-left:auto;display:none;color:var(--ed-text-faint);font-size:.8rem;padding:0 2px}
+.f-item .del{margin-left:auto;display:none;color:var(--ed-text-faint);padding:0 2px}
+.f-item .del svg{width:12px;height:12px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;vertical-align:middle}
 .f-item:hover .del{display:block}
 .f-item .del:hover{color:var(--ed-error)}
 .f-item .dot{margin-left:auto;width:7px;height:7px;border-radius:50%;background:var(--ed-accent);display:none}
@@ -209,7 +211,7 @@ body{font-family:'Satoshi',sans-serif;background:var(--ed-bg);color:var(--ed-tex
   </div>
   <div id="paneStore">
     <div class="files" id="paneFiles">
-      <div class="files-head"><span>Files</span><span style="display:flex;gap:2px"><button id="btnFolder" title="Open local folder"><svg viewBox="0 0 24 24" width="14" height="14" style="stroke:currentColor;stroke-width:1.5;fill:none"><path d="M4 4h7l2 2h7v12H4V4Z"/></svg></button><button id="btnDiskSave" title="Save all to disk" style="display:none"><svg viewBox="0 0 24 24" width="14" height="14" style="stroke:currentColor;stroke-width:1.5;fill:none"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M4 19h16"/></svg></button><button id="btnAddFile" title="New file">+</button></span></div>
+      <div class="files-head"><span>Files</span><span style="display:flex;gap:2px"><button id="btnFolder" title="Open local folder"><svg viewBox="0 0 24 24" width="14" height="14" style="stroke:currentColor;stroke-width:1.5;fill:none"><path d="M4 4h7l2 2h7v12H4V4Z"/></svg></button><button id="btnDiskSave" title="Save all to disk" style="display:none"><svg viewBox="0 0 24 24" width="14" height="14" style="stroke:currentColor;stroke-width:1.5;fill:none"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M4 19h16"/></svg></button><button id="btnAddFile" title="New file" aria-label="New file"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></span></div>
       <div id="fileList"></div>
       <div class="help">
         <details>
@@ -414,7 +416,8 @@ function renderFiles() {
     dot.className = 'dot';
     div.appendChild(dot);
     var del = document.createElement('span');
-    del.className = 'del'; del.textContent = '×'; del.title = 'Delete file';
+    del.className = 'del'; del.title = 'Delete file'; del.setAttribute('aria-label', 'Delete file');
+    del.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>';
     del.addEventListener('click', function(e) {
       e.stopPropagation();
       deleteFile(p);

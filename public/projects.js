@@ -439,7 +439,7 @@
   function renderDetailLoading() {
     var detail = $('#projectDetail');
     if (!detail) return;
-    detail.innerHTML = '<a class="project-back" href="/projects"><span aria-hidden="true">←</span> All projects</a>' +
+    detail.innerHTML = '<a class="project-back" href="/projects"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>All projects</a>' +
       '<div class="projects-empty"><div class="projects-empty-mark" aria-hidden="true">…</div>' +
       '<h3>Opening the project</h3><p>Loading the board card and comments.</p></div>';
   }
@@ -447,7 +447,7 @@
   function renderDetailError(error) {
     var detail = $('#projectDetail');
     if (!detail) return;
-    detail.innerHTML = '<a class="project-back" href="/projects"><span aria-hidden="true">←</span> All projects</a>' +
+    detail.innerHTML = '<a class="project-back" href="/projects"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>All projects</a>' +
       '<div class="projects-empty"><div class="projects-empty-mark" aria-hidden="true">!</div>' +
       '<h3>That project did not open</h3><p>' + esc(error.message || 'Try again from the board.') + '</p>' +
       '<a class="btn btn-secondary" href="/projects">Back to the board</a></div>';
@@ -497,7 +497,7 @@
     var comments = project.comments || 0;
     var votesDisabled = project.is_owner || !!state.voting[project.id];
     detail.innerHTML =
-      '<a class="project-back" href="/projects"><span aria-hidden="true">←</span> All projects</a>' +
+      '<a class="project-back" href="/projects"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>All projects</a>' +
       '<div class="project-detail-grid">' +
         '<div>' +
           '<div class="project-detail-art">' + artMarkup(project) + '</div>' +

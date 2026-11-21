@@ -29,15 +29,17 @@
 
           <section class="cz-card czx-pane" data-pane="profile">
             <h2>Server Profile</h2>
-            <p class="sub">Accent and banner for this server. Owner only.</p>
+            <p class="sub">Accent, chat background and header banner for this server. Owner only.</p>
             <div class="czx-cols">
               <div>
                 <div class="cz-row"><label for="srvAccent">Accent colour</label><input id="srvAccent" type="color" value="#FF8C1A"></div>
-                <div class="cz-row"><label for="srvBanner">Banner image</label><input id="srvBanner" type="text" placeholder="https://…"></div>
+                <div class="cz-row"><label for="srvBanner">Chat background</label><input id="srvBanner" type="text" placeholder="https://…"></div>
+                <div class="cz-row"><label for="srvHeaderBanner">Header banner</label><input id="srvHeaderBanner" type="text" placeholder="https://… (optional)"></div>
                 <div class="cz-line"><button class="primary" type="button" id="saveAppearance">Save appearance</button></div>
                 <div id="appearanceMsg" class="cz-msg"></div>
               </div>
               <aside class="czx-preview-card">
+                <div id="srvHeaderPreview" style="height:42px;border:1px solid var(--line);border-bottom:0;border-radius:var(--radius-sm) var(--radius-sm) 0 0;display:flex;align-items:center;gap:5px;padding:0 10px;font:600 0.78rem/1 var(--font-head);color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.55);overflow:hidden;background-size:cover;background-position:center"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg><span>Server name</span></div>
                 <div id="srvPreview" class="cz-preview"></div>
                 <p class="sub" style="margin:0">Live preview</p>
               </aside>
