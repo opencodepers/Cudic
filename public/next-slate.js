@@ -9,17 +9,6 @@
   var NX = window.CudicNext;
   var items = [
   {
-    "n": 101,
-    "status": "partial",
-    "title": "Custom server banners",
-    "section": "Server customisation",
-    "effort": "S",
-    "what": "Shipped in 80: /server-customize sets an accent and a banner. Remaining: crop/focal point and a remove button.",
-    "needs": "—",
-    "risk": "A banner at the wrong focal point crops the name; reuse the profile's banner_pos rule.",
-    "partial": true
-  },
-  {
     "n": 102,
     "title": "Animated server icons",
     "section": "Server customisation",
@@ -30,36 +19,6 @@
     "partial": false
   },
   {
-    "n": 104,
-    "title": "Multiple theme presets",
-    "section": "Server customisation",
-    "effort": "S",
-    "what": "Two or three named server looks (seasonal, event night) the owner switches between.",
-    "needs": "103",
-    "risk": "A preset must set only the server layer, never override a member's own pack.",
-    "partial": false
-  },
-  {
-    "n": 106,
-    "title": "Custom channel icons",
-    "section": "Server customisation",
-    "effort": "S",
-    "what": "A glyph or short emoji before a channel name.",
-    "needs": "—",
-    "risk": "Keep it emoji-only; a URL version needs F6 and a report path.",
-    "partial": false
-  },
-  {
-    "n": 107,
-    "title": "Custom category icons",
-    "section": "Server customisation",
-    "effort": "S",
-    "what": "The same glyph on folder rows.",
-    "needs": "21 (shipped)",
-    "risk": "None beyond a length cap.",
-    "partial": false
-  },
-  {
     "n": 108,
     "title": "Custom role icons",
     "section": "Server customisation",
@@ -67,38 +26,6 @@
     "what": "A glyph per role, shown beside a member's name.",
     "needs": "28",
     "risk": "Icons need a real role model; do not bolt them onto the three fixed strings.",
-    "partial": false
-  },
-  {
-    "n": 109,
-    "title": "Custom server fonts",
-    "section": "Server customisation",
-    "effort": "S",
-    "what": "The interface face used inside one server.",
-    "needs": "75 (shipped)",
-    "risk": "Every face must be licensed and shipped locally; the server layer applies only inside the server.",
-    "partial": false
-  },
-  {
-    "n": 110,
-    "status": "added",
-    "title": "Customisable server welcome page",
-    "section": "Server customisation",
-    "effort": "S–M",
-    "what": "A public /s/<id>/welcome with banner, rules, next event and a join button instead of a bare modal.",
-    "needs": "54 (shipped)",
-    "risk": "A public page under-13s can reach needs the directory's content rules; no member names on it.",
-    "partial": false
-  },
-  {
-    "n": 113,
-    "status": "added",
-    "title": "Custom channel ordering",
-    "section": "Channels and organisation",
-    "effort": "S",
-    "what": "Drag channels and folders into any order, remembered for the server.",
-    "needs": "21 (shipped)",
-    "risk": "Two mods dragging at once; last write wins per moved row, not for the whole list.",
     "partial": false
   },
   {
@@ -717,6 +644,19 @@
   var search = document.getElementById('nxSlateSearch');
   var count = document.getElementById('nxSlateCount');
   var empty = document.getElementById('nxSlateEmpty');
+
+  var total = items.length;
+  var addedCount = items.filter(function (item) { return item.status === 'added'; }).length;
+  function put(id, value) { var el = document.getElementById(id); if (el) el.textContent = value; }
+  put('nxSlateTop', total);
+  put('nxSlateIntro', total);
+  put('nxSlateStat', total);
+  put('nxSlateLede', total);
+  put('nxSlateAdded', addedCount);
+  put('nxSlateFilterAll', total);
+  put('nxFootSlate', total);
+  if (search) search.placeholder = 'Search the ' + total + '…';
+
   if (!list || !search) return;
 
   var query = '';

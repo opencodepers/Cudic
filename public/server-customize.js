@@ -31,6 +31,7 @@
     $('srvAccent').value = (app.theme && app.theme.accent) || '#FF8C1A';
     $('srvBanner').value = (app.theme && app.theme.background) || '';
     $('srvHeaderBanner').value = (app.theme && app.theme.banner) || '';
+    $('srvBannerPos').value = app.theme && app.theme.bannerPos != null ? app.theme.bannerPos : 50;
     paintPreview();
     channels = ch.channels || []; folders = fo.folders || []; badges = ba.badges || [];
     commands = cm.commands || []; members = me.members || [];
@@ -47,6 +48,9 @@
     $('srvHeaderPreview').style.backgroundImage = header
       ? 'linear-gradient(180deg,rgba(9,10,14,.12),rgba(9,10,14,.62)),url("' + header.replace(/"/g, '') + '")'
       : 'linear-gradient(105deg,' + accent + ' 0%,rgba(24,20,40,.92) 55%,rgba(13,14,16,.96) 100%)';
+    var pos = $('srvBannerPos').value;
+    $('srvHeaderPreview').style.backgroundPosition = 'center ' + pos + '%';
+    $('srvBannerPosVal').textContent = pos + '%';
   }
   function paintFolders() {
     var roots = folders.filter(function (f) { return !f.parent_id; });
@@ -85,9 +89,11 @@
     $('backServer').href = '/server/' + encodeURIComponent(SID);
     try { await loadAll(); $('scBody').hidden = false; }
     catch (e) { gate(e.message); return; }
-    $('srvAccent').oninput = paintPreview; $('srvBanner').oninput = paintPreview; $('srvHeaderBanner').oninput = paintPreview;
+    $('srvAccent').oninput = paintPreview; $('srvBanner').oninput = paintPreview; $('srvHeaderBanner').oninput = paintPreview; $('srvBannerPos').oninput = paintPreview;
+    $('srvClearBanner').onclick = function () { $('srvHeaderBanner').value = ''; paintPreview(); msg('appearanceMsg', 'Header banner removed - save appearance to apply.'); };
+    $('srvClearBackground').onclick = function () { $('srvBanner').value = ''; paintPreview(); msg('appearanceMsg', 'Chat background removed - save appearance to apply.'); };
     $('saveAppearance').onclick = async function () {
-      try { await req('/api/servers/' + SID + '/appearance', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accent: $('srvAccent').value, background: $('srvBanner').value.trim(), banner: $('srvHeaderBanner').value.trim() }) }); msg('appearanceMsg', 'Appearance saved.'); }
+      try { await req('/api/servers/' + SID + '/appearance', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accent: $('srvAccent').value, background: $('srvBanner').value.trim(), banner: $('srvHeaderBanner').value.trim(), bannerPos: parseInt($('srvBannerPos').value, 10) }) }); msg('appearanceMsg', 'Appearance saved.'); }
       catch (e) { msg('appearanceMsg', e.message, true); }
     };
     $('addFolder').onclick = async function () {

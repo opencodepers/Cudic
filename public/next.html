@@ -21,7 +21,7 @@
   <header class="topbar nx-topbar">
     <h1>Next</h1>
     <div class="nx-top-actions">
-      <span class="nx-status"><span class="nx-status-dot" aria-hidden="true"></span><span id="nxModelCount">40</span> working models · 68 on the slate</span>
+      <span class="nx-status"><span class="nx-status-dot" aria-hidden="true"></span><span id="nxModelCount">40</span> working models · <span id="nxSlateTop">61</span> on the slate</span>
       <button class="btn btn-secondary nx-reset" id="nxReset" type="button">Reset models</button>
     </div>
   </header>
@@ -31,13 +31,13 @@
       <div class="nx-intro-copy">
         <p class="nx-eyebrow">Product model · 2026</p>
         <h2 id="nxIntroTitle">Make the room feel alive.</h2>
-        <p class="nx-lede"><span id="nxIntroTotal">40</span> working models across chat and servers, arranged by the job they do. Pick one, use it, and read the ship gate beside it. The 68 unshipped or partial server moves are indexed below with their dependency and risk, and the ten that now have a model are flagged Added.</p>
+        <p class="nx-lede"><span id="nxIntroTotal">40</span> working models across chat and servers, arranged by the job they do. Pick one, use it, and read the ship gate beside it. The <span id="nxSlateIntro">61</span> unshipped or partial server moves are indexed below with their dependency and risk, and the <span id="nxSlateAdded">8</span> that now have a model are flagged Added.</p>
       </div>
       <dl class="nx-intro-stats" aria-label="Scope">
         <div><dt id="nxStatChat">15</dt><dd>chat &amp; community</dd></div>
         <div><dt id="nxStatServer">25</dt><dd>server</dd></div>
         <div><dt>2</dt><dd>foundations first</dd></div>
-        <div><dt>68</dt><dd>on the server slate</dd></div>
+        <div><dt id="nxSlateStat">61</dt><dd>on the server slate</dd></div>
       </dl>
     </section>
 
@@ -80,31 +80,31 @@
         <div>
           <p class="nx-eyebrow">The rest of the server slate</p>
           <h2 id="nxSlateTitle">Still to ship.</h2>
-          <p class="nx-slate-lede">The 25 server models above cover the moves that already have a shape. These 68 are the remaining unshipped or partial server items — read them, search them, and open one for its dependency and risk. Added means a working model exists above; Modelled means an existing chat specimen already covers the shape.</p>
+          <p class="nx-slate-lede">The <span id="nxSlateModels">25</span> server models above cover the moves that already have a shape. These <span id="nxSlateLede">61</span> are the remaining unshipped or partial server items — read them, search them, and open one for its dependency and risk. Added means a working model exists above; Modelled means an existing chat specimen already covers the shape.</p>
         </div>
         <div class="nx-slate-tools">
           <label class="nx-sr" for="nxSlateSearch">Search the unshipped server slate</label>
           <div class="nx-search nx-slate-search">
             <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            <input id="nxSlateSearch" type="search" placeholder="Search the 68…" autocomplete="off">
+            <input id="nxSlateSearch" type="search" placeholder="Search the 61…" autocomplete="off">
           </div>
           <div class="nx-slate-filters" role="group" aria-label="Filter by effort">
-            <button type="button" class="nx-chip on" data-slate-filter="all" aria-pressed="true">All <span>68</span></button>
+            <button type="button" class="nx-chip on" data-slate-filter="all" aria-pressed="true">All <span id="nxSlateFilterAll">61</span></button>
             <button type="button" class="nx-chip" data-slate-filter="s" aria-pressed="false" aria-label="Small effort">S</button>
             <button type="button" class="nx-chip" data-slate-filter="m" aria-pressed="false" aria-label="Medium effort">M</button>
             <button type="button" class="nx-chip" data-slate-filter="l" aria-pressed="false" aria-label="Large effort">L</button>
           </div>
-          <p class="nx-slate-count" id="nxSlateCount" aria-live="polite">68 of 68 items</p>
+          <p class="nx-slate-count" id="nxSlateCount" aria-live="polite">61 of 61 items</p>
         </div>
       </header>
       <div class="nx-slate-grid" id="nxSlateList"></div>
       <p class="nx-index-empty" id="nxSlateEmpty" hidden>No server item matches that search.</p>
-      <p class="nx-slate-note">The 17 fully shipped server items from the 101–200 list are not repeated here. Statuses follow the server plan; “partial” means an earlier batch shipped part of the move.</p>
+      <p class="nx-slate-note">Fully shipped server items from the 101–200 list are not repeated here. Statuses follow the server plan; “partial” means an earlier batch shipped part of the move.</p>
     </section>
 
     <footer class="nx-foot">
       <p><b>Model, not migration.</b> The specimens write to this browser so you can test the shape without touching a live server. Comments are the exception: they are shared and saved so the feedback reaches us. The production path and the gate are on each specimen. <b>Kept to 50:</b> when a new model takes the index past the cap, the oldest shipped model rolls off first.</p>
-      <p class="nx-foot-mono">cudic next · <span id="nxFootTotal">40</span> moves + 68 on the slate · built to be judged</p>
+      <p class="nx-foot-mono">cudic next · <span id="nxFootTotal">40</span> moves + <span id="nxFootSlate">61</span> on the slate · built to be judged</p>
     </footer>
   </main>
 </div>
@@ -117,7 +117,7 @@
 <script src="/next-core.js?v=4"></script>
 <script src="/next-chat.js?v=2"></script>
 <script src="/next-server.js?v=4"></script>
-<script src="/next.js?v=5"></script>
-<script src="/next-slate.js?v=2"></script>
+<script src="/next.js?v=6"></script>
+<script src="/next-slate.js?v=3"></script>
 </body>
 </html>

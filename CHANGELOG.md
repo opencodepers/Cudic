@@ -8,6 +8,12 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Server banner focus, and a Next slate that matches what shipped** (`lib/routes/customize.js`, `lib/routes/pack.js`, `public/server.html`, `public/server-customize.html`, `public/server-customize.js`, `public/server-preview.html`, `public/next.html`, `public/next.js`, `public/next-slate.js`, `server.js`, `vercel.json`)
+
+- Server appearance now stores a **banner focus** (0–100, default 50, the same rule as the profile banner), so a wide header image no longer crops the server name. Server settings adds a focus slider plus **Remove header banner** and **Remove chat background** buttons; both clear the field and leave the save explicit.
+- The public server page now answers at **/s/&lt;id&gt;/welcome** as well as **/preview/&lt;id&gt;**, and paints the owner's header banner with the same focus value. It still carries the rules, public events and Join button, and still omits member names.
+- `/next` drops the seven server moves the product already shipped — banners (101), theme presets (104), channel icons (106), category icons (107), server fonts (109), the welcome page (110) and channel ordering (113) — and every slate count now reads from the remaining 61 rows instead of hardcoded text.
+
 **Next: shipped models are tagged, and the index rolls at 50** (`public/next.html`, `public/next.js`, `public/next-core.js`, `public/next-server.js`, `public/next.css`)
 
 - A model that has already shipped now carries a **Shipped** tag in the index row and the stage kicker. Shipping one is a one-line change: add `added: 'YYYY-MM-DD'` to its feature object.

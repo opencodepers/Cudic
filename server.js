@@ -4599,7 +4599,7 @@ function slugify(s) {
   if (url.pathname === '/projects' || url.pathname.startsWith('/projects/')) {
     url.pathname = '/projects.html';
   }
-  if (url.pathname === '/server-preview' || url.pathname.startsWith('/preview/')) {
+  if (url.pathname === '/server-preview' || url.pathname.startsWith('/preview/') || /^\/s\/[0-9a-f-]{36}\/welcome$/.test(url.pathname)) {
     url.pathname = '/server-preview.html';
   }
 

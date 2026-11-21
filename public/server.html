@@ -544,8 +544,11 @@
     var b = $('srvBanner');
     if (!b) return;
     if (serverTheme.banner) {
+      var pos = serverTheme.bannerPos == null ? 50 : serverTheme.bannerPos;
+      b.style.backgroundPosition = 'center ' + pos + '%';
       b.style.backgroundImage = 'linear-gradient(180deg, rgba(9,10,14,.12), rgba(9,10,14,.62)), url("' + serverTheme.banner.replace(/"/g, '') + '")';
     } else {
+      b.style.backgroundPosition = '';
       var accent = serverTheme.accent || '#5b3fd6';
       b.style.backgroundImage = 'linear-gradient(105deg, ' + accent + ' 0%, rgba(24,20,40,.92) 55%, rgba(13,14,16,.96) 100%)';
     }

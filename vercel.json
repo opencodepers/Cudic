@@ -34,6 +34,7 @@
     { "source": "/projects/:slug", "destination": "/projects.html" },
     { "source": "/server-preview", "destination": "/server-preview.html" },
     { "source": "/preview/:id", "destination": "/server-preview.html" },
+    { "source": "/s/:id/welcome", "destination": "/server-preview.html" },
     { "source": "/join", "destination": "/join.html" },
     { "source": "/join/:code", "destination": "/join.html" },
     { "source": "/events", "destination": "/events.html" },

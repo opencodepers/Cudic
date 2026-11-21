@@ -206,6 +206,7 @@
     setText('nxStatServer', total - chat);
     setText('nxIntroTotal', total);
     setText('nxFootTotal', total);
+    setText('nxSlateModels', total - chat);
     var browser = document.querySelector('.nx-browser');
     if (browser) browser.setAttribute('aria-label', 'All ' + total + ' features');
     if (search) search.placeholder = 'Search the ' + total;

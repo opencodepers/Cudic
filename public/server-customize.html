@@ -35,6 +35,8 @@
                 <div class="cz-row"><label for="srvAccent">Accent colour</label><input id="srvAccent" type="color" value="#FF8C1A"></div>
                 <div class="cz-row"><label for="srvBanner">Chat background</label><input id="srvBanner" type="text" placeholder="https://…"></div>
                 <div class="cz-row"><label for="srvHeaderBanner">Header banner</label><input id="srvHeaderBanner" type="text" placeholder="https://… (optional)"></div>
+                <div class="cz-row" style="display:flex;align-items:center;gap:8px"><label for="srvBannerPos" style="flex:none;width:120px">Banner focus</label><input id="srvBannerPos" type="range" min="0" max="100" step="5" value="50" style="flex:1;padding:0"><span id="srvBannerPosVal" style="width:38px;text-align:right;font:500 .75rem/1 var(--font-mono,monospace);color:var(--text-tertiary)">50%</span></div>
+                <div class="cz-line"><button type="button" id="srvClearBanner">Remove header banner</button><button type="button" id="srvClearBackground">Remove chat background</button></div>
                 <div class="cz-line"><button class="primary" type="button" id="saveAppearance">Save appearance</button></div>
                 <div id="appearanceMsg" class="cz-msg"></div>
               </div>
@@ -99,6 +101,6 @@
 </div></div>
 <script src="/sidebar.js?v=32"></script>
 <script src="/settings-shell.js?v=1"></script>
-<script src="/server-customize.js?v=1"></script>
+<script src="/server-customize.js?v=2"></script>
 <script src="/server-kit.js?v=1"></script>
 </body></html>
