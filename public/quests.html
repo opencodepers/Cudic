@@ -2,8 +2,9 @@
 <html lang="en">
 
 <head>
+<meta name="color-scheme" content="light dark">
     <script src="/consent.js?v=1"></script>
-<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}try{var _cudicScheme=document.querySelector('meta[name="color-scheme"]');if(_cudicScheme)_cudicScheme.setAttribute('content',document.documentElement.dataset.theme==='light'?'light':'dark');}catch(e){}</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cudic — Quests</title>
@@ -583,7 +584,7 @@
       document.getElementById('weekBar').style.width = Math.min(100, Math.round(adState.coins / adState.coinsMax * 100)) + '%';
       document.getElementById('slotLabel').textContent = adState.slots + ' of ' + adState.slotsMax + ' slots';
       var dots = document.getElementById('slotDots');
-      dots.innerHTML = '';
+      dots.replaceChildren();
       for (var i = 0; i < adState.slotsMax; i++) {
         var d = document.createElement('span');
         if (i < adState.slots) d.className = 'on';
@@ -729,10 +730,74 @@
       return card;
     }
 
+    /* Bonus hooks (lib/rewards.js): welcome, invite ladder, import, streak,
+       weekly quests, server growth. Same card shell, different endpoint. */
+    function bonusCard(r){
+      var coins = Number(r.coins) || 0;
+      var bytes = Number(r.storage_bytes) || 0;
+      var unit = coins ? (coins + ' coins') : (Math.round(bytes / 1048576) + ' MB storage');
+      var card = el('article', 'qcard');
+      card.style.setProperty('--h', coins ? 150 : 265);
+
+      var cover = el('div', 'cover');
+      cover.appendChild(el('span', 'tag', r.kind || 'Bonus'));
+      cover.appendChild(el('span', 'glint'));
+      var big = el('div', 'big', '+' + (coins || Math.round(bytes / 1048576)));
+      big.appendChild(el('small', null, coins ? 'coins' : 'MB storage'));
+      cover.appendChild(big);
+      card.appendChild(cover);
+
+      var body = el('div', 'qbody');
+      var head = el('div', 'qhead');
+      var thumb = el('div', 'thumb');
+      thumb.innerHTML = '<svg viewBox="0 0 24 24">' + (ICONS[r.id] || ICONS.first_friend) + '</svg>';
+      head.appendChild(thumb);
+      var info = el('div');
+      info.appendChild(el('div', 'eyebrow', r.kind || 'Bonus'));
+      info.appendChild(el('div', 'qtitle', r.label));
+      var reward = el('div', 'qreward');
+      reward.appendChild(el('b', null, '+' + unit));
+      info.appendChild(reward);
+      head.appendChild(info);
+      body.appendChild(head);
+
+      body.appendChild(el('div', 'qnote', r.note || ''));
+      var msg = el('p', 'msg');
+      msg.setAttribute('role', 'status');
+
+      var btn = el('button', 'cta', r.done ? 'Claimed' : 'Claim reward');
+      if (r.done) btn.disabled = true;
+      btn.addEventListener('click', function(){
+        btn.disabled = true;
+        btn.textContent = 'Claiming…';
+        api('/api/rewards/claim', 'POST', { id: r.id }).then(function(res){
+          if (!res.ok) {
+            btn.disabled = false;
+            btn.textContent = 'Claim reward';
+            setMsg(msg, (res.d && (res.d.text || res.d.error)) || 'Claim failed.', false);
+            return;
+          }
+          paintBalance(res.d.balance);
+          btn.textContent = 'Claimed';
+          btn.classList.add('done');
+          setMsg(msg, res.d.already ? 'Already claimed.' : ('+' + (res.d.coins ? res.d.coins + ' coins' : Math.round((res.d.storage_bytes || 0) / 1048576) + ' MB') + '.'), true);
+        }).catch(function(){
+          btn.disabled = false;
+          btn.textContent = 'Claim reward';
+          setMsg(msg, 'Claim failed.', false);
+        });
+      });
+      body.appendChild(btn);
+      body.appendChild(msg);
+      card.appendChild(body);
+      return card;
+    }
+
     function loadQuests(){
       return api('/api/quests').then(function(r){
         var grid = document.getElementById('grid');
         (r.d && r.d.quests || []).forEach(function(q){ grid.appendChild(questCard(q)); });
+        (r.d && r.d.bonus || []).forEach(function(b){ grid.appendChild(bonusCard(b)); });
       }).catch(function(){});
     }
 

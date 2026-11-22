@@ -457,6 +457,9 @@ GET  /api/referrals              ← own invite code, share link, counted bonus,
                                   used/cap bytes (signed-in)
 POST /api/referrals/claim        ← invitee redeems `?ref=`; confirmed, ≤7-day-old
                                   account only, one claim per invitee
+GET  /api/rewards                ← bonus hooks with server-checked progress
+                                  and done state (signed-in)
+POST /api/rewards/claim          ← verified claim, 10/min, ledger-idempotent
 POST /api/scratch/import           ← .sb3 / Scratch URL → split player files
 POST/DELETE /api/follow/:id        ← one-way follow (30/h). GET /api/feed (me+followed, 60)
                                     the game page's author row also follows via
@@ -737,6 +740,30 @@ and are never returned by any route. Part 2 of the migration
 (`20261122130000_referral_abuse.sql`) is additive: without it claims still work
 (the code lookup is `select('*')` and the insert falls back), they just compare
 nothing.
+
+### Growth rewards (`lib/rewards.js`)
+Sits beside the one-time quests and pays for actions that leave a public
+artifact. `GET /api/rewards` lists them with progress; `POST /api/rewards/claim`
+re-checks the deed from rows and pays. Every payout is keyed: a `coin_ledger`
+row (`welcome`, `plays:<n>`, `fork`, `forker`, `import`, `daily7:<monday>`,
+`quest:week_*:<monday>`, `server:<id>`) or a `storage_grants` row
+(`(user_id, source)` unique). The row is the receipt, so a retry, a second tab
+or a redeploy cannot pay twice. Claims need a confirmed email and are limited
+to 10 per minute.
+
+Guards, because each of these is otherwise farmable: the invitee welcome (50
+coins) pays on the invitee's **first publish**, not signup; fork credit (+25
+maker / +10 forker) needs a **published** fork with **3 distinct signed-in
+players**; play milestones (25/100/250 at 10/100/1,000) each need 3/10/50
+distinct signed-in players first; the 7-day streak reads `daily_plays`, which
+only the play route writes, never a client count; weekly quests only count
+comments on **other makers'** published games, 5 games with at least 3 by
+others, and an update to a game published before the current UTC week. Server
+growth pays once 5 non-owner members pass the 7-day mark. Storage from the
+invite ladder is capped with referral bonus at 200 MB total in
+`storageCapFor`. Missing migration = 503 `rewards_unavailable` for bonuses
+while the one-time quests keep working. Tables: `storage_grants`,
+`daily_plays` (RLS closed) — `supabase/migrations/20261122140000_rewards.sql`.
 
 ### Project revisions (staged snapshots, `project_revisions` table)
 `POST/GET /api/games/:id/revisions` (+ `/restore`, `DELETE /:revId`), owner

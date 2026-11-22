@@ -434,8 +434,11 @@ async function copyAssetPrefix(fromPrefix, toPrefix, pathsIn) {
 
 // Invite links: a code per account, and a storage bonus counted from claims.
 const referrals = require('./lib/referrals')(supabase, notify);
+// Growth rewards: welcome, ladder, fork credit, play milestones, import,
+// weekly quests and server growth. Server-verified, ledger-idempotent.
+const rewards = require('./lib/rewards')(supabase, { notify, award: awardUser });
 // Storage accounting lives in lib/storage-budget.js — pure Supabase reads.
-const { ACCOUNT_STORAGE_CAP, accountStorageBytes, forgetStorageUsage, storageCapFor } = require('./lib/storage-budget')(supabase, referrals.bonusBytes);
+const { ACCOUNT_STORAGE_CAP, accountStorageBytes, forgetStorageUsage, storageCapFor } = require('./lib/storage-budget')(supabase, referrals.bonusBytes, rewards.storageBonus);
 
 const server = http.createServer((req, res) => {
   handleRequest(req, res).catch((e) => {
@@ -3092,8 +3095,12 @@ function slugify(s) {
     const done = {};
     (rows || []).forEach(r => { done[String(r.reason).slice(6)] = true; });
     const quests = Object.keys(QUESTS).map(k => ({ id: k, label: QUESTS[k].label, coins: QUESTS[k].coins, done: !!done[k] }));
+    // Bonus hooks live in lib/rewards.js. A database without its migration
+    // still serves the one-time quests, just without the bonus section.
+    let bonus = [];
+    try { bonus = await rewards.list(user.id); } catch (e) { bonus = []; }
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ quests }));
+    res.end(JSON.stringify({ quests, bonus }));
     return;
   }
 
@@ -3146,6 +3153,49 @@ function slugify(s) {
       }
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Claim failed.' }));
+    }
+    return;
+  }
+
+  // ── API: growth rewards (list + claim) ────────────────────────
+  // Every hook is verified from rows here, not from anything the client sends
+  // besides the reward id. Claims are rate-limited; payouts are idempotent.
+  if (url.pathname === '/api/rewards' && req.method === 'GET') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    try {
+      const list = await rewards.list(user.id);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ rewards: list, balance: await coinBalance(user.id) }));
+    } catch (e) {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'rewards_unavailable', text: 'Bonus rewards are not available yet.' }));
+    }
+    return;
+  }
+  if (url.pathname === '/api/rewards/claim' && req.method === 'POST') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    if (!(await needVerified(user, res))) return;
+    if (!rateLimit('reward:' + user.id, 10, 60_000)) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'too_many_claims', text: 'Slow down a moment.' }));
+      return;
+    }
+    const body = await readBody(req).catch(() => ({}));
+    try {
+      const out = await rewards.claim(user.id, body && body.id);
+      if (out.error) {
+        res.writeHead(out.status || 400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: out.error, text: out.text }));
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(out));
+    } catch (e) {
+      console.error('reward claim:', (e && e.message) || e);
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'rewards_unavailable', text: 'Bonus rewards are not available yet.' }));
     }
     return;
   }
@@ -4244,6 +4294,8 @@ function slugify(s) {
         'assets.js': 'window.__SCRATCH_ASSETS__ = ' + safeAssets + ';\n'
       };
       await awardUser(user.id, 'bolt');
+      // 100 coins, once per account — the route already rate-limits imports.
+      rewards.onScratchImport(user.id).catch(() => {});
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         files, binaries, warnings,
@@ -6084,7 +6136,7 @@ githubRoutes = require('./lib/routes/github')({
   cors, userOf, ghKey, GH_SETUP_TEXT, supabase, ghNoTable, requireUser, needVerified, rateLimit, readBody, GH_SCOPES_OK, ghSeal, ghGate, ghApi, ghFail, ghSend, GH_PATH, ghDeployWarned, GIT_SNAP_PATH, GIT_SNAP_CAP, GH_NAME, crypto, ghToken, repoTreeFiles, createRelease,
 });
 gamesRoutes = require('./lib/routes/games')({
-  cors, requireUser, isModerator, supabase, gamesListCacheClear, seatAlive, seatFromReq, seatDead, readBody, crypto, revisionFilesOf, gamesListCache, GAMES_LIST_TTL, liveCount, userOf, hasScope, scopeDenied, needVerified, activeBan, isUuid, notify, playtestValid, defaultThumb, rankRelated, rateLimit, weekStartISO, PLAYTEST_SECRET, playtestSign, siteOrigin, clientIp, logActivity, singleFileBuild, latestRelease, digestWeekStart, awardUser, freeGameSlug, sanitizeTags, copyAssetPrefix, ghToken, ghApi, accountStorageBytes, ACCOUNT_STORAGE_CAP, storageCapFor, onPublished, discord, createRelease, forgetStorageUsage,
+  cors, requireUser, isModerator, supabase, gamesListCacheClear, seatAlive, seatFromReq, seatDead, readBody, crypto, revisionFilesOf, gamesListCache, GAMES_LIST_TTL, liveCount, userOf, hasScope, scopeDenied, needVerified, activeBan, isUuid, notify, playtestValid, defaultThumb, rankRelated, rateLimit, weekStartISO, PLAYTEST_SECRET, playtestSign, siteOrigin, clientIp, logActivity, singleFileBuild, latestRelease, digestWeekStart, awardUser, freeGameSlug, sanitizeTags, copyAssetPrefix, ghToken, ghApi, accountStorageBytes, ACCOUNT_STORAGE_CAP, storageCapFor, rewards, onPublished, discord, createRelease, forgetStorageUsage,
 });
 modRoutes = require('./lib/routes/mod')({
   cors, requireUser, needVerified, isModerator, supabase, isUuid, readBody, AWARDS, awardUser, notify, ghToken, rateLimit, canSeeLobby, packByKey, RESERVED_PACK_SLUGS, gamesListCacheClear,

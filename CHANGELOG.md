@@ -8,6 +8,27 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Growth rewards: eight hooks, all server-verified and farm-resistant** (`lib/rewards.js`, `lib/storage-budget.js`, `lib/routes/games.js`, `lib/cosmetics.js`, `server.js`, `public/quests.html`, `supabase/migrations/20261122140000_rewards.sql`)
+
+- **Invitee welcome** — 50 coins, paid when the invitee publishes their first game, not when they sign up. A signup bonus is the cheapest thing to farm; a published game is not.
+- **Invite ladder** — 3 credited invites unlock a one-time +15 MB grant and the **Scout** title; 10 unlock +25 MB and the **Recruiter** badge. Storage lives in `storage_grants` (one row per source), so a retried claim inserts nothing and deleting a row takes the space back.
+- **Fork credit** — +25 coins to the original maker and +10 to the forker, once per fork, and only after the fork is **published** and has **3 distinct signed-in players**. Forking 40 projects and collecting is not a strategy; getting three people to play each fork is.
+- **Play milestones** — 25/100/250 coins at 10/100/1,000 plays, each requiring 3/10/50 distinct signed-in players first, keyed by `plays:<n>` + game id so a game can never pay the same step twice.
+- **Scratch import** — 100 coins once per account, alongside the existing `bolt` flair.
+- **7-day play streak** — 100 coins per week when `daily_plays` shows seven distinct days; the browser streak cannot be trusted with a payout, so the play route writes the server-side days.
+- **Weekly quests** — comment on 3 games by other makers (40), play 5 different games with at least 3 by other makers (30), ship an update to a game published before this week (50). Once per UTC week, keyed by the Monday date.
+- **Server growth** — 100 coins per server once 5 non-owner members have stayed 7 days.
+- Every payout checks the deed from rows on the server, then writes a `coin_ledger` row (or a `storage_grants` row) whose key is the receipt: a retry, a second tab or a redeploy cannot pay twice. Claims are rate-limited to 10/minute and need a confirmed email. The bonus cards appear on `/quests`; a database without the migration answers 503 for bonuses and leaves the one-time quests untouched.
+- Needs `supabase/migrations/20261122140000_rewards.sql` (`storage_grants`, `daily_plays`, RLS closed).
+
+**Audit fixes: browser chrome follows the theme, Enter respects IME, and the editor's CDN assets are verified** (`public/*.html`, `public/mobile.css`, `public/docpage.css`, `public/editor.html`, `public/projects.html`, `public/client.js`, `public/grant.html`, `public/race.html`, `public/server.html`, `public/next-core.js`)
+
+- Every hand-written page now declares `color-scheme` and the shared CSS ties it to `data-theme`, so scrollbars, form controls and autofill follow dark and light instead of staying light in dark mode. `brand-app.html` already did this and is unchanged.
+- Enter in the message search, the Studio AI box and the grant search now ignores keystrokes that are still composing, so confirming a CJK candidate no longer submits the field.
+- The six pinned CDN assets in the editor and the projects board carry `integrity`, `crossorigin` and `referrerpolicy`, so a tampered CDN response is refused rather than executed.
+- 47 `innerHTML = ''` clears use `replaceChildren()`, the race podium/rows/past-winners lists build one string instead of reparsing per row, four `slice().sort()` calls use `toSorted()`, the server ready gate uses `Promise.withResolvers()`, and `NX.clone` uses `structuredClone()`.
+- Two links that simulated an underline with `border-bottom` now use real `text-decoration` with thickness and offset, so they follow text wrapping.
+
 **Invite links pay in storage, and only for real new accounts** (`lib/referrals.js`, `lib/storage-budget.js`, `lib/routes/games.js`, `server.js`, `public/login.html`, `public/profile.html`, `supabase/migrations/20261122120000_referrals.sql`)
 
 - Every account can share `/login?ref=<code>`. When a **new** account (a week old or newer, then confirmed) joins through it, the inviter gets **10 MB of storage and 100 coins** — up to 10 invites, so +100 MB and 1,000 coins at most. The storage is counted from `referrals` rows and the coins are a ledger row keyed by the invitee, so neither a stored counter nor a retry can drift from or double-pay the truth.

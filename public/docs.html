@@ -2,8 +2,9 @@
 <html lang="en">
 
 <head>
+<meta name="color-scheme" content="light dark">
     <script src="/consent.js?v=1"></script>
-<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}try{var _cudicScheme=document.querySelector('meta[name="color-scheme"]');if(_cudicScheme)_cudicScheme.setAttribute('content',document.documentElement.dataset.theme==='light'?'light':'dark');}catch(e){}</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cudic — Docs</title>
@@ -293,6 +294,7 @@ confetti({ particleCount: 120 })</pre>
                         <li>Editing an existing project round-trips: <code>cudic pull</code> brings the saved copy down (keeping a backup of what you had), <code>cudic ls</code> lists the files, <code>cudic cat &lt;path&gt;</code> prints one file's code, and <code>cudic push</code> sends your edits back up. <code>cudic unpublish</code> hides a published project again and <code>cudic rm --yes</code> deletes it (a plain <code>rm</code> only tells you what it would delete).</li>
                         <li>Every <code>push</code>, <code>pull</code> and <code>recover</code> saves the version it is about to overwrite into <code>.cudic-backups/</code> in the folder (newest 10 kept). <code>cudic backups</code> lists them and <code>cudic recover latest</code> puts one back on disk — that's your undo when a push goes wrong.</li>
                         <li>Profiles are editable from the terminal too: <code>cudic profile</code> shows your name, bio, follower counts and awards, and <code>cudic profile set --name "..." --bio "..." --interests art,music</code> updates them. Avatars must already live in your Cudic avatar storage (the site's uploader is still the way to add one).</li>
+                        <li><strong>More ways to earn</strong> sit on <a href="/quests">/quests</a>: 50 coins for publishing your first game after joining through an invite, a 15 MB storage grant and the Scout title at three invites (25 MB and Recruiter at ten), 100 coins for importing a Scratch project, 25/100/250 coins at 10/100/1,000 plays, 100 coins for playing on seven days in a week, three rotating weekly quests, and 100 coins once a server of yours has five members who stay a week. Fork credit pays the original maker and the forker only after the fork is published and three different signed-in players have played it.</li>
                         <li>Your profile has an <strong>Invite makers</strong> card with a personal link. A new account that joins through it and confirms its email adds 10 MB to your project storage and 100 coins to your balance, up to 10 invites (+100 MB, 1,000 coins). The link only counts for accounts created in the last week, so it can't be used to boost an old account.</li>
                     </ul>
                 </section>
