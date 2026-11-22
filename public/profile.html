@@ -159,6 +159,7 @@
         <a href="#sec-connections">Connections</a>
         <a href="#sec-awards">Awards</a>
         <a href="#sec-streak">Login streak</a>
+        <a href="#sec-invite">Invites</a>
         <a href="#sec-ach">Achievements</a>
         <a href="#sec-stats">Analytics</a>
         <a href="#sec-liked">Liked games</a>
@@ -237,6 +238,15 @@
           <span id="streakDays" style="font-family:'Geist Mono',monospace;font-size:2.2rem;font-weight:600;color:var(--signal)">–</span>
           <span class="sub" style="margin:0" id="streakLabel">day streak</span>
         </div>
+      </div>
+      <div class="profile-card" id="sec-invite" style="display:none">
+        <h2>Invite makers</h2>
+        <p class="sub">Send this link to someone who hasn't tried Cudic. Every new account that joins through it and confirms their email adds <strong>10 MB</strong> to your storage budget and <strong>100 coins</strong> to your balance — up to 10 invites, so +100 MB and 1,000 coins at most. Accounts that already existed don't count.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input id="inviteLink" type="text" readonly spellcheck="false" aria-label="Your invite link" style="flex:1;min-width:220px;background:var(--panel);color:var(--text-primary);border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px 12px;font-family:'Geist Mono',monospace;font-size:0.82rem">
+          <button class="btn btn-secondary" id="inviteCopy" type="button">Copy link</button>
+        </div>
+        <div class="sub" id="inviteStats" style="margin-top:12px"></div>
       </div>
       <div class="profile-card" id="sec-ach">
         <h2>Game achievements</h2>
@@ -474,6 +484,50 @@
               'day streak' + (p.streak_days === 1 ? ' — come back tomorrow to grow it' : '');
           }
         })(d.profile);
+        /* Invite links: own profile only. The route needs a session, so a
+           public profile leaves the card hidden rather than showing a 401. */
+        function deviceId() {
+          try {
+            var d = localStorage.getItem('cudic_device');
+            if (!d) {
+              d = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2);
+              localStorage.setItem('cudic_device', d);
+            }
+            return d;
+          } catch (e) { return ''; }
+        }
+        (function () {
+          var card = document.getElementById('sec-invite');
+          if (!card || isPublic || !t) return;
+          // The device id lets the claim tell the link's owner from a stranger,
+          // so one person cannot invite their own second account for the bonus.
+          var dev = deviceId();
+          fetch(apiHost() + '/api/referrals', { headers: { 'Authorization': 'Bearer ' + t, 'X-Cudic-Device': dev } })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (d) {
+              if (!d || !d.link) return;
+              card.style.display = '';
+              var input = document.getElementById('inviteLink');
+              var mb = Math.round((d.bonus_bytes || 0) / 1048576);
+              input.value = d.link;
+              document.getElementById('inviteStats').textContent =
+                d.invites + ' of ' + d.max_invites + ' invites counted — +' + mb + ' MB, +' +
+                (d.coins || 0) + ' coins' +
+                (d.invites >= d.max_invites ? ' (full)' : '') +
+                ' · using ' + Math.round((d.used_bytes || 0) / 1048576) +
+                ' of ' + Math.round((d.cap_bytes || 0) / 1048576) + ' MB';
+              var btn = document.getElementById('inviteCopy');
+              btn.addEventListener('click', function () {
+                var done = function () {
+                  btn.textContent = 'Copied';
+                  setTimeout(function () { btn.textContent = 'Copy link'; }, 1600);
+                };
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                  navigator.clipboard.writeText(input.value).then(done, function () { input.select(); document.execCommand('copy'); done(); });
+                } else { input.select(); document.execCommand('copy'); done(); }
+              });
+            }).catch(function () {});
+        })();
         (function (ach) {
           var card = document.getElementById('sec-ach');
           var list = document.getElementById('achList');

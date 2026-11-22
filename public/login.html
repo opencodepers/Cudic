@@ -149,6 +149,22 @@ function afterLogin(){
   }catch(e){}
   return next;
 }
+// Invite links arrive as /login?ref=<code>. The code is remembered until an
+// account is confirmed, then claimed on the next successful sign-in — the server
+// refuses an unconfirmed claim, so keeping the key is the retry.
+var REF_KEY='cudic_ref';
+function deviceId(){try{var d=localStorage.getItem('cudic_device');if(!d){d=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():String(Date.now())+Math.random().toString(16).slice(2);localStorage.setItem('cudic_device',d);}return d;}catch(e){return '';}}
+try{var refIn=new URLSearchParams(location.search).get('ref');if(refIn&&/^[0-9a-z]{8}$/.test(refIn))localStorage.setItem(REF_KEY,refIn);}catch(e){}
+async function claimInvite(){
+  try{
+    var code=localStorage.getItem(REF_KEY); if(!code)return;
+    var sess=await getSession(); if(!sess||!sess.access_token)return;
+    var res=await fetch((typeof WS_URL!=='undefined'&&WS_URL?WS_URL.replace(/^wss?:\/\//,'https://'):'')+'/api/referrals/claim',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+sess.access_token,'X-Cudic-Device':deviceId()},body:JSON.stringify({code:code})});
+    // 403 = email not confirmed yet (keep it). 503 = migration not applied yet
+    // (keep it). Everything else is final: the code either counted or can't.
+    if(res.ok||res.status===400||res.status===404||res.status===409)localStorage.removeItem(REF_KEY);
+  }catch(e){}
+}
 async function doSignIn(e){
   e.preventDefault();
   var email=document.getElementById('em').value.trim();
@@ -161,6 +177,7 @@ async function doSignIn(e){
       try{localStorage.setItem('cudic_seat',
        ('s'+Date.now().toString(36)+Math.random().toString(36).slice(2,10)));}catch(x){}
       await claimSeat();
+      await claimInvite();
     }
     window.location.href=afterLogin();
   }catch(err){document.getElementById('msgIn').textContent = err&&err.message ? err.message : 'Invalid login credentials.';}
@@ -216,7 +233,7 @@ async function verifyCode(){
     try{
       var res=await fetch((typeof WS_URL!=='undefined'&&WS_URL?WS_URL.replace(/^wss?:\/\//,'https://'):'')+'/auth/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:lastEmail,code:c,userId:lastUid})});
       var d=null; try{d=await res.json();}catch(e){}
-      if(res.ok){try{await signInWithEmail(lastEmail,lastPw);}catch(e){};window.location.href=afterLogin();return;}
+      if(res.ok){try{await signInWithEmail(lastEmail,lastPw);}catch(e){};await claimInvite();window.location.href=afterLogin();return;}
       if(attempt<2){await new Promise(r=>setTimeout(r,800));continue;}
       document.getElementById('codeSub').textContent = (d&&d.error)?d.error:'Invalid code — try again.';
     }catch(e){if(attempt>=2){document.getElementById('codeSub').textContent='Error verifying.';}}
@@ -230,7 +247,7 @@ async function sendReset(){
 window.addEventListener('load',function(){
   handleAuthCallback();
   // If already signed in, go to chat (avoids loop from stale deleted-account session)
-  getSession().then(function(s){if(s&&s.access_token){window.location.href=afterLogin();}}).catch(function(){});
+  getSession().then(async function(s){if(s&&s.access_token){await claimInvite();window.location.href=afterLogin();}}).catch(function(){});
 });
 </script>
 <script src="/funnel.js?v=1" defer></script>

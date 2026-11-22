@@ -8,6 +8,15 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Invite links pay in storage, and only for real new accounts** (`lib/referrals.js`, `lib/storage-budget.js`, `lib/routes/games.js`, `server.js`, `public/login.html`, `public/profile.html`, `supabase/migrations/20261122120000_referrals.sql`)
+
+- Every account can share `/login?ref=<code>`. When a **new** account (a week old or newer, then confirmed) joins through it, the inviter gets **10 MB of storage and 100 coins** — up to 10 invites, so +100 MB and 1,000 coins at most. The storage is counted from `referrals` rows and the coins are a ledger row keyed by the invitee, so neither a stored counter nor a retry can drift from or double-pay the truth.
+- **Self-invites are matched by person, not by id.** The link now remembers the inviter's normalised email (Gmail dots and `+tags` collapse, so `m.e+2@gmail.com` reads as `me@gmail.com`), a hash of the browser that asked for it, and a hash of the connection it came from. A claim is refused when any of those match the invitee's — the same laptop, the same wifi, or the same mailbox under a new address. Attempts are also capped at 12 per connection per day.
+- Storage plus coins, because storage is what a creator runs out of and 100 coins is a real cosmetic (the same payout as publishing a first game) without being endless. The claim is fenced to confirmed, recently-created accounts with one claim per account — burner emails cannot farm it the way an open sign-up bonus could.
+- The save path now asks for the cap per account (`storageCapFor`), so the extra space is enforced where storage is counted. A referral read that fails falls back to the base 250 MB instead of blocking a save.
+- Profile gains an **Invite makers** card with the link, a copy button and the running count (invites, bonus, used of cap). `/login?ref=` remembers the code until the claim settles, then clears it.
+- Needs `supabase/migrations/20261122120000_referrals.sql`. Until it runs, both routes answer 503 `referrals_unavailable` and the card stays hidden; saving is unaffected.
+
 **Server banner focus, and a Next slate that matches what shipped** (`lib/routes/customize.js`, `lib/routes/pack.js`, `public/server.html`, `public/server-customize.html`, `public/server-customize.js`, `public/server-preview.html`, `public/next.html`, `public/next.js`, `public/next-slate.js`, `server.js`, `vercel.json`)
 
 - Server appearance now stores a **banner focus** (0–100, default 50, the same rule as the profile banner), so a wide header image no longer crops the server name. Server settings adds a focus slider plus **Remove header banner** and **Remove chat background** buttons; both clear the field and leave the save explicit.

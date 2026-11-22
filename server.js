@@ -72,6 +72,15 @@ function clientIp(req) {
   }
   return (req.socket && req.socket.remoteAddress) || 'unknown';
 }
+// What referral checks compare: the person behind the account, not the id.
+// lib/referrals.js hashes these before storing anything.
+function referralSignals(req, user) {
+  return {
+    email: (user && user.email) || '',
+    ip: clientIp(req),
+    device: String(req.headers['x-cudic-device'] || '').substring(0, 128)
+  };
+}
 
 // ── Bot gate (Cloudflare Turnstile) ────────────────────────────
 // A solved widget proves a human filled the form; the server verifies the
@@ -379,7 +388,7 @@ function cors(res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   // X-Seat must be listed or the browser blocks the preflight for every
   // cross-origin call that identifies the session (likes, saves, heart).
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Seat');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Seat, X-Cudic-Device');
 }
 
 // Copy every object under one game's storage prefix into another's. Used when a
@@ -423,8 +432,10 @@ async function copyAssetPrefix(fromPrefix, toPrefix, pathsIn) {
   return { copied, total: paths.length };
 }
 
+// Invite links: a code per account, and a storage bonus counted from claims.
+const referrals = require('./lib/referrals')(supabase, notify);
 // Storage accounting lives in lib/storage-budget.js — pure Supabase reads.
-const { ACCOUNT_STORAGE_CAP, accountStorageBytes, forgetStorageUsage } = require('./lib/storage-budget')(supabase);
+const { ACCOUNT_STORAGE_CAP, accountStorageBytes, forgetStorageUsage, storageCapFor } = require('./lib/storage-budget')(supabase, referrals.bonusBytes);
 
 const server = http.createServer((req, res) => {
   handleRequest(req, res).catch((e) => {
@@ -2565,6 +2576,63 @@ async function handleRequest(req, res) {
     res.end(JSON.stringify({ ok: true }));
     return;
   }
+
+  // ── API: invite links (referrals) ───────────────────────────────
+  // The code lives in referral_codes; the bonus is counted from referrals rows,
+  // so there is no stored balance to drift out of date. Storage is the reward
+  // because that is what a creator runs out of — and it is paid for verified
+  // accounts only, capped, because storage is the one real per-byte cost here.
+  if (url.pathname === '/api/referrals' && req.method === 'GET') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    let stats = null;
+    try { stats = await referrals.stats(user.id, referralSignals(req, user)); } catch (e) {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'referrals_unavailable', text: 'Invite links are not available yet.' }));
+      return;
+    }
+    const used = await accountStorageBytes(user.id).catch(() => 0);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      ...stats,
+      link: referrals.linkFor(siteOrigin(req), stats.code),
+      used_bytes: used,
+      cap_bytes: ACCOUNT_STORAGE_CAP + stats.bonus_bytes
+    }));
+    return;
+  }
+  if (url.pathname === '/api/referrals/claim' && req.method === 'POST') {
+    cors(res);
+    const user = await requireUser(req, res); if (!user) return;
+    const body = await readBody(req).catch(() => ({}));
+    // A claim is cheap to attempt and impossible to take back, so cap attempts
+    // per connection: one person farming invites from a single IP gets 12 a
+    // day, not an unlimited stream.
+    const fromIp = clientIp(req);
+    if (fromIp && fromIp !== 'unknown' && !rateLimit('refclaim:' + fromIp, 12, 864e5)) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'too_many_claims', text: 'Too many invite claims from this connection today.' }));
+      return;
+    }
+    let out;
+    try {
+      out = await referrals.claim(user.id, String(body.code || ''), {
+        verified: !userUnconfirmed(user),
+        createdAt: user.created_at,
+        ...referralSignals(req, user)
+      });
+    } catch (e) {
+      // Missing migration (or any read failure): the feature is simply off.
+      console.error('referral claim error:', e && e.message);
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'referrals_unavailable', text: 'Invite links are not available yet.' }));
+      return;
+    }
+    res.writeHead(out.ok ? 200 : out.status, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(out));
+    return;
+  }
+
   if (url.pathname === '/api/session' && req.method === 'DELETE') {
     cors(res);
     const user = await requireUser(req, res); if (!user) return;
@@ -6016,7 +6084,7 @@ githubRoutes = require('./lib/routes/github')({
   cors, userOf, ghKey, GH_SETUP_TEXT, supabase, ghNoTable, requireUser, needVerified, rateLimit, readBody, GH_SCOPES_OK, ghSeal, ghGate, ghApi, ghFail, ghSend, GH_PATH, ghDeployWarned, GIT_SNAP_PATH, GIT_SNAP_CAP, GH_NAME, crypto, ghToken, repoTreeFiles, createRelease,
 });
 gamesRoutes = require('./lib/routes/games')({
-  cors, requireUser, isModerator, supabase, gamesListCacheClear, seatAlive, seatFromReq, seatDead, readBody, crypto, revisionFilesOf, gamesListCache, GAMES_LIST_TTL, liveCount, userOf, hasScope, scopeDenied, needVerified, activeBan, isUuid, notify, playtestValid, defaultThumb, rankRelated, rateLimit, weekStartISO, PLAYTEST_SECRET, playtestSign, siteOrigin, clientIp, logActivity, singleFileBuild, latestRelease, digestWeekStart, awardUser, freeGameSlug, sanitizeTags, copyAssetPrefix, ghToken, ghApi, accountStorageBytes, ACCOUNT_STORAGE_CAP, onPublished, discord, createRelease, forgetStorageUsage,
+  cors, requireUser, isModerator, supabase, gamesListCacheClear, seatAlive, seatFromReq, seatDead, readBody, crypto, revisionFilesOf, gamesListCache, GAMES_LIST_TTL, liveCount, userOf, hasScope, scopeDenied, needVerified, activeBan, isUuid, notify, playtestValid, defaultThumb, rankRelated, rateLimit, weekStartISO, PLAYTEST_SECRET, playtestSign, siteOrigin, clientIp, logActivity, singleFileBuild, latestRelease, digestWeekStart, awardUser, freeGameSlug, sanitizeTags, copyAssetPrefix, ghToken, ghApi, accountStorageBytes, ACCOUNT_STORAGE_CAP, storageCapFor, onPublished, discord, createRelease, forgetStorageUsage,
 });
 modRoutes = require('./lib/routes/mod')({
   cors, requireUser, needVerified, isModerator, supabase, isUuid, readBody, AWARDS, awardUser, notify, ghToken, rateLimit, canSeeLobby, packByKey, RESERVED_PACK_SLUGS, gamesListCacheClear,

@@ -453,6 +453,10 @@ GET  /favicon.ico               → serves public/cudic_sfsvg.svg
 GET  /themes                    theme pack store
 POST /api/session/claim|heartbeat  DELETE /api/session
 GET|PUT|DELETE /api/saves/:gameId  ← account-bound saves (100KB cap)
+GET  /api/referrals              ← own invite code, share link, counted bonus,
+                                  used/cap bytes (signed-in)
+POST /api/referrals/claim        ← invitee redeems `?ref=`; confirmed, ≤7-day-old
+                                  account only, one claim per invitee
 POST /api/scratch/import           ← .sb3 / Scratch URL → split player files
 POST/DELETE /api/follow/:id        ← one-way follow (30/h). GET /api/feed (me+followed, 60)
                                     the game page's author row also follows via
@@ -699,8 +703,40 @@ chain continues only when the last day was yesterday. The day update filters
 on the previously-seen `last_active_day` so two racing tabs advance it at
 most once; coins pay via `grant_coins` with reason `streak:<date>` (ledger
 idempotent, `5 + days` capped at 25). Self-view `/api/profile` ships
-`streak_days` (profile.html `#sec-streak` card); the public `/api/user`
-projection omits it. Migration: `migration/streak.sql`.
+`streak_days` (profile.html `#sec-streak` card);the public `/api/user` projection omits it. Migration: `migration/streak.sql`.
+
+### Invite links (referrals, `lib/referrals.js`)
+Every account can share `<siteOrigin>/login?ref=<code>`. The code is created the
+first time the account asks for its link and stored in `referral_codes`, so a
+code in the wild always resolves — never derive one at claim time from an id
+hash, or an unvisited account's link would silently fail.
+`POST /api/referrals/claim` accepts only a **confirmed** account created in the
+last 7 days, never the inviter, and one claim per invitee (unique `invitee_id`
+makes a retry harmless). A claim is worth 10 MB of storage **and 100 coins** for
+the inviter, capped at 10 invites / +100 MB / 1,000 coins. Storage is **counted
+from the rows** in `referrals` (no stored balance to drift); coins go through
+`grant_coins` with reason `referral` and `p_ref` = invitee id, and the ledger row
+is the receipt — a retried claim finds it and pays nothing twice. A ledger read
+failure loses that invite's coins but never the claim or the save. `storageCapFor(userId)` in
+`lib/storage-budget.js` is the only cap the save path may compare against; a
+referral read that fails falls back to the base 250 MB instead of blocking a
+save. `public/login.html` keeps `?ref=` in localStorage until the claim settles
+(403 unconfirmed / 503 missing migration retry on the next sign-in). Missing
+migration = 503 `referrals_unavailable` + hidden profile card, never a broken
+save. Tables: `referral_codes`, `referrals` (RLS closed) —
+`supabase/migrations/20261122120000_referrals.sql`.
+
+Self-invites are the obvious farm: a second email is free. `GET /api/referrals`
+therefore records the owner's signals on `referral_codes` — `email_norm`,
+`ip_hash`, `device_hash` (sha256 of `clientIp(req)` and the client's
+`X-Cudic-Device`) — and a claim returns 409 `same_email` / `same_device` /
+`same_network` when the invitee's match. `emailNorm` collapses `+tags` on every
+domain and dots on Gmail, so aliases do not create a new person. Claims are
+rate-limited to 12 attempts per IP per day. Signals are stored only as hashes
+and are never returned by any route. Part 2 of the migration
+(`20261122130000_referral_abuse.sql`) is additive: without it claims still work
+(the code lookup is `select('*')` and the insert falls back), they just compare
+nothing.
 
 ### Project revisions (staged snapshots, `project_revisions` table)
 `POST/GET /api/games/:id/revisions` (+ `/restore`, `DELETE /:revId`), owner
