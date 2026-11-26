@@ -6,6 +6,10 @@ cudic-asset-pack/
   manifest.json            every asset, with pixel data for icons and cursor hotspots
   brand/
     logo/                  cudic-mark-{ink,cream,lime,blue}.svg
+      png/{ink,cream,lime,blue}/  16, 32, 48, 64, 128, 256, 512, 1024px squares
+      wordmark/png/        the name in Geist 600, 720 and 1440 wide
+      lockup/png/          mark + name side by side, 480, 960 and 1440 wide
+    social/                avatar-{256,512}.png, tile-{lime,blue,cream,ink}-1080.png
     colors.json
     tokens.css             colors, fonts and motion timing as CSS variables
   icons/
@@ -21,6 +25,17 @@ cudic-asset-pack/
     fluid/{cream,ink}/svg/
     css/                   drop-in stylesheets, one per style and variant
 ```
+
+## Logo exports (48 PNGs)
+The mark is a vector (`logo/cudic-mark-*.svg`); every PNG is a browser render of
+that vector at its exact pixel size, so nothing is resampled twice.
+- `logo/png/<colour>/<size>.png` — 16, 32, 48, 64, 128, 256, 512 and 1024px
+  squares on transparency, mark at 82% of the box. `cream` is for dark surfaces,
+  `ink` for light ones, `lime` and `blue` for brand-coloured tiles.
+- `logo/wordmark/png/` — the name on its own, Geist 600 at -.03em, transparent.
+- `logo/lockup/png/` — mark and name side by side, the ratio used on the site.
+- `social/` — a 512 and 256 avatar on ink, and four 1080² tiles (lime, blue,
+  cream, ink) with the mark at 56% of the frame.
 
 ## Icons (83)
 Drawn on a strict 8x8 grid: chunky 2-cell strokes, notched corners, and one lime or blue spark per icon.

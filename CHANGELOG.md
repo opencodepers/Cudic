@@ -8,6 +8,10 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Logo exports** (`public/cudic-assets/brand/`)
+
+- The asset pack carries the mark as PNGs now: 16 to 1024px squares in cream, ink, lime and blue, a Geist wordmark, a lockup and four social tiles. Everything is rendered from the existing vector, so there is no second-hand copy of the logo going around.
+
 **Consent bar and menus wear the sheet** (`public/consent.js`, `public/cudic-menu.js`, `public/index.html`)
 
 - The consent bar is a bottom sheet now: drag handle, cookie mark, one headline, supporting copy and two actions, built from the brand sheet's flat panel, hairline border, 3px corners and Geist. It stacks full-width on a phone with 44–48px targets, visible focus rings and no motion when the visitor asked for less.
