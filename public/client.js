@@ -866,9 +866,9 @@ function addChatMessage(author, text, time, avatar, userId, ts, mid, cid, pinned
     : escapeHtml(String(author || '?').substring(0, 1).toUpperCase());
   div.innerHTML = '<div class="msg-ava"><a href="#" onclick="window.showProfileModal && window.showProfileModal(event, \'' + (userId || '') + '\'); return false;" style="display:block;width:100%;height:100%;text-decoration:none;color:inherit">' + av + '</a></div>'
     + '<div class="msg-main"><span class="author" style="color:' + nameColor(author) + '">' + escapeHtml(author) + '</span>'
-    + '<span class="time">' + time + '</span>'
+    + (mine ? '' : '<span class="time">' + time + '</span>')
     + '<div class="msg-text">' + renderMsgText(text) + '</div>'
-    + (mine ? '<span class="ticks" data-ts="' + escapeHtml(ts || '') + '" title="Sent">' + TICK_SVG + '</span>' : '')
+    + (mine ? '<div class="msg-meta"><span class="time">' + time + '</span><span class="ticks" data-ts="' + escapeHtml(ts || '') + '" title="Sent">' + TICK_SVG + '</span></div>' : '')
     + '</div><div class="msg-actions"></div>';
   messagesEl.appendChild(div);
   if (!mine && mid) armFlag(div, mid, userId);  if (mid) { div.dataset.mid = mid; armActions(div, mid, userId); }

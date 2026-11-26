@@ -156,18 +156,39 @@
     .person-row .dim { font-size: 0.72rem; color: var(--text-tertiary); }
 
     /* ── Message pane ─────────────────────────────────────── */
+    /* Channel identity owns the left of the header on two lines — name and
+       presence on the first, topic quiet underneath — so the tool pills read
+       as a separate cluster instead of one long crowded row. */
     .topbar {
-      padding: 14px 20px; border-bottom: 1px solid var(--line);
-      display: flex; align-items: center; gap: 10px;
-      font-family: var(--font-head); font-weight: 600; font-size: 1rem;
+      padding: 10px 20px; border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; gap: 16px;
+      font-family: var(--font-head);
       background: var(--panel); flex-shrink: 0; min-width: 0;
     }
+    .topbar-id {
+      flex: 1; min-width: 0;
+      display: grid; grid-template-columns: auto auto;
+      justify-content: start;
+      column-gap: 10px; row-gap: 2px; align-items: center;
+    }
+    .topbar #chatTitle {
+      font-weight: 600; font-size: 1rem; letter-spacing: -0.01em;
+      min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
     .topbar .topic {
+      grid-column: 1 / -1;
       font-family: var(--font-body); font-weight: 400; font-size: 0.8rem;
       color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis;
-      white-space: nowrap; flex: 1; min-width: 0;
+      white-space: nowrap; min-width: 0;
     }
-    .topbar .online { font-family: var(--font-body); font-weight: 400; font-size: 0.75rem; color: var(--text-tertiary); flex-shrink: 0; }
+    .topbar .topic:empty { display: none; }
+    .topbar .online {
+      font-family: var(--font-body); font-weight: 500; font-size: 0.7rem;
+      color: var(--text-tertiary); background: var(--panel-raised);
+      border-radius: 999px; padding: 2px 8px; justify-self: start;
+      display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+    }
+    .topbar .online:empty { display: none; }
     .topbar .online .dot { color: var(--success); }
     .messages { flex: 1; overflow-y: auto; padding: 16px 20px; }
     .msg {
@@ -188,7 +209,12 @@
     /* Own messages: right-aligned tinted bubble with read ticks. */
     .msg.mine { justify-content: flex-end; }
     .msg.mine .msg-ava { display: none; }
+    /* Time and ticks share one line under the bubble instead of the time
+       sitting alone above it, which read as a stray label. */
     .msg.mine .msg-main { display: flex; flex-direction: column; align-items: flex-end; }
+    .msg.mine .msg-meta { display: flex; align-items: center; gap: 5px; margin-top: 3px; }
+    .msg.mine .msg-meta .time { margin: 0; font-size: 0.7rem; }
+    .msg.mine .msg-meta .ticks { margin: 0; }
     .msg.mine .author { display: none; }
     /* fit-content, not max-content: max-content ignores max-width while sizing,
        then the clamp wraps the line — which split "hellos" into "hello" + "s".
@@ -293,7 +319,13 @@
     #pinnedShelf .ps-head { font-size: 0.72rem; font-weight: 700; color: var(--text-tertiary); font-family: var(--font-head); margin-bottom: 4px; }
     #pinnedShelf .ps-row { font-size: 0.8rem; color: var(--text-secondary); padding: 4px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
     #pinnedShelf .ps-row b { color: var(--text-primary); }
-    .msg.pinned .msg-text { outline: 1px solid var(--signal); border-radius: 6px; }
+    /* The pin ring follows the message, not the column: as a block-level
+       outline it stretched the whole row and read as a text field. */
+    .msg.pinned .msg-text { box-shadow: 0 0 0 1px var(--signal); border-radius: 8px; }
+    .msg.pinned:not(.mine) .msg-text {
+      width: fit-content; max-width: 100%; padding: 5px 10px;
+      background: var(--signal-tint);
+    }
     .msg.pin-flash { background: var(--signal-tint, rgba(184,242,58,.12)); border-radius: 8px; transition: background 1s; }
     /* Actions (pin, react, flag) are hover/focus-only so a quiet conversation
        stays quiet; they stay visible once a message is actually pinned, and on
@@ -336,23 +368,37 @@
        Search, Extras, Organise, Plan and Mod share one pill; the panels
        they open (built by chat-extras/community/planner with inline
        styles) are re-skinned as site cards with mono section labels. */
-    .topbar #modOpener, .topbar #msgSearchBtn, .topbar #extrasBtn,
-    .topbar #organiseBtn, .topbar #planBtn {
-      height: 30px !important;
-      padding: 0 12px !important;
-      font: 500 0.78rem/1 var(--font-body) !important;
+    .topbar-tools { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    /* One pill for every tool, including the Next link and the buttons the
+       extras/community/planner scripts inject — they used to inherit the
+       generic .btn sizing and sat a few pixels off the rest. */
+    .topbar-tools .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      height: 28px !important;
+      padding: 0 11px !important;
+      font: 500 0.76rem/1 var(--font-body) !important;
       color: var(--text-secondary) !important;
       background: transparent !important;
       border: 1px solid var(--line) !important;
       border-radius: 999px !important;
+      text-decoration: none;
       cursor: pointer;
       transition: color .12s, background .12s, border-color .12s;
     }
-    .topbar #modOpener:hover, .topbar #msgSearchBtn:hover, .topbar #extrasBtn:hover,
-    .topbar #organiseBtn:hover, .topbar #planBtn:hover {
+    .topbar-tools .btn[hidden] { display: none !important; }
+    .topbar-tools .btn:hover {
       color: var(--text-primary) !important;
       background: var(--panel-raised) !important;
       border-color: var(--signal) !important;
+    }
+    /* Narrow screens: the tools take their own row so the channel name keeps
+       a readable width instead of collapsing to "#cli…". */
+    @media (max-width: 640px) {
+      .topbar { flex-wrap: wrap; gap: 8px 10px; padding: 10px 14px; }
+      .topbar-id { flex: 1 1 100%; }
+      .topbar-tools { flex: 1 1 100%; overflow-x: auto; scrollbar-width: none; }
+      .topbar-tools::-webkit-scrollbar { display: none; }
+      .topbar-tools .btn { padding: 0 9px !important; }
     }
 
     #extrasPanel, #chatOrganisePanel, #chatPlannerPanel, #msgSearchPanel {
@@ -492,16 +538,19 @@
         <div id="friendsList"><div class="dim" style="font-size:0.8rem;color:var(--text-tertiary)">Loading…</div></div>
       </div>
       <div class="topbar" id="chatTopbar" hidden>
-        <span id="chatTitle"></span>
-        <span class="topic" id="chatTopic"></span>
-        <span class="online" id="onlineCount"></span>
-        <a class="btn btn-secondary" href="/next" title="Working models of the next 30 moves" style="padding:6px 12px;font-size:0.78rem">Next</a>
-        <button class="btn btn-secondary" id="modOpener" hidden title="Members and moderation" style="margin-left:auto;padding:6px 12px;font-size:0.78rem">Mod</button>
-        <button class="btn btn-secondary" id="pollBtn" hidden title="Create a poll in this DM" style="padding:6px 12px;font-size:0.78rem">Poll</button>
-        <button class="btn btn-secondary" id="msgSearchBtn" title="Search this conversation" style="padding:6px 12px;font-size:0.78rem">Search</button>
-        <button class="btn btn-secondary" id="extrasBtn" title="Status, private notes, reminders and pins" style="padding:6px 12px;font-size:0.78rem">Extras</button>
+        <div class="topbar-id">
+          <span id="chatTitle"></span>
+          <span class="online" id="onlineCount"></span>
+          <span class="topic" id="chatTopic"></span>
+        </div>
+        <div class="topbar-tools">
+          <a class="btn btn-secondary" id="nextLink" href="/next" title="Working models of the next 30 moves">Next</a>
+          <button class="btn btn-secondary" id="modOpener" hidden title="Members and moderation">Mod</button>
+          <button class="btn btn-secondary" id="pollBtn" hidden title="Create a poll in this DM">Poll</button>
+          <button class="btn btn-secondary" id="msgSearchBtn" title="Search this conversation">Search</button>
+          <button class="btn btn-secondary" id="extrasBtn" title="Status, private notes, reminders and pins">Extras</button>
+        </div>
       </div>
-      <div class="ad-frame ad-leaderboard" data-ad-key="aa54ebd8c3acf5d1bbeb740803efce87" data-ad-format="iframe" data-ad-width="728" data-ad-height="90" style="flex-shrink:0;margin:12px"><span class="ad-cap" aria-hidden="true">Advertisement</span></div>
       <div id="msgSearchPanel" hidden style="padding:12px 20px;border-bottom:1px solid var(--line)">
         <div style="display:flex;gap:8px;align-items:center">
           <input type="text" id="msgSearchInput" placeholder="Search messages in this conversation" maxlength="60" autocomplete="off"
@@ -527,6 +576,7 @@
       <div id="typingIndicator" class="typing-indicator" style="display:none"></div>
       <p id="slowNote" hidden></p>
       <button type="button" id="loadOlderBtn" class="load-older" hidden>Load older messages</button>
+      <div class="ad-frame ad-leaderboard" data-ad-key="aa54ebd8c3acf5d1bbeb740803efce87" data-ad-format="iframe" data-ad-width="728" data-ad-height="90" style="flex-shrink:0;margin:6px auto 4px"><span class="ad-cap" aria-hidden="true">Advertisement</span></div>
       <form id="chatForm" class="chat-input-area" hidden>
         <button type="button" id="emojiBtn" class="btn-emoji" title="Insert emoji" aria-label="Insert emoji"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg></button>
         <input type="text" id="msgInput" placeholder="Type a message…" aria-label="Type a message" maxlength="2000" autocomplete="off">
@@ -573,7 +623,7 @@
   <script src="/sidebar.js?v=36"></script>
   <script src="/cudic-cosmetics.js?v=1"></script>
   <script src="/chat-motion.js?v=1" defer></script>
-  <script src="/client.js?v=18"></script>
+  <script src="/client.js?v=19"></script>
 <script src="/chat-polls.js?v=1"></script>
 <script src="/chat-extras.js?v=1"></script>
 <script src="/chat-community.js?v=1"></script>
