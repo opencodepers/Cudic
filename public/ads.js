@@ -24,14 +24,18 @@
     return Array.prototype.slice.call(document.querySelectorAll('[data-ad-key],[data-ad-script]'));
   }
 
+  var adQueue = [];
+  var adPumping = false;
+
   function inject(el) {
     if (!el || el.dataset.adLoaded === '1') return;
     var src = el.getAttribute('data-ad-script');
+    var options = null;
     if (!src) {
       var key = el.getAttribute('data-ad-key');
       if (!key) return;
       src = NETWORK + '22/' + key;
-      window.atOptions = {
+      options = {
         key: key,
         format: el.getAttribute('data-ad-format') || 'iframe',
         height: Number(el.getAttribute('data-ad-height')) || 90,
@@ -42,10 +46,33 @@
     el.dataset.adLoaded = '1';
     el.classList.remove('ad-empty');
     el.style.display = '';
+    adQueue.push({ el: el, src: src, options: options });
+    pumpAds();
+  }
+
+  // Adsterra reads window.atOptions when the script executes. Two async tags on
+  // one page would race for that global, so feed one zone at a time.
+  function pumpAds() {
+    if (adPumping) return;
+    var job = adQueue.shift();
+    if (!job) return;
+    adPumping = true;
+    var settled = false;
+    function next() {
+      if (settled) return;
+      settled = true;
+      adPumping = false;
+      setTimeout(pumpAds, 0);
+    }
+    if (job.options) window.atOptions = job.options;
     var s = document.createElement('script');
     s.async = true;
-    s.src = src;
-    el.appendChild(s);
+    s.src = job.src;
+    s.onload = next;
+    s.onerror = next;
+    job.el.appendChild(s);
+    // A creative can hold the connection open; never let it block the next slot.
+    setTimeout(next, 4000);
   }
 
   function arm() {

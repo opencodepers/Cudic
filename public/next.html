@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script src="/consent.js?v=1"></script>
-  <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+<meta name="color-scheme" content="light dark">
+  <script src="/consent.js?v=3"></script>
+  <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}try{var _cudicScheme=document.querySelector('meta[name="color-scheme"]');if(_cudicScheme)_cudicScheme.setAttribute('content',document.documentElement.dataset.theme==='light'?'light':'dark');}catch(e){}</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Next — Cudic</title>
@@ -12,7 +13,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
   <link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
-  <link rel="stylesheet" href="/sidebar.css?v=25">
+  <link rel="stylesheet" href="/sidebar.css?v=26">
   <link rel="stylesheet" href="/next.css?v=6">
 <link rel="stylesheet" href="/mobile.css?v=1">
 </head>
@@ -113,7 +114,7 @@
 
 <script src="/config.js"></script>
 <script src="/auth.js"></script>
-<script src="/sidebar.js?v=32"></script>
+<script src="/sidebar.js?v=36"></script>
 <script src="/next-core.js?v=4"></script>
 <script src="/next-chat.js?v=2"></script>
 <script src="/next-server.js?v=4"></script>

@@ -1,6 +1,8 @@
 ﻿<!DOCTYPE html><html lang="en"><head>
-    <script src="/consent.js?v=1"></script>
-<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+<meta name="color-scheme" content="light dark">
+    <script src="/consent.js?v=3"></script>
+    <script src="/ads.js?v=1" defer></script>
+<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}try{var _cudicScheme=document.querySelector('meta[name="color-scheme"]');if(_cudicScheme)_cudicScheme.setAttribute('content',document.documentElement.dataset.theme==='light'?'light':'dark');}catch(e){}</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cudic — Profile</title>
@@ -21,7 +23,7 @@
   <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="/sidebar.css?v=25">
+  <link rel="stylesheet" href="/sidebar.css?v=26">
   <style>
     body { display: flex; overflow: hidden; height: 100%; }
     .profile-layout { flex: 1; width: 0; display: flex; flex-direction: column; overflow: hidden; min-width: 0; background: var(--panel); }
@@ -137,16 +139,7 @@
   <div class="profile-layout page-panel"><div class="profile-content" id="profileContent">
     <h1>Profile</h1>
     <p class="profile-lead">How you appear, how you sign in, and how the app looks for you.</p>
-    <div class="ad-frame ad-leaderboard"><span class="ad-cap" aria-hidden="true">Advertisement</span><script>
-  atOptions = {
-    'key' : 'aa54ebd8c3acf5d1bbeb740803efce87',
-    'format' : 'iframe',
-    'height' : 90,
-    'width' : 728,
-    'params' : {}
-  };
-</script>
-<script src="https://bellnewyork.org/22/aa54ebd8c3acf5d1bbeb740803efce87"></script></div>
+    <div class="ad-frame ad-leaderboard" data-ad-key="aa54ebd8c3acf5d1bbeb740803efce87" data-ad-format="iframe" data-ad-width="728" data-ad-height="90"><span class="ad-cap" aria-hidden="true">Advertisement</span></div>
     <div id="guestNotice" class="profile-card" style="display:none;max-width:560px">
       <h2>You're browsing as a guest</h2>
       <p class="sub">Sign in to edit your profile.</p>
@@ -398,7 +391,7 @@
   <script src="/config.js"></script>
   <script src="/auth.js"></script>
   <script src="/turnstile.js"></script>
-  <script src="/sidebar.js?v=32"></script>
+  <script src="/sidebar.js?v=36"></script>
   <script src="/cudic-cosmetics.js?v=1"></script>
   <script src="/theme-toggle.js?v=2"></script>
   <script>

@@ -1,6 +1,8 @@
 ﻿<!DOCTYPE html><html lang="en"><head>
-    <script src="/consent.js?v=1"></script>
-<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+<meta name="color-scheme" content="light dark">
+    <script src="/consent.js?v=3"></script>
+    <script src="/ads.js?v=1" defer></script>
+<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}try{var _cudicScheme=document.querySelector('meta[name="color-scheme"]');if(_cudicScheme)_cudicScheme.setAttribute('content',document.documentElement.dataset.theme==='light'?'light':'dark');}catch(e){}</script>
 <script>/* The install prompt must be captured before the browser offers it,
    which is earlier than this page's own script runs at the end of the body. */
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__cudicInstall=e;});</script>
@@ -22,7 +24,7 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();win
   <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="/sidebar.css?v=25">
+  <link rel="stylesheet" href="/sidebar.css?v=26">
   <link rel="stylesheet" href="/islands/cudic-islands.css?v=8">
   <style>
     body { display: flex; overflow: hidden; height: 100%; }
@@ -250,28 +252,10 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();win
             </label>
           </div>
         </div>
-        <div class="ad-frame ad-rectangle"><span class="ad-cap" aria-hidden="true">Advertisement</span><script>
-  atOptions = {
-    'key' : '6b20dcace9307fc5107267bfa451330e',
-    'format' : 'iframe',
-    'height' : 250,
-    'width' : 300,
-    'params' : {}
-  };
-</script>
-<script src="https://bellnewyork.org/22/6b20dcace9307fc5107267bfa451330e"></script></div>
+        <div class="ad-frame ad-rectangle" data-ad-key="6b20dcace9307fc5107267bfa451330e" data-ad-format="iframe" data-ad-width="300" data-ad-height="250"><span class="ad-cap" aria-hidden="true">Advertisement</span></div>
       </div>
     </div>
-    <div class="ad-frame ad-leaderboard"><span class="ad-cap" aria-hidden="true">Advertisement</span><script>
-  atOptions = {
-    'key' : 'aa54ebd8c3acf5d1bbeb740803efce87',
-    'format' : 'iframe',
-    'height' : 90,
-    'width' : 728,
-    'params' : {}
-  };
-</script>
-<script src="https://bellnewyork.org/22/aa54ebd8c3acf5d1bbeb740803efce87"></script></div>
+    <div class="ad-frame ad-leaderboard" data-ad-key="aa54ebd8c3acf5d1bbeb740803efce87" data-ad-format="iframe" data-ad-width="728" data-ad-height="90"><span class="ad-cap" aria-hidden="true">Advertisement</span></div>
     <div class="side-card" id="commentsCard" style="margin-top:20px">
       <h2>Comments <span id="commentCount" class="dim" style="font-weight:400"></span></h2>
       <div id="commentList"><p class="dim">Loading…</p></div>
@@ -410,7 +394,7 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();win
   </div>
   <script src="/config.js"></script>
   <script src="/auth.js"></script>
-  <script src="/sidebar.js?v=32"></script>
+  <script src="/sidebar.js?v=36"></script>
   <script src="/islands/islands.js?v=8"></script>
   <script>
   (function(){

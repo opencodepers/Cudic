@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
 <script src="/config.js"></script>
-<script src="/consent.js?v=1"></script>
-<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+<script src="/consent.js?v=3"></script>
+<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}try{var _cudicScheme=document.querySelector('meta[name="color-scheme"]');if(_cudicScheme)_cudicScheme.setAttribute('content',document.documentElement.dataset.theme==='light'?'light':'dark');}catch(e){}</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Profile — Cudic</title>
@@ -11,7 +11,7 @@
 <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-<link rel="stylesheet" href="/sidebar.css?v=25">
+<link rel="stylesheet" href="/sidebar.css?v=26">
 <style>
   /* Same shell as /games and /view: the shared rail on the left, one scrolling
      content column. A creator page is part of the site, not a microsite. */
@@ -122,7 +122,7 @@
     <div id="commentList"></div>
   </div>
 </div></div>
-<script src="/sidebar.js?v=32"></script>
+<script src="/sidebar.js?v=36"></script>
 <script src="/cudic-cosmetics.js?v=1"></script>
 <script src="/profile-custom.js?v=1"></script>
 <script src="/theme-toggle.js?v=2"></script>

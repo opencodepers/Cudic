@@ -2,8 +2,10 @@
 <html lang="en">
 
 <head>
-    <script src="/consent.js?v=1"></script>
-<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+<meta name="color-scheme" content="light dark">
+    <script src="/consent.js?v=3"></script>
+    <script src="/ads.js?v=1" defer></script>
+<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}try{var _cudicScheme=document.querySelector('meta[name="color-scheme"]');if(_cudicScheme)_cudicScheme.setAttribute('content',document.documentElement.dataset.theme==='light'?'light':'dark');}catch(e){}</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cudic — Terms and Conditions</title>
@@ -89,17 +91,8 @@
                         <section id="s16"><h2>General provisions</h2><p>If any provision of these terms is found unenforceable, the rest remain in effect. Failure to enforce any provision is not a waiver of the right to enforce it later. These terms constitute the entire agreement between you and the operator regarding the service. Questions about these terms can be raised by writing to nathen.t2023@gmail.com. The privacy policy explains how personal data is handled and forms part of how the service operates alongside these terms.</p></section>
                     </article>
                 </div>
+            <div class="ad-frame ad-leaderboard" data-ad-key="2d6361200fb64b993d8fa2188432d1cc" data-ad-format="iframe" data-ad-width="320" data-ad-height="50"><span class="ad-cap" aria-hidden="true">Advertisement</span></div>
                 <footer class="mono">Cudic terms · <a href="/">cudic.vercel.app</a> · <a href="/privacy">privacy</a> · <a href="/accessibility">accessibility</a></footer>
-            <div class="ad-frame ad-leaderboard"><span class="ad-cap" aria-hidden="true">Advertisement</span><script>
-  atOptions = {
-    'key' : '2d6361200fb64b993d8fa2188432d1cc',
-    'format' : 'iframe',
-    'height' : 50,
-    'width' : 320,
-    'params' : {}
-  };
-</script>
-<script src="https://bellnewyork.org/22/2d6361200fb64b993d8fa2188432d1cc"></script></div>
             </main>
 
             <aside class="subtoc" id="subToc"><div class="toc-label">On this page</div><div id="subTocLinks"></div></aside>
@@ -107,6 +100,6 @@
     </div>
     <script src="/docpage.js?v=6"></script>
     <script src="/theme-toggle.js?v=2"></script>
-    <script src="/sidebar.js?v=32"></script>
+    <script src="/sidebar.js?v=36"></script>
 <script src="/cudic-modals.js?v=3"></script></body>
 </html>

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <script src="/config.js"></script>
-    <script src="/consent.js?v=1"></script>
+    <script src="/consent.js?v=3"></script>
 
 <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
     <meta charset="UTF-8">
@@ -410,16 +410,7 @@
             <div class="card"><span class="mono">Q</span><h3>Are coins real money?</h3><p>No. Coins are Cudic's own currency for theme packs. They cannot be bought with money or cashed out; you earn them.</p></div>
         </div>
     </section>
-    <div class="ad-frame ad-leaderboard"><span class="ad-cap" aria-hidden="true">Advertisement</span><script>
-  atOptions = {
-    'key' : 'aa54ebd8c3acf5d1bbeb740803efce87',
-    'format' : 'iframe',
-    'height' : 90,
-    'width' : 728,
-    'params' : {}
-  };
-</script>
-<script src="https://bellnewyork.org/22/aa54ebd8c3acf5d1bbeb740803efce87"></script></div>
+    <div class="ad-frame ad-leaderboard" data-ad-key="aa54ebd8c3acf5d1bbeb740803efce87" data-ad-format="iframe" data-ad-width="728" data-ad-height="90"><span class="ad-cap" aria-hidden="true">Advertisement</span></div>
     </main>
 
     <footer class="mono" style="padding:24px 48px">Cudic · <a href="/">cudic.vercel.app</a> · <a href="/docs">docs</a> · <a href="/cookbook/">cookbook</a> · <a href="/privacy">privacy</a> · <a href="/terms">terms</a></footer>
@@ -606,12 +597,19 @@
             });
         })();
     </script>
-    <div id="cookieBanner" data-cudic-consent-bar style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:2147483640;background:var(--panel,#14161b);border-top:1px solid var(--line,#262a33);padding:14px 20px;font:400 13px/1.5 'Geist',system-ui,sans-serif;color:var(--ink,#f7f5ec)">
-        <div style="max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-            <p style="margin:0;flex:1;min-width:240px;color:var(--mute,#9a9a94)">We use cookies for sign-in, preferences, and (with your consent) advertising. See the <a href="/privacy" style="color:var(--blue,#3f7cff)">privacy policy</a>.</p>
-            <div style="display:flex;gap:8px">
-                <button id="cookieReject" style="padding:8px 14px;border:1px solid var(--line,#262a33);background:var(--panel-raised,#1e1b4d);color:var(--ink,#f7f5ec);cursor:pointer;font:500 12px 'Geist Mono',monospace;letter-spacing:.06em;text-transform:uppercase">Reject all</button>
-                <button id="cookieAccept" style="padding:8px 14px;border:1px solid var(--lime,#b8f23a);background:var(--lime,#b8f23a);color:#0d0e10;cursor:pointer;font:500 12px 'Geist Mono',monospace;letter-spacing:.06em;text-transform:uppercase">Accept</button>
+    <div id="cookieBanner" class="cudic-consent" data-cudic-consent-bar role="dialog" aria-labelledby="cookieConsentTitle" aria-describedby="cookieConsentBody" style="display:none">
+        <div class="cc-handle" aria-hidden="true"></div>
+        <div class="cc-inner">
+            <div class="cc-head">
+                <svg class="cc-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/><path d="M8.5 8.5v.01M16 15.5v.01M12 12v.01M11 17v.01M7 14v.01"/></svg>
+                <div>
+                    <h2 id="cookieConsentTitle">Your cookie choice</h2>
+                    <p id="cookieConsentBody">Cookies keep you signed in and remember your settings. Ads run only if you accept. <a href="/privacy">Privacy policy</a></p>
+                </div>
+            </div>
+            <div class="cc-actions">
+                <button type="button" id="cookieReject" aria-pressed="false">Reject all</button>
+                <button type="button" id="cookieAccept" class="cc-primary" aria-pressed="false">Accept all</button>
             </div>
         </div>
     </div>
@@ -673,7 +671,7 @@
         })();
     </script>
     <script src="/cudic-cursor.js"></script>
-    <script src="/sidebar.js?v=32"></script>
+    <script src="/sidebar.js?v=36"></script>
     <script src="/theme-toggle.js?v=2"></script>
     <script>
     (function(){

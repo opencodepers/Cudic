@@ -205,6 +205,9 @@ body {
 /* Servers stay visible as icons */
 .sidebar #serversSection { opacity: 1; pointer-events: auto; }
 .sidebar .sidebar-item { justify-content: center; align-items: center; padding: 8px 0; border-left-width: 2px; gap: 0; width: 100%; }
+/* Rail footer: Cookie settings is a button, not a link — strip the UA chrome
+   but keep the .sidebar-item hover and focus treatment. */
+.sidebar button.sidebar-item { background: transparent; border: 0; border-left: 2px solid transparent; font: inherit; width: 100%; }
 .sidebar .sidebar-item span { opacity: 0; max-width: 0; overflow: hidden; pointer-events: none; }
 .sidebar #serverList > div { display: none; }
 .sidebar #serverList .sidebar-item span:first-child { opacity: 1; max-width: none; }

@@ -2,8 +2,10 @@
 <html lang="en">
 
 <head>
-    <script src="/consent.js?v=1"></script>
-<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+<meta name="color-scheme" content="light dark">
+    <script src="/consent.js?v=3"></script>
+    <script src="/ads.js?v=1" defer></script>
+<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}try{var _cudicScheme=document.querySelector('meta[name="color-scheme"]');if(_cudicScheme)_cudicScheme.setAttribute('content',document.documentElement.dataset.theme==='light'?'light':'dark');}catch(e){}</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cudic — Privacy Policy</title>
@@ -70,6 +72,7 @@
                         <section id="advertising">
                             <h2>Advertising</h2>
                             <p>Cudic shows ads to keep the site free. Our ad partner Google uses cookies to serve ads based on your visits to this and other sites — including the DoubleClick cookie, web beacons, and IP addresses collected as part of ad serving. Google may use this data for personalized advertising.</p>
+                            <p>Your answer in the cookie banner stays until you change it. <button type="button" data-consent-settings style="font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px">Change your cookie choice</button> — turning ads off reloads the page so the ad scripts stop.</p>
                             <p>You can opt out of personalized advertising at <a href="https://www.google.com/settings/ads">Google Ads Settings</a> and <a href="https://www.aboutads.info/choices/">aboutads.info</a>. You can also block or delete cookies in your browser settings, though signing in and some features may stop working. Read how Google uses data on <a href="https://policies.google.com/technologies/partner-sites">How Google uses information from sites that use its services</a>.</p>
                         </section>
 
@@ -113,17 +116,8 @@
                         </section>
                     </article>
                 </div>
+            <div class="ad-frame ad-leaderboard" data-ad-key="2d6361200fb64b993d8fa2188432d1cc" data-ad-format="iframe" data-ad-width="320" data-ad-height="50"><span class="ad-cap" aria-hidden="true">Advertisement</span></div>
                 <footer class="mono">Cudic privacy · <a href="/">cudic.vercel.app</a> · <a href="/terms">terms</a> · <a href="/accessibility">accessibility</a></footer>
-            <div class="ad-frame ad-leaderboard"><span class="ad-cap" aria-hidden="true">Advertisement</span><script>
-  atOptions = {
-    'key' : '2d6361200fb64b993d8fa2188432d1cc',
-    'format' : 'iframe',
-    'height' : 50,
-    'width' : 320,
-    'params' : {}
-  };
-</script>
-<script src="https://bellnewyork.org/22/2d6361200fb64b993d8fa2188432d1cc"></script></div>
             </main>
 
             <aside class="subtoc" id="subToc"><div class="toc-label">On this page</div><div id="subTocLinks"></div></aside>
@@ -131,6 +125,6 @@
     </div>
     <script src="/docpage.js?v=6"></script>
     <script src="/theme-toggle.js?v=2"></script>
-    <script src="/sidebar.js?v=32"></script>
+    <script src="/sidebar.js?v=36"></script>
 <script src="/cudic-modals.js?v=3"></script></body>
 </html>

@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script src="/consent.js?v=1"></script>
-  <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+<meta name="color-scheme" content="light dark">
+  <script src="/consent.js?v=3"></script>
+  <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}try{var _cudicScheme=document.querySelector('meta[name="color-scheme"]');if(_cudicScheme)_cudicScheme.setAttribute('content',document.documentElement.dataset.theme==='light'?'light':'dark');}catch(e){}</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Public events — Cudic</title>
   <meta name="description" content="Game nights and events that Cudic servers have opened to everyone.">
   <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/sidebar.css?v=25">
+  <link rel="stylesheet" href="/sidebar.css?v=26">
   <style>
     body { display: flex; overflow: hidden; height: 100%; }
     .ev-layout { flex: 1; width: 0; overflow-y: auto; background: var(--panel); }
@@ -40,7 +41,7 @@
   </div></main>
   <script src="/config.js"></script>
   <script src="/auth.js"></script>
-  <script src="/sidebar.js?v=32"></script>
+  <script src="/sidebar.js?v=36"></script>
   <script>
   (function () {
     var host = (typeof WS_URL !== 'undefined' && WS_URL) ? WS_URL.replace(/^wss?:\/\//, 'https://') : '';

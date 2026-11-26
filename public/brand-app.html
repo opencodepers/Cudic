@@ -633,6 +633,78 @@
   @keyframes layer-row { from { opacity: 0; transform: translateY(4px); } }
   @keyframes popover-in { from { opacity: 0; transform: translate(-50%, -6px) scale(.95); } to { opacity: 1; transform: translate(-50%, 0); } }
 
+  /* ---------------- cursors + Cudic menu ---------------- */
+  .cursor-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .cursor-bar .mono { margin-left: auto; color: var(--mute); }
+  .cur-toggle { display: inline-flex; overflow: hidden; border: 1px solid var(--line); border-radius: 6px; }
+  .cur-toggle button {
+    height: 30px; padding: 0 11px; border: 0; border-right: 1px solid var(--line);
+    background: transparent; color: var(--ash); font: 11px var(--mono); letter-spacing: .08em;
+    text-transform: uppercase; cursor: pointer;
+  }
+  .cur-toggle button:last-child { border-right: 0; }
+  .cur-toggle button:hover { background: var(--raised); color: var(--white); }
+  .cur-toggle button.is-on { background: var(--tint); color: var(--signal); }
+  .cursor-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+  .cursor-tile {
+    display: grid; justify-items: center; gap: 7px; padding: 15px 8px 10px;
+    border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel);
+    color: var(--white); font: inherit;
+  }
+  .cursor-tile:hover { background: var(--raised); border-color: #4c4c4c; }
+  .cursor-tile img { width: 32px; height: 32px; image-rendering: pixelated; }
+  .cursor-tile b { font-family: var(--mono); font-size: 11px; font-weight: 400; letter-spacing: .08em; text-transform: uppercase; color: var(--ash); }
+  .cursor-tile small { font-family: var(--mono); font-size: 10px; letter-spacing: .04em; color: var(--mute); }
+
+  .menu-bench { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 12px; margin-top: 12px; }
+  .menu-stage {
+    position: relative; display: grid; place-items: center; min-height: 360px; padding: 24px;
+    border: 1px solid var(--line); border-radius: var(--r-lg); background: #1e1e1e; overflow: visible;
+  }
+  .msg-demo {
+    width: min(100%, 320px); display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px;
+    align-items: start; padding: 13px; border: 1px solid #373737; border-radius: 10px;
+    background: linear-gradient(180deg, #282828, #232323); color: inherit; font: inherit;
+    text-align: left; cursor: context-menu;
+  }
+  .msg-demo:hover { border-color: #4c4c4c; }
+  .msg-avatar {
+    width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%;
+    background: linear-gradient(135deg, #FFB057, var(--signal) 58%, #B85F00);
+    color: var(--on-signal); font: 600 11px/1 var(--mono); letter-spacing: .04em;
+  }
+  .msg-who { display: grid; gap: 3px; min-width: 0; }
+  .msg-who b { font-size: 13px; font-weight: 500; }
+  .msg-who small { font: 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
+  .msg-line { color: var(--ash); font-size: 13px; }
+  .menu-hint { position: absolute; left: 12px; bottom: 10px; color: var(--mute); font-size: 10px; letter-spacing: .1em; }
+  .cudic-menu {
+    position: absolute; z-index: 50; width: min(252px, calc(100vw - var(--rail) - 92px));
+    padding: 6px; border: 1px solid #3d3d3d; border-radius: 8px; background: #1b1b1b;
+    color: var(--white); box-shadow: 0 8px 24px rgba(0, 0, 0, .45); font: 400 14px/1.2 var(--sans);
+  }
+  .cudic-menu[hidden] { display: none; }
+  .cudic-menu:not([hidden]) { animation: cudic-menu-in 180ms cubic-bezier(.18, 1.2, .32, 1); }
+  .cm-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding-bottom: 6px; }
+  .cm-quick button {
+    height: 40px; border: 0; border-radius: 6px; background: rgba(255, 255, 255, .06);
+    color: inherit; font-size: 20px; line-height: 1; cursor: pointer;
+  }
+  .cm-quick button:hover, .cm-quick button:focus-visible { background: rgba(255, 255, 255, .14); outline: none; }
+  .ctx-item {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 8px;
+    border: 0; border-radius: 4px; background: none; color: inherit; font: inherit;
+    text-align: left; cursor: pointer;
+  }
+  .ctx-item:hover, .ctx-item:focus-visible { background: var(--tint); outline: none; }
+  .ctx-item svg { width: 16px; height: 16px; flex: none; opacity: .9; }
+  @keyframes cudic-menu-in { from { opacity: 0; transform: translateY(-4px) scale(.96); } }
+  .menu-copy { padding: 16px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); }
+  .menu-copy h3 { font-size: 15px; font-weight: 500; margin-bottom: 7px; }
+  .menu-copy p { font-size: 13px; line-height: 1.55; color: var(--ash); }
+  .menu-copy ul { margin: 10px 0 0; padding-left: 16px; color: var(--ash); font-size: 13px; line-height: 1.55; }
+  .menu-copy code { display: block; margin-top: 12px; font-family: var(--mono); font-size: 11px; color: var(--signal); }
+
   /* ---------------- voice ---------------- */
   .say { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .say-col { border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
@@ -1858,7 +1930,89 @@
       </dialog>
     </section>
 
-    <!-- 08 VOICE ------------------------------------------------------>
+    <!-- 08 CURSORS ---------------------------------------------------->
+    <section class="sec" id="cursors">
+      <div class="sec-h"><span class="n">08</span><h2>Pointers and the right-click menu</h2></div>
+      <p class="lede">
+        The pointer is part of the interface: ten cursors in fluid or pixel, cream or ink.
+        <b>Hover a tile to try it; click to copy the CSS.</b> The right-click menu is ours too,
+        until the pointer reaches a text field — then the browser keeps it.
+      </p>
+
+      <div class="cursor-bar">
+        <div class="cur-toggle" role="group" aria-label="Cursor style">
+          <button type="button" class="is-on" data-cur-style="fluid" aria-pressed="true">Fluid</button>
+          <button type="button" data-cur-style="pixel" aria-pressed="false">Pixel</button>
+        </div>
+        <div class="cur-toggle" role="group" aria-label="Cursor colour">
+          <button type="button" class="is-on" data-cur-color="cream" aria-pressed="true">Cream</button>
+          <button type="button" data-cur-color="ink" aria-pressed="false">Ink</button>
+        </div>
+        <span class="mono">Hover a tile to try it · click to copy</span>
+      </div>
+
+      <div class="cursor-grid">
+        <button class="cursor-tile" type="button" data-cursor="default" data-label="Default cursor"><img src="/cudic-assets/cursors/fluid/cream/svg/default.svg" alt="" width="32" height="32"><b>Default</b><small data-hotspot>6 4</small></button>
+        <button class="cursor-tile" type="button" data-cursor="link" data-label="Link cursor"><img src="/cudic-assets/cursors/fluid/cream/svg/link.svg" alt="" width="32" height="32"><b>Link</b><small data-hotspot>6 4</small></button>
+        <button class="cursor-tile" type="button" data-cursor="text" data-label="Text cursor"><img src="/cudic-assets/cursors/fluid/cream/svg/text.svg" alt="" width="32" height="32"><b>Text</b><small data-hotspot>16 16</small></button>
+        <button class="cursor-tile" type="button" data-cursor="crosshair" data-label="Crosshair cursor"><img src="/cudic-assets/cursors/fluid/cream/svg/crosshair.svg" alt="" width="32" height="32"><b>Crosshair</b><small data-hotspot>16 16</small></button>
+        <button class="cursor-tile" type="button" data-cursor="plus" data-label="Plus cursor"><img src="/cudic-assets/cursors/fluid/cream/svg/plus.svg" alt="" width="32" height="32"><b>Plus</b><small data-hotspot>16 16</small></button>
+        <button class="cursor-tile" type="button" data-cursor="move" data-label="Move cursor"><img src="/cudic-assets/cursors/fluid/cream/svg/move.svg" alt="" width="32" height="32"><b>Move</b><small data-hotspot>16 16</small></button>
+        <button class="cursor-tile" type="button" data-cursor="resize-h" data-label="Horizontal resize cursor"><img src="/cudic-assets/cursors/fluid/cream/svg/resize-h.svg" alt="" width="32" height="32"><b>Resize H</b><small data-hotspot>16 16</small></button>
+        <button class="cursor-tile" type="button" data-cursor="resize-v" data-label="Vertical resize cursor"><img src="/cudic-assets/cursors/fluid/cream/svg/resize-v.svg" alt="" width="32" height="32"><b>Resize V</b><small data-hotspot>16 16</small></button>
+        <button class="cursor-tile" type="button" data-cursor="not-allowed" data-label="Not allowed cursor"><img src="/cudic-assets/cursors/fluid/cream/svg/not-allowed.svg" alt="" width="32" height="32"><b>Not allowed</b><small data-hotspot>16 16</small></button>
+        <button class="cursor-tile" type="button" data-cursor="wait" data-label="Wait cursor"><img src="/cudic-assets/cursors/fluid/cream/svg/wait.svg" alt="" width="32" height="32"><b>Wait</b><small data-hotspot>16 16</small></button>
+      </div>
+
+      <div class="rules" style="margin-top:12px">
+        <div class="rule"><span class="n">01</span><h3>Fine pointers get the pack</h3><p>Touch keeps the platform cursor. Reduced motion drops the trail, not the state.</p></div>
+        <div class="rule"><span class="n">02</span><h3>Match the surface</h3><p>Cream on the charcoal window, ink on light pages. Never put a cream pointer on cream.</p></div>
+        <div class="rule"><span class="n">03</span><h3>Keep the fallback</h3><p>Every custom cursor ends in a CSS keyword: <code>auto</code>, <code>pointer</code>, <code>text</code>. That is what runs if the file fails.</p></div>
+        <div class="rule"><span class="n">04</span><h3>Typing keeps its cursor</h3><p>Inputs and textareas get the text cursor, and the native menu, so paste and selection never break.</p></div>
+      </div>
+
+      <div class="ui-sub">
+        <span class="mono">The other pointer</span>
+        <h3>The Cudic message menu</h3>
+        <p>Right-click the message, or press Enter on it. Arrow keys move; Escape and a click outside close. Every action here is a demo.</p>
+      </div>
+
+      <div class="menu-bench">
+        <div class="menu-stage" id="menuStage">
+          <button class="msg-demo" id="menuCard" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menuDemo">
+            <span class="msg-avatar" aria-hidden="true">AK</span>
+            <span class="msg-who"><b>Squad run</b><small>2m · 4 players</small><span class="msg-line">One more round?</span></span>
+          </button>
+          <span class="menu-hint mono">Right-click the message · or press Enter</span>
+          <div class="cudic-menu" id="menuDemo" role="menu" aria-label="Message actions" hidden>
+            <div class="cm-quick" role="group" aria-label="Quick reactions">
+              <button type="button" role="menuitem" data-menu-demo="React thumbs up" aria-label="React with thumbs up">👍</button>
+              <button type="button" role="menuitem" data-menu-demo="React heart" aria-label="React with heart">❤️</button>
+              <button type="button" role="menuitem" data-menu-demo="React fire" aria-label="React with fire">🔥</button>
+              <button type="button" role="menuitem" data-menu-demo="React skull" aria-label="React with skull">💀</button>
+            </div>
+            <button class="ctx-item" type="button" role="menuitem" data-menu-demo="Add Reaction"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"></path><path d="M9 9.5h.01M15 9.5h.01"></path></svg><span>Add Reaction</span></button>
+            <button class="ctx-item" type="button" role="menuitem" data-menu-demo="Reply"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"></path><path d="M20 20v-7a4 4 0 0 0-4-4H4"></path></svg><span>Reply</span></button>
+            <button class="ctx-item" type="button" role="menuitem" data-menu-demo="Copy Text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V6a2 2 0 0 1 2-2h9"></path></svg><span>Copy Text</span></button>
+            <button class="ctx-item" type="button" role="menuitem" data-menu-demo="Pin Message"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5"></path><path d="m9 3 6 0-1 7 3 3v2H7v-2l3-3-1-7Z"></path></svg><span>Pin Message</span></button>
+            <button class="ctx-item" type="button" role="menuitem" data-menu-demo="Bookmark Message"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg><span>Bookmark Message</span></button>
+            <button class="ctx-item" type="button" role="menuitem" data-menu-demo="Create Reminder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg><span>Create Reminder</span></button>
+          </div>
+        </div>
+        <div class="menu-copy">
+          <h3>One menu, two contexts</h3>
+          <p>On a message it opens the quick reactions first, then the actions. On a link it keeps the browser's three: open, open in a new tab, copy the address.</p>
+          <ul>
+            <li>Text fields, selects and games keep the native menu, so paste and typing never break.</li>
+            <li>The panel is 252 wide, 8 radius, 6 padding. Quick reactions are 40 high; rows are 30.</li>
+            <li>Escape and a click outside close it. Focus returns to the message.</li>
+          </ul>
+          <code>252 wide · 8 radius · 6 pad</code>
+        </div>
+      </div>
+    </section>
+
+    <!-- 09 VOICE ------------------------------------------------------>
     <section class="sec" id="voice">
       <div class="sec-h"><span class="n">08</span><h2>Write like you already played it</h2></div>
       <p class="lede">

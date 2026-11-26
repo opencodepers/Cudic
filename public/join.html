@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script src="/consent.js?v=1"></script>
-  <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+<meta name="color-scheme" content="light dark">
+  <script src="/consent.js?v=3"></script>
+  <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}try{var _cudicScheme=document.querySelector('meta[name="color-scheme"]');if(_cudicScheme)_cudicScheme.setAttribute('content',document.documentElement.dataset.theme==='light'?'light':'dark');}catch(e){}</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Join a server — Cudic</title>
   <meta name="description" content="A Cudic server invite: what the server is, its rules, and one button to join.">
   <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
   <link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
-  <link rel="stylesheet" href="/sidebar.css?v=25">
+  <link rel="stylesheet" href="/sidebar.css?v=26">
   <style>
     body { display: flex; min-height: 100vh; }
     .join-wrap { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 48px 20px 80px; }
@@ -60,7 +61,7 @@
 </div></main>
 <script src="/config.js"></script>
 <script src="/auth.js"></script>
-<script src="/sidebar.js?v=32"></script>
+<script src="/sidebar.js?v=36"></script>
 <script>
 (function () {
   var code = (location.pathname.match(/^\/join\/([A-Za-z0-9_-]{4,40})$/) || [])[1] || new URLSearchParams(location.search).get('code') || '';

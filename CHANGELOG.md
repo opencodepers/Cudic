@@ -8,6 +8,25 @@ fixed. Commits are referenced by short hash.
 
 ## Unreleased
 
+**Consent bar and menus wear the sheet** (`public/consent.js`, `public/cudic-menu.js`, `public/index.html`)
+
+- The consent bar is a bottom sheet now: drag handle, cookie mark, one headline, supporting copy and two actions, built from the brand sheet's flat panel, hairline border, 3px corners and Geist. It stacks full-width on a phone with 44–48px targets, visible focus rings and no motion when the visitor asked for less.
+- Buttons use Material 3 state layers for hover and press, the primary action is the signal fill, and the saved answer is marked with an inset ring instead of small print.
+- The right-click menu follows the same rules at the sheet's own density: 252px wide, 6px inset, 40px reaction tiles, 7px rows with 16px leading icons, edge-to-edge dividers and a 160ms scale-in that stops under reduced motion. Material 3 supplies the hover and press state layers and the signal-coloured focus ring; the height stays with the sheet, because a message menu carries eleven actions and would run taller than a laptop screen at the spec's 48dp.
+- The landing page draws its bar from the same stylesheet, so the two cannot drift apart.
+**Cookie settings you can change** (`public/consent.js`, `public/sidebar.js`, `public/privacy.html`)
+
+- The bottom of the rail and the advertising section of `/privacy` now carry a Cookie settings control. It reopens the banner with your current answer marked, so consent is a choice you can revisit instead of a one-time click.
+- Turning ads off there reloads the page, because an ad script that has already loaded cannot be unloaded — the reload is what actually stops it. Turning them back on applies immediately.
+- First visits behave as before: one banner, and Reject all stays the same size as Accept all.
+**Ads: consent before the network script** (`public/*.html`, `public/sidebar.js`, `tools/check-ad-consent.mjs`, `tests/test_consent_export.py`)
+
+- The Adsterra units on chat, music, privacy, profile, servers, terms, themes and view now use the same consent-gated `data-ad-key` slots as docs and games. Their hardcoded `bellnewyork.org` tags are gone, so no ad-network code runs before the visitor allows advertising — the path that could redirect a first-time visitor.
+- The stale `bauval.org` units are out of the landing backup, and a regression test keeps hardcoded ad scripts from returning.
+- The rail's AdSense library now waits for the same cookie, so opening a signed-in page no longer pulls Google's ad script on the first visit.
+- The loader feeds one zone at a time, so the two slots on a game page each keep their own dimensions instead of sharing the last `atOptions`.
+- A browser test loads every page with an ad slot and fails if a single ad-network request goes out before advertising is accepted; it then accepts advertising and checks the detector still sees the request.
+
 **Growth rewards: eight hooks, all server-verified and farm-resistant** (`lib/rewards.js`, `lib/storage-budget.js`, `lib/routes/games.js`, `lib/cosmetics.js`, `server.js`, `public/quests.html`, `supabase/migrations/20261122140000_rewards.sql`)
 
 - **Invitee welcome** — 50 coins, paid when the invitee publishes their first game, not when they sign up. A signup bonus is the cheapest thing to farm; a published game is not.

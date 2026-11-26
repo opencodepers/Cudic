@@ -34,6 +34,9 @@ Most wasted hours in this repo are one of these ten, skipped:
    is the class of breakage a source-reading test cannot see. Platform noise it
    cannot fix is printed under KNOWN with the reason; `--no-baseline` enforces
    it, `--pages /a,/b` narrows the sweep, `--strict` fails on warnings too.
+   The ad path has its own gate: `node tools/check-ad-consent.mjs` loads every
+   page carrying an ad slot with no consent cookie and fails if one ad-network
+   request goes out, then accepts advertising to prove the detector still fires.
 7. **Never delete** `public/cucid.svg`, `public/cudic_sfsvg.svg`,
    `public/cudic_sfpng.png`.
 8. **Gitignored:** `public/studio/`, `tests/`, `.freebuff/`, `.agents/`. Test
@@ -228,8 +231,8 @@ npm run build        # vite build (lib IIFE) → ../public/islands/  (~5s, 657KB
   Studio, `public/islands/` IS committed (Vercel builds no JS), so rebuild
   then commit the bundle. Bump `islands.js?v=8` + `cudic-islands.css?v=8`
   on the pages that use it after rebuilding.
-- Bump `sidebar.css?v=25` across all pages when editing `public/sidebar.css`
-  — pages cache CSS aggressively. Same for `sidebar.js?v=32` /
+- Bump `sidebar.css?v=26` across all pages when editing `public/sidebar.css`
+  — pages cache CSS aggressively. Same for `sidebar.js?v=36` /
   `client.js?v=18` after editing those. New shared scripts take `?v=1`
   (`ctheme.js`, `csel.js`).
 - **Test suite exists**: `python tests/run_tests.py` (stdlib `unittest`, every
@@ -1588,7 +1591,7 @@ grid-led, Geist everywhere. Read it before building any public surface. Headline
 9. **Bash, not PowerShell** — `&&`, `$(...)` and POSIX paths work. A note here
   saying otherwise is stale (section 0.2).
 10. **CSS/JS cache** — bump the `?v=` on every page after editing a shared file.
-  Current: `sidebar.css?v=25`, `sidebar.js?v=32`, `client.js?v=18`,
+  Current: `sidebar.css?v=26`, `sidebar.js?v=36`, `client.js?v=18`,
   `islands.js?v=8`, `docpage.css?v=7` (new shared scripts start at `?v=1`).
   `tools/check-docs.py` fails when this line and the pages disagree.
 11. **Restart the server** after any `server.js` edit; **rebuild Studio** after any

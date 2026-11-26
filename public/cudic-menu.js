@@ -35,21 +35,43 @@
   };
 
   var css = document.createElement('style');
+  // Material 3 menu behaviour at the brand sheet's density: 252px panel, 6px
+  // inset, 4px rows, 16px icons, 36px row height. The spec's 48dp row is right
+  // for a four-item menu, but a message menu carries eleven actions and would
+  // run taller than a laptop screen. States (hover, press, focus ring) are the
+  // part of Material 3 that matters here, so they stay; the height does not.
   css.textContent =
-    '#cudicCtx{position:fixed;z-index:2147483000;width:252px;box-sizing:border-box;padding:6px;background:var(--panel-raised,#1e1f22);border:1px solid var(--line,#2b2d31);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.45);font:400 14px/1.2 "Geist",system-ui,sans-serif;color:var(--text-primary,#dbdee1);user-select:none}' +
+    '#cudicCtx{position:fixed;z-index:2147483000;width:252px;max-width:calc(100vw - 16px);box-sizing:border-box;' +
+      'padding:6px;background:var(--panel-raised,#1e1f22);color:var(--text-primary,#dbdee1);' +
+      'border:1px solid var(--line,#2b2d31);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.45);' +
+      'font:400 14px/1.2 "Geist",system-ui,sans-serif;user-select:none;transform-origin:top left;' +
+      'animation:cm-in 160ms cubic-bezier(.2,0,0,1)}' +
+    '@keyframes cm-in{from{opacity:0;transform:scale(.97) translateY(-2px)}}' +
+    '@media (prefers-reduced-motion:reduce){#cudicCtx{animation:none}}' +
     '#cudicCtx[hidden]{display:none}' +
     '#cudicCtx .cm-quick{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:0 0 6px}' +
-    '#cudicCtx .cm-quick button{height:40px;border:0;border-radius:6px;background:rgba(255,255,255,.06);color:inherit;font-size:20px;line-height:1;cursor:pointer}' +
-    '#cudicCtx .cm-quick button:hover,#cudicCtx .cm-quick button:focus-visible{background:rgba(255,255,255,.14);outline:none}' +
+    '#cudicCtx .cm-quick button{height:40px;border:0;border-radius:6px;background:rgba(127,127,127,.14);' +
+      'color:inherit;font-size:20px;line-height:1;cursor:pointer;transition:background-color 120ms steps(4)}' +
+    '#cudicCtx .cm-quick button:hover{background:rgba(127,127,127,.24)}' +
+    '#cudicCtx .cm-quick button:active{background:rgba(127,127,127,.3)}' +
     '#cudicCtx .cm-more{display:grid;grid-template-columns:repeat(6,1fr);gap:2px;padding:2px 4px 6px}' +
-    '#cudicCtx .cm-more button{height:30px;border:0;border-radius:5px;background:none;font-size:17px;line-height:1;cursor:pointer}' +
-    '#cudicCtx .cm-more button:hover{background:rgba(255,255,255,.12)}' +
-    '#cudicCtx .cm-item{display:flex;align-items:center;gap:10px;width:100%;padding:7px 8px;border:0;border-radius:4px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}' +
-    '#cudicCtx .cm-item:hover,#cudicCtx .cm-item:focus-visible{background:var(--signal-tint,rgba(255,255,255,.08));outline:none}' +
+    '#cudicCtx .cm-more button{height:30px;border:0;border-radius:5px;background:none;font-size:16px;' +
+      'line-height:1;cursor:pointer}' +
+    '#cudicCtx .cm-more button:hover{background:rgba(127,127,127,.16)}' +
+    '#cudicCtx .cm-quick button:focus-visible,#cudicCtx .cm-more button:focus-visible{' +
+      'outline:2px solid var(--signal,#b8f23a);outline-offset:1px}' +
+    '#cudicCtx .cm-item{display:flex;align-items:center;gap:10px;width:100%;padding:7px 8px;' +
+      'border:0;border-radius:4px;background:none;color:inherit;font:inherit;text-align:left;' +
+      'cursor:pointer;transition:background-color 120ms steps(4)}' +
+    '#cudicCtx .cm-item:hover{background:rgba(127,127,127,.14)}' +
+    '#cudicCtx .cm-item:active{background:rgba(127,127,127,.22)}' +
+    '#cudicCtx .cm-item:focus-visible{background:rgba(127,127,127,.14);' +
+      'outline:2px solid var(--signal,#b8f23a);outline-offset:-2px}' +
     '#cudicCtx .cm-item svg{width:16px;height:16px;flex:0 0 16px;opacity:.9}' +
     '#cudicCtx .cm-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
-    '#cudicCtx .cm-chev{opacity:.65;font-size:16px;line-height:1}' +
-    '#cudicCtx .cm-hint{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-tertiary,#949ba4);font-size:.72rem}' +
+    '#cudicCtx .cm-chev{opacity:.6;font-size:15px;line-height:1}' +
+    '#cudicCtx .cm-hint{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' +
+      'color:var(--text-tertiary,#949ba4);font:400 11px/1 "Geist Mono",ui-monospace,monospace;letter-spacing:.04em}' +
     '#cudicCtx .cm-sep{height:1px;margin:5px 2px;background:var(--line,#2b2d31)}' +
     '#cudicCtx .cm-danger{color:var(--danger,#f23f43)}' +
     '#cudicCtx .cm-danger svg{opacity:1}';
@@ -288,7 +310,7 @@
 
   function buildMessageMenu(row, e) {
     var el = menuEl();
-    el.innerHTML = '';
+    el.replaceChildren();
 
     var quick = document.createElement('div');
     quick.className = 'cm-quick';
@@ -357,7 +379,7 @@
   // ── Generic page menu ───────────────────────────────────────────
   function buildPageMenu(e) {
     var el = menuEl();
-    el.innerHTML = '';
+    el.replaceChildren();
     var link = e.target.closest ? e.target.closest('a[href]') : null;
     var href = link && link.getAttribute('href') ? link.href : '';
     var sel = window.getSelection ? String(window.getSelection()).trim() : '';
