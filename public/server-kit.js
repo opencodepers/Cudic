@@ -60,7 +60,7 @@
     var game = (s.meta && s.meta.game) || {};
     var dis = K.owner ? '' : ' disabled';
     var invite = s.invite_code ? (location.origin + '/join/' + s.invite_code) : '';
-    pane.innerHTML = ''
+    pane.replaceChildren()
       + '<div class="czx-cols">'
       + '<div><div class="cz-row"><label for="kitTags">Server tags</label><input id="kitTags" maxlength="120" placeholder="art, minecraft, friendly" value="' + esc((s.tags || []).join(', ')) + '"' + dis + '></div>'
       + '<div class="cz-row"><label for="kitFont">Interface font</label><select id="kitFont"' + dis + '>'

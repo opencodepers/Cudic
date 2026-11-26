@@ -463,6 +463,7 @@ POST /api/referrals/claim        ← invitee redeems `?ref=`; confirmed, ≤7-da
 GET  /api/rewards                ← bonus hooks with server-checked progress
                                   and done state (signed-in)
 POST /api/rewards/claim          ← verified claim, 10/min, ledger-idempotent
+GET  /signal-lost                → public/arcade/signal-lost.html (game, no API)
 POST /api/scratch/import           ← .sb3 / Scratch URL → split player files
 POST/DELETE /api/follow/:id        ← one-way follow (30/h). GET /api/feed (me+followed, 60)
                                     the game page's author row also follows via
@@ -743,6 +744,17 @@ and are never returned by any route. Part 2 of the migration
 (`20261122130000_referral_abuse.sql`) is additive: without it claims still work
 (the code lookup is `select('*')` and the insert falls back), they just compare
 nothing.
+
+### Signal Lost (`public/arcade/signal-lost.html`)
+A self-contained arcade game rather than a published project: `/signal-lost`
+redirects to the page, which loads `signal-lost.core.js` for tuning and keeps
+render, input, audio and the local best score to itself. The core holds the
+rules that break silently — seeded RNG, XP curve, spawn gating by sector,
+upgrade pool and derived stats — and `tests/test_signal_lost.py` runs that
+exact file in node, so a numbers tweak that empties the upgrade pool or
+unlocks late enemies in sector 1 fails locally. It has **no API, no database
+and no coins**: an arcade page must not be able to pay out or be farmed, and
+none of the reward paths in `lib/rewards.js` read it.
 
 ### Growth rewards (`lib/rewards.js`)
 Sits beside the one-time quests and pays for actions that leave a public

@@ -160,21 +160,22 @@
         }
         function drawPodium(top) {
             var p = document.getElementById('podium');
-            p.innerHTML = '';
             var classes = ['m1', 'm2', 'm3'], faces = ['🥇', '🥈', '🥉'];
             for (var i = 0; i < 3 && i < top.length; i++) {
                 var t = top[i];
-                p.innerHTML += '<div class="medal ' + classes[i] + '"><div class="place">' + faces[i] + ' place #' + t.place + '</div><div class="who">' + esc(t.name) + '</div><div class="pts">' + t.points + '</div></div>';
+                out += '<div class="medal ' + classes[i] + '"><div class="place">' + faces[i] + ' place #' + t.place + '</div><div class="who">' + esc(t.name) + '</div><div class="pts">' + t.points + '</div></div>';
             }
+            p.innerHTML = out;
         }
         function drawRows(top) {
             var rows = document.getElementById('rows'), board = document.getElementById('board');
-            rows.innerHTML = '';
+            var out = '';
             var rest = top.slice(3);
             for (var i = 0; i < rest.length; i++) {
                 var t = rest[i];
-                rows.innerHTML += '<tr><td>' + t.place + '</td><td>' + esc(t.name) + '</td><td class="pts" style="text-align:right">' + t.points + '</td></tr>';
+                out += '<tr><td>' + t.place + '</td><td>' + esc(t.name) + '</td><td class="pts" style="text-align:right">' + t.points + '</td></tr>';
             }
+            rows.innerHTML = out;
             board.style.display = top.length > 3 ? '' : 'none';
         }
         async function load() {
@@ -195,19 +196,20 @@
                 if (d.me) {
                     document.getElementById('mineWrap').innerHTML = '<div class="yourow"><div>You are <b>#' + d.me.place + '</b> this week</div><div><b>' + d.me.points + '</b> points</div></div>';
                 } else if (token && !(d.top || []).length) {
-                    document.getElementById('mineWrap').innerHTML = '';
+                    document.getElementById('mineWrap').replaceChildren();
                 } else if (token && d.me === null) {
                     document.getElementById('mineWrap').innerHTML = '<div class="yourow"><div>You have no points yet this week</div><div><a href="/games" style="color:var(--signal,#b8f23a);text-decoration:none;font-weight:700">Get players <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-left:4px"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div></div>';
                 }
                 var past = document.getElementById('pastWinners');
-                past.innerHTML = '';
+                var pastOut = '';
                 if (d.last_winners && d.last_winners.length) {
                     d.last_winners.forEach(function (w) {
-                        past.innerHTML += '<li>' + (w.place === 1 ? '🥇' : w.place === 2 ? '🥈' : '🥉') + ' <span class="who">' + esc(w.name) + '</span> — ' + w.points + ' pts</li>';
+                        pastOut += '<li>' + (w.place === 1 ? '🥇' : w.place === 2 ? '🥈' : '🥉') + ' <span class="who">' + esc(w.name) + '</span> — ' + w.points + ' pts</li>';
                     });
                 } else {
-                    past.innerHTML = '<li class="empty">No settled race yet — the first winners appear after your first full week.</li>';
+                    pastOut = '<li class="empty">No settled race yet — the first winners appear after your first full week.</li>';
                 }
+                past.innerHTML = pastOut;
             } catch (e) {
                 document.getElementById('emptyMsg').style.display = '';
                 document.getElementById('emptyMsg').textContent = 'Could not load the race just now — try again in a moment.';

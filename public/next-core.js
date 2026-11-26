@@ -61,7 +61,7 @@
   };
   var esc = NX.esc;
 
-  NX.clone = function (value) { return JSON.parse(JSON.stringify(value)); };
+  NX.clone = function (value) { return structuredClone(value); };
   NX.uid = function () { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); };
 
   NX.toast = function (message) {

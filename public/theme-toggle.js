@@ -29,6 +29,11 @@
 
     /* ev optional: rail buttons pass their click so the reveal starts at the button */
     var _transitioning = false;
+    function syncScheme(t) {
+        var m = document.querySelector('meta[name="color-scheme"]');
+        if (m) m.setAttribute('content', t === 'light' ? 'light' : 'dark');
+    }
+
     window.CudicThemeToggle = function (ev, btnEl) {
         if (_transitioning) return;   // ignore rapid toggles mid-transition
         var next = isDark() ? 'light' : 'dark';
@@ -39,6 +44,7 @@
                 fetch(apiHost() + '/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: JSON.stringify({ theme: next }) }).catch(function () {});
             }
             document.documentElement.dataset.theme = next;
+            syncScheme(next);
             flipIcons(next === 'dark');
         }
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !document.startViewTransition) {
@@ -99,7 +105,7 @@
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 var t = d.profile && d.profile.theme ? d.profile.theme : 'dark';
-                if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+                if (t === 'light' || t === 'dark') { document.documentElement.dataset.theme = t; syncScheme(t); }
                 if (typeof flipIcons === 'function') flipIcons(t === 'dark');
             }).catch(function () {});
     })();

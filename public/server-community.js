@@ -74,7 +74,7 @@
   function renderWarnings() {
     var box = $('cmWarnings');
     var rows = (D && D.warnings) || [];
-    if (!rows.length) { box.innerHTML = ''; return; }
+    if (!rows.length) { box.replaceChildren(); return; }
     box.innerHTML = rows.map(function (w) {
       return '<div class="cm-warn"><b>Warning from the owner</b><p class="cm-muted" style="margin:4px 0 8px;color:var(--text-primary)">' + esc(w.reason) + '</p>'
         + '<button type="button" class="small" data-ack="' + esc(w.id) + '">I understand</button></div>';
@@ -166,7 +166,7 @@
   }
 
   function renderSuggestions() {
-    var rows = D.suggestions.slice().sort(function (a, b) { return (b.votes - a.votes) || String(b.created_at).localeCompare(String(a.created_at)); });
+    var rows = D.suggestions.toSorted(function (a, b) { return (b.votes - a.votes) || String(b.created_at).localeCompare(String(a.created_at)); });
     var html = '<div class="cm-card"><h2>New suggestion</h2><div class="cm-row"><input id="sugTitle" maxlength="80" placeholder="A short title"><button type="button" class="primary" id="sugPost">Post</button></div>'
       + '<textarea id="sugBody" rows="2" maxlength="600" placeholder="Why it would help (optional)" style="width:100%;margin-top:8px"></textarea><div class="cm-msg" id="sugMsg"></div></div>';
     html += '<div class="cm-card"><h2>' + rows.length + ' suggestion' + (rows.length === 1 ? '' : 's') + '</h2><div class="cm-list">'

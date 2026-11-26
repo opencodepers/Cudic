@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta name="color-scheme" content="light dark">
 <script src="/config.js"></script>
 <script src="/consent.js?v=3"></script>
 <script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}try{var _cudicScheme=document.querySelector('meta[name="color-scheme"]');if(_cudicScheme)_cudicScheme.setAttribute('content',document.documentElement.dataset.theme==='light'?'light':'dark');}catch(e){}</script>
@@ -270,7 +271,7 @@
       if (!showComments) { document.getElementById('commentsCard').style.display = 'none'; document.getElementById('commentsTitle').style.display = 'none'; }
       var games = p.games || [];
       if (pg.pinned_game_id) {
-        games = games.slice().sort(function(a, b){ return (a.id === pg.pinned_game_id ? -1 : 0) - (b.id === pg.pinned_game_id ? -1 : 0); });
+        games = games.toSorted(function(a, b){ return (a.id === pg.pinned_game_id ? -1 : 0) - (b.id === pg.pinned_game_id ? -1 : 0); });
       }
       document.getElementById('gamesCount').textContent = '(' + games.length + ')';
       var grid = document.getElementById('gamesGrid');
@@ -318,7 +319,7 @@
       .then(function(d){
         var comments = d.comments || [];
         document.getElementById('commentsCount').textContent = '(' + comments.length + ')';
-        commentList.innerHTML = '';
+        commentList.replaceChildren();
         if (!comments.length) { commentList.innerHTML = '<div class="empty">No comments yet.</div>'; return; }
         comments.forEach(function(c){
           var row = document.createElement('div');

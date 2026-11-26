@@ -25,11 +25,11 @@
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flexlayout-react@0.11.0/style/dark.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flexlayout-react@0.11.0/style/dark.css" integrity="sha384-KgIDe1Bw9bySWKtmItQwHkzDnQnFoOoaycVblO+/BCTw0fezqpbCRDFC3AwFKvOW" crossorigin="anonymous" referrerpolicy="no-referrer">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" integrity="sha384-LJcOxlx9IMbNXDqJ2axpfEQKkAYbFjJfhXexLfiRJhjDU81mzgkiQq8rkV0j6dVh" crossorigin="anonymous" referrerpolicy="no-referrer">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js" integrity="sha384-/nfmYPUzWMS6v2atn8hbljz7NE0EI1iGx34lJaNzyVjWGDzMv+ciUZUeJpKA3Glc" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js" integrity="sha384-iF+jqbuti4XlB64clWgFWYEscb+UnSRv3VgVikGYZu+otNFnSHr7y7NcKfBnGizn" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script type="importmap">
 {
   "imports": {
@@ -407,7 +407,7 @@ function langOf(p) {
 }
 function renderFiles() {
   var list = document.getElementById('fileList');
-  list.innerHTML = '';
+  list.replaceChildren();
   Object.keys(files).forEach(function(p) {
     var div = document.createElement('div');
     div.className = 'f-item' + (p === currentFile ? ' active' : '') + (dirtyFlags[p] ? ' dirty' : '');
@@ -542,7 +542,7 @@ function logToConsole(text, level) {
   el.scrollTop = el.scrollHeight;
 }
 document.getElementById('btnClearConsole').addEventListener('click', function() {
-  document.getElementById('consoleEl').innerHTML = '';
+  document.getElementById('consoleEl').replaceChildren();
 });
 document.getElementById('btnToggleBottom').addEventListener('click', function() {
   document.getElementById('paneConsole').classList.toggle('min');
@@ -991,7 +991,7 @@ async function aiSend() {
   } catch (err) { aiMsg('Failed: ' + err.message, 'tool'); }
 }
 document.getElementById('aiSend').addEventListener('click', aiSend);
-document.getElementById('aiInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') aiSend(); });
+document.getElementById('aiInput').addEventListener('keydown', function(e) { if (e.isComposing || e.keyCode === 229) return; if (e.key === 'Enter') aiSend(); });
 document.getElementById('aiInsert').addEventListener('click', function() {
   var m = aiLastText.match(/```(?:\w+)?\n([\s\S]*?)```/);
   if (!m) { logToConsole('No code block in last AI answer', 'error'); return; }
@@ -1195,7 +1195,7 @@ function applyMonacoTheme(map) {
 }
 function edBuildPanel() {
   var body = document.getElementById('settingsBody');
-  body.innerHTML = '';
+  body.replaceChildren();
   ED_SCHEMA.forEach(function(g) {
     var gh = document.createElement('div');
     gh.className = 'settings-group';

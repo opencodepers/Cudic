@@ -4,7 +4,7 @@
 <meta name="color-scheme" content="light dark">
     <script src="/consent.js?v=3"></script>
 
-<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}try{var _cudicScheme=document.querySelector('meta[name="color-scheme"]');if(_cudicScheme)_cudicScheme.setAttribute('content',document.documentElement.dataset.theme==='light'?'light':'dark');}catch(e){}</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ops — Cudic</title>
@@ -92,7 +92,7 @@ pre.report{font-family:var(--font-mono,monospace);font-size:.75rem;line-height:1
       fetch(apiHost()+'/api/profile',{headers:{'Authorization':'Bearer '+t}})
         .then(function(r){ return r.json(); })
         .then(function(p){
-          if(!p || !p.is_moderator){ stats.innerHTML=''; report.textContent=''; lede.textContent='Ops is moderators only.'; return; }
+          if(!p || !p.is_moderator){ stats.replaceChildren(); report.textContent=''; lede.textContent='Ops is moderators only.'; return; }
           return fetch(apiHost()+'/api/ops/status',{headers:{'Authorization':'Bearer '+t}})
             .then(function(r){ return r.json().then(function(j){ return { ok:r.ok, body:j }; }); })
             .then(function(res){

@@ -90,7 +90,7 @@ function closeMsgSearch() {
   if (!msgSearchPanel) return;
   msgSearchPanel.hidden = true;
   if (msgSearchInput) msgSearchInput.value = '';
-  if (msgSearchResults) msgSearchResults.innerHTML = '';
+  if (msgSearchResults) msgSearchResults.replaceChildren();
 }
 if (msgSearchBtn && msgSearchPanel) {
   msgSearchBtn.addEventListener('click', function () {
@@ -103,7 +103,7 @@ if (msgSearchBtn && msgSearchPanel) {
     clearTimeout(msgSearchTimer);
     msgSearchTimer = setTimeout(runMsgSearch, 260);
   });
-  msgSearchInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { clearTimeout(msgSearchTimer); runMsgSearch(); } });
+  msgSearchInput.addEventListener('keydown', function (e) { if (e.isComposing || e.keyCode === 229) return; if (e.key === 'Enter') { clearTimeout(msgSearchTimer); runMsgSearch(); } });
 }
 async function runMsgSearch() {
   if (!msgSearchPanel || msgSearchPanel.hidden) return;
@@ -361,7 +361,7 @@ async function refreshConvs() {
 }
 
 function renderConvs() {
-  if (!convs.length) { convListEl.innerHTML = ''; return; }
+  if (!convs.length) { convListEl.replaceChildren(); return; }
   const q = convFilter.trim().toLowerCase();
   const match = c => !q || (c.display || '').toLowerCase().includes(q);
   var html = '';
@@ -415,7 +415,7 @@ function convRow(c) {
 }
 
 async function openConv(conv) {
-  messagesEl.innerHTML = '';
+  messagesEl.replaceChildren();
   current = conv;
   searchView.hidden = true;
   closeMsgSearch();
@@ -425,8 +425,8 @@ async function openConv(conv) {
   myRole = null;
   myReacts = Object.create(null);
   slowUntil = 0;
-  if (pinnedShelf) { pinnedShelf.hidden = true; pinnedShelf.innerHTML = ''; }
-  if (modPanel) { modPanel.hidden = true; modPanel.innerHTML = ''; }
+  if (pinnedShelf) { pinnedShelf.hidden = true; pinnedShelf.replaceChildren(); }
+  if (modPanel) { modPanel.hidden = true; modPanel.replaceChildren(); }
   if (modOpener) { modOpener.hidden = true; modOpener.textContent = 'Mod'; }
   if (slowNote) { slowNote.hidden = true; slowNote.textContent = ''; }
   if (!conv) { showEmpty(); return; }
@@ -596,7 +596,7 @@ function renderFriends(list) {
     friendsListEl.innerHTML = '<div style="font-size:0.8rem;color:var(--text-tertiary)">No friends yet — search above to message or add people.</div>';
     return;
   }
-  friendsListEl.innerHTML = '';
+  friendsListEl.replaceChildren();
   list.forEach(u => {
     const row = document.createElement('div');
     row.className = 'person-row';
@@ -658,11 +658,11 @@ peopleSearch.addEventListener('input', () => {
 });
 async function runSearch() {
   const q = peopleSearch.value.trim();
-  if (q.length < 2) { peopleResults.innerHTML = ''; return; }
+  if (q.length < 2) { peopleResults.replaceChildren(); return; }
   var d;
   try { d = await api('/api/people?q=' + encodeURIComponent(q)); panelStatus.textContent = ''; }
   catch (e) { panelStatus.textContent = 'Search failed. Check your connection.'; return; }
-  peopleResults.innerHTML = '';
+  peopleResults.replaceChildren();
   (d.people || []).forEach(u => {
     const row = document.createElement('div');
     row.className = 'person-row';
@@ -1418,7 +1418,7 @@ async function loadPinned() {
 
 function renderPinnedShelf() {
   if (!pinnedShelf) return;
-  if (!pinnedRows.length) { pinnedShelf.hidden = true; pinnedShelf.innerHTML = ''; return; }
+  if (!pinnedRows.length) { pinnedShelf.hidden = true; pinnedShelf.replaceChildren(); return; }
   var html = '<div class="ps-head">📌 Pinned</div>';
   pinnedRows.forEach(function (m) {
     html += '<div class="ps-row" data-pin-mid="' + escapeHtml(m.id || '') + '"><b>' + escapeHtml(m.display_name || '?') + '</b> '
@@ -1447,7 +1447,7 @@ function renderPinnedShelf() {
 // same rules, so a stale role hides buttons but can't do anything.
 modOpener.addEventListener('click', async function () {
   if (!current || !current.server_id) return;
-  if (!modPanel.hidden) { modPanel.hidden = true; modPanel.innerHTML = ''; modOpener.textContent = 'Mod'; return; }
+  if (!modPanel.hidden) { modPanel.hidden = true; modPanel.replaceChildren(); modOpener.textContent = 'Mod'; return; }
   modPanel.hidden = false;
   modPanel.innerHTML = '<div class="mp-head"><b>Members</b></div><div class="mp-empty">Loading…</div>';
   try {

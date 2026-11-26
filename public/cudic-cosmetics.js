@@ -87,7 +87,7 @@
       if (!el) return;
       el.className = el.className.split(/\s+/).filter(function (c) { return c.indexOf('cx-') !== 0; }).join(' ');
     });
-    if (t.titleHost) t.titleHost.innerHTML = '';
+    if (t.titleHost) t.titleHost.replaceChildren();
   }
 
   // → paint the worn cosmetics onto real elements. Unknown codes are

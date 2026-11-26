@@ -442,7 +442,7 @@ setInterval(function () {
       var stars = document.getElementById('ratingStars');
       var meta = document.getElementById('ratingMeta');
       var starSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a1 1 0 0 0 .75.548l5.163.75a.53.53 0 0 1 .294.904l-3.736 3.638a1 1 0 0 0-.288.886l.883 5.14a.53.53 0 0 1-.77.56l-4.618-2.426a1 1 0 0 0-.93 0L6.82 20.39a.53.53 0 0 1-.77-.56l.883-5.14a1 1 0 0 0-.288-.886L3.91 10.183a.53.53 0 0 1 .294-.904l5.163-.75a1 1 0 0 0 .75-.548z"/></svg>';
-      stars.innerHTML = '';
+      stars.replaceChildren();
       for (var i = 1; i <= 5; i++) {
         (function (v) {
           var s = document.createElement('button');

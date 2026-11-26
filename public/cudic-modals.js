@@ -119,7 +119,7 @@
     setTimeout(function () {
       if (!modal) return;
       modal.ov.classList.remove('cg-closing');
-      modal.media.innerHTML = '';
+      modal.media.replaceChildren();
     }, 170);
     if (lastFocus && document.contains(lastFocus)) { try { lastFocus.focus(); } catch (e) {} }
     lastFocus = null;
@@ -135,7 +135,7 @@
     modal.body.innerHTML = scroll;
     modal.card.classList.toggle('cg-m', !!mediaMode);
     modal.media.style.display = 'none';
-    modal.media.innerHTML = '';
+    modal.media.replaceChildren();
     // Replay the entrance motions on every open: the lime swoosh bar under
     // the header, the one-shot ring bloom around the card, and the stepped
     // body reveal all key off fresh animation runs.
@@ -193,7 +193,7 @@
       var img = m.media.querySelector('img');
       if (img) {
         img.onerror = function () {
-          m.media.innerHTML = '';
+          m.media.replaceChildren();
           m.media.style.display = 'none';
           m.body.querySelector('#cg-text').textContent = 'That picture could not be shown — it may have been moved or deleted.';
         };

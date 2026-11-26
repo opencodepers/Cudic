@@ -79,7 +79,7 @@
   function renderComments(featureId) {
     if (!commentsHost) return;
     var feature = NX.byId(featureId);
-    if (!feature) { commentsHost.innerHTML = ''; return; }
+    if (!feature) { commentsHost.replaceChildren(); return; }
     var cached = commentsCache[featureId];
     var count = cached ? cached.length : 0;
     var list;

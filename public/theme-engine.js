@@ -64,7 +64,7 @@ function apiHost() {
     }
     if (m.wordmark && (m.wordmark.type === 'svg' || m.wordmark.type === 'png')) {
       document.querySelectorAll('.brand-word,.brand').forEach(function (el) {
-        el.innerHTML = '';
+        el.replaceChildren();
         var img = document.createElement('img');
         img.src = m.wordmark.src; img.alt = 'cudic';
         img.style.height = '1.5em'; img.style.verticalAlign = 'middle';

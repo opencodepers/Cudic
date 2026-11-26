@@ -366,8 +366,9 @@
   var $ = function (id) { return document.getElementById(id); };
   var apiHost = (typeof WS_URL !== 'undefined' && WS_URL) ? WS_URL.replace(/^wss?:\/\//, 'https://') : '';
   var TOKEN = null, ME = null, MYNAME = 'You', MYAVA = null;
-  var readyResolve;
-  var ready = new Promise(function (resolve) { readyResolve = resolve; });
+  var readyParts = Promise.withResolvers();
+  var ready = readyParts.promise;
+  var readyResolve = readyParts.resolve;
   function markReady(ok) {
     if (!readyResolve) return;
     var resolve = readyResolve; readyResolve = null; resolve(!!ok);
@@ -621,7 +622,7 @@
     if (!el) return;
     var rows = chans.filter(function (c) { return convUnread[c.id]; })
       .sort(function (a, b) { return (convUnread[b.id] || 0) - (convUnread[a.id] || 0); }).slice(0, 3);
-    if (!rows.length) { el.hidden = true; el.innerHTML = ''; return; }
+    if (!rows.length) { el.hidden = true; el.replaceChildren(); return; }
     el.innerHTML = '<div class="catch-head">Catch up</div>' + rows.map(function (c) {
       return '<button type="button" class="catch-row" data-catch="' + esc(c.id) + '"># ' + esc(c.display) + '<b>' + (convUnread[c.id] > 99 ? '99+' : convUnread[c.id]) + '</b></button>';
     }).join('');
@@ -661,7 +662,7 @@
   async function openChannel(ch) {
     current = ch;
     renderChans(ch);
-    mEl.hidden = false; mEl.innerHTML = '';
+    mEl.hidden = false; mEl.replaceChildren();
     if (ch.welcome) { var wl = document.createElement('div'); wl.className = 'system'; wl.textContent = ch.welcome; mEl.appendChild(wl); }
     $('topbar').hidden = false; $('chatForm').hidden = false;
     $('emptyState').style.display = 'none';
@@ -681,7 +682,7 @@
     var note = $('slowNote');
     if (ch.slow_seconds > 0) { note.style.display = 'block'; note.textContent = 'Slow mode on — one message every ' + ch.slow_seconds + 's.'; }
     else { note.style.display = 'none'; note.textContent = ''; }
-    $('pinnedShelf').hidden = true; $('pinnedShelf').innerHTML = '';
+    $('pinnedShelf').hidden = true; $('pinnedShelf').replaceChildren();
     myReacts = {};
     $('onlineCount').textContent = '';
     addSys('Joining # ' + ch.display + '…');
@@ -689,7 +690,7 @@
     try {
       var d = await fetch(apiHost + '/api/messages?lobby=' + encodeURIComponent(ch.name), { headers: authHeaders() }).then(r => r.json());
       if (current !== ch) return;
-      mEl.innerHTML = '';
+      mEl.replaceChildren();
       if (ch.welcome) { var wl2 = document.createElement('div'); wl2.className = 'system'; wl2.textContent = ch.welcome; mEl.appendChild(wl2); }
       var ms = d.messages || [];
       if (ms.length) ms.forEach(m => addMsg(m.display_name, m.text, m.created_at, m.users && m.users.avatar_url, m.user_id, m.id, m.answered_at));
@@ -716,7 +717,7 @@
       var pins = (pd.messages || []).length;
       if (pins) out.push('<span class="dash-item"><b>' + pins + ' pinned</b> <button type="button" data-dash-pins>View</button></span>');
       if (ch.expires_at) out.push('<span class="dash-item"><b>Temporary</b> ends ' + esc(new Date(ch.expires_at).toLocaleString()) + '</span>');
-      if (!out.length) { el.hidden = true; el.innerHTML = ''; return; }
+      if (!out.length) { el.hidden = true; el.replaceChildren(); return; }
       el.innerHTML = out.join('');
       el.hidden = false;
       var ics = el.querySelector('[data-dash-ics]');
@@ -744,7 +745,7 @@
   }
   function renderPinned(rows) {
     var shelf = $('pinnedShelf');
-    if (!rows.length) { shelf.hidden = true; shelf.innerHTML = ''; return; }
+    if (!rows.length) { shelf.hidden = true; shelf.replaceChildren(); return; }
     var html = '<div class="ps-head">Pinned</div>';
     rows.forEach(function (m) {
       html += '<div class="ps-row" data-mid="' + esc(m.id) + '"><b>' + esc(m.display_name || '?') + '</b> '

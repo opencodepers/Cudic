@@ -385,8 +385,8 @@
       listView.hidden = true;
       threadView.hidden = false;
       threadCard.innerHTML = '<div class="ck-loading" aria-label="Loading thread"><i></i><i></i><i></i></div>';
-      repliesEl.innerHTML = '';
-      composerEl.innerHTML = '';
+      repliesEl.replaceChildren();
+      composerEl.replaceChildren();
       document.getElementById('fMain').scrollTop = 0;
       try {
         var d = await api('/api/forums/threads/' + encodeURIComponent(id));

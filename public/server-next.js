@@ -195,7 +195,7 @@
   }
 
   function renderSuggestions() {
-    var rows = D.suggestions.slice().sort(function (a, b) { return (b.votes - a.votes) || String(b.created_at).localeCompare(String(a.created_at)); });
+    var rows = D.suggestions.toSorted(function (a, b) { return (b.votes - a.votes) || String(b.created_at).localeCompare(String(a.created_at)); });
     var html = '<div class="sn-card"><h3>New suggestion</h3><div class="sn-row"><input id="snSugTitle" maxlength="80" placeholder="A short title"><button type="button" data-sn="sugg-post">Post</button></div>'
       + '<textarea id="snSugBody" maxlength="600" rows="2" placeholder="Why it would help (optional)"></textarea></div>';
     html += '<div class="sn-card"><h3>' + rows.length + ' suggestion' + (rows.length === 1 ? '' : 's') + '</h3>';

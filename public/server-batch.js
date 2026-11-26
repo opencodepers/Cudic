@@ -100,7 +100,7 @@
       }
       if (!game.address && !game.note) { box.hidden = true; return; }
       box.hidden = false;
-      box.innerHTML = ''
+      box.replaceChildren()
         + (game.address ? '<b>Game</b><code>' + esc(game.address) + '</code><button type="button" id="copyGameAddr">Copy</button>' : '')
         + (game.note ? '<span>' + esc(game.note) + '</span>' : '');
       var copy = $('copyGameAddr');
@@ -176,7 +176,7 @@
     if (!cur) { el.hidden = true; return; }
     try { var d = await req('/api/servers/' + SID + '/polls?lobby=' + encodeURIComponent(cur.name)); POLLS = d.polls || []; }
     catch (e) { POLLS = []; }
-    if (!POLLS.length) { el.hidden = true; el.innerHTML = ''; return; }
+    if (!POLLS.length) { el.hidden = true; el.replaceChildren(); return; }
     el.hidden = false;
     el.innerHTML = '<div class="bp-title">Polls</div>' + POLLS.map(function (poll) {
       var closed = poll.closed;
@@ -280,11 +280,11 @@
       if (msgs && msgs.parentNode) msgs.parentNode.insertBefore(el, msgs);
       else return;
     }
-    if (!cur || cur.type !== 'qa') { el.hidden = true; el.innerHTML = ''; return; }
+    if (!cur || cur.type !== 'qa') { el.hidden = true; el.replaceChildren(); return; }
     try {
       var d = await req('/api/servers/' + SID + '/answered?lobby=' + encodeURIComponent(cur.name));
       var rows = d.answered || [];
-      if (!rows.length) { el.hidden = true; el.innerHTML = ''; return; }
+      if (!rows.length) { el.hidden = true; el.replaceChildren(); return; }
       el.hidden = false;
       el.innerHTML = '<div class="bp-title">Answered</div>' + rows.map(function (r) {
         return '<div class="qa-row"><b><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M20 6 9 17l-5-5"/></svg> ' + esc(r.display_name || '?') + '</b><span>' + esc(String(r.text || '').replace(/\s+/g, ' ').slice(0, 140)) + '</span></div>';

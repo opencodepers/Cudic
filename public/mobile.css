@@ -277,3 +277,7 @@
     border-radius: 0;
   }
 }
+/* Let UA chrome (scrollbars, form controls, autofill) follow the theme. */
+:root{color-scheme:dark}
+:root[data-theme="light"]{color-scheme:light}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){color-scheme:light}}

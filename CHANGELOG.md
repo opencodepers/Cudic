@@ -14,11 +14,13 @@ fixed. Commits are referenced by short hash.
 - Buttons use Material 3 state layers for hover and press, the primary action is the signal fill, and the saved answer is marked with an inset ring instead of small print.
 - The right-click menu follows the same rules at the sheet's own density: 252px wide, 6px inset, 40px reaction tiles, 7px rows with 16px leading icons, edge-to-edge dividers and a 160ms scale-in that stops under reduced motion. Material 3 supplies the hover and press state layers and the signal-coloured focus ring; the height stays with the sheet, because a message menu carries eleven actions and would run taller than a laptop screen at the spec's 48dp.
 - The landing page draws its bar from the same stylesheet, so the two cannot drift apart.
+
 **Cookie settings you can change** (`public/consent.js`, `public/sidebar.js`, `public/privacy.html`)
 
 - The bottom of the rail and the advertising section of `/privacy` now carry a Cookie settings control. It reopens the banner with your current answer marked, so consent is a choice you can revisit instead of a one-time click.
 - Turning ads off there reloads the page, because an ad script that has already loaded cannot be unloaded — the reload is what actually stops it. Turning them back on applies immediately.
 - First visits behave as before: one banner, and Reject all stays the same size as Accept all.
+
 **Ads: consent before the network script** (`public/*.html`, `public/sidebar.js`, `tools/check-ad-consent.mjs`, `tests/test_consent_export.py`)
 
 - The Adsterra units on chat, music, privacy, profile, servers, terms, themes and view now use the same consent-gated `data-ad-key` slots as docs and games. Their hardcoded `bellnewyork.org` tags are gone, so no ad-network code runs before the visitor allows advertising — the path that could redirect a first-time visitor.
@@ -26,6 +28,68 @@ fixed. Commits are referenced by short hash.
 - The rail's AdSense library now waits for the same cookie, so opening a signed-in page no longer pulls Google's ad script on the first visit.
 - The loader feeds one zone at a time, so the two slots on a game page each keep their own dimensions instead of sharing the last `atOptions`.
 - A browser test loads every page with an ad slot and fails if a single ad-network request goes out before advertising is accepted; it then accepts advertising and checks the detector still sees the request.
+
+**Brand sheet: pointers and the real right-click menu** (`public/brand-app.html`)
+
+- Section 08 adds all ten cursors in fluid or pixel and cream or ink, using the shipped SVGs. Hovering a tile tries the cursor; clicking copies its `cursor:` declaration. The four-pack note and fallback keyword are on the page.
+- A live Cudic message menu shows quick reactions, Add Reaction, Reply, Copy Text, Pin, Bookmark and Create Reminder. Right-click or Enter opens it; arrows move, Escape and outside clicks close it.
+- Layers, Voice, Parts and Specs move down one number, and the rail gains a Cursors link.
+
+**Voice guide: name the noun, cut the pitch** (`public/brand.html`, `public/brand-app.html`)
+
+- The brand kit's voice section and the issue 01 archive sheet now share one test: swap in another product; if the line still works, it says nothing. Both add four rules (name the noun, one idea per sentence, sentence case, claims need a number or a date).
+- The archive sheet's Don't column drops the generic "seamless universe" examples for product-specific weak copy about an easy editor, sharing creations, a growing community and a tool that does it all. Its banned list adds unleash, elevate, effortless, all-in-one and dream, and names the next-level / whether-you're / at-your-fingertips patterns.
+- No product page copy changed; the brand kit and archive are guidance pages.
+
+**Daily and Five wear the sheet** (`lib/daily.js`, `public/docs-sheet.css`)
+
+- `/daily` and `/five` now use the floating window the docs use: a desk gap on all four sides, the Cudic brand rail with a `daily` / `five` tag, one scrolling column, and the same dark and light palettes. No more full-width standalone bar.
+- The daily pick is a card: game title, creator, blurb, an orange Play pill, Share card and Browse all games. The five is a numbered card list with thumbnails and play counts.
+- The rail links jump inside the window, and phones get the docs drawer instead of a separate layout. Streak tracking and the share card work exactly as before.
+- The copy on both pages is plain and specific: the pick, the streak and the share card say what they do, and the five explains how it is ordered. The docs gain "The daily and the five" covering the hash, the day number, the local streak, the share card and the five's play-count order.
+
+**Sheet: desk gap on all four sides, and a real light mode** (`public/docs-sheet.css`, `public/docpage.js`)
+
+- The window floats again: 16px of desk above, below and beside it (8px on phones), and the main column scrolls inside the fixed window instead of the page. The sidebar and on-this-page rail stay put and the footer ends at the window edge, not the viewport edge.
+- **Light mode works.** The sheet now has two palettes: charcoal window/white text/orange accents in dark, cream window/ink text/darker orange small accents/sky-blue links in light. It follows both `data-theme` (the site's toggle) and `prefers-color-scheme`, and the brand mark swaps cream → ink.
+- Section switches reset the inner pane's scroll, and the old page-scroll thumb is hidden because nothing scrolls at page level any more.
+- The floating theme toggle is no longer a detached square: it is a quarter-round tab cut from the window's bottom-right corner (54px, 46px on phones), with the arc facing the content and the right angle flush with the panel.
+
+**Legal pages, matched to the docs sheet** (`public/docs-sheet.css`, `public/privacy.html`, `public/terms.html`, `public/accessibility.html`, `public/credits.html`, `public/docs.html`)
+
+- The docs shell's CSS moved out of `docs.html` into **`/docs-sheet.css`**, linked by the docs page, the three legal pages and the credits page so the desk, window, chip nav, orange signal and 760px reading column can't drift apart.
+- **Credits** joins them with a `credits` tag; it has no h3s either, so its on-this-page column stays collapsed.
+- **Privacy**, **Terms** and **Accessibility** now wear the same sheet: steel-blue desk, floating charcoal window, a 60px brand row with a page tag (`privacy`, `terms`, `a11y`), the compact Back chip and numbered section chips. The ad sits above the footer on privacy and terms, so the footer is genuinely last.
+- Legal pages have no `h3`s, so the on-this-page column had nothing to list. `docpage.js` now marks the grid `.no-subtoc` and it collapses to two columns instead of leaving an empty dark panel beside the article.
+- Accessibility was quietly broken before: `docpage.css` hides `article section`, and its hand-written nav never registered with `docpage.js`, so its sections stayed hidden. It now has a real `#docNav`, `#backBtn`, a populated on-this-page column and `docpage.js` itself — five sections, one visible at a time, verified in the browser.
+
+**Docs, wearing the theme-files sheet** (`public/docs.html`)
+
+- The docs shell now sits on the same steel-blue desk as `/themes-download`: one floating charcoal window, a 60px header with an orange **docs** tag, mono section captions and the orange signal on numbers, active nav rows and focus rings. Cards, code, tables, notes and steps share the sheet's radii and raised fills.
+- The restyle rides `docpage.css`'s existing tokens, so `docpage.js` keeps its sidebar routing, deep links, mobile drawer and on-this-page list untouched. Section content is unchanged.
+- The sidebar is part of the sheet now: section rows are rounded chips with mono numbers, the active row is an orange-tinted chip, and Back is a compact button instead of a full-width bar.
+- Fixed a shell bug the restyle exposed: the four server/inbox sections sat after `</article>` and after the footer, so they were never routed and always rendered below it. They now live at the end of the Play group inside the article, which puts the footer and ad at the true end of the page and lets the sticky sidebar run the full viewport without a desk gap underneath.
+- Measure and motion: article content is capped at 760px for a readable line length, section switches reset instantly instead of smooth-scrolling the page, and the six-step fade-in is replaced with a 220ms ease. (The shell's scrolling became an inset window with its own pane in the newer sheet entry above.)
+
+**Theme files: free packs save as `.ctheme` downloads** (`public/themes-download.html`, `vercel.json`, `server.js`, `public/themes.html`, `public/docs.html`, `tests/test_themes_download.py`)
+
+- New **`/themes-download`** sheet, built on the `brand-app.html` desk-and-window layout, lists the published theme packs with their real palette, author and download count.
+- Any free pack saves as **`<slug>.ctheme`** — the canonical text from `ctheme.js` — so a theme can be kept, read, or pasted into the builder. Paid packs link to the store instead; their manifest never leaves the gate. Downloading a file does not install it and does not count as an install.
+- A valid **`starter.ctheme`** (Geist, calm motion, city-night scene) downloads from the page for anyone starting a pack.
+- When the store has no published rows, the page falls back to the packs that ship in `public/packs/` (currently Anime City Night) instead of showing an empty shelf. Paid and third-party packs never enter that fallback.
+- Linked from the Theme store hero and the Themes docs section; the Vercel rewrite and the local redirect both land it, and `tests/test_themes_download.py` guards the route, the inbound links and the download wiring.
+
+**Credits page, with the workbench named** (`public/credits.html`, `vercel.json`, `server.js`, `public/docs.html`, `tests/test_credits.py`)
+
+- New **`/credits`** page lists what Cudic is built on and under which licence: VS Code's open-source workbench and Monaco (MIT, © Microsoft) through Codingame's browser bindings, Lucide (ISC), Kenney's CC0 art, TurboWarp's Scratch loader, the Geist/Geist Mono and Satoshi type, and the libraries and hosted services the site leans on. It also says plainly that Cudic is not affiliated with or endorsed by Microsoft.
+- Linked from the Docs credits section; a rewrite and the local redirect land it on Vercel and Render alike, so it 404s on neither.
+- `tests/test_credits.py` fails if the page loses a named attribution or licence, links to an insecure external URL, or stops being routed by either host.
+
+**Arcade: Signal Lost** (`public/arcade/signal-lost.html`, `public/arcade/signal-lost.core.js`, `server.js`, `tests/test_signal_lost.py`)
+
+- A playable survival game at **`/signal-lost`**: you are the last cursor in a corrupted build. Four enemy types plus a cookie-banner boss, eight upgrades, a sector every few kills and a boss every fourth, dash with invincibility, local best score, keyboard and touch controls.
+- The tuning is its own file — seeded RNG, XP curve, spawn gating, upgrade pool, derived stats — so `tests/test_signal_lost.py` exercises exactly what the browser loads. A "small numbers tweak" that empties the upgrade pool, unlocks the late enemies at sector 1 or makes maxed stats worse fails a test instead of shipping.
+- No API, no database, no coins: playing it cannot pay out or be farmed.
 
 **Growth rewards: eight hooks, all server-verified and farm-resistant** (`lib/rewards.js`, `lib/storage-budget.js`, `lib/routes/games.js`, `lib/cosmetics.js`, `server.js`, `public/quests.html`, `supabase/migrations/20261122140000_rewards.sql`)
 

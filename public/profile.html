@@ -438,6 +438,8 @@
           try { localStorage.setItem('glox_theme', accountTheme); } catch (e) {}
           if (accountTheme !== 'light') document.documentElement.dataset.theme = 'dark';
           else delete document.documentElement.dataset.theme;
+          var schMeta = document.querySelector('meta[name="color-scheme"]');
+          if (schMeta) schMeta.setAttribute('content', accountTheme === 'light' ? 'light' : 'dark');
           paintThemeSeg();
         }
         document.getElementById('displayName').value = d.profile.display_name;
@@ -1008,7 +1010,7 @@
     var cpMsg = document.getElementById('cpMsg');
     function cpResetLinks(){
       var wrap = document.getElementById('cpLinks');
-      wrap.innerHTML = '';
+      wrap.replaceChildren();
       cpState.links.forEach(function(l, i){
         var row = document.createElement('div');
         row.style.display = 'flex'; row.style.gap = '8px'; row.style.alignItems = 'center';
@@ -1069,7 +1071,7 @@
           }
           /* pinned game chips */
           var chips = document.getElementById('cpPinnedChips');
-          chips.innerHTML = '';
+          chips.replaceChildren();
           function addChip(id, label, selected){
             var c = document.createElement('a');
             c.href = '#'; c.className = 'cp-chip' + (selected ? ' on' : '');
@@ -1414,7 +1416,7 @@
             + tile(t.plays || 0, 'plays') + tile(t.likes || 0, 'likes') + tile(t.comments || 0, 'comments')
             + tile(t.forks || 0, 'forks') + tile(t.packDownloads || 0, 'pack downloads') + tile(t.packSales || 0, 'pack sales')
             + tile(t.packRevenue || 0, 'coins earned') + tile(t.openReports || 0, 'open reports') + '</div>';
-          var top = ((d.games || []).slice().sort(function(a, b){ return b.plays - a.plays; })).slice(0, 3);
+          var top = ((d.games || []).toSorted(function(a, b){ return b.plays - a.plays; })).slice(0, 3);
           if (top.length) {
             html += '<div class="stat-top">' + top.map(function(g){
               return '<div><b>' + esc(g.title) + '</b> — ' + g.plays + ' plays · ' + g.likes + ' likes · ' + g.comments + ' comments</div>';

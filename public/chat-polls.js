@@ -71,7 +71,7 @@
   }
 
   function render() {
-    if (!isDM() || !polls.length) { shelf.hidden = true; shelf.innerHTML = ''; return; }
+    if (!isDM() || !polls.length) { shelf.hidden = true; shelf.replaceChildren(); return; }
     shelf.hidden = false;
     shelf.innerHTML = '<div class="cp-title">Polls</div>' + polls.map(function (poll) {
       return '<div class="cp-poll" data-poll="' + esc(poll.id) + '"><div class="cp-q">' + esc(poll.question)
