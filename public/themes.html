@@ -209,6 +209,7 @@
                 <div class="hero-actions">
                     <button class="btn btn-primary" id="browsePacksBtn">Browse packs</button>
                     <button class="btn btn-secondary" id="makePackBtn">Make a pack</button>
+                    <a class="btn btn-secondary" href="/themes-download" style="text-decoration:none;width:auto">Download theme files</a>
                 </div>
             </section>
             <div class="ad-frame ad-leaderboard" data-ad-key="aa54ebd8c3acf5d1bbeb740803efce87" data-ad-format="iframe" data-ad-width="728" data-ad-height="90"><span class="ad-cap" aria-hidden="true">Advertisement</span></div>
@@ -709,7 +710,7 @@
       var editingId = null, railUrl = '', tryingLive = false, prevLive = null;
       function buildBuilderForm() {
         var cc = document.getElementById('bColors');
-        cc.innerHTML = '';
+        cc.replaceChildren();
         COLOR_FIELDS.forEach(function (f) {
           var lab = document.createElement('label');
           lab.className = 'colorpick';
@@ -731,7 +732,7 @@
         var box = document.getElementById('bParams');
         var bgT = document.getElementById('bBgType').value;
         var scene = document.getElementById('bScene').value;
-        box.innerHTML = '';
+        box.replaceChildren();
         (SCENE_PARAMS[scene] || []).forEach(function (d) {
           var f = document.createElement('div');
           f.className = 'field';
@@ -927,7 +928,7 @@
           var d = await (await fetch(apiHost() + '/api/packs?mine=1', { headers: { 'Authorization': 'Bearer ' + t } })).json();
           var list = (d && d.packs) || [];
           if (!list.length) { box.innerHTML = '<div class="pack-desc">No packs yet.</div>'; return; }
-          box.innerHTML = '';
+          box.replaceChildren();
           list.forEach(function (p) {
             var row = document.createElement('div');
             row.className = 'mypack-row';
@@ -1098,7 +1099,7 @@
       function renderAssets() {
         var well = document.getElementById('assetWell');
         if (!well) return;
-        well.innerHTML = '';
+        well.replaceChildren();
         var names = Object.keys(assetMap);
         if (!names.length) {
           var none = document.createElement('span');
