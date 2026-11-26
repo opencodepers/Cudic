@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta name="color-scheme" content="light dark">
+    <script src="/consent.js?v=3"></script>
+<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}try{var _cudicScheme=document.querySelector('meta[name="color-scheme"]');if(_cudicScheme)_cudicScheme.setAttribute('content',document.documentElement.dataset.theme==='light'?'light':'dark');}catch(e){}</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cudic — Credits</title>
+  <meta name="description" content="The software, art, type and services Cudic is built on, and the licence each one is used under.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Cudic">
+  <meta property="og:title" content="Cudic — Credits">
+  <meta property="og:description" content="The software, art, type and services Cudic is built on, and the licence each one is used under.">
+  <meta property="og:url" content="https://cudic.vercel.app/credits">
+  <meta property="og:image" content="https://cudic.vercel.app/og.png?v=2">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Cudic — Credits">
+  <meta name="twitter:description" content="The software, art, type and services Cudic is built on, and the licence each one is used under.">
+  <meta name="twitter:image" content="https://cudic.vercel.app/twitter.png?v=2">
+  <link rel="canonical" content="https://cudic.vercel.app/credits">
+    <link rel="icon" type="image/svg+xml" href="/cudic_sfsvg.svg">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <link rel="stylesheet" href="/cudic-assets/cursors/css/fluid-cream.css">
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/docpage.css?v=7">
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"WebPage","name":"Cudic Credits","description":"The software, art, type and services Cudic is built on, and the licence each one is used under.","url":"https://cudic.vercel.app/credits","publisher":{"@type":"Organization","name":"Cudic"}}
+    </script>
+<link rel="stylesheet" href="/mobile.css?v=1">
+<link rel="stylesheet" href="/docs-sheet.css?v=2">
+</head>
+
+<body data-page="credits" data-no-rail>
+    <div class="wrap">
+        <div class="docgrid">
+            <aside class="docside">
+                <a class="brandrow" href="/"><img class="mark" src="/cudic-assets/brand/logo/cudic-mark-cream.svg" width="20" height="24" alt="Cudic home"><span class="brand-name">Cudic</span><span class="h-tag">credits</span></a>
+                <nav id="docNav" aria-label="Credits sections"></nav>
+                <button id="backBtn" aria-label="Go back"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>Back</button>
+            </aside>
+
+            <main class="docmain">
+                <header class="docHead">
+                    <p class="kick"><svg width="14" height="14" viewBox="0 0 8 8" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true"><use href="/cudic-assets/icons/svg/social/star.svg"/></svg><span>›</span><span class="cur2" id="crumbSec">Credits</span></p>
+                    <h1>Credits</h1>
+                    <p class="lead">Cudic is assembled from a lot of other people's work. This page names the software, art, type and services it uses, and the licence each one is used under — so a licence question has an answer rather than a guess.</p>
+                </header>
+                <div class="docbody">
+                    <article>
+                        <p class="updated">Last updated 23 November 2026.</p>
+
+                        <section id="cudic" data-group="Cudic">
+                            <h2>Cudic itself</h2>
+                            <p>Cudic is built and run by <strong>nathent2023-glitch</strong>. The site's own code, copy, brand marks and the Cudic asset pack are proprietary and all rights are reserved; <a href="/terms">the terms</a> cover what you may do with the service and with games other people publish. Everything named below stays with its authors, under the licence named.</p>
+                        </section>
+
+                        <section id="workbench" data-group="The workbench">
+                            <h2>Visual Studio Code and Monaco</h2>
+                            <p>Studio is not a lookalike editor: it runs <strong>Visual Studio Code</strong>'s open-source workbench and <strong>Monaco</strong> in the browser. The workbench, the editor, the Explorer, the command palette, keybindings and language services come from VS&nbsp;Code and Monaco, © Microsoft Corporation, released under the <strong>MIT licence</strong>. The bindings that let them run outside Electron are <strong>@codingame/monaco-vscode-api</strong> 37.1.0 and its service packages, by Codingame, also MIT. The classic editor page loads <strong>monaco-editor</strong> 0.45.0 from jsDelivr.</p>
+                            <p>Cudic's branding, activity bar, Preview panel, project switcher and AI panel are Cudic's own and are not part of VS&nbsp;Code. Cudic is not affiliated with or endorsed by Microsoft.</p>
+                            <ul>
+                                <li><a href="https://code.visualstudio.com">Visual Studio Code</a> — MIT, © Microsoft Corporation.</li>
+                                <li><a href="https://microsoft.github.io/monaco-editor/">Monaco Editor</a> — MIT, © Microsoft Corporation.</li>
+                                <li><a href="https://github.com/CodinGame/monaco-vscode-api">Codingame's monaco-vscode-api</a> — MIT, the browser workbench bindings.</li>
+                            </ul>
+                        </section>
+
+                        <section id="libraries" data-group="Libraries">
+                            <h2>Libraries</h2>
+                            <p>Every file below is used as published; Cudic does not relicense any of them.</p>
+                            <ul>
+                                <li><strong>Runtime, data and realtime</strong> — <code>@supabase/supabase-js</code> 2.x (MIT) for authentication, database and storage; <code>ws</code> (MIT) for the WebSocket server.</li>
+                                <li><strong>Viewers</strong> — <code>three.js</code> 0.163 (MIT) for 3D models; <code>xterm.js</code> 5.3 (MIT) for the terminal view; <code>SheetJS</code> 0.18.5 (Apache-2.0) for spreadsheets; <code>@aiden0z/pptx-renderer</code> 1.3.0 (Apache-2.0) for slide decks.</li>
+                                <li><strong>Studio</strong> — <code>Yjs</code> and <code>y-webrtc</code> (MIT) for peer-to-peer collab; <code>isomorphic-git</code> and <code>@isomorphic-git/lightning-fs</code> (MIT) for source control; <code>JSZip</code> (MIT or GPL-3.0-or-later) for archives; <code>Mammoth</code> (BSD-2-Clause) for .docx import; <code>Vite</code> (MIT) for the build.</li>
+                                <li><strong>Motion</strong> — <code>GSAP</code> 3.15 under GreenSock's standard "no charge" licence.</li>
+                                <li><strong>Icons</strong> — <code>Lucide</code> (ISC) for Studio chrome and inline interface icons. The rail's 8×8 icons are Cudic's own, not Lucide's.</li>
+                                <li><strong>Scratch</strong> — <strong>TurboWarp</strong>'s Scaffolding loader plays imported Scratch projects. Scratch itself is a project of the Scratch Foundation; Cudic is not affiliated with it.</li>
+                                <li><strong>Email and push</strong> — <code>Nodemailer</code> (MIT-0), <code>Resend</code> (MIT) and <code>web-push</code> (MPL-2.0) for verification mail and notifications.</li>
+                            </ul>
+                        </section>
+
+                        <section id="art" data-group="Art and type">
+                            <h2>Art, icons and type</h2>
+                            <ul>
+                                <li><strong>Kenney</strong> — the 674 game, board-game and emote icons bundled under <code>/assets/kenney</code>, plus the 3D models the asset picker streams, are <strong>CC0 1.0</strong> by <a href="https://kenney.nl">Kenney</a>. CC0 asks for no credit; it is given anyway, because good art deserves it.</li>
+                                <li><strong>Cudic asset pack</strong> — the wordmark, 83 icons on an 8×8 grid, 30 emoji and the cursor sets are drawn for and shipped with Cudic.</li>
+                                <li><strong>Geist and Geist Mono</strong> — by Vercel, under the <strong>SIL Open Font License 1.1</strong>, served from Google Fonts. They carry every page.</li>
+                                <li><strong>Satoshi</strong> — by the Indian Type Foundry, under the Fontshare free-font licence, used on the landing and 404 pages.</li>
+                                <li><strong>Nine Circles</strong> — used for the Cudic wordmark under its free commercial licence.</li>
+                            </ul>
+                        </section>
+
+                        <section id="services" data-group="Services">
+                            <h2>Hosting and services</h2>
+                            <p>These run the site. Each has its own terms and privacy policy, which govern the data it handles.</p>
+                            <ul>
+                                <li><a href="https://vercel.com">Vercel</a> — serves the website, its rewrites and cache headers.</li>
+                                <li><a href="https://render.com">Render</a> — runs the API, chat sockets, share cards and game hosting.</li>
+                                <li><a href="https://supabase.com">Supabase</a> — Postgres database, authentication and file storage.</li>
+                                <li><a href="https://fonts.google.com">Google Fonts</a> — delivers Geist and Geist Mono.</li>
+                                <li><a href="https://www.jsdelivr.com">jsDelivr</a> — serves the pinned library files the editor and viewers load.</li>
+                                <li><a href="https://www.cloudflare.com/products/turnstile/">Cloudflare Turnstile</a> — the bot check on signup, password reset and account deletion.</li>
+                            </ul>
+                        </section>
+
+                        <section id="notices" data-group="Legal">
+                            <h2>Notices</h2>
+                            <p>Visual Studio Code, VS&nbsp;Code and Microsoft are trademarks of Microsoft Corporation. Google and Google Fonts are trademarks of Google LLC. Cloudflare, Supabase, Vercel, Render, Kenney and the other names here belong to their owners. Cudic is not affiliated with or endorsed by any of them, and nothing on this page changes the terms of a third-party licence.</p>
+                            <p>Games, themes, music, messages and other content published by users belong to the people who made them; the terms explain the licence Cudic needs to host and show that content.</p>
+                            <p><strong>Something missing or wrong?</strong> If your work is used here without the credit or licence it deserves, email <a href="mailto:nathen.t2023@gmail.com">nathen.t2023@gmail.com</a> with the item and the URL it appears on — it will be credited or removed.</p>
+                        </section>
+                    </article>
+                </div>
+                <footer class="mono">Cudic credits · <a href="/">cudic.vercel.app</a> · <a href="/docs">docs</a> · <a href="/terms">terms</a> · <a href="/privacy">privacy</a></footer>
+            </main>
+
+            <aside class="subtoc" id="subToc"><div class="toc-label">On this page</div><div id="subTocLinks"></div></aside>
+        </div>
+    </div>
+    <script src="/docpage.js?v=6"></script>
+    <script src="/theme-toggle.js?v=2"></script>
+    <script src="/sidebar.js?v=36"></script>
+<script src="/cudic-modals.js?v=3"></script></body>
+</html>

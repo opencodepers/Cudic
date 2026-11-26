@@ -32,6 +32,7 @@
     {"@context":"https://schema.org","@type":"TechArticle","headline":"Cudic Docs","description":"Everything Cudic can do: Studio, runtimes, publishing, chat, themes, coins, reports, accounts, and the AI panel.","url":"https://cudic.vercel.app/docs","publisher":{"@type":"Organization","name":"Cudic"}}
     </script>
 <link rel="stylesheet" href="/mobile.css?v=1">
+<link rel="stylesheet" href="/docs-sheet.css?v=2">
 </head>
 
 <body data-page="docs">
@@ -39,7 +40,7 @@
     <div class="wrap">
         <div class="docgrid">
             <aside class="docside">
-                <a class="brandrow" href="/"><img class="mark" src="/cudic-assets/brand/logo/cudic-mark-cream.svg" width="20" height="24" alt="Cudic home">Cudic</a>
+                <a class="brandrow" href="/"><img class="mark" src="/cudic-assets/brand/logo/cudic-mark-cream.svg" width="20" height="24" alt="Cudic home"><span class="brand-name">Cudic</span><span class="h-tag">docs</span></a>
                 <nav id="docNav" aria-label="Docs sections"></nav>
                 <button id="backBtn" aria-label="Go back"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>Back</button>
             </aside>
@@ -75,8 +76,8 @@
                     <div class="cards">
                     <div class="card"><span class="mono">ARCADE</span><h3>Every game, one page</h3><p><a href="/arcade">/arcade</a> lists every published game as real HTML with a real link per card, so search engines can follow it. The <a href="/games">gallery</a> loads its cards in JavaScript and shows a crawler an empty page, which is why this one exists. It is rebuilt on every deploy, so nothing needs adding by hand.</p></div>
                     <div class="card"><span class="mono">SHARE</span><h3>Share cards</h3><p>Every game page has Share, Post on X and Copy link. They point at <code>/g/&lt;slug&gt;</code>, which serves that game's own title, description and card art to Discord, Slack and X before a human clicks. An embedded game's "Made in Cudic" chip links back to the same page.</p></div>
-                    <div class="card"><span class="mono">DAILY</span><h3>One game a day</h3><p><a href="/daily">/daily</a> picks one published game by hashing the UTC date, so everyone on a given day gets the same game and nothing needs scheduling. It carries a share card and a streak kept in the browser — no sign-up, nothing uploaded.</p></div>
-                    <div class="card"><span class="mono">FIVE</span><h3>Five worth five minutes</h3><p><a href="/five">/five</a> names five games instead of showing a grid. It reads the most-played published games, so it improves as people play and needs no curation.</p></div>
+                    <div class="card"><span class="mono">DAILY</span><h3>One game a day</h3><p><a href="/daily">/daily</a> picks one published game by hashing the UTC date, so everyone on a given day gets the same game and nothing needs scheduling. It carries a share card and a streak kept in the browser — no sign-up, nothing uploaded. <a href="#daily-five">How the pick, streak and card work</a>.</p></div>
+                    <div class="card"><span class="mono">FIVE</span><h3>Five worth five minutes</h3><p><a href="/five">/five</a> names five games instead of showing a grid. It reads the most-played published games, so it improves as people play and needs no curation. <a href="#daily-five">How the five is ordered</a>.</p></div>
                     <div class="card"><span class="mono">MEASURE</span><h3>Funnel events</h3><p>GTM receives <code>cudic_page_view</code>, <code>game_view</code>, <code>play_start</code>, <code>share_click</code>, <code>signup_start</code> and <code>signup_complete</code>. After a publish, call <code>window.cudicTrack('game_publish', { game_id })</code> from Studio so publishing lands in the same funnel.</p></div>
                     </div>
                     <div class="note"><p>Guests can play games and read chat. Progress isn't stored for a guest — the first time you play a game with saving, it offers a sign-in, and your bests attach to the account you pick.</p></div>
@@ -425,6 +426,30 @@ confetti({ particleCount: 120 })</pre>
                     <div class="note"><p>If you post a clip of someone else's game, credit the creator — their name is already in the video, and the game page is the best link to share alongside it.</p></div>
                 </section>
 
+                <section id="daily-five" data-group="Play">
+                    <h2>The daily and the five</h2>
+                    <p><a href="/daily">/daily</a> gives everyone one game for the UTC day, and <a href="/five">/five</a> lists five games to open now. Both are server-rendered HTML with real links, so they read with JavaScript off and a crawler sees the same games a person does. Neither needs an account.</p>
+                    <h3>The daily pick</h3>
+                    <ul>
+                        <li><strong>One game for the day.</strong> The pick is a 32-bit FNV-1a hash of the UTC date (<code>YYYY-MM-DD</code>) over the published games, sorted by their ids. The date alone decides, so every server and every visitor gets the same game; there is no rotation table and no editor.</li>
+                        <li><strong>The number.</strong> Daily #1 is 1 January 2026, and the number rises by one each UTC day. It is the number on the page, in the page title and on the share card.</li>
+                        <li><strong>Midnight UTC is the hand-over.</strong> The new game appears at 00:00 UTC; until then the page shows the same pick in every timezone.</li>
+                        <li><strong>Published games only.</strong> A row needs a UUID and <code>published = true</code>. Drafts and unpublished games are never picked; with nothing published the page offers Studio instead.</li>
+                    </ul>
+                    <h3>The streak and the share card</h3>
+                    <ul>
+                        <li>The streak counts consecutive UTC days on which you opened the daily's game link: two days in a row is a streak of two, and a missed day starts again at one. Your best is kept beside it.</li>
+                        <li>It lives in this browser under <code>localStorage['cudic_daily']</code> as <code>{ last, streak, best }</code>. No account, no server copy and nothing uploaded; clearing site data clears the streak.</li>
+                        <li><strong>Share card</strong> draws a 1200×630 PNG in the browser: the daily number, the game's title and author, and the address. Browsers that can share files get the share sheet; the rest download the image. The card is made locally and never uploaded.</li>
+                    </ul>
+                    <h3>The five</h3>
+                    <ul>
+                        <li>The five published games with the most plays, in that order. The play count under each title is all-time plays, and the list is read from the database on each request (cached for five minutes), so it follows plays without curation.</li>
+                        <li>Each title links to the game page with <code>utm_source=five</code>; the daily's Play button uses <code>utm_source=daily</code> and <code>utm_campaign=daily_&lt;number&gt;</code>, so the two pages can be told apart in analytics.</li>
+                        <li>Both pages sit in the docs window — brand rail with a page tag, one scrolling column, the same light and dark palettes — and the daily's sections are anchors on one page rather than separate routes. The mobile drawer is the docs one.</li>
+                    </ul>
+                </section>
+
                 <section id="chat" data-group="Community">
                     <h2>Chat &amp; servers</h2>
                     <p>A <strong>server</strong> holds channels; a <strong>channel</strong> holds messages. You can also message people directly. Chat history is permanent — messages stay unless a moderator removes them.</p>
@@ -610,6 +635,69 @@ confetti({ particleCount: 120 })</pre>
                     <div class="note"><p>Privacy note: race dedupe uses a salted hash of the viewer's IP — no account or IP is stored, and one point per household per week is the accepted bias.</p></div>
                 </section>
 
+                <section id="server-batch" data-group="Play">
+                        <h2>Server tools</h2>
+                        <p>A second owner-and-member toolkit, spread across the server page, its settings pane and <strong>/events</strong>. Channel types and bookmarks change how a channel behaves; polls, answered questions and the mod overview change what a room can do; backups keep an owner's setup recoverable.</p>
+                        <h3>Channel types</h3>
+                        <p><strong>Announcement</strong> channels let the owner and mods post while everyone else reads; the composer disappears for members and the send route refuses a client that re-enables it. <strong>Q&amp;A</strong> channels put an <strong>Answer</strong> action on every message — the asker or a mod marks one resolved, it carries an answered badge, and the channel's answered shelf keeps the resolutions at the top. <strong>Chat</strong> is the normal room. The type is set per channel in Server settings with a separate save action, so changing it is deliberate.</p>
+                        <h3>Polls</h3>
+                        <p>Owners and mods post a <strong>poll</strong> into any server channel; any member can post one in a <strong>DM</strong>. A poll has a question and two to ten options. Every member gets one vote, changing it replaces the old one, and an <strong>anonymous</strong> poll hides who voted while still counting each member once. A poll closes on its date or when a mod (or, in a DM, either participant) closes it, and the bars show counts and percentages. The poll dialog closes from its button, the backdrop or Escape. No response ever names another voter.</p>
+                        <h3>Bookmarks and the game card</h3>
+                        <p>The <strong>star</strong> in the channel bar saves a channel to a private <strong>Bookmarks</strong> group at the top of the sidebar — separate from favourites, and only ever visible to you. A server's <strong>game card</strong> (address and note) appears under its name with a copy button.</p>
+                        <h3>Join questions</h3>
+                        <p>An owner can ask up to three short questions before someone joins. The invite page shows them above the Join button, every answer is required, and owners and mods read the answers in the moderation overview. Answers are deleted with the membership.</p>
+                        <h3>Game feeds</h3>
+                        <p>A server can follow a game from Server settings: paste the game id, pick a channel and press <strong>Follow</strong>. The pane lists every feed with a Remove action. When that game publishes an update, one post lands in the chosen channel with a play link. Feeds are owner/mod-managed and capped, so a publish fans out once rather than per member.</p>
+                        <h3>Moderation dashboard</h3>
+                        <p><strong>/moderate</strong> now has a <strong>Server moderation</strong> section: one card per server you own or moderate, with member and mod counts, warnings (seen and unseen), bans, slow channels, recent audited actions and the latest join answers. It reads reports and server rows only — never a DM.</p>
+                        <h3>Backups</h3>
+                        <p>Owners can <strong>Back up now</strong> or turn on a <strong>weekly</strong> backup. A backup is one JSON file with the server identity, channels, member roles, events, presets, nights, LFG posts, suggestions and prompts; the last four are kept and each is downloadable from Server settings. Restoring is an import, so a backup never overwrites a live server by itself.</p>
+                        <h3>Public events and directory artwork</h3>
+                        <p><strong>/events</strong> lists every upcoming public game night and event across public servers, grouped by day in your timezone. Directory cards show a server's <strong>featured artwork</strong> when the owner sets one and fall back to the banner otherwise, plus the next public event.</p>
+                    </section>
+                    <section id="community-pack" data-group="Play">
+                        <h2>Community pack</h2>
+                        <p>Everything a server needs to feel like a place rather than a channel list. Open the <strong>Community</strong> dock from the floating pill at the bottom-right of the server page; the full page is still at <strong>/server-community?sid=…</strong>. Members write their own card; owners get prompts, titles, spotlights, warnings and an inactivity read. Nothing here creates a second copy of chat — the roster, votes and nights are their own small tables.</p>
+                        <h3>Opening it</h3>
+                        <p>The dock is the quick path from a channel, and the full page is the roomy version with the overview and longer forms. The full page runs without the site rail, keeps a <strong>Back</strong> button to the server, and uses the same signed-in session as the rest of Cudic. If the URL has no server id, it opens the last server you visited when it is still in your server list, otherwise your first server.</p>
+                        <h3>Dates and times</h3>
+                        <p>LFG and game-night start fields use your browser’s local time. The page converts them to UTC before sending, so a night saved at 8:00 PM stays 8:00 PM for you and appears at the right local time for everyone else. A blank field means “any time” for LFG.</p>
+                        <h3>In the server page</h3>
+                        <p>The dock has ten sections: <strong>Members</strong> (cards, roles, titles and join dates), <strong>My card</strong> (nickname, status, intro and tags), <strong>Spotlight</strong>, <strong>Prompts</strong>, <strong>Suggestions</strong>, <strong>LFG</strong>, <strong>Nights</strong>, <strong>Warnings</strong>, <strong>Inactive</strong> and <strong>Labels</strong>. It reads the same live API as the full page and only renders the forms your role can use. The full page carries Overview, Suggestions, LFG, Game nights, Members and My card; <strong>Labels</strong> is dock-only, and warnings are issued from Members on the full page and acknowledged in the dock.
+                        <h3>Member cards</h3>
+                        <p>Each member can set a <strong>nickname</strong>, a short <strong>status</strong> and an <strong>intro card</strong> with up to four tags, scoped to that server. Nicknames replace the account name on the server's messages. Owners can grant a <strong>title</strong>, which sits beside the name, and the roster shows how long each person has been a member — including a quiet “anniversary today” on the date they joined. One <strong>spotlight</strong> per server puts a member and a short blurb at the top of the page.</p>
+                        <h3>Prompts and suggestions</h3>
+                        <p>Owners set a <strong>daily prompt</strong> and a <strong>weekly topic</strong>; both render in the overview with the date they cover. From the dock or the full Community page the owner can also <strong>post a prompt into a chosen channel</strong>, with a one-click <strong>Post &amp; pin</strong> for the weekly topic. Any member can post a <strong>suggestion</strong> and <strong>vote</strong> once on anyone's; owners and mods move each one between open, planned, done and declined.</p>
+                        <h3>LFG and nights</h3>
+                        <p><strong>LFG</strong> posts carry a game, a note, a slot count and an optional start time, and can be removed by their author or a mod. <strong>Game nights</strong> are scheduled by owners and mods; a night marked public is also a <strong>public event</strong>, shown on the invite page and on the server's public preview at <strong>/preview/&lt;id&gt;</strong> (also served at <strong>/s/&lt;id&gt;/welcome</strong>). The page paints the owner's header banner with the saved focus, and keeps member names off it.</p>
+                        <h3>Warnings, labels and inactivity</h3>
+                        <p>An owner can issue a <strong>warning</strong> with a reason; the member sees it as a banner until they acknowledge it, and the API keeps the record. <strong>Content labels</strong> on a channel (spoiler, NSFW, art, build, event) show as chips in the sidebar, and a spoiler channel asks before it opens. The <strong>inactivity</strong> read lists members with no message in 30–180 days; nobody is removed automatically.</p>
+                    </section>
+                    <section id="server-kit" data-group="Play">
+                        <h2>Server Kit</h2>
+                        <p>Owner tools that change how a server looks and reads, gathered on one pane of <strong>Server settings</strong>. Every write is owner-only and re-checks the ids against the server, so a channel from somewhere else can never be renamed, reordered or refiled.</p>
+                        <h3>Channels</h3>
+                        <p>Each channel can carry a four-character icon, up to three tags and a welcome line. The icon replaces the <code>#</code> in the channel list; the welcome line is a quiet system message at the top of the channel, above history, so it never looks like something a member said. The up and down buttons reorder channels and <strong>Save channels</strong> writes the whole order in one pass. Categories take an icon too.</p>
+                        <h3>Server identity</h3>
+                        <p><strong>Server tags</strong> (up to five) sit under the member count, and the <strong>game card</strong> adds an address and a short note — <code>play.example.net</code>, “Season 4, whitelist on”. The <strong>interface font</strong> choice switches the server page to a sans, mono, serif or rounded stack; no webfont is downloaded, so it works offline and adds no third-party request.</p>
+                        <h3>Appearance</h3>
+                        <p><strong>Server settings</strong> sets the accent, chat background and header banner. A <strong>banner focus</strong> slider (0–100, the same rule as profile banners) picks the vertical crop so a wide image does not cut off the server name, and <strong>Remove header banner</strong> / <strong>Remove chat background</strong> clear either field before you save.</p>
+                        <h3>Theme presets</h3>
+                        <p>A preset stores an accent, a background image and a font under a name, up to eight per server. <strong>Apply</strong> replaces the server theme; members keep their own cosmetic pack, and the preset never touches their account.</p>
+                        <h3>Invite page</h3>
+                        <p>Every server has a code, and <strong>/join/&lt;code&gt;</strong> is a public page with the name, description, tags, member count and rules, plus one Join button. Signing in first is the only requirement to join; the rules gate still applies afterwards. Directory cards copy that address, and a private card opens it as <strong>Invite page</strong>. The invite page reads only those fields — member lists and channels are never public.</p>
+                    </section>
+                    <section id="inbox" data-group="Play">
+                        <h2>Inbox, search and home</h2>
+                        <p>Three pages read across Cudic without opening each surface one by one. All three are scoped to what you can already open: a search never returns a channel you could not read, and the inbox never lists a DM you are not part of.</p>
+                        <h3>Inbox</h3>
+                        <p><strong>/inbox</strong> puts unread DMs beside every notification kind — mentions, replies, friend requests, invites, event reminders and moderation notices. DMs are unread until you open them in chat; notices stay after being read so the list is still a history. <strong>Mark all read</strong> clears both the notification rows and your DM read state.</p>
+                        <h3>Search</h3>
+                        <p><strong>/search</strong> looks through messages in your conversations and the public channels of servers you belong to, plus people, public servers and published games. Filter by type with the tabs, or narrow the URL with <code>?q=</code>. Two characters minimum; results link straight to the conversation or page.</p>
+                        <h3>Home</h3>
+                        <p><strong>/home</strong> is five cards: unread, your servers, upcoming events, your games and what friends are making. <strong>Hide</strong> on a card remembers that choice on your account, and <strong>Show all cards</strong> brings it back. Nothing on the dashboard is a new data store — it is the same rows the rest of the site reads.</p>
+                    </section>
+
                 <section id="awards" data-group="Community">
                     <h2>Badges, flairs &amp; titles</h2>
                     <p>Awards are the three ways you show off on Cudic. They appear next to your name on your public page and in your profile preview.</p>
@@ -634,6 +722,7 @@ confetti({ particleCount: 120 })</pre>
                         <li>Open <a href="/themes">Themes</a>, preview any pack live-on-the-spot, then install or buy.</li>
                         <li>Installed packs apply everywhere (rail included) and survive reloads — turn it off from your profile or the pack page.</li>
                         <li>The store ships with its first pack, <em>anime city night</em> — a neon rail scene.</li>
+                        <li>Free packs also save as a <code>.ctheme</code> text file on <a href="/themes-download">Theme files</a> — keep it, share it, or import it in the builder.</li>
                     </ul>
                     <h3>Build and sell a pack</h3>
                     <ol class="steps">
@@ -775,6 +864,7 @@ confetti({ particleCount: 120 })</pre>
                         <li><strong>Scratch runtime</strong> — TurboWarp's Scaffolding loader, so imported Scratch projects play as themselves.</li>
                         <li><strong>Editor</strong> — Studio's workbench is built on the VS&nbsp;Code core (monaco), wired up in the browser.</li>
                     </ul>
+                    <p>The full list — libraries, fonts, art packs and hosting services, each with its licence — is on <a href="/credits">the credits page</a>.</p>
                     <p>And to everyone who publishes, remixes, sells packs and reports problems: that's the site. Keep making things.</p>
                 </section>
 
@@ -782,68 +872,6 @@ confetti({ particleCount: 120 })</pre>
                 </div>
                 <div class="ad-frame ad-leaderboard" data-ad-key="aa54ebd8c3acf5d1bbeb740803efce87" data-ad-format="iframe" data-ad-width="728" data-ad-height="90"><span class="ad-cap" aria-hidden="true">Advertisement</span></div>
                 <footer class="mono">Cudic docs · <a href="/">cudic.vercel.app</a> · <a href="/cookbook/">cookbook</a> · <a href="/brand.html">brand kit</a></footer>
-            <section id="server-batch" data-group="Play">
-                    <h2>Server tools</h2>
-                    <p>A second owner-and-member toolkit, spread across the server page, its settings pane and <strong>/events</strong>. Channel types and bookmarks change how a channel behaves; polls, answered questions and the mod overview change what a room can do; backups keep an owner's setup recoverable.</p>
-                    <h3>Channel types</h3>
-                    <p><strong>Announcement</strong> channels let the owner and mods post while everyone else reads; the composer disappears for members and the send route refuses a client that re-enables it. <strong>Q&amp;A</strong> channels put an <strong>Answer</strong> action on every message — the asker or a mod marks one resolved, it carries an answered badge, and the channel's answered shelf keeps the resolutions at the top. <strong>Chat</strong> is the normal room. The type is set per channel in Server settings with a separate save action, so changing it is deliberate.</p>
-                    <h3>Polls</h3>
-                    <p>Owners and mods post a <strong>poll</strong> into any server channel; any member can post one in a <strong>DM</strong>. A poll has a question and two to ten options. Every member gets one vote, changing it replaces the old one, and an <strong>anonymous</strong> poll hides who voted while still counting each member once. A poll closes on its date or when a mod (or, in a DM, either participant) closes it, and the bars show counts and percentages. The poll dialog closes from its button, the backdrop or Escape. No response ever names another voter.</p>
-                    <h3>Bookmarks and the game card</h3>
-                    <p>The <strong>star</strong> in the channel bar saves a channel to a private <strong>Bookmarks</strong> group at the top of the sidebar — separate from favourites, and only ever visible to you. A server's <strong>game card</strong> (address and note) appears under its name with a copy button.</p>
-                    <h3>Join questions</h3>
-                    <p>An owner can ask up to three short questions before someone joins. The invite page shows them above the Join button, every answer is required, and owners and mods read the answers in the moderation overview. Answers are deleted with the membership.</p>
-                    <h3>Game feeds</h3>
-                    <p>A server can follow a game from Server settings: paste the game id, pick a channel and press <strong>Follow</strong>. The pane lists every feed with a Remove action. When that game publishes an update, one post lands in the chosen channel with a play link. Feeds are owner/mod-managed and capped, so a publish fans out once rather than per member.</p>
-                    <h3>Moderation dashboard</h3>
-                    <p><strong>/moderate</strong> now has a <strong>Server moderation</strong> section: one card per server you own or moderate, with member and mod counts, warnings (seen and unseen), bans, slow channels, recent audited actions and the latest join answers. It reads reports and server rows only — never a DM.</p>
-                    <h3>Backups</h3>
-                    <p>Owners can <strong>Back up now</strong> or turn on a <strong>weekly</strong> backup. A backup is one JSON file with the server identity, channels, member roles, events, presets, nights, LFG posts, suggestions and prompts; the last four are kept and each is downloadable from Server settings. Restoring is an import, so a backup never overwrites a live server by itself.</p>
-                    <h3>Public events and directory artwork</h3>
-                    <p><strong>/events</strong> lists every upcoming public game night and event across public servers, grouped by day in your timezone. Directory cards show a server's <strong>featured artwork</strong> when the owner sets one and fall back to the banner otherwise, plus the next public event.</p>
-                </section>
-                <section id="community-pack" data-group="Play">
-                    <h2>Community pack</h2>
-                    <p>Everything a server needs to feel like a place rather than a channel list. Open the <strong>Community</strong> dock from the floating pill at the bottom-right of the server page; the full page is still at <strong>/server-community?sid=…</strong>. Members write their own card; owners get prompts, titles, spotlights, warnings and an inactivity read. Nothing here creates a second copy of chat — the roster, votes and nights are their own small tables.</p>
-                    <h3>Opening it</h3>
-                    <p>The dock is the quick path from a channel, and the full page is the roomy version with the overview and longer forms. The full page runs without the site rail, keeps a <strong>Back</strong> button to the server, and uses the same signed-in session as the rest of Cudic. If the URL has no server id, it opens the last server you visited when it is still in your server list, otherwise your first server.</p>
-                    <h3>Dates and times</h3>
-                    <p>LFG and game-night start fields use your browser’s local time. The page converts them to UTC before sending, so a night saved at 8:00 PM stays 8:00 PM for you and appears at the right local time for everyone else. A blank field means “any time” for LFG.</p>
-                    <h3>In the server page</h3>
-                    <p>The dock has ten sections: <strong>Members</strong> (cards, roles, titles and join dates), <strong>My card</strong> (nickname, status, intro and tags), <strong>Spotlight</strong>, <strong>Prompts</strong>, <strong>Suggestions</strong>, <strong>LFG</strong>, <strong>Nights</strong>, <strong>Warnings</strong>, <strong>Inactive</strong> and <strong>Labels</strong>. It reads the same live API as the full page and only renders the forms your role can use. The full page carries Overview, Suggestions, LFG, Game nights, Members and My card; <strong>Labels</strong> is dock-only, and warnings are issued from Members on the full page and acknowledged in the dock.
-                    <h3>Member cards</h3>
-                    <p>Each member can set a <strong>nickname</strong>, a short <strong>status</strong> and an <strong>intro card</strong> with up to four tags, scoped to that server. Nicknames replace the account name on the server's messages. Owners can grant a <strong>title</strong>, which sits beside the name, and the roster shows how long each person has been a member — including a quiet “anniversary today” on the date they joined. One <strong>spotlight</strong> per server puts a member and a short blurb at the top of the page.</p>
-                    <h3>Prompts and suggestions</h3>
-                    <p>Owners set a <strong>daily prompt</strong> and a <strong>weekly topic</strong>; both render in the overview with the date they cover. From the dock or the full Community page the owner can also <strong>post a prompt into a chosen channel</strong>, with a one-click <strong>Post &amp; pin</strong> for the weekly topic. Any member can post a <strong>suggestion</strong> and <strong>vote</strong> once on anyone's; owners and mods move each one between open, planned, done and declined.</p>
-                    <h3>LFG and nights</h3>
-                    <p><strong>LFG</strong> posts carry a game, a note, a slot count and an optional start time, and can be removed by their author or a mod. <strong>Game nights</strong> are scheduled by owners and mods; a night marked public is also a <strong>public event</strong>, shown on the invite page and on the server's public preview at <strong>/preview/&lt;id&gt;</strong> (also served at <strong>/s/&lt;id&gt;/welcome</strong>). The page paints the owner's header banner with the saved focus, and keeps member names off it.</p>
-                    <h3>Warnings, labels and inactivity</h3>
-                    <p>An owner can issue a <strong>warning</strong> with a reason; the member sees it as a banner until they acknowledge it, and the API keeps the record. <strong>Content labels</strong> on a channel (spoiler, NSFW, art, build, event) show as chips in the sidebar, and a spoiler channel asks before it opens. The <strong>inactivity</strong> read lists members with no message in 30–180 days; nobody is removed automatically.</p>
-                </section>
-                <section id="server-kit" data-group="Play">
-                    <h2>Server Kit</h2>
-                    <p>Owner tools that change how a server looks and reads, gathered on one pane of <strong>Server settings</strong>. Every write is owner-only and re-checks the ids against the server, so a channel from somewhere else can never be renamed, reordered or refiled.</p>
-                    <h3>Channels</h3>
-                    <p>Each channel can carry a four-character icon, up to three tags and a welcome line. The icon replaces the <code>#</code> in the channel list; the welcome line is a quiet system message at the top of the channel, above history, so it never looks like something a member said. The up and down buttons reorder channels and <strong>Save channels</strong> writes the whole order in one pass. Categories take an icon too.</p>
-                    <h3>Server identity</h3>
-                    <p><strong>Server tags</strong> (up to five) sit under the member count, and the <strong>game card</strong> adds an address and a short note — <code>play.example.net</code>, “Season 4, whitelist on”. The <strong>interface font</strong> choice switches the server page to a sans, mono, serif or rounded stack; no webfont is downloaded, so it works offline and adds no third-party request.</p>
-                    <h3>Appearance</h3>
-                    <p><strong>Server settings</strong> sets the accent, chat background and header banner. A <strong>banner focus</strong> slider (0–100, the same rule as profile banners) picks the vertical crop so a wide image does not cut off the server name, and <strong>Remove header banner</strong> / <strong>Remove chat background</strong> clear either field before you save.</p>
-                    <h3>Theme presets</h3>
-                    <p>A preset stores an accent, a background image and a font under a name, up to eight per server. <strong>Apply</strong> replaces the server theme; members keep their own cosmetic pack, and the preset never touches their account.</p>
-                    <h3>Invite page</h3>
-                    <p>Every server has a code, and <strong>/join/&lt;code&gt;</strong> is a public page with the name, description, tags, member count and rules, plus one Join button. Signing in first is the only requirement to join; the rules gate still applies afterwards. Directory cards copy that address, and a private card opens it as <strong>Invite page</strong>. The invite page reads only those fields — member lists and channels are never public.</p>
-                </section>
-                <section id="inbox" data-group="Play">
-                    <h2>Inbox, search and home</h2>
-                    <p>Three pages read across Cudic without opening each surface one by one. All three are scoped to what you can already open: a search never returns a channel you could not read, and the inbox never lists a DM you are not part of.</p>
-                    <h3>Inbox</h3>
-                    <p><strong>/inbox</strong> puts unread DMs beside every notification kind — mentions, replies, friend requests, invites, event reminders and moderation notices. DMs are unread until you open them in chat; notices stay after being read so the list is still a history. <strong>Mark all read</strong> clears both the notification rows and your DM read state.</p>
-                    <h3>Search</h3>
-                    <p><strong>/search</strong> looks through messages in your conversations and the public channels of servers you belong to, plus people, public servers and published games. Filter by type with the tabs, or narrow the URL with <code>?q=</code>. Two characters minimum; results link straight to the conversation or page.</p>
-                    <h3>Home</h3>
-                    <p><strong>/home</strong> is five cards: unread, your servers, upcoming events, your games and what friends are making. <strong>Hide</strong> on a card remembers that choice on your account, and <strong>Show all cards</strong> brings it back. Nothing on the dashboard is a new data store — it is the same rows the rest of the site reads.</p>
-                </section>
                 </main>
 
             <aside class="subtoc" id="subToc"><div class="toc-label">On this page</div><div id="subTocLinks"></div></aside>

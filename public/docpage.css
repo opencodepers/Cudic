@@ -163,3 +163,7 @@ section[id],h2[id],h3[id]{scroll-margin-top:28px}
     .docHead h1::after{animation:none;opacity:1}
     html{scroll-behavior:auto}
 }
+/* Let UA chrome (scrollbars, form controls, autofill) follow the theme. */
+:root{color-scheme:dark}
+:root[data-theme="light"]{color-scheme:light}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){color-scheme:light}}

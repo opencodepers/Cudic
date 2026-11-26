@@ -1,0 +1,566 @@
+/* ==================================================================
+   CUDIC / SHEET
+   Shared by the docs, legal and credits pages. A steel-blue desk with
+   one floating charcoal (or cream) window inset on all four sides.
+   The main column scrolls inside the window; the chrome does not.
+   Fleet: docpage.css supplies the shell, docpage.js the routing.
+================================================================== */
+:root {
+  --desk: #B0C4DE;
+
+  --bg: #222222;
+  --panel: #2C2C2C;
+  --line: #343434;
+  --line-soft: #2E2E2E;
+  --line-strong: #4A4A4A;
+  --raised: #262626;
+  --sunken: #191919;
+  --hover: #2C2C2C;
+  --ink: #FFFFFF;
+  --mute: #A6A6A6;
+  --faint: #8C8C8C;
+  --nav-num: #7F7F7F;
+
+  --sheet-signal: #FF8C1A;
+  --sheet-signal-ink: #FF8C1A;
+  --sheet-signal-hover: #E67A00;
+  --sheet-tint: rgba(255, 140, 26, 0.14);
+  --sheet-on-signal: #1B1712;
+  --sky: #9FD0FF;
+
+  /* docpage.css reads these; pointing them here keeps the shell in step. */
+  --lime: var(--sheet-signal);
+  --blue: var(--sky);
+  --signal: var(--sheet-signal);
+  --signal-hover: var(--sheet-signal-hover);
+  --tint: var(--sheet-tint);
+  --on-signal: var(--sheet-on-signal);
+
+  --shadow: 0 26px 70px -34px rgba(24, 38, 58, 0.55), 0 2px 6px rgba(24, 38, 58, 0.12);
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --bg: #F7F5EC;
+  --panel: #EFECE0;
+  --line: #D8D3C3;
+  --line-soft: #E4E0D1;
+  --line-strong: #BDB8A6;
+  --raised: #FFFDF6;
+  --sunken: #EFECE2;
+  --hover: #EFECE0;
+  --ink: #14161B;
+  --mute: #57564F;
+  --faint: #6B6A63;
+  --nav-num: #8A877C;
+  --sheet-signal-ink: #A94F00;
+  --sky: #1B5FB8;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #F7F5EC;
+    --panel: #EFECE0;
+    --line: #D8D3C3;
+    --line-soft: #E4E0D1;
+    --line-strong: #BDB8A6;
+    --raised: #FFFDF6;
+    --sunken: #EFECE2;
+    --hover: #EFECE0;
+    --ink: #14161B;
+    --mute: #57564F;
+    --faint: #6B6A63;
+    --nav-num: #8A877C;
+    --sheet-signal-ink: #A94F00;
+    --sky: #1B5FB8;
+    color-scheme: light;
+  }
+}
+
+/* ---------------- the desk ---------------- */
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: var(--desk);
+  color: var(--ink);
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+::selection { background: var(--sheet-signal); color: var(--sheet-on-signal); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--sheet-signal-ink); outline-offset: 2px; }
+
+/* ---------------- floating window ---------------- */
+.wrap {
+  position: fixed;
+  inset: 16px;
+  margin: 0;
+  border: 0;
+  border-radius: 16px;
+  background: var(--bg);
+  min-height: 0;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.docgrid { height: 100%; background: var(--bg); border-radius: 16px; }
+@media (min-width: 961px) {
+  .docgrid.no-subtoc { grid-template-columns: 238px minmax(0, 1fr); }
+  .docgrid.no-subtoc .docmain { border-right: 0; }
+}
+.docside { background: var(--bg); border-radius: 16px 0 0 16px; }
+.docmain {
+  background: var(--bg);
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.docmain::-webkit-scrollbar { width: 10px; }
+.docmain::-webkit-scrollbar-track { background: transparent; }
+.docmain::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 999px;
+  border: 2px solid var(--bg);
+}
+.docmain::-webkit-scrollbar-thumb:hover { background: var(--faint); }
+.docmain::before, .docmain::after { content: none; }
+
+/* The page itself never scrolls now, so docpage.js's custom page thumb has
+   nothing to track. The main column's own scrollbar takes over. */
+#cudicScroll { display: none !important; }
+
+@media (min-width: 961px) {
+  .docside { position: static; height: 100%; }
+  .subtoc { position: static; height: 100%; }
+}
+
+/* ---------------- header row (brand) ---------------- */
+.brandrow {
+  height: 60px;
+  padding: 0 16px;
+  gap: 10px;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+.brandrow:hover { background: var(--bg); }
+.brandrow .brand-name { line-height: 1; }
+.h-tag {
+  margin-left: 2px;
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-size: 10px; font-weight: 400;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--sheet-on-signal); background: var(--sheet-signal);
+  padding: 4px 8px; border-radius: 3px;
+}
+html:root:root .docside .mark { content: url('/cudic-assets/brand/logo/cudic-mark-cream.svg'); }
+html:root[data-theme="light"] .docside .mark { content: url('/cudic-assets/brand/logo/cudic-mark-ink.svg'); }
+@media (prefers-color-scheme: light) {
+  html:root:not([data-theme="dark"]) .docside .mark { content: url('/cudic-assets/brand/logo/cudic-mark-ink.svg'); }
+}
+
+/* ---------------- section list ---------------- */
+#docNav { padding: 8px; }
+#docNav a {
+  border: 0;
+  border-radius: 8px;
+  margin: 1px 0;
+  padding: 9px 10px;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--mute);
+}
+/* docpage.js injects 8px pixel icons into every row; at chip size they
+   read as solid boxes, so this sheet uses the mono number alone. */
+#docNav a .si { display: none; }
+#docNav a .n { min-width: 18px; color: var(--nav-num); letter-spacing: 0.08em; }
+#docNav a:hover { background: var(--panel); color: var(--ink); }
+#docNav a.on {
+  background: var(--sheet-tint);
+  color: var(--ink);
+  box-shadow: inset 2px 0 var(--sheet-signal);
+  padding-left: 14px;
+}
+#docNav a.on .n { color: var(--sheet-signal-ink); }
+.toc-group {
+  border: 0;
+  padding: 15px 10px 6px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--faint);
+}
+#backBtn {
+  align-self: flex-start;
+  width: auto;
+  margin: 10px 8px 12px;
+  padding: 9px 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--mute);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+}
+#backBtn:hover { background: var(--panel); border-color: var(--line-strong); color: var(--ink); }
+
+/* ---------------- hero ---------------- */
+.docHead {
+  padding: 46px 40px 34px;
+  border-bottom: 1px solid var(--line);
+}
+.docHead::before {
+  background: radial-gradient(58% 70% at 18% 0%, rgba(255, 140, 26, 0.12), transparent 72%);
+  mask-image: none;
+  -webkit-mask-image: none;
+  opacity: 1;
+}
+.docHead .kick {
+  color: var(--sheet-signal-ink);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.docHead .kick .cur2 {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--ink);
+}
+.docHead h1 {
+  margin: 14px 0 0;
+  font-size: clamp(38px, 5.2vw, 56px);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+.docHead h1::after { content: none; }
+.lead {
+  margin-top: 16px;
+  max-width: 66ch;
+  color: var(--mute);
+  font-size: 16px;
+  line-height: 1.58;
+  text-wrap: pretty;
+}
+.lead a { color: var(--sky); text-underline-offset: 2px; }
+
+/* ---------------- article ---------------- */
+.docbody { padding: 30px 40px 38px; min-width: 0; flex: 1; }
+article { max-width: 760px; }
+article table, article pre, article .note, article ol.steps li { max-width: 100%; }
+article h2 {
+  margin: 4px 0 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+article h2:before {
+  border: 0;
+  padding: 0;
+  margin-right: 16px;
+  color: var(--sheet-signal-ink);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+article h3 {
+  margin: 26px 0 6px;
+  font-size: 17px;
+  letter-spacing: -0.015em;
+}
+article p, article li {
+  color: var(--mute);
+  font-size: 15px;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+article a { color: var(--sky); text-underline-offset: 2px; }
+article a:hover { color: var(--ink); }
+/* A quick fade instead of docpage.css's six-step walk-in, which reads as
+   blurred text for the first half second of every section switch. */
+article section.on {
+  opacity: 1;
+  transform: none;
+  animation: docsIn 220ms ease-out both;
+}
+@keyframes docsIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+article strong { color: var(--ink); font-weight: 600; }
+
+code {
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--ink);
+}
+pre {
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 18px;
+  color: var(--ink);
+  line-height: 1.65;
+  max-width: 900px;
+}
+
+ol.steps { margin: 16px 0; }
+ol.steps li {
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  background: var(--raised);
+  padding: 14px 18px 14px 64px;
+  max-width: 900px;
+}
+ol.steps li:first-child { border-radius: 10px 10px 0 0; }
+ol.steps li:last-child { border-bottom: 1px solid var(--line); border-radius: 0 0 10px 10px; }
+ol.steps li:only-child { border-radius: 10px; }
+ol.steps li:before {
+  border: 0;
+  padding: 0;
+  left: 18px;
+  top: 15px;
+  color: var(--sheet-signal-ink);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+
+.cards {
+  grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
+  gap: 10px;
+  background: transparent;
+  border: 0;
+  margin: 16px 0;
+}
+.card {
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 18px;
+  transition: border-color 160ms ease-out, background-color 160ms ease-out;
+}
+.card:hover { background: var(--hover); border-color: var(--line-strong); }
+.card:hover h3, .card:hover p, .card:hover .mono, .card:hover a { color: inherit; }
+.card .mono { color: var(--sheet-signal-ink); font-size: 10px; letter-spacing: 0.12em; margin-bottom: 7px; }
+.card h3 { font-size: 15px; letter-spacing: -0.015em; }
+.card p { font-size: 13px; line-height: 1.55; color: var(--mute); }
+a.card:hover { border-color: var(--sheet-signal); }
+
+.note {
+  background: var(--sheet-tint);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--sheet-signal);
+  border-radius: 8px;
+  padding: 14px 18px 14px 20px;
+  max-width: 900px;
+}
+
+table {
+  max-width: 900px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  font-size: 14px;
+}
+th, td { border-bottom: 1px solid var(--line-soft); color: var(--mute); padding: 9px 12px; }
+th { background: var(--panel); color: var(--ink); font-weight: 500; }
+tr:last-child td { border-bottom: 0; }
+
+.mono { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
+
+/* ---------------- right column ---------------- */
+.subtoc { background: transparent; }
+.toc-label { font-size: 10px; letter-spacing: 0.12em; color: var(--faint); padding: 18px 16px 10px; }
+.subtoc a { border-bottom: 1px solid var(--line-soft); font-size: 12.5px; }
+.subtoc a:hover { color: var(--ink); background: var(--panel); }
+.subtoc a.on { color: var(--ink); box-shadow: inset 2px 0 var(--sheet-signal); }
+
+/* ---------------- ads + footer ---------------- */
+.ad-frame { background: var(--raised); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin: 0 40px 24px; }
+.ad-cap { color: var(--faint); font-size: 10px; letter-spacing: 0.12em; }
+footer { border-top: 1px solid var(--line); padding: 22px 40px 26px; color: var(--faint); font-size: 11px; letter-spacing: 0.06em; }
+footer a { color: var(--faint); text-underline-offset: 2px; }
+footer a:hover { color: var(--ink); }
+
+/* ---------------- small screens ---------------- */
+@media (max-width: 960px) {
+  .wrap { inset: 8px; border-radius: 12px; }
+  .docgrid { border-radius: 12px; }
+  #docNav { padding: 6px; }
+  #backBtn { margin: 8px 6px 12px; }
+  .docside { border-radius: 0 12px 12px 0; }
+  .docHead { padding: 26px 22px 24px; }
+  .docHead h1 { font-size: 34px; }
+  .docbody { padding: 24px 22px 30px; }
+  .ad-frame { margin: 0 22px 22px; }
+  footer { padding: 20px 22px 24px; }
+  .docburger { top: 18px; left: 18px; border-radius: 8px; border-color: var(--line); background: var(--panel); }
+  .docclose { border-radius: 8px; }
+  .docmain { padding-top: 58px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card { transition: none; }
+}
+
+/* ---------------- corner theme toggle ---------------- */
+/* theme-toggle.js drops a fixed square .cutheme-fab on rail-less pages.
+   On the sheet it becomes a quarter-round tab cut from the window's
+   bottom-right corner: arc facing the content, right angle on the panel. */
+.wrap ~ .cutheme-fab {
+  right: 16px;
+  bottom: 16px;
+  width: 54px;
+  height: 54px;
+  border-radius: 54px 0 16px 0;
+  border: 1px solid var(--line);
+  border-right: 0;
+  border-bottom: 0;
+  background: var(--bg);
+  color: var(--mute);
+  box-shadow: -10px -10px 26px -22px rgba(20, 30, 45, 0.55);
+  transition: background-color 160ms ease-out, color 160ms ease-out;
+}
+.wrap ~ .cutheme-fab:hover { background: var(--panel); color: var(--ink); }
+.wrap ~ .cutheme-fab svg { width: 17px; height: 17px; }
+@media (max-width: 960px) {
+  .wrap ~ .cutheme-fab {
+    right: 8px;
+    bottom: 8px;
+    width: 46px;
+    height: 46px;
+    border-radius: 46px 0 12px 0;
+  }
+  .wrap ~ .cutheme-fab svg { width: 15px; height: 15px; }
+}
+
+/* ---------------- daily + five ---------------- */
+.sect + .sect { margin-top: 36px; }
+.kicker {
+  display: block;
+  margin: 0 0 10px;
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sheet-signal-ink);
+}
+.dpick {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--raised);
+  padding: 22px 24px;
+  margin: 6px 0 0;
+}
+.dpick h2 {
+  margin: 0 0 6px;
+  padding: 0;
+  border: 0;
+  font-size: clamp(26px, 3.4vw, 36px);
+  line-height: 1.1;
+}
+.dpick .by {
+  margin: 0 0 14px;
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.dpick > p { margin: 0 0 12px; max-width: 62ch; }
+.dpick-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 18px; }
+.dpick-cta, .dpick-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border-radius: 999px;
+  padding: 13px 20px;
+  font: 500 14px/1 "Geist", system-ui, sans-serif;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 160ms ease-out, border-color 160ms ease-out, color 160ms ease-out;
+}
+.dpick-cta {
+  background: var(--sheet-signal);
+  border: 1px solid var(--sheet-signal);
+  color: var(--sheet-on-signal);
+  font-weight: 600;
+}
+.dpick-cta:hover { background: var(--sheet-signal-hover); border-color: var(--sheet-signal-hover); }
+.dpick-ghost { background: transparent; border: 1px solid var(--line-strong); color: var(--ink); }
+.dpick-ghost:hover { background: var(--panel); border-color: var(--ink); }
+.dpick-note { margin: 14px 0 0 !important; font-size: 12.5px; color: var(--faint) !important; }
+
+ol.five {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--raised);
+}
+ol.five > li {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin: 0;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line-soft);
+}
+ol.five > li:last-child { border-bottom: 0; }
+ol.five .n {
+  flex: 0 0 22px;
+  padding-top: 3px;
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--sheet-signal-ink);
+}
+ol.five .thumb {
+  flex: 0 0 132px;
+  width: 132px;
+  aspect-ratio: 16 / 10;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--panel);
+}
+ol.five .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+ol.five .fx { min-width: 0; }
+ol.five h2 { margin: 0 0 5px; padding: 0; border: 0; font-size: 19px; letter-spacing: -0.02em; }
+ol.five h2 a { color: var(--ink); text-decoration: none; }
+ol.five h2 a:hover { color: var(--sky); }
+ol.five p { margin: 0; font-size: 14px; line-height: 1.55; }
+ol.five .plays {
+  display: block;
+  margin-top: 8px;
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+@media (max-width: 640px) {
+  .dpick { padding: 18px; }
+  .dpick-row { gap: 8px; }
+  .dpick-cta, .dpick-ghost { width: 100%; }
+  ol.five > li { gap: 12px; padding: 14px; }
+  ol.five .thumb { flex-basis: 84px; width: 84px; }
+  ol.five h2 { font-size: 17px; }
+}
+
+/* The header is not a flex item to squeeze: a tall article (five, mobile
+   daily) must scroll, not crop the h1 and lead. */
+.docHead { flex: 0 0 auto; }
+.docmain > footer { flex: 0 0 auto; }
+
+/* A how-it-works block under the five needs the same gap as between sections. */
+ol.five + .sect { margin-top: 36px; }

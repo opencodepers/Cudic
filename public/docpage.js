@@ -91,7 +91,7 @@
             Array.prototype.forEach.call(nav.querySelectorAll('a'), function (a) { var on = a.dataset.sec === id; a.classList.toggle('on', on); if (on) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); });
             if (crumb) crumb.textContent = titles[id];
             if (sub) {
-                sub.innerHTML = '';
+                sub.replaceChildren();
                 var count = 0;
                 Array.prototype.forEach.call(sec.querySelectorAll('h3'), function (h) {
                     if (h.closest('.card')) return;
@@ -104,8 +104,21 @@
                 });
                 var aside = document.getElementById('subToc');
                 if (aside) aside.style.display = count ? '' : 'none';
+                // Nothing to put in the third column: drop it instead of
+                // leaving an empty panel beside a short legal section.
+                var grid = document.querySelector('.docgrid');
+                if (grid) grid.classList.toggle('no-subtoc', !count);
             }
-            window.scrollTo(0, 0);
+            // html has smooth scrolling; an instant reset keeps a section
+            // switch from animating the whole page back to the top. The docs
+            // sheet scrolls inside .docmain instead of the page.
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+            var pane = document.querySelector('.docmain');
+            if (pane) pane.scrollTop = 0;
+            // Keep the highlighted row in view when a deep link lands on a
+            // section far down the list.
+            var on = nav.querySelector('a.on');
+            if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
             return true;
         }
         function route() {

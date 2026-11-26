@@ -4611,6 +4611,9 @@ function slugify(s) {
   if (url.pathname === '/updlog') {
     url.pathname = '/updlog.html';
   }
+  if (url.pathname === '/credits') {
+    url.pathname = '/credits.html';
+  }
 
   // ── Redirect /forums to /forums.html ───────────────────────────
   if (url.pathname === '/forums') {
@@ -4695,6 +4698,11 @@ function slugify(s) {
     url.pathname = '/themes.html';
   }
 
+  // ── Redirect /themes-download to the .ctheme download sheet ───
+  if (url.pathname === '/themes-download') {
+    url.pathname = '/themes-download.html';
+  }
+
   // ── Redirect /customize to /customize.html ────────────────────
   if (url.pathname === '/customize') {
     url.pathname = '/customize.html';
@@ -4737,6 +4745,11 @@ function slugify(s) {
   // ── Redirect /quests to /quests.html ──────────────────────────
   if (url.pathname === '/quests') {
     url.pathname = '/quests.html';
+  }
+
+  // ── /signal-lost — the self-contained arcade game ────────────
+  if (url.pathname === '/signal-lost') {
+    url.pathname = '/arcade/signal-lost.html';
   }
 
   // ── Redirect /shop to /shop.html (cosmetics) ────────────────
