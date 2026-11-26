@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="en">
 <head>
-<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+<meta name="color-scheme" content="light dark">
+<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}try{var _cudicScheme=document.querySelector('meta[name="color-scheme"]');if(_cudicScheme)_cudicScheme.setAttribute('content',document.documentElement.dataset.theme==='light'?'light':'dark');}catch(e){}</script>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="color-scheme" content="light dark" />
 <meta name="theme-color" content="#B0C4DE" />
 <title>Cudic — brand sheet, issue 01 (archive)</title>
 <meta name="description" content="Cudic brand sheet, issue 01 — an archive of the pre-v2 orange-on-steel identity. Superseded by DESIGN.md v2 (ink, cream, lime)." />
@@ -723,6 +723,7 @@
     padding: 3px 7px; border-radius: 4px; text-decoration: line-through;
     text-decoration-color: #b04a2c; text-decoration-thickness: 1px;
   }
+  .banned-note { margin-top: 10px; max-width: 78ch; color: var(--ash); font-size: 12.5px; line-height: 1.5; }
 
   /* ---------------- parts ---------------- */
   .parts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
@@ -1298,8 +1299,8 @@
   /* ---------------- colophon ---------------- */
   .colophon { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; justify-content: space-between; padding: 20px 22px 24px; border-top: 1px solid var(--line); background: #1d1d1d; }
   .colophon p { color: var(--mute); font-size: 12.5px; }
-  .colophon a { color: var(--ash); text-decoration: none; border-bottom: 1px solid #454545; }
-  .colophon a:hover { color: var(--white); border-bottom-color: var(--signal); }
+  .colophon a { color: var(--ash); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; text-decoration-color: #454545; }
+  .colophon a:hover { color: var(--white); text-decoration-color: var(--signal); }
 
   /* ---------------- rail tooltip + toast ---------------- */
   .tip {
@@ -1344,6 +1345,8 @@
     .panel-h { height: 54px; padding: 0 14px; gap: 10px; }
     .sec { padding: 34px 14px 38px; }
     .rules, .motion-rules, .say, .device, .recipe-grid, .layer-grid { grid-template-columns: minmax(0, 1fr); }
+    .cursor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .menu-bench { grid-template-columns: minmax(0, 1fr); }
     .recipe-stage { min-height: 172px; }
     .recipe-stage.recipe-stage--modal { min-height: 226px; }
     .recipe-stage.recipe-stage--toast { min-height: 190px; }
@@ -1434,6 +1437,7 @@
     <a class="rail-link" href="#motion" data-label="Motion" aria-label="Motion"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" data-lucide="zap" aria-hidden="true" class="lucide lucide-zap"><path d="M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z"></path></svg></a>
     <a class="rail-link" href="#recipes" data-label="Recipes" aria-label="Motion recipes"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" data-lucide="sparkles" aria-hidden="true" class="lucide lucide-sparkles"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"></path><path d="M20 2v4"></path><path d="M22 4h-4"></path><circle cx="4" cy="20" r="2"></circle></svg></a>
     <a class="rail-link" href="#layers" data-label="Layers" aria-label="Layers"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" data-lucide="layers" aria-hidden="true" class="lucide lucide-layers"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"></path><path d="m22 12.18-9.17 4.16a2 2 0 0 1-1.66 0L2 12.18"></path><path d="m22 17.18-9.17 4.16a2 2 0 0 1-1.66 0L2 17.18"></path></svg></a>
+    <a class="rail-link" href="#cursors" data-label="Cursors" aria-label="Cursors and the right-click menu"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" data-lucide="mouse-pointer" aria-hidden="true" class="lucide lucide-mouse-pointer"><path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path><path d="m13 13 6 6"></path></svg></a>
     <a class="rail-link" href="#voice" data-label="Voice" aria-label="Voice"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" data-lucide="message-square" aria-hidden="true" class="lucide lucide-message-square"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"></path></svg></a>
     <a class="rail-link" href="#parts" data-label="Parts" aria-label="Parts"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" data-lucide="blocks" aria-hidden="true" class="lucide lucide-blocks"><path d="M10 22V7a1 1 0 0 0-1-1H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5a1 1 0 0 0-1-1H2"></path><rect x="14" y="2" width="8" height="8" rx="1"></rect></svg></a>
     <a class="rail-link" href="#specs" data-label="Specs" aria-label="Specs"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" data-lucide="ruler" aria-hidden="true" class="lucide lucide-ruler"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"></path><path d="m14.5 12.5 2-2"></path><path d="m11.5 9.5 2-2"></path><path d="m8.5 6.5 2-2"></path><path d="m17.5 15.5 2-2"></path></svg></a>
@@ -2014,10 +2018,10 @@
 
     <!-- 09 VOICE ------------------------------------------------------>
     <section class="sec" id="voice">
-      <div class="sec-h"><span class="n">08</span><h2>Write like you already played it</h2></div>
+      <div class="sec-h"><span class="n">09</span><h2>Write like you already played it</h2></div>
       <p class="lede">
         Short sentences, concrete nouns, a little bit funny and never cute.
-        <b>Say the thing the feature does.</b> The update log is the tone of voice:
+        <b>Say the thing the feature does, and name the noun.</b> The update log is the tone of voice:
         what changed, in words a player uses, shipped the day it happened.
       </p>
 
@@ -2031,23 +2035,33 @@
         </div>
         <div class="say-col say-col--no">
           <div class="say-h">Don't</div>
-          <div class="say-item"><p>Unlock a seamless universe of play.</p><small>Two abstractions, no noun</small></div>
-          <div class="say-item"><p>Empowering next-generation creators.</p><small>Nobody is being empowered</small></div>
-          <div class="say-item"><p>Introducing our all-new innovative platform!</p><small>An exclamation mark is a tell</small></div>
-          <div class="say-item"><p>Leverage our ecosystem to supercharge engagement.</p><small>Four banned words in nine</small></div>
+          <div class="say-item"><p>Build games with our easy-to-use editor.</p><small>Easy is a claim. Name the tool.</small></div>
+          <div class="say-item"><p>Share your creations with the world.</p><small>Say game and link.</small></div>
+          <div class="say-item"><p>Join a growing community of creators.</p><small>Who, how many, doing what?</small></div>
+          <div class="say-item"><p>Finally, a game editor that does it all.</p><small>Name one thing it does.</small></div>
         </div>
+      </div>
+
+      <div class="rules" style="margin-top:12px">
+        <div class="rule"><span class="n">01</span><h3>Name the noun</h3><p>A game, a link, a profile, an editor. If the line survives a product swap, it is not copy yet.</p></div>
+        <div class="rule"><span class="n">02</span><h3>One idea per sentence</h3><p>Two clauses are fine. Three is a pitch. Cut the third, then read it aloud.</p></div>
+        <div class="rule"><span class="n">03</span><h3>Sentence case, full stop</h3><p>Buttons say what happens next: Publish, Copy link, Open Studio. No exclamation marks and no all-caps words.</p></div>
+        <div class="rule"><span class="n">04</span><h3>A claim needs a number or a date</h3><p>"Faster" is not a fact. "Loads in under a second" is. If you cannot measure it, cut it.</p></div>
       </div>
 
       <div class="banned" aria-label="Banned words">
         <span>seamless</span><span>unlock</span><span>empower</span><span>supercharge</span>
         <span>ecosystem</span><span>journey</span><span>delight</span><span>robust</span>
         <span>cutting-edge</span><span>revolutionary</span><span>game-changing</span><span>next-gen</span>
+        <span>unleash</span><span>elevate</span><span>effortless</span><span>all-in-one</span><span>dream</span>
       </div>
+
+      <p class="banned-note">Also cut: "take your ... to the next level", "whether you're a ... or a ...", "at your fingertips". If the line survives a product swap, it is not copy yet.</p>
     </section>
 
-    <!-- 09 PARTS ------------------------------------------------------>
+    <!-- 10 PARTS ------------------------------------------------------>
     <section class="sec" id="parts">
-      <div class="sec-h"><span class="n">09</span><h2>Parts you will actually build</h2></div>
+      <div class="sec-h"><span class="n">10</span><h2>Parts you will actually build</h2></div>
       <p class="lede">
         Everything on this page is a component from the product. If a screenshot of Cudic
         and a part from this sheet disagree, <b>the product wins and this sheet gets fixed</b>.
@@ -2215,9 +2229,9 @@
       </div>
     </section>
 
-    <!-- 10 SPECS ------------------------------------------------------>
+    <!-- 11 SPECS ------------------------------------------------------>
     <section class="sec" id="specs">
-      <div class="sec-h"><span class="n">10</span><h2>The numbers</h2></div>
+      <div class="sec-h"><span class="n">11</span><h2>The numbers</h2></div>
       <p class="lede">If it is not in this table it is not decided, and it is not a rule yet.</p>
 
       <table class="specs">
@@ -2984,6 +2998,129 @@ function he(t,e){t.indexOf(e)===-1&&t.push(e)}function gt(t,e){let r=t.indexOf(e
   });
 
   addEventListener('scroll', () => { closeMenu(); closePopover(); }, { passive: true });
+
+  /* ---- cursors: the shipped pack -------------------------------- */
+  const CURSORS = [
+    { key: 'default', fluid: '6 4', pixel: '2 2', fallback: 'auto' },
+    { key: 'link', fluid: '6 4', pixel: '2 2', fallback: 'pointer' },
+    { key: 'text', fluid: '16 16', pixel: '8 14', fallback: 'text' },
+    { key: 'crosshair', fluid: '16 16', pixel: '16 16', fallback: 'crosshair' },
+    { key: 'plus', fluid: '16 16', pixel: '16 16', fallback: 'crosshair' },
+    { key: 'move', fluid: '16 16', pixel: '16 16', fallback: 'move' },
+    { key: 'resize-h', fluid: '16 16', pixel: '16 8', fallback: 'ew-resize' },
+    { key: 'resize-v', fluid: '16 16', pixel: '8 16', fallback: 'ns-resize' },
+    { key: 'not-allowed', fluid: '16 16', pixel: '16 16', fallback: 'not-allowed' },
+    { key: 'wait', fluid: '16 16', pixel: '16 16', fallback: 'wait' }
+  ];
+  const cursorTiles = [...document.querySelectorAll('[data-cursor]')];
+  const cursorStyles = [...document.querySelectorAll('[data-cur-style]')];
+  const cursorColors = [...document.querySelectorAll('[data-cur-color]')];
+  let cursorStyle = 'fluid';
+  let cursorColor = 'cream';
+
+  function paintCursors() {
+    cursorTiles.forEach((tile) => {
+      const cursor = CURSORS.find((item) => item.key === tile.dataset.cursor);
+      if (!cursor) return;
+      const hotspot = cursorStyle === 'fluid' ? cursor.fluid : cursor.pixel;
+      const path = `/cudic-assets/cursors/${cursorStyle}/${cursorColor}/svg/${cursor.key}.svg`;
+      tile.style.cursor = `url("${path}") ${hotspot}, ${cursor.fallback}`;
+      tile.dataset.copy = `cursor: url("${path}") ${hotspot}, ${cursor.fallback};`;
+      const preview = tile.querySelector('img');
+      if (preview) preview.src = path;
+      const label = tile.querySelector('[data-hotspot]');
+      if (label) label.textContent = hotspot;
+    });
+    [...cursorStyles, ...cursorColors].forEach((button) => {
+      const on = button.dataset.curStyle
+        ? button.dataset.curStyle === cursorStyle
+        : button.dataset.curColor === cursorColor;
+      button.classList.toggle('is-on', on);
+      button.setAttribute('aria-pressed', String(on));
+    });
+  }
+
+  if (cursorTiles.length) {
+    paintCursors();
+    [...cursorStyles, ...cursorColors].forEach((button) => {
+      button.addEventListener('click', () => {
+        if (button.dataset.curStyle) cursorStyle = button.dataset.curStyle;
+        if (button.dataset.curColor) cursorColor = button.dataset.curColor;
+        paintCursors();
+      });
+    });
+  }
+
+  /* ---- the Cudic message menu ----------------------------------- */
+  const menuStageDemo = document.getElementById('menuStage');
+  const menuCard = document.getElementById('menuCard');
+  const messageMenu = document.getElementById('menuDemo');
+
+  function closeMessageMenu(focus = false) {
+    if (!messageMenu || messageMenu.hidden) return;
+    messageMenu.hidden = true;
+    menuCard?.setAttribute('aria-expanded', 'false');
+    if (focus) menuCard?.focus({ preventScroll: true });
+  }
+
+  function openMessageMenu(x, y) {
+    if (!menuStageDemo || !menuCard || !messageMenu) return;
+    messageMenu.hidden = false;
+    menuCard.setAttribute('aria-expanded', 'true');
+    const rect = menuStageDemo.getBoundingClientRect();
+    const width = messageMenu.offsetWidth;
+    const height = messageMenu.offsetHeight;
+    const left = Math.min(Math.max(6, x - rect.left), Math.max(6, rect.width - width - 6));
+    const top = Math.min(Math.max(6, y - rect.top), Math.max(6, rect.height - height - 6));
+    messageMenu.style.left = `${left}px`;
+    messageMenu.style.top = `${top}px`;
+    const ox = Math.min(100, Math.max(0, x - rect.left - left));
+    const oy = Math.min(100, Math.max(0, y - rect.top - top));
+    messageMenu.style.transformOrigin = `${ox}px ${oy}px`;
+    messageMenu.querySelector('[role="menuitem"]')?.focus({ preventScroll: true });
+  }
+
+  if (menuStageDemo && menuCard && messageMenu) {
+    menuCard.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+      openMessageMenu(event.clientX, event.clientY);
+    });
+    menuCard.addEventListener('click', () => {
+      const rect = menuCard.getBoundingClientRect();
+      openMessageMenu(rect.left + 26, rect.top + 46);
+    });
+    messageMenu.addEventListener('click', (event) => {
+      const item = event.target.closest('[role="menuitem"]');
+      if (!item) return;
+      say(`${item.dataset.menuDemo || item.textContent.trim()} · demo only`);
+      closeMessageMenu(true);
+    });
+    messageMenu.addEventListener('keydown', (event) => {
+      const items = [...messageMenu.querySelectorAll('[role="menuitem"]')];
+      const index = items.indexOf(document.activeElement);
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        const step = event.key === 'ArrowDown' ? 1 : -1;
+        items[(index + step + items.length) % items.length]?.focus();
+      } else if (event.key === 'Home' || event.key === 'End') {
+        event.preventDefault();
+        items[event.key === 'Home' ? 0 : items.length - 1]?.focus();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        closeMessageMenu(true);
+      } else if (event.key === 'Tab') {
+        closeMessageMenu(true);
+      }
+    });
+  }
+
+  document.addEventListener('pointerdown', (event) => {
+    if (messageMenu && !messageMenu.hidden && !messageMenu.contains(event.target) && !menuCard?.contains(event.target)) closeMessageMenu();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeMessageMenu(true);
+  });
+  addEventListener('scroll', () => closeMessageMenu(), { passive: true });
 
   if (!animate) document.documentElement.classList.remove('js');
 </script>

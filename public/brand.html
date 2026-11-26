@@ -4,7 +4,7 @@
 <meta name="color-scheme" content="light dark">
     <script src="/consent.js?v=3"></script>
 
-<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}</script>
+<script>try{if(localStorage.getItem('glox_theme')!=='light')document.documentElement.dataset.theme='dark';}catch(e){}try{var _cudicScheme=document.querySelector('meta[name="color-scheme"]');if(_cudicScheme)_cudicScheme.setAttribute('content',document.documentElement.dataset.theme==='light'?'light':'dark');}catch(e){}</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Cudic Brand Kit</title>
@@ -281,11 +281,15 @@ input { cursor: url("text.svg") 8 14, text; }</pre><p>Always add the keyword fal
  </section>
  <section class="sec" id="voice">
   <div class="sh"><h2>Voice</h2><span class="mono">short, warm, direct</span></div>
-  <p class="intro">Cudic sounds like a friendly maker: short, warm and direct.</p>
+  <p class="intro">Cudic sounds like a friendly maker: short, warm and direct. Name the thing, say what it does, stop.</p>
   <div class="grid g3">
    <div class="cell"><b>Tagline</b><p style="color:var(--ink);font-size:20px">Write a game. Send a link.</p></div>
-   <div class="cell"><b class="do">Do</b><ul><li>Short sentences. Verbs first.</li><li>“Write three lines, preview live, publish.”</li><li>Credit authors, always.</li></ul></div>
-   <div class="cell"><b class="dont">Don’t</b><ul><li>Hype words: revolutionary, next-gen.</li><li>Real-money language. Coins are for fun.</li><li>Exclamation marks.</li></ul></div>
+   <div class="cell"><b class="do">Do</b><ul><li>Short sentences. Verbs first. Name the noun.</li><li>“Write three lines, preview live, publish.”</li><li>Credit authors, always.</li><li>Sentence case. Buttons say what happens: Publish, Copy link.</li></ul></div>
+   <div class="cell"><b class="dont">Don’t</b><ul><li>Hype words: revolutionary, next-gen, seamless, unlock, supercharge.</li><li>Promises: dreams, next level, at your fingertips.</li><li>Real-money language. Coins are for fun.</li><li>Exclamation marks, all-caps words, three adjectives in a row.</li></ul></div>
+  </div>
+  <div class="grid g2">
+   <div class="cell"><b>The test</b><p>Swap in another product. If the sentence still works, it says nothing. Rewrite it with a game, a link or a button in it.</p></div>
+   <div class="cell"><b>Rewrite</b><p style="color:var(--ink)">Before: “A whole new way to play.”<br>After: “Publish a game and send the link.”</p></div>
   </div>
  </section>
  <footer class="mono">Cudic brand kit · cudic.vercel.app</footer>
@@ -328,7 +332,7 @@ var hx=d.h=='tl'?1:W/2,hy=d.h=='tl'?1:H/2;
 return{svg:'<svg xmlns="http://www.w3.org/2000/svg" width="'+W*sc+'" height="'+H*sc+'" viewBox="0 0 '+W+' '+H+'" shape-rendering="crispEdges">'+o+'</svg>',hx:hx*2,hy:hy*2,W:W*2,H:H*2}}
 function uri(s){return 'data:image/svg+xml,'+encodeURIComponent(s)}
 function cs(k){var c=cur(k,2);return 'url("'+uri(c.svg)+'") '+c.hx+' '+c.hy+', '+CD[k].c}
-function drawCur(){var g=document.getElementById('cg');g.innerHTML='';Object.keys(CD).forEach(function(k){var c=cur(k,4),m=cur(k,2);var b=document.createElement('button');b.className='ck';b.dataset.k=k;b.style.cursor=cs(k);b.innerHTML='<div class="cpv"><img class="'+(ST=='fluid'?'fl':'')+'" alt="'+k+'" src="'+uri(c.svg)+'"></div><span class="mono" style="color:var(--ink)">'+k+'</span><span class="mono">'+m.W+'×'+m.H+' · hotspot '+m.hx+','+m.hy+'</span>';g.appendChild(b)});applyPack()}
+function drawCur(){var g=document.getElementById('cg');g.replaceChildren();Object.keys(CD).forEach(function(k){var c=cur(k,4),m=cur(k,2);var b=document.createElement('button');b.className='ck';b.dataset.k=k;b.style.cursor=cs(k);b.innerHTML='<div class="cpv"><img class="'+(ST=='fluid'?'fl':'')+'" alt="'+k+'" src="'+uri(c.svg)+'"></div><span class="mono" style="color:var(--ink)">'+k+'</span><span class="mono">'+m.W+'×'+m.H+' · hotspot '+m.hx+','+m.hy+'</span>';g.appendChild(b)});applyPack()}
 function applyPack(){var s=document.getElementById('cp');if(!s){s=document.createElement('style');s.id='cp';document.head.appendChild(s)}s.textContent=PK?'html,body{cursor:'+cs('default')+'} a,button,.ti,.sw{cursor:'+cs('link')+'}':'';document.getElementById('pkb').textContent='Use pack on this page: '+(PK?'on':'off')}
 document.getElementById('cg').addEventListener('click',function(e){var b=e.target.closest('.ck');if(!b)return;try{navigator.clipboard.writeText('cursor: '+cs(b.dataset.k)+';');toast(b.dataset.k+' CSS copied')}catch(x){toast('Copy not available here')}});
 document.getElementById('cvs').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;CV=b.dataset.v;this.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x==b)});drawCur()});
