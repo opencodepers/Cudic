@@ -1,7 +1,8 @@
 /* file: public/cudic-menu.js
  * what: Cudic's own right-click menu. On chat messages it opens a Discord-style
  *   message menu (quick reactions, add reaction, reply, copy, pin, bookmark,
- *   reminder, speak, report); everywhere else it keeps the link/copy/back menu.
+ *   reminder, speak, report); on the rail's Discord icon it splits server and
+ *   profile; everywhere else it keeps the link/copy/back menu.
  * invariants: text fields, selects and games keep the native menu, so typing
  *   and paste never break; message actions reuse client.js globals
  *   (toggleReact, addSystemMessage, current) and the existing API routes.
@@ -31,6 +32,8 @@
     edit: svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>'),
     history: svg('<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/>'),
     collect: svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 11v4M10 13h4"/>'),
+    server: svg('<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01M6 18h.01"/>'),
+    user: svg('<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
     calendar: svg('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/><path d="M8 15h.01M12 15h.01M16 15h.01M8 18h.01M12 18h.01"/>')
   };
 
@@ -376,6 +379,25 @@
     place(e, el);
   }
 
+  // ── Discord icon menu ───────────────────────────────────────────
+  // The rail has one Discord button but two things people mean by it: the
+  // Cudic server and Nathen's own profile. A click goes to the server, so the
+  // right-click is where the other one lives. The invite is read off the link
+  // itself, so changing it in sidebar.js changes it here too.
+  var DISCORD_PROFILE = 'https://discord.com/users/1553117800543821969';
+  function buildDiscordMenu(e, link) {
+    var el = menuEl();
+    el.replaceChildren();
+    var server = link.getAttribute('href') || 'https://discord.gg/rAar6AJ3N';
+    el.appendChild(item('Cudic Discord server', ICON.server, function () {
+      window.open(server, '_blank', 'noopener');
+    }, { hint: 'invite' }));
+    el.appendChild(item('My Discord profile', ICON.user, function () {
+      window.open(DISCORD_PROFILE, '_blank', 'noopener');
+    }, { hint: '@itoleursweets' }));
+    place(e, el);
+  }
+
   // ── Generic page menu ───────────────────────────────────────────
   function buildPageMenu(e) {
     var el = menuEl();
@@ -403,7 +425,9 @@
 
   function build(e) {
     var row = e.target.closest ? e.target.closest('.msg[data-mid]') : null;
-    if (row && row.closest('#messages')) buildMessageMenu(row, e);
+    if (row && row.closest('#messages')) { buildMessageMenu(row, e); return; }
+    var discord = e.target.closest ? e.target.closest('[data-p="discord"], .sidebar a[href*="discord.gg"]') : null;
+    if (discord) buildDiscordMenu(e, discord);
     else buildPageMenu(e);
   }
 

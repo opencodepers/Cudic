@@ -531,4 +531,4 @@
 (function(){ if (window.CudicPalette || document.querySelector('script[data-cudic-palette]')) return; var s=document.createElement('script'); s.src='/cudic-palette.js?v=2'; s.defer=true; s.setAttribute('data-cudic-palette',''); document.head.appendChild(s); })();
 
 /* Cudic's own right-click menu — text fields keep the native one. */
-(function(){ if (window.CudicMenu || document.querySelector('script[data-cudic-menu]')) return; var s=document.createElement('script'); s.src='/cudic-menu.js?v=7'; s.defer=true; s.setAttribute('data-cudic-menu',''); document.head.appendChild(s); })();
+(function(){ if (window.CudicMenu || document.querySelector('script[data-cudic-menu]')) return; var s=document.createElement('script'); s.src='/cudic-menu.js?v=8'; s.defer=true; s.setAttribute('data-cudic-menu',''); document.head.appendChild(s); })();
