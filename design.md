@@ -1,324 +1,253 @@
-# Cudic design system — v2.0 (asset-pack based) · 2026-10-27
+# Cudic design system — v3.0 (orange on steel) · 2026-11-27
 
-Single source of truth: **`public/cudic-assets/`**. Its `README.md` is the pack manual and
-`manifest.json` is the machine-readable canon (every icon as an 8×8 pixel grid + cursor
-hotspots). `brand/colors.json` holds the palette and `brand/tokens.css` holds the CSS
-variables — import both when styling a page.
+Canon: **`public/brand-app.html`** — the brand sheet, issue 01. It is the live artefact, not a
+description of one, so if a screenshot of the product and a part of the sheet disagree, the
+product wins and the sheet gets fixed.
 
-```css
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;700&display=swap');
-@import url('/cudic-assets/brand/tokens.css');
-```
+This file replaces v2.0 (ink canvas, lime/blue accents, `steps(4)` motion). **Orange on steel is
+now the identity for every surface**: a steel-blue desk, one floating charcoal window, a 60 px
+rail, and a single orange that means "you can press this". The v2 palette is retired as colour
+canon, not deleted — the icon, emoji and cursor pack still ships (§8) and `/editor` and
+`/studio` keep their IDE-dark chrome.
 
-This file replaces the previous design system (light-only Epilogue/Satoshi palette,
-`--signal #7300FF`, Underground Blue). The system is: **ink-dark canvas, grid-led
-layout, hard-edged lime/blue accents, pixel-art icons — Geist everywhere.**
+Still to migrate: the landing page and the older marketing pages. Until they are rebuilt on this
+sheet they are not references for new work; the sheet is.
 
 ---
 
-## 1. File map (what ships in `/cudic-assets/`)
+## 1. The window
 
-```
-cudic-assets/
-  README.md             pack manual (2.1KB)
-  manifest.json         16KB — per-icon pixel strings + all cursor hotspots/fallbacks
-  brand/
-    colors.json         the 8 palette colors
-    tokens.css          --cudic-* CSS variables (colors, fonts, motion)
-    logo/
-      cudic-mark-*.svg  one mark, 4 recolors: ink, cream, lime, blue (5.8KB each)
-  icons/
-    icon-sheet.png      contact sheet, every icon at once
-    svg/<category>/     83 icons — 7 categories (roster in §4)
-    png/{dark,light}/16|32|64/<category>/   83 × 6 = 498 PNGs
-  emoji/
-    emoji-sheet.png     contact sheet
-    svg/                30 SVGs, 32×32 (16×16 art at 2×)
-    png/{32,64,128}/    30 × 3 = 90 PNGs
-  cursors/
-    pixel/{cream,ink}/{svg,png,cur}/        10 each (SVG + PNG + Windows .cur)
-    fluid/{cream,ink}/svg/                  10 each, vector only
-    css/                4 drop-in sheets: pixel-cream / pixel-ink / fluid-cream / fluid-ink
-```
+Everything Cudic makes sits on the desk as **one floating charcoal window**, never full-bleed.
 
-Fonts (Geist, Geist Mono) are **not bundled** — pull from Google Fonts (SIL OFL).
-
-## 2. Palette — dark & light modes
-
-Both modes use the same eight tokens. **Dark is the default** (no `data-theme`
-override = dark). Light exists because the pack ships paired variants (icon PNG
-folders, cursor sheets, logo recolors) — flip the tokens and pick the matching
-variants from the mode-swap table below.
-
-**Dark mode (default):**
-
-| Token | Hex | Role |
+| Part | Value | Rule |
 |---|---|---|
-| `--cudic-ink` | `#0d0e10` | Canvas. Page & editor backgrounds. |
-| `--cudic-cream` | `#f7f5ec` | Primary text on dark UIs. |
-| `--cudic-lime` | `#b8f23a` | Primary accent: spark cells, active states, CTAs, markers. |
-| `--cudic-blue` | `#3f7cff` | Secondary accent: alternate sparks, links, focus. |
-| `--cudic-sky` | `#9fd0ff` | Sky tint — icon shading, info/graceful highlights. |
-| `--cudic-panel` | `#14161b` | Surface — cards, panels, code blocks above the ink canvas. |
-| `--cudic-line` | `#262a33` | Hairline borders and 1px grid rules. |
-| `--cudic-mute` | `#9a9a94` | Muted body text, captions, meta. |
+| Desk | `#B0C4DE` | Always behind. Never a gradient, never animated, never a section background. |
+| Underground | `#E8EEFA` | Only when a card or an icon stage has to lift out of the desk. |
+| Window | `#222222`, r 16, 16 px inset | The window floats; the desk does not move or fade. |
+| Shadow | `0 26px 70px -34px` at 55% | One shadow, reused. To separate two objects, add a 1 px line first. |
+| Rail | 60 px column, flush left | Charcoal, one hairline on its right, Lucide at 20 px / 1.6 stroke. Icons only; labels on hover. |
+| Panel header | 60 px, 1 px bottom line | Name 20/600 −0.02em, mono stamp on the right. |
+| Sections | 46 px top · 22 px sides · 52 px bottom | Divided by one horizontal hairline each. |
 
-Contrast on the ink canvas (WCAG):
+- **Radii:** 6 px controls (`r-sm`), 12 px cards and layers (`r-lg`), 16 px the window and dialogs.
+  Nothing is a pill except the prompt pill and the presence chip.
+- **No glow, no gradient, no glass, no colour-blocked sections.** Depth is the one shadow and the
+  hairlines.
+- **Focus:** `2px solid #FF8C1A`, offset 2 px, keyboard only — same ring on the desk and inside
+  the window. Selection is orange on `#1B1712`; `accent-color` and `caret-color` are orange.
 
-| Pair | Ratio | Verdict |
-|---|---|---|
-| cream on ink | ≈ 17.7:1 | AAA body text |
-| lime on ink | ≈ 14.5:1 | AAA even for body-size text, but reserve for accents |
-| blue on ink | ≈ 5.1:1 | passes AA body text / AAA large text |
-| mute on ink | ≈ 6.8:1 | AA body text |
+## 2. Colour
 
-**Light mode (inverted pair):** canvas & text are pack canon (`cream` / `ink`);
-the light neutrals and the deep-blue accent are v2 tunings derived from the pack's
-own shades.
+Orange is a **signal, not a decoration**: it means *you can press this*, *this is active*, *this
+is where you are*. In the product it marks one primary action per view; utility controls and the
+active rail borrow it; everything else is a grey that gets out of the way.
 
-| Role | Hex | Source / note |
-|---|---|---|
-| Canvas | `#f7f5ec` (`cream`) | pack canon — replaces retired Underground Blue `#E8EEFA` |
-| Text | `#0d0e10` (`ink`) | pack canon — **≈ 17.7:1** |
-| Panel / card | `#fffdf6` | derived — warm near-white, never pure `#fff` |
-| Line | `#d9d6c6` | derived — hairlines visible on cream |
-| Muted text | `#5f5f56` | derived — ≈ 5.9:1, captions/meta |
-| Links / text accents | `#1b3fb8` | pack canon (deep-blue icon shade) — ≈ 7.8:1, AAA |
-| Lime accents | `#b8f23a` | pack canon — **fills only, always with ink text** (≈ 1.2:1 as text on cream → decorative) |
-| Sky | `#9fd0ff` | info tints |
-
-On light: `#3f7cff` remains valid for large text / UI accents (≈ 3.5:1, AA large
-only); links and small emphasized text use the deep blue `#1b3fb8`. Focus ring on
-light: `2px solid #1b3fb8`.
-
-Baked icon spark cells (lime/blue) stay lime/blue in both modes — on cream they read
-as a soft decorative accent; never the sole carrier of meaning.
-
-Paired asset variants flip with the mode:
-
-| Asset | Dark UI | Light UI |
-|---|---|---|
-| Icon PNG folder | `png/light/*` (cream icons) | `png/dark/*` (ink icons) |
-| Cursor stylesheet | `pixel-cream` / `fluid-cream` | `pixel-ink` / `fluid-ink` |
-| Logo recolor | `cudic-mark-cream.svg` | `cudic-mark-ink.svg` |
+| Token | Hex | Role | Contrast |
+|---|---|---|---|
+| `--desk` | `#B0C4DE` | Steel behind the window | 8.9 : 1 vs panel |
+| `--underground` | `#E8EEFA` | Light lifts: icon stages, print | pairs with `#222` |
+| `--panel` | `#222222` | The window — ~90% of the product | base surface |
+| `--raised` | `#343434` | Cards, inputs, controls, the one line colour | 1 px lines |
+| `--line` | `#343434` | Hairline borders | — |
+| `--line-soft` | `#2E2E2E` | Inner rules that should whisper | — |
+| `--white` | `#FFFFFF` | Titles, prices, the thing you came for | 15.9 : 1 |
+| `--ash` | `#A6A6A6` | Explanations, metadata, the second sentence | 6.5 : 1 |
+| `--mute` | `#8C8C8C` | Labels, counts, timestamps — never a sentence | 4.7 : 1 (AA labels) |
+| `--signal` | `#FF8C1A` | Primary action, active tab, active rail, the dot | 6.8 : 1 — readable as text |
+| `--signal-hover` | `#E67A00` | Hover and press on orange only, one step | no third step |
+| `--tint` | `rgba(255,140,26,.14)` | Selected rows and the active rail — a wash, not a colour | never a new hex |
+| `--on-signal` | `#1B1712` | Text on orange. Warmer than black on purpose | 7.7 : 1 on signal |
+| cover lime | `#A3E635` | **Covers only.** A game without art should not look broken | no UI use |
 
 Rules:
 
-- **Dark by default.** Ink canvas, panel surfaces, `1px solid #262a33` between
-  everything. Never pure `#000` or pure `#fff` — the pack colors are tuned neutrals.
-- **Lime and blue are accents, not surfaces.** Spark cells, marker dots, selected nav
-  states, focused outlines, primary buttons. Never background fills larger than a
-  button, never large text blocks. Blue links thru the site; lime means "active/here/now".
-- **Hard edges.** Border-radius ≤ 3px. Flat fills. No glow, no gradients, no glass,
-  no drop shadows except the fluid cursor's baked-in one.
-- **Mode = token flip + variant swap.** Implement a mode change as one block of
-  `--cudic-*` overrides (`[data-theme="light"] { … }`) plus the paired asset swap
-  above — never per-element hex hunting.
+- **One orange per view.** A second orange element is a bug, not emphasis.
+- **Lime is not a brand colour.** `#A3E635` is confined to game covers and their glow — never
+  buttons, never charts, never a status dot.
+- **Links do not get orange.** Links underline; the active tab owns the only orange underline on
+  the screen. Tabs carry their count: “Browse (14)”.
+- Mute (`#8C8C8C`) is the floor for small text — don't dim it further, and don't set prose in it.
+- Build the tint as `rgba()` of the one orange; never introduce a second orange hex.
 
-## 3. Icon color-key (`manifest.json` pixel letters)
+## 3. Type
 
-Each icon stores pixels as strings where every non-`.` cell is one of these letters.
-The SVG generator maps them to concrete hexes:
+**Geist** for everything read; **Geist Mono** for everything that is a label.
 
-| Letter | Hex | Meaning |
+| Role | Spec | Notes |
 |---|---|---|
-| `#` | `currentColor` | the ink body — set CSS `color:` to recolor |
-| `a` | `#b8f23a` | **the spark** — lime accent cell(s). Every icon has exactly one distinctive spark region. |
-| `o` | `#3f7cff` | blue accent fill (hearts, gems, screens — not orange) |
-| `s` | `#9fd0ff` | sky — small shading/light cells (flag poles, gem highlights) |
-| `r` | `#1b3fb8` | deep blue — shadow cells under `o` |
-| `y` | `#e3ff9a` | pale lime — highlight cells under `a` |
+| Display | Geist 600, clamp 38→58 px, −0.035em, line-height 0.98 | Sentence case, `text-wrap: balance` |
+| Heading | Geist 600, 20 px, −0.025em | Section headings 26 px |
+| Body | Geist 400, 16 / 1.55 | Primary text is `--white` or `--ash`, never orange |
+| Secondary | Geist 400, 15 px, `--ash` | The second sentence |
+| Micro-label | Mono 400, 11 px, +0.12em, uppercase, `--mute` | **The signature** — how Cudic points at something without raising its voice |
+| Figures | Mono 400, tabular | `16:17 · 14 games · 4 servers` |
+| Buttons | Geist 500, 14 px, −0.01em | 15 px icon, 7 px gap |
 
-`#1b3fb8` and `#e3ff9a` exist only inside icons; they're not palette tokens. Only the
-`#` cells are recolorable — the accent letters are fixed hexes.
+- Type scale: 11, 13, 15, 16, 20, 26, 38–58 px. Weights 400 / 500 / 600 only.
+- Uppercase lives in Geist Mono micro-labels. Never uppercase a Geist word.
+- Fonts are not bundled — Geist and Geist Mono come from Google Fonts (SIL OFL), weights
+  400 / 500 / 600.
 
-## 4. Icons (83, 8×8)
+## 4. Motion
 
-Drawn on a strict 8×8 grid: chunky 2-cell strokes, notched corners, one lime/blue
-spark per icon. Not freeform pixel art every way — it's a system: silhouettes read at
-16px, sparks make each icon recognizable among neighbors.
+Motion is the only decoration the product allows, built with **motion.dev**. Things are thrown and
+they settle.
 
-Roster by category:
+| Move | Value | Use |
+|---|---|---|
+| Touch spring | `stiffness 320 · damping 32` | Anything under the cursor. Release is the same spring, reversed. |
+| Follow spring | `stiffness 170 · damping 18` | Panels, sheets, the rail indicator — things the eye tracks. |
+| Reveal | 12 px below, 400 ms, stops | Ordinary content arriving. No blur, no scale. |
+| Overlay | 0.94 → 1 scale + blur | Layers only; ordinary content does neither. |
+| Hover/press | 160–180 ms ease-out | Colour, border, background — not position. |
 
-| Category (n) | Icons |
+- **One overshoot.** Two bounces is a toy; never settling is a bug. Both get fixed before merge.
+- Every animation answers one question — where did this come from, did the press land, or how do I
+  get out of the way. If it answers none, delete it.
+- Guard decorative motion behind `prefers-reduced-motion` and hold the still frame.
+- No parallax, no scroll-jacking, no infinite loops longer than a pulsing dot.
+
+## 5. Layers
+
+| Layer | Width | Spec |
+|---|---|---|
+| Dialog | 480 px | Max 80vh, r 16, 24 px padding, 58% backdrop, one primary action |
+| Menu | 220 px | 6 px padding, 32 px rows, r 12, anchored to the pointer and clamped |
+| Popover | 300 px | 8 px gap, r 12, anchored to its trigger |
+| Order | 40 · 50 · 55 | Menu/popover · dialog · toast |
+
+- **One layer deep.** A dialog never opens a dialog; a popover closes before its dialog opens.
+- Escape, outside click and a visible close all work; focus returns to the trigger, and scrolling
+  closes the layer rather than leaving it floating.
+- A menu points at the pointer, a popover at its trigger. Measure, flip, clamp, keep an 8 px gap —
+  never centre a context menu.
+- Modal means modal: trapped focus, locked background scroll, visible close.
+
+## 6. Parts
+
+Everything here is a component from the product, not a library of effects.
+
+- **Primary button** — signal fill, `--on-signal` text, r 6, 38 px high, 15 px padding, one per
+  view. Hover goes to `--signal-hover`.
+- **Ghost button** — transparent, 1 px `--line`, white text; hover fills `--raised` and the border
+  goes to `#4A4A4A`. Small variant: 32 px high, 13 px text.
+- **Rail item** — 44 px row, 20 px icon; active is a 3 px orange left edge plus the 14% tint,
+  never a pill, never an orange background.
+- **Tabs** — text plus a count in mute; active owns an orange 2 px underline. No pill tabs.
+- **Card** — `--panel` or `--raised`, 1 px line, r 12, 16 px padding; a game card lifts 4 px on
+  hover, nothing else lifts.
+- **Composer** — input on `#262626`, r 6; Send is the only orange in the row.
+- **Prompt pill** — 1 px signal border, r 999, Mono 11 caps with an 11 px icon.
+- **Badge** — Mono 11 caps, hairline border; counts go in `()` after the noun.
+- Hover states belong to activatable things only. No lift, border flash or shadow on a static row.
+
+## 7. Marks
+
+- The mark is **one letter**: a C with rounded shoulders and a soft notch. Never redraw it, never
+  re-letterspace it, never put a wordmark or an outline inside it.
+- `#010100` on `#FDFDFD` for the rail and favicon; `#FDFDFD` on `#0D0E10` for the install icon.
+  24 px minimum.
+- Protected files: `public/cudic_sfsvg.svg` and `public/cucid.svg` — never delete them.
+- The **cube is a cover motif, not a logo**. It belongs to a game with no art yet: lime wireframe,
+  CUDIC in mono, “no preview yet”. It never leaves the card, and if space is tight you drop the
+  square before you redraw the letter.
+
+## 8. Assets, and the pack (icons, emoji, cursors)
+
+The shipped screenshots and the 9:16 cut live in **`public/brand-shots/`** and are shown in
+sections 12 and 13 of the sheet:
+
+| File | What |
 |---|---|
-| navigation (12) | home, menu, close, plus, minus, arrow, arrow-left, arrow-up, arrow-down, check, search, more |
-| status (12) | info, warning, help, bell, clock, lock, eye, battery, wifi, power, settings, user |
-| files (14) | folder, file, save, upload, download, copy, trash, pencil, share, image, database, filter, grid, list |
-| studio (12) | terminal, code, bug, play, stop, sparkle, theme, remix, rocket, flag, cloud, chart |
-| social (12) | chat, mail, globe, heart, star, crown, trophy, bookmark, gift, pin, calendar, cart |
-| media (6) | music, volume, mute, camera, sun, moon |
-| game (15) | gamepad, dice, coin, gem, sword, shield, potion, key, skull, ghost, bolt, cube, cursor, target, bulb |
+| `gallery.webp`, `themes.webp`, `studio.webp` | 2880 × 1800 (2× of 1440 × 900) from `/games`, `/themes`, `/studio` |
+| `poster-9x16.webp` | 1080 × 1920 poster for the cut |
+| `cudic-promo-9x16.mp4` | 1080 × 1920, 13.2 s, H.264, 1.9 MB — `preload="none"` in the sheet |
 
-Usage rules:
+Shots are captured from the running product, never mocked, and always at 2× so they stay sharp on
+a retina screen. Re-capture rather than upscale; a shot that no longer matches the product is a bug
+in the sheet. **`/editor` is legacy** and is not a subject for shots.
 
-- **Scales in whole steps only: 16, 24, 32, 48, 64px** (and 2× of those for retina-crisp —
-  the SVG is already crisp at any step). In-between sizes smear the grid.
-- **Inline SVG, not `<img>`, when you want the recolor.** The ink path/rects use
-  `fill="currentColor"`, so inline SVG inherits `color:`. An `<img src="*.svg">` stays
-  the brand's raw color. Inline example:
+### The pack
 
-  ```html
-  <span class="menu-item" style="color:#f7f5ec">
-    <svg width="16" height="16" viewBox="0 0 8 8"><use href="/cudic-assets/icons/svg/navigation/home.svg"/></svg>
-    ... <!-- lime spark stays lime, ink body follows color -->
-  </span>
-  ```
+`public/cudic-assets/` still ships and its `manifest.json` stays the machine-readable record.
+**It is no longer the colour canon** — it was cut for the retired v2 palette.
 
-- **PNGs need `image-rendering: pixelated`** when a size is upscaled:
+```
+cudic-assets/
+  README.md             pack manual
+  manifest.json         per-icon pixel strings + cursor hotspots/fallbacks
+  brand/
+    colors.json         v2 palette (retired as colour canon)
+    tokens.css          --cudic-* variables (retired; do not import for new pages)
+    logo/               cudic-mark-*.svg — ink, cream, lime, blue recolors
+  icons/svg/<category>/ 83 pixel icons, 8×8 grid; png/{dark,light}/16|32|64
+  emoji/{svg,png}       30 emoji, 16×16 art at 2×
+  cursors/              pixel + fluid, cream + ink, 10 types, with CSS sheets
+```
 
-  ```css
-  .pixelated { image-rendering: pixelated; }
-  ```
+What this means in practice:
 
-- **PNG folder naming is inverted from what it looks like:**
-  `png/dark/*` = ink-colored icons **for light backgrounds**,
-  `png/light/*` = cream-colored icons **for dark backgrounds**. Sizes 16 / 32 / 64.
-- Use `<svg>` w/ `crispEdges` shape-rendering as the default; only reach for PNG when a
-  canvas/context layout or a favicon-level embedding needs it.
-- `icon-sheet.png` previews all 83; `manifest.json` can render any icon into a tiny
-  grid of `<span>` or `<rect>` cells — no file fetch, per-icon pixel string in JS:
+- **UI icons are Lucide** at 20 px (rail), 15 px (buttons) and 11 px (micro-labels), stroke 1.6.
+  The 83 pixel icons are game/legacy art; don't mix the two sets on one surface.
+- **Emoji yes, typed symbols no.** A real emoji belongs in reactions, playful copy and game
+  surfaces; keep it out of chrome and button labels, which state their outcome in Geist
+  ("Publish", "Open Studio", "Copy link").
+- **Never type a character and call it an icon.** No `✓` for a check, `→` for an arrow, `×` for
+  close, `★` for favourite, `•` or `▸` for a bullet or caret, `…` for a loader. At UI sizes those
+  characters come from whatever fallback font the OS happens to have, so they render at the wrong
+  weight and go pixelated next to real UI. Reach for the Lucide icon (check, arrow-right, x, star,
+  chevron-right) at a documented size, or say it in Geist text. The only exception is punctuation
+  inside a sentence or a mono metadata line — the middot in `16:17 · 14 games` is a separator, not
+  an icon.
+- **The pack's baked sparks are lime `#b8f23a` and blue `#3f7cff`** — the one place v2 colour
+  survives. Never let them carry meaning, and recolour the `a`/`o`/`s`/`r`/`y` letters to signal
+  and greys the next time the pack is regenerated (that is a v3.1 job, not done yet).
 
-  ```js
-  const rows = manifest.icons.coin.pixels;   // ["..aaaa..", ".aayyaa.", ...]
-  // 'a' → lime, 'y' → #e3ff9a, '#' → currentColor, '.' → skip
-  ```
-
-Never edit these SVGs by hand — patch the manifest's pixel grid and re-derive.
-
-## 5. Emoji (30)
-
-**Faces (20):** smile, grin, laugh, joy, wink, love, starstruck, cool, blush, tongue,
-kiss, neutral, sad, cry, shock, smirk, angry, cold, dead, sweat.
-**Objects (10):** heart, star, fire, bolt, crown, gem, skull, rocket, trophy, gamepad.
-
-- 32×32 — **16×16 pixel art shown at 2×**, ink outline with automatic
-  highlight/shadow tones so every face matches the pack's feel. PNGs at 64/128 are
-  nearest-neighbor scales of that same 16×16 art — never draw fresh detail into the
-  64/128 layers.
-- Where they're allowed: game payloads, reactions, celebratory/system pings, the two
-  gallery/gallery game grid moments. **Not** as UI icons (that's §4) or in buttons —
-  button labels state their outcome in plain Geist text (§7).
-
-## 6. Cursors (10 × 4 sheets)
-
-10 cursor types: default, link, text, crosshair, plus, move, resize-h, resize-v,
-not-allowed, wait.
+### Cursors
 
 | Variant | Look | Ships |
 |---|---|---|
-| `pixel-cream` | cream fill + ink edge, 8×8 cells | `.svg` + `.png` + Windows `.cur` |
-| `pixel-ink`  | ink fill + cream edge — for light UIs | `.svg` + `.png` + `.cur` |
-| `fluid-cream`/`fluid-ink` | smooth vector, black arrow w/ thick white outline + soft shadow | `.svg` only |
+| `pixel-cream` | cream fill + ink edge, 8×8 cells | `.svg` + `.png` + `.cur` |
+| `pixel-ink` | ink fill + cream edge, for light pages | `.svg` + `.png` + `.cur` |
+| `fluid-cream` / `fluid-ink` | smooth vector, black arrow, thick white outline, soft shadow | `.svg` only |
 
-| Cursor | pixel hot(x,y) | size | fluid hot(x,y) | fallback |
+| Cursor | pixel hot (x,y) | size | fluid hot | fallback |
 |---|---|---|---|---|
-| default | 2,2 | 20×28 | 6,4 | auto |
-| link | 2,2 | 20×28 | 6,4 | pointer |
-| text | 8,14 | 16×28 | 16,16 | text |
-| crosshair / plus / move / not-allowed / wait | 16,16 | 32×32 | 16,16 | crosshair / crosshair / move / not-allowed / wait |
-| resize-h | 16,8 | 32×16 | 16,16 | ew-resize |
-| resize-v | 8,16 | 16×32 | 16,16 | ns-resize |
+| default | 2,2 | 20×28 | 6,4 | `auto` |
+| link | 2,2 | 20×28 | 6,4 | `pointer` |
+| text | 8,14 | 16×28 | 16,16 | `text` |
+| crosshair / plus / move / not-allowed / wait | 16,16 | 32×32 | 16,16 | keyword |
+| resize-h | 16,8 | 32×16 | 16,16 | `ew-resize` |
+| resize-v | 8,16 | 16×32 | 16,16 | `ns-resize` |
 
-Hotspots are baked into the CSS; the `fallback` keyword keeps native muscle memory.
+- Fine pointers only; touch keeps the platform cursor.
+- Cream on the charcoal window, ink on light pages. Never a cream pointer on cream.
+- Every custom cursor ends in a CSS fallback keyword. Inputs and textareas keep the text cursor
+  and the native menu, so paste and selection never break.
+- The sheets set `cursor:` on `html, body` — one per page. Use the `.cursor-*` classes for
+  one-off elements.
 
-Drop in:
+## 9. Copy
 
-```html
-<link rel="stylesheet" href="/cudic-assets/cursors/css/pixel-cream.css">
-```
+- **Name the noun.** A game, a link, a profile, an editor. If the line survives a product swap, it
+  is not copy yet.
+- **One idea per sentence.** Two clauses are fine; three is a pitch. Cut the third, read it aloud.
+- **Sentence case, full stop.** Buttons say what happens next: Publish, Copy link, Open Studio. No
+  exclamation marks, no all-caps words.
+- **A claim needs a number or a date.** "Faster" is not a fact; "loads in under a second" is.
+- Labels over instructions; errors say what happened and what to do next, in the same calm voice.
 
-- **Caution: the sheets set `cursor:` on `html, body`** — linking one swaps every
-  cursor on the page. Pick one per page, not per section. If only some controls
-  should feel pixel, use the sheet's `.cursor-*` classes:
+## 10. Governance & migration
 
-  ```css
-  <a href="#" class="cursor-move">draggable</a>
-  ```
-
-- Browsers can't animate image cursors, so `wait` is one still frame. Don't try to
-  fake an animated cursor with JS — it thrashes the compositor.
-- The fluid pointer is already black+white+shadow: over the ink canvas use
-  `fluid-cream` (its white outline carries visibility); over a cream page use the
-  `fluid-ink` variant.
-
-## 7. Typography
-
-- **Geist** (300–700) for everything: headings 600, UI/buttons 500, body 400.
-  **Geist Mono** only for code, identifiers, hex values, numeric readouts, paths.
-- Headings are sentence-case for content, allowed UPPERCASE only in the display
-  moments (the `/brand` hero). Letter-spacing: tight on display sizes (-0.04em),
-  neutral in UI (-0.01em), +0.1em ONLY in Geist Mono micro-labels — not in Geist.
-- Type scale rides the grid: 12, 14, 16, 20, 24, 32, 48, 64px — multiples of the
-  4px pixel cell and the 8px layout rhythm.
-- Emoji as glyphs: never inside a sentence for play; keep in the §5 slots.
-- Buttons **state the outcome** ("Publish game", not "Submit").
-
-## 8. Motion
-
-| Token | Value | Use |
-|---|---|---|
-| `--cudic-fast` | 120ms | hovers, focus rings, tooltip pop |
-| `--cudic-base` | 240ms | fades, accordion, message slide-in |
-| `--cudic-slow` | 600ms | page-level reveals |
-| `--cudic-ease` | `steps(4)` | **the signature** — motion ticks like frame animation, matching the pixel art |
-
-- `steps(4)` on anything default (opacity/transform), `steps(1)` (instant) for
-  state collapses, standard `ease-out` only when a slide needs momentum.
-- One deliberate motion moment per screen. Guard all decorative motion behind
-  `prefers-reduced-motion` (hold the still frame).
-- No parallax, no scroll-jacking, no infinite loops longer than a pulsing dot.
-
-## 9. Applying it to pages
-
-Page recipe (dark):
-
-1. Canvas: `#0d0e10`; content in `#14161b` panels behind `1px #262a33` hairlines.
-2. Vertical hairline grid running behind everything on wide screens; sections divide
-   with horizontal hairlines. Every element aligns to that grid — that's the skeleton.
-3. Nav band: thin bar, hairline bottom border, Geist Medium links; secondary links in
-   `#9a9a94`. Active page gets a lime 2px inset underline, not a pill.
-4. Hero (editorial, like `/brand`): massive tight display line (Geist 700, ≥ clamp
-   3rem → 7rem, -0.045em), one line of muted sub, one lime CTA. Side accents: hard-
-   edged lime/blue rectangles or a single pixel sprite. Max one sprite per page,
-   4px-cell art, off to the side; never over text or controls.
-5. Buttons: flat fill, 3px radius max. Primary = lime fill with ink text (accent —
-   one per view). Secondary = transparent with 1px line border. Destructive = blue,
-   never red — the pack has no red; lean on icon + copy to signal danger.
-6. Footer: hairline top border, Geist Mono micro-caption.
-
-Component specs:
-
-- Card/panel: `#14161b`, `1px #262a33` border, 16px padding, hover = border-color
-  `#3f7cff` (no lift, no shadow) — hover only on activatable things.
-- Selected row / tab: lime 2px inset left edge or underline; never a lime background.
-- Badge/pill: Geist Mono 12px, hairline border, ink text; live/online shows the lime
-  spark via the `bolt` or `sparkle` icon at 12px.
-- Focus ring: `2px solid #3f7cff` (blue = keyboards & focus), offset 2px, visible on
-  dark and light.
-
-Accessibility:
-
-- Body text is cream (17.7:1). Muted (`#9a9a94`, 6.8:1) for captions only.
-- Blue (5.1:1) is the floor for body-size text — don't dim it further.
-- Lime marker meaning is always paired with text or an icon — lime color alone is not
-  the only signal.
-- Respect `prefers-reduced-motion`; keep one motion moment per screen.
-
-## 10. Scope & governance
-
-- The brand mark used at chrome level stays `public/cudic_sfsvg.svg` + `cucid.svg`
-  (protected files — never delete). `cudic-assets/brand/logo/cudic-mark-*.svg` is the
-  pack's own rendering of the same mark; use it where a recolor variant is needed.
-- `/editor` and `/studio` keep their IDE-dark chrome and existing accent set — this
-  system governs the **public pages and the `/brand` kit** (marketing, galleries,
-  store, profile, chat surfaces).
-- `public/brand-app.html` is the **issue 01 archive** of the pre-v2 orange-on-steel
-  identity (steel-blue desk, charcoal window, `#FF8C1A` signal, 6–16 px radii,
-  spring motion). It is kept for reference and is not canon; it does not define
-  tokens, radii, motion or copy for new work. New surfaces take the ink/cream/
-  lime system and ≤3 px corners above.
-- Adding an icon: draw it on the 8×8 grid in `manifest.json` (letters from §3),
-  regenerate the SVG/PNG layers, bump the README counter. Never hand-patch a
-  generated file.
-- Breaking changes to palette or icon grid = major version bump here + in README.
+- **The sheet is the source of truth.** New work starts from `public/brand-app.html` — copy its
+  tokens, not the v2 pack's.
+- **Migration:** the landing page and the older marketing pages still wear the previous skin. Port
+  them to the sheet before citing them as examples of anything.
+- `/studio` keeps its IDE-dark chrome and its own blue accent. This system governs the public
+  surfaces: landing, galleries, store, profile, chat, and the `/brand` kit.
+- `/editor` is **legacy** — kept for memory, not a product. It gets no new work and no shots: a
+  screenshot of `/editor` is not a screenshot of Studio, so never caption one as the other.
+- Adding an icon: add the Lucide icon at the documented sizes — don't hand-draw a replacement, and
+  don't patch the generated pack files.
+- Recolouring the pack's spark letters to signal, or replacing the pack's icons with Lucide in
+  game surfaces, are v3.1 jobs. Palette or grid changes are a major version bump here.

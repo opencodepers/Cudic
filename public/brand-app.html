@@ -6,8 +6,8 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="theme-color" content="#B0C4DE" />
-<title>Cudic — brand sheet, issue 01 (archive)</title>
-<meta name="description" content="Cudic brand sheet, issue 01 — an archive of the pre-v2 orange-on-steel identity. Superseded by DESIGN.md v2 (ink, cream, lime)." />
+<title>Cudic — brand sheet, issue 01</title>
+<meta name="description" content="Cudic's brand sheet, issue 01 — a steel-blue desk, a charcoal window and one orange signal. Type, colour, spacing, motion and components in one place." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -172,11 +172,11 @@
   .sec-h h2 { font-size: 26px; font-weight: 600; letter-spacing: -0.025em; }
   .lede { color: var(--ash); font-size: 15px; line-height: 1.6; max-width: 66ch; margin-bottom: 26px; text-wrap: pretty; }
   .lede b { color: var(--white); font-weight: 500; }
-  .archive-note {
+  .sheet-note {
     margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--line);
     max-width: 52ch; color: var(--ash); font-size: 11.5px; line-height: 1.65;
   }
-  .archive-note code { font-family: var(--mono); font-size: 11px; color: var(--white); }
+  .sheet-note code { font-family: var(--mono); font-size: 11px; color: var(--white); }
 
   /* ---------------- hero ---------------- */
   .hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); gap: 30px; align-items: start; }
@@ -1302,6 +1302,45 @@
   .colophon a { color: var(--ash); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; text-decoration-color: #454545; }
   .colophon a:hover { color: var(--white); text-decoration-color: var(--signal); }
 
+  /* ---------------- icons & glyphs ---------------- */
+  .glyph-demo { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .glyph-case { background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px 15px; }
+  .glyph-case--bad { border-color: #4a3a2a; }
+  .glyph-tag { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mute); margin-bottom: 9px; }
+  .glyph-case--bad .glyph-tag { color: #c98a3f; }
+  .glyph-line { display: flex; align-items: center; gap: 8px; padding: 7px 0; font-size: 14px; color: var(--white); }
+  .glyph-line + .glyph-line { border-top: 1px solid var(--line-soft); }
+  .glyph-line svg { width: 15px; height: 15px; flex: none; }
+  .glyph-mark { font-family: var(--mono); font-size: 15px; line-height: 1; width: 15px; text-align: center; color: var(--mute); }
+  .glyph-note { display: block; margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line-soft); font-size: 12px; color: var(--mute); line-height: 1.5; }
+  .emoji-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px; }
+  .emoji-row .set { font-size: 22px; letter-spacing: 4px; line-height: 1; }
+  .emoji-row p { font-size: 13px; color: var(--ash); max-width: 62ch; }
+  .emoji-row b { color: var(--white); font-weight: 500; }
+
+  /* ---------------- shots & assets ---------------- */
+  .shot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .shot { margin: 0; background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: clip; }
+  .shot--wide { grid-column: 1 / -1; }
+  .shot img { display: block; width: 100%; height: auto; }
+  .shot figcaption { padding: 11px 14px 13px; display: flex; flex-wrap: wrap; gap: 3px 10px; align-items: baseline; }
+  .shot figcaption b { color: var(--white); font-size: 13.5px; font-weight: 500; }
+  .shot figcaption .mono { color: var(--mute); }
+  .shot figcaption em { flex: 1 1 100%; font-style: normal; color: var(--ash); font-size: 12.5px; line-height: 1.55; }
+  .asset-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; margin-top: 12px; }
+  .asset { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-sm); text-decoration: none; transition: border-color 160ms ease-out, background-color 160ms ease-out; }
+  .asset:hover { border-color: var(--signal); background: #3a3a3a; }
+  .asset b { color: var(--white); font-size: 13.5px; font-weight: 500; }
+  .asset span { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mute); }
+  .verticals { display: grid; grid-template-columns: minmax(200px, 260px) 1fr; gap: 18px; align-items: start; margin-top: 12px; }
+  .verticals video { width: 100%; display: block; border-radius: var(--r-lg); border: 1px solid var(--line); background: #111; }
+  .verticals .vcap { display: grid; gap: 10px; }
+
+  @media (max-width: 760px) {
+    .glyph-demo, .shot-grid, .verticals { grid-template-columns: 1fr; }
+    .shot--wide { grid-column: auto; }
+  }
+
   /* ---------------- rail tooltip + toast ---------------- */
   .tip {
     position: fixed; z-index: 50; left: 66px; pointer-events: none;
@@ -1441,6 +1480,9 @@
     <a class="rail-link" href="#voice" data-label="Voice" aria-label="Voice"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" data-lucide="message-square" aria-hidden="true" class="lucide lucide-message-square"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"></path></svg></a>
     <a class="rail-link" href="#parts" data-label="Parts" aria-label="Parts"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" data-lucide="blocks" aria-hidden="true" class="lucide lucide-blocks"><path d="M10 22V7a1 1 0 0 0-1-1H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5a1 1 0 0 0-1-1H2"></path><rect x="14" y="2" width="8" height="8" rx="1"></rect></svg></a>
     <a class="rail-link" href="#specs" data-label="Specs" aria-label="Specs"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" data-lucide="ruler" aria-hidden="true" class="lucide lucide-ruler"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"></path><path d="m14.5 12.5 2-2"></path><path d="m11.5 9.5 2-2"></path><path d="m8.5 6.5 2-2"></path><path d="m17.5 15.5 2-2"></path></svg></a>
+    <a class="rail-link" href="#icons" data-label="Icons" aria-label="Icons and glyphs"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" x2="9.01" y1="9" y2="9"></line><line x1="15" x2="15.01" y1="9" y2="9"></line></svg></a>
+    <a class="rail-link" href="#shots" data-label="Shots" aria-label="Product shots"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg></a>
+    <a class="rail-link" href="#media" data-label="Media" aria-label="Video and downloads"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M7 3v18"></path><path d="M3 7.5h4"></path><path d="M3 12h18"></path><path d="M3 16.5h4"></path><path d="M17 3v18"></path><path d="M17 7.5h4"></path><path d="M17 16.5h4"></path></svg></a>
   </div>
   <div class="rail-foot"><span class="rail-me" aria-hidden="true">01</span></div>
 </nav>
@@ -1469,7 +1511,7 @@
             charcoal window on a steel-blue desk. This is the short version of how it looks,
             moves and talks — written by the people who ship it.
           </p>
-          <p class="archive-note">Issue 01 archive — this sheet records the pre-v2 orange-on-steel identity. The current system is DESIGN.md v2: ink, cream, lime; 3 px corners; <code>steps(4)</code> motion.</p>
+          <p class="sheet-note">This is the direction for the whole site — steel-blue desk, charcoal window, one orange signal. The landing page still wears the older skin until it is rebuilt on this sheet.</p>
           <div class="hero-acts">
             <a class="btn btn--go" href="#window"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" data-lucide="arrow-down-right" aria-hidden="true" class="lucide lucide-arrow-down-right"><path d="m7 7 10 10"></path><path d="M17 7v10H7"></path></svg> Read the rules</a>
             <a class="btn btn--ghost" href="#colour">Jump to colour</a>
@@ -2256,10 +2298,129 @@
         </tbody>
       </table>
     </section>
+
+    <!-- 11 ICONS & GLYPHS --------------------------------------------->
+    <section class="sec" id="icons">
+      <div class="sec-h"><span class="n">11</span><h2>Lucide draws, emoji play, nothing is typed</h2></div>
+      <p class="lede">
+        Every symbol is a <b>Lucide SVG</b> at one of three sizes. Emoji are welcome where a face
+        belongs. A typed character never stands in for an icon: the OS picks the font, so
+        <code>&#10003;</code> sits off the baseline, changes weight between machines and pixelates
+        at label sizes.
+      </p>
+
+      <table class="specs">
+        <thead><tr><th scope="col">Size</th><th scope="col">Stroke</th><th scope="col">Where it applies</th></tr></thead>
+        <tbody>
+          <tr><td>20 px</td><td>1.6</td><td>Rail items, panel actions, empty states.</td></tr>
+          <tr><td>15 px</td><td>1.6</td><td>Inside a button, 7 px from the label.</td></tr>
+          <tr><td>11 px</td><td>1.6</td><td>Mono micro-labels and prompt pills — the icon matches the cap height.</td></tr>
+          <tr><td>Inline <code>&lt;svg&gt;</code></td><td>currentColor</td><td>Always. Recolour with <code>color:</code>, never a second file and never a CSS filter.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="glyph-demo">
+        <div class="glyph-case glyph-case--bad">
+          <span class="glyph-tag">Typed character</span>
+          <p class="glyph-line"><span class="glyph-mark" aria-hidden="true">&#10003;</span> Message sent</p>
+          <p class="glyph-line"><span class="glyph-mark" aria-hidden="true">&#8594;</span> Next</p>
+          <p class="glyph-line"><span class="glyph-mark" aria-hidden="true">&#9733;</span> Favourite</p>
+          <span class="glyph-note">Outside the grid, off the baseline, a different glyph on every OS.</span>
+        </div>
+        <div class="glyph-case">
+          <span class="glyph-tag">Lucide, 15 px</span>
+          <p class="glyph-line"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg> Message sent</p>
+          <p class="glyph-line"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg> Next</p>
+          <p class="glyph-line"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg> Favourite</p>
+          <span class="glyph-note">Same box, same weight, snaps to the 4 px grid and inherits <code>currentColor</code>.</span>
+        </div>
+      </div>
+
+      <div class="rules" style="margin-top:12px">
+        <div class="rule"><span class="n">01</span><h3>Three sizes only</h3><p>20, 15 and 11 px at 1.6 stroke. Never scale a 16 up to 18 to make a row line up — change the row.</p></div>
+        <div class="rule"><span class="n">02</span><h3>Emoji get one home</h3><p>Reactions, game payloads and a celebration. Not a button label, not a control, not a bullet.</p></div>
+        <div class="rule"><span class="n">03</span><h3>The label does the work</h3><p>"Send", "Copy link", "Next" read fine without a symbol. The icon is a second voice, never the only one.</p></div>
+        <div class="rule"><span class="n">04</span><h3>One set per surface</h3><p>Lucide across the UI. The pixel pack is game art; the two never share a row.</p></div>
+      </div>
+
+      <div class="emoji-row">
+        <span class="set" aria-hidden="true">&#128512; &#127918; &#9889; &#127942;</span>
+        <p><b>This is the emoji place.</b> A reaction, a game card, a win. An emoji is never a close button, a send arrow or a star rating — those are Lucide, because they sit in a 15 px box and have to line up.</p>
+      </div>
+    </section>
+
+    <!-- 12 SHOTS ------------------------------------------------------>
+    <section class="sec" id="shots">
+      <div class="sec-h"><span class="n">12</span><h2>The product, as shipped</h2></div>
+      <p class="lede">
+        Three surfaces at <b>2880 × 1800</b> (2× of 1440 × 900), captured 27 November 2026 from
+        <code>/games</code>, <code>/themes</code> and <code>/studio</code>. Read them next to the
+        rules: if a shot and a rule disagree, <b>the shot wins and this sheet gets fixed</b>.
+        <code>/editor</code> is not here — it is legacy, kept for memory, not a product.
+      </p>
+
+      <div class="shot-grid">
+        <figure class="shot shot--wide reveal">
+          <img src="/brand-shots/gallery.webp" width="2880" height="1800" loading="lazy" decoding="async" alt="The game gallery: steel desk, charcoal window, 60 px rail and a grid of game cards with orange Play buttons">
+          <figcaption>
+            <b>Gallery</b><span class="mono">/games · 2880 × 1800</span>
+            <em>The window on the desk, tabs carrying their count, one prompt pill, five cards with the same orange Play. The rail's active item is a 3 px edge plus the 14% tint; nothing else in the grid is orange.</em>
+          </figcaption>
+        </figure>
+        <figure class="shot reveal">
+          <img src="/brand-shots/themes.webp" width="2880" height="1800" loading="lazy" decoding="async" alt="The theme packs page: a hero with a warm wash and a single pack card with an orange Install button">
+          <figcaption>
+            <b>Themes</b><span class="mono">/themes · 2880 × 1800</span>
+            <em>Two orange controls on the page — Browse packs in the hero and Install in the card. The hero's warm wash and the pack's pink and violet art are content, never the brand.</em>
+          </figcaption>
+        </figure>
+        <figure class="shot reveal">
+          <img src="/brand-shots/studio.webp" width="2880" height="1800" loading="lazy" decoding="async" alt="Studio, at the starter-template step: a project tree on the left and a list of game starters">
+          <figcaption>
+            <b>Studio</b><span class="mono">/studio · 2880 × 1800</span>
+            <em>The one surface outside this sheet: Studio keeps its own IDE chrome and blue accent, and opens on the starter palette. Same rule though — the tool reads as a tool.</em>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 13 MEDIA ------------------------------------------------------>
+    <section class="sec" id="media">
+      <div class="sec-h"><span class="n">13</span><h2>The 9:16 cut, and where the files live</h2></div>
+      <p class="lede">
+        One vertical piece, built from the same screens: <b>1080 × 1920</b>, H.264, with a matching
+        poster so a feed never shows a black rectangle. Everything here also ships as a file —
+        take the one you need rather than re-exporting from a screenshot.
+      </p>
+
+      <div class="verticals">
+        <video src="/brand-shots/cudic-promo-9x16.mp4" poster="/brand-shots/poster-9x16.webp" controls playsinline preload="none" aria-label="Cudic promo, 9:16"></video>
+        <div class="vcap">
+          <p class="mono" style="color:var(--mute)">1080 × 1920 · H.264 · 1.9 MB</p>
+          <p style="color:var(--ash);font-size:14px;line-height:1.6">
+            Three beats, one per surface: the gallery, a theme pack, the studio. Lime stays on the
+            cover art and the cuts; the only orange is a call to action. Captions are Geist, labels
+            are mono caps, and the mark never moves.
+          </p>
+          <p style="color:var(--mute);font-size:12.5px;line-height:1.6">
+            <code>preload="none"</code> — the video only downloads when someone presses play. Keep that:
+            a 1.9 MB autoplay would cost more than the whole sheet.
+          </p>
+        </div>
+      </div>
+
+      <div class="asset-list">
+        <a class="asset" href="/brand-shots/gallery.webp" download><b>Gallery shot</b><span>WebP · 2880 × 1800 · 149 KB</span></a>
+        <a class="asset" href="/brand-shots/themes.webp" download><b>Themes shot</b><span>WebP · 2880 × 1800 · 85 KB</span></a>
+        <a class="asset" href="/brand-shots/studio.webp" download><b>Studio shot</b><span>WebP · 2880 × 1800 · 44 KB</span></a>
+        <a class="asset" href="/brand-shots/poster-9x16.webp" download><b>Poster</b><span>WebP · 1080 × 1920 · 81 KB</span></a>
+        <a class="asset" href="/brand-shots/cudic-promo-9x16.mp4" download><b>Promo cut</b><span>MP4 · 1080 × 1920 · 1.9 MB</span></a>
+      </div>
+    </section>
   </main>
 
   <footer class="colophon">
-    <p>Issue 01 archive, 16 November 2026. Set in Geist and Geist Mono. Icons by Lucide. Motion by motion.dev. Current system: DESIGN.md v2.</p>
+    <p>Issue 01, 16 November 2026. Set in Geist and Geist Mono. Icons by Lucide. Motion by motion.dev. The reference sheet for new work.</p>
     <p class="mono" style="color:var(--ash)">Made in public · shipped daily</p>
   </footer>
 </div>
